@@ -1,0 +1,105 @@
+version: "3.8"
+
+services:
+  main-app:
+    build:
+      context: ./main-app
+      dockerfile: Dockerfile
+    ports:
+      - "${MAIN_APP_PORT:-8000}:80"
+    environment:
+      - APP_ENV=local
+      - APP_URL=http://main-app
+#      - DB_CONNECTION=mysql
+#      - DB_HOST=mysql                # Один и тот же хост
+#      - DB_PORT=3306
+#      - DB_DATABASE=main_db          # разное имя БД
+#      - DB_USERNAME=root
+#      - DB_PASSWORD=root
+    volumes:
+      - ./main-app:/var/www/html
+    networks:
+      - internal
+    depends_on:
+#      - mysql
+      - redis
+
+  service-a:
+    build:
+      context: ./service-a
+      dockerfile: Dockerfile
+    ports:
+      - "${SERVICE_A_PORT:-8081}:80"
+    environment:
+      - APP_ENV=local
+      - APP_URL=http://service-a
+#      - DB_CONNECTION=mysql
+#      - DB_HOST=mysql
+#      - DB_PORT=3306
+#      - DB_DATABASE=service_a_db     # своя БД
+#      - DB_USERNAME=root
+#      - DB_PASSWORD=root
+    volumes:
+      - ./service-a:/var/www/html
+    networks:
+      - internal
+    depends_on:
+#      - mysql
+      - redis
+
+  service-b:
+    build:
+      context: ./service-b
+      dockerfile: Dockerfile
+    ports:
+      - "${SERVICE_B_PORT:-8082}:80"
+    environment:
+      - APP_ENV=local
+      - APP_URL=http://service-b
+#      - DB_CONNECTION=mysql
+#      - DB_HOST=mysql
+#      - DB_PORT=3306
+#      - DB_DATABASE=service_b_db
+#      - DB_USERNAME=root
+#      - DB_PASSWORD=root
+    volumes:
+      - ./service-b:/var/www/html
+    networks:
+      - internal
+    depends_on:
+#      - mysql
+      - redis
+
+  # ----- Единый сервер MySQL -----
+#  mysql:
+#    image: mysql:8.0
+#    ports:
+#      - "${MYSQL_PORT:-3306}:3306"
+#    environment:
+#      MYSQL_ROOT_PASSWORD: root
+#      # Не создаём БД автоматически – создадим вручную или через миграции
+#    volumes:
+#      - mysql-data:/var/lib/mysql
+#    networks:
+#      - internal
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - internal
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "${MAILHOG_PORT:-8025}:8025"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  mysql-data:
