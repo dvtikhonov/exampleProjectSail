@@ -1,5 +1,9 @@
 FROM laravelsail/php83-composer:latest
 
+# Устанавливаем Node.js 20.x (LTS) и npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
 # Устанавливаем расширение pdo_mysql
 RUN docker-php-ext-install pdo_mysql
 
