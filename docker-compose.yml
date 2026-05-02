@@ -1,19 +1,19 @@
-version: "3.8"
-
 services:
   main-app:
     build:
       context: ./main-app
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${MAIN_APP_PORT:-8000}:80"
       - "5173:5173"
     environment:
       - APP_ENV=local
       - APP_URL=http://main-app
-      - XDEBUG_MODE=debug
-      - XDEBUG_CONFIG=client_host=host.docker.internal client_port=9003
-      - PHP_IDE_CONFIG=serverName=main-app   # для PhpStorm
+      - XDEBUG_MODE=debug,develop
+      - XDEBUG_CONFIG=client_host=${XDEBUG_CLIENT_HOST:-host.docker.internal} client_port=${XDEBUG_CLIENT_PORT:-9003} start_with_request=yes connect_timeout_ms=5000 log_level=7 log=/tmp/xdebug.log
+      - PHP_IDE_CONFIG=serverName=main-app
 #      - DB_CONNECTION=mysql
 #      - DB_HOST=mysql                # Один и тот же хост
 #      - DB_PORT=3306

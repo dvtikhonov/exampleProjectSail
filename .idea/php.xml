@@ -47,4 +47,13 @@
   <component name="PhpProjectSharedConfiguration" php_language_level="8.1">
     <option name="suggestChangeDefaultLanguageLevel" value="false" />
   </component>
+  <component name="PhpServers">
+    <servers>
+      <server host="localhost" id="3f366cc7-1deb-4f2b-858d-30a83eaf5e25" name="main-app" port="8000" use_path_mappings="true">
+        <path_mappings>
+          <mapping local-root="$PROJECT_DIR$/main-app" remote-root="/var/www/html" />
+        </path_mappings>
+      </server>
+    </servers>
+  </component>
 </project>

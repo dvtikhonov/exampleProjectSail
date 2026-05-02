@@ -7,6 +7,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # Устанавливаем расширение pdo_mysql
 RUN docker-php-ext-install pdo_mysql
 
+# Устанавливаем Xdebug
+RUN pecl install xdebug \
+    && docker-php-ext-enable xdebug
+
+# Копируем конфиг Xdebug (создадим ниже)
+COPY xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+
+
 # Рабочая директория внутри контейнера
 WORKDIR /var/www/html
 
