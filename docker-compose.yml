@@ -22,6 +22,16 @@ services:
 #      - DB_PASSWORD=root
     volumes:
       - ./main-app:/var/www/html
+#    volumes:
+#      - ./main-app/app:/var/www/html/app
+#      - ./main-app/routes:/var/www/html/routes
+#      - ./main-app/config:/var/www/html/config
+#      - ./main-app/database:/var/www/html/database
+#      - ./main-app/resources:/var/www/html/resources
+#      - ./main-app/tests:/var/www/html/tests
+#      # НЕ монтируйте vendor, storage, bootstrap/cache, .env (если он у вас на хосте неполный)
+#    entrypoint: ""
+#    command: ["php", "-S", "0.0.0.0:8000", "-t", "public"]
     networks:
       - internal
     depends_on:
@@ -33,7 +43,7 @@ services:
       context: ./service-a
       dockerfile: Dockerfile
     ports:
-      - "${SERVICE_A_PORT:-8081}:80"
+      - "${SERVICE_A_PORT:-8081}:8000"
     environment:
       - APP_ENV=local
       - APP_URL=http://service-a
@@ -67,7 +77,14 @@ services:
 #      - DB_USERNAME=root
 #      - DB_PASSWORD=root
     volumes:
-      - ./service-b:/var/www/html
+#      - ./service-b:/var/www/html
+      - ./service-b/app:/var/www/html/app
+      - ./service-b/routes:/var/www/html/routes
+      - ./service-b/config:/var/www/html/config
+      - ./service-b/database:/var/www/html/database
+      - ./service-b/resources:/var/www/html/resources
+      - ./service-b/tests:/var/www/html/tests
+      # НЕ монтируем vendor, storage, bootstrap/cache
     networks:
       - internal
     depends_on:
@@ -98,6 +115,18 @@ services:
     image: mailhog/mailhog
     ports:
       - "${MAILHOG_PORT:-8025}:8025"
+    networks:
+      - internal
+
+  # API Gateway на Nginx
+  gateway:
+    build: ./nginx-gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - main-app
+      - service-a
+      - service-b
     networks:
       - internal
 

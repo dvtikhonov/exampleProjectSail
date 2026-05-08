@@ -33,6 +33,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // 3. Получаем аутентифицированного пользователя
+        $user = $request->user();
+
+        // 4. Создаём Passport-токен и сохраняем в сессию
+        $token = $user->createTokenForSession();
+        session(['passport_token' => $token]);
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
@@ -41,6 +48,12 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Удаляем все токены пользователя (необязательно, но можно)
+        $request->user()?->tokens()->delete();
+
+        // Очищаем passport_token из сессии
+        $request->session()->forget('passport_token');
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
