@@ -34,5 +34,11 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'service_a' => [
+        'gateway_url' => env('SERVICE_A_GATEWAY_URL', 'http://gateway/api/a'),
+    ],
+    'service_b' => [
+        'gateway_url' => env('SERVICE_B_GATEWAY_URL', 'http://gateway/api/b'),
+    ],
 
 ];

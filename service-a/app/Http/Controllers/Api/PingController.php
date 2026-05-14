@@ -24,7 +24,7 @@ class PingController extends Controller
         $lll = hash('sha256', explode(' ', $token)[1] ?? '');
         Log::info('pingS. id='. $lll, $request->all());
 
-
+        return response()->json(['status' => 'ok', 'token' => $token], 200);
 
     $token = $request->bearerToken();
     if (!$token) {
