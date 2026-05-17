@@ -10,7 +10,3 @@ Route::post('/auth/check', [AuthCheckController::class, 'check']);
 //});
 // todo используется т.к.  LUA не заработал
 Route::match(['get','post'],'/auth/verify', [\App\Http\Controllers\Api\AuthVerifyController::class, 'verify']);
-//    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
-
-// todo надо уточнить где потерялся 'client'
-//->middleware('client');

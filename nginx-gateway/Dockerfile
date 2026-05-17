@@ -15,5 +15,3 @@ RUN mkdir -p /var/cache/nginx/auth_cache && chown nobody:nobody /var/cache/nginx
 
 RUN ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
     && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log
-
-#CMD ["nginx", "-g", "daemon off;"]

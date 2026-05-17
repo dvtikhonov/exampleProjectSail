@@ -1,3 +1,8 @@
+volumes:
+  mysql-data:
+  main-app-storage:
+  main-app-bootstrap:
+
 services:
   main-app:
     build:
@@ -6,11 +11,14 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "${MAIN_APP_PORT:-80}:8000"
-      - "5173:5173"
+      - "${MAIN_APP_PORT:-80}:8000" # внешний 80 -> внутренний 8000 (Nginx)
+      - "5173:5173"                  # Vite
     environment:
       - APP_ENV=local
       - APP_URL=http://main-app
+      - DB_CONNECTION=mysql
+      - DB_HOST=host.docker.internal   # доступ к внешнему MySQL
+      - DB_PORT=3306
       - XDEBUG_MODE=debug,develop
       - XDEBUG_CONFIG=client_host=${XDEBUG_CLIENT_HOST:-host.docker.internal} client_port=${XDEBUG_CLIENT_PORT:-9003} start_with_request=yes connect_timeout_ms=5000 log_level=7 log=/tmp/xdebug.log
       - PHP_IDE_CONFIG=serverName=main-app
@@ -20,16 +28,19 @@ services:
 #      - DB_DATABASE=main_db          # разное имя БД
 #      - DB_USERNAME=root
 #      - DB_PASSWORD=root
-    volumes:
-      - ./main-app:/var/www/html
 #    volumes:
-#      - ./main-app/app:/var/www/html/app
-#      - ./main-app/routes:/var/www/html/routes
-#      - ./main-app/config:/var/www/html/config
-#      - ./main-app/database:/var/www/html/database
-#      - ./main-app/resources:/var/www/html/resources
-#      - ./main-app/tests:/var/www/html/tests
+#      - ./main-app:/var/www/html
+    volumes:
+      - ./main-app/app:/var/www/html/app
+      - ./main-app/routes:/var/www/html/routes
+      - ./main-app/config:/var/www/html/config
+      - ./main-app/database:/var/www/html/database
+      - ./main-app/resources:/var/www/html/resources
+      - ./main-app/tests:/var/www/html/tests
+      - ./main-app/public:/var/www/html/public
 #      # НЕ монтируйте vendor, storage, bootstrap/cache, .env (если он у вас на хосте неполный)
+      - main-app-storage:/var/www/html/storage
+      - main-app-bootstrap:/var/www/html/bootstrap/cache
 #    entrypoint: ""
 #    command: ["php", "-S", "0.0.0.0:8000", "-t", "public"]
     networks:
@@ -145,6 +156,3 @@ services:
 networks:
   internal:
     driver: bridge
-
-volumes:
-  mysql-data:

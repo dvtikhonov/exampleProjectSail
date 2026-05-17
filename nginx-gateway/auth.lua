@@ -23,15 +23,13 @@ end
 local function verify_token(token)
     local httpc = http.new()
     httpc:set_timeout(2000)
---  надо уточнить     http://main-app:8000/api/auth/verify --- introspect заменили на token
     local url = "http://main-app:8000/api/auth/verify"
     ngx.log(ngx.INFO, "Verifying token at URL: ", url)  -- лог для проверки
 
     local res, err = httpc:request_uri(url, {
         method = "GET",
---        body = "token=" .. ngx.escape_uri(token),
+        body = "token=" .. ngx.escape_uri(token),
         headers = {
---            ["Content-Type"] = "application/x-www-form-urlencoded",
             ["Authorization"] = "Bearer " .. token,
             ["Host"] = "main-app",
         }
