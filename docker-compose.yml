@@ -1,7 +1,7 @@
-volumes:
-  mysql-data:
-  main-app-storage:
-  main-app-bootstrap:
+#volumes:
+#  mysql-data:
+#  main-app-storage:
+#  main-app-bootstrap:
 
 services:
   main-app:
@@ -38,9 +38,9 @@ services:
       - ./main-app/resources:/var/www/html/resources
       - ./main-app/tests:/var/www/html/tests
       - ./main-app/public:/var/www/html/public
-#      # НЕ монтируйте vendor, storage, bootstrap/cache, .env (если он у вас на хосте неполный)
-      - main-app-storage:/var/www/html/storage
-      - main-app-bootstrap:/var/www/html/bootstrap/cache
+      # bind mount вместо томов
+      - ./main-app/storage:/var/www/html/storage
+      - ./main-app/bootstrap:/var/www/html/bootstrap/cache
 #    entrypoint: ""
 #    command: ["php", "-S", "0.0.0.0:8000", "-t", "public"]
     networks:
