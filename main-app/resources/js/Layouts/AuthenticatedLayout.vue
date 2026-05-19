@@ -32,9 +32,13 @@ if (document.querySelector('[data-user-authenticated]') !== null) {
 
 <template>
     <div>
-        <div class="min-h-screen bg-gray-100">
+        <div
+            class="min-h-screen"
+            :class="route().current('objectsSalesOutlets.darkIndex') ? 'bg-slate-950' : 'bg-gray-100'"
+        >
             <nav
-                class="border-b border-gray-100 bg-white"
+                class="border-b"
+                :class="route().current('objectsSalesOutlets.darkIndex') ? 'border-slate-800 bg-slate-950/95' : 'border-gray-100 bg-white'"
             >
                 <!-- Primary Navigation Menu -->
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -59,6 +63,21 @@ if (document.querySelector('[data-user-authenticated]') !== null) {
                                 >
                                     Dashboard
                                 </NavLink>
+                                <NavLink
+                                    :href="route('objectsSalesOutlets.index')"
+                                    :active="route().current('objectsSalesOutlets.index')"
+                                >
+                                    Объекты продаж
+                                </NavLink>
+                                <Link
+                                    :href="route('objectsSalesOutlets.darkIndex')"
+                                    class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none"
+                                    :class="route().current('objectsSalesOutlets.darkIndex')
+                                        ? 'border-cyan-400 text-cyan-100'
+                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                                >
+                                    Объекты продаж 2
+                                </Link>
                             </div>
                         </div>
 
@@ -166,6 +185,18 @@ if (document.querySelector('[data-user-authenticated]') !== null) {
                         >
                             Dashboard
                         </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('objectsSalesOutlets.index')"
+                            :active="route().current('objectsSalesOutlets.index')"
+                        >
+                            Объекты продаж
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('objectsSalesOutlets.darkIndex')"
+                            :active="route().current('objectsSalesOutlets.darkIndex')"
+                        >
+                            Объекты продаж 2
+                        </ResponsiveNavLink>
                     </div>
 
                     <!-- Responsive Settings Options -->
@@ -201,7 +232,8 @@ if (document.querySelector('[data-user-authenticated]') !== null) {
 
             <!-- Page Heading -->
             <header
-                class="bg-white shadow"
+                class="shadow"
+                :class="route().current('objectsSalesOutlets.darkIndex') ? 'border-b border-slate-800 bg-slate-900 shadow-black/20' : 'bg-white'"
                 v-if="$slots.header"
             >
                 <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
