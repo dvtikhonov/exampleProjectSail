@@ -1,5 +1,6 @@
 <script setup>
 import HeadOrganizationPoptip from '@/Components/ObjectsSalesOutlets/HeadOrganizationPoptip.vue';
+import { updateHeadOrganization } from '@/Services/salesOutlets';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -52,12 +53,52 @@ const sortMark = (column) => {
     return props.direction === 'asc' ? '↑' : '↓';
 };
 
-const saveHeadOrganization = ({ rowId, value }) => {
+const organizationKindLabels = {
+    ooo: 'ООО',
+    ip: 'ИП',
+    ao: 'АО',
+    spk: 'СПК',
+};
+const organizationKinds = Object.values(organizationKindLabels);
+const normalizeOrganizationKind = (value) => {
+    const normalizedValue = String(value ?? '').trim();
+
+    if (organizationKinds.includes(normalizedValue)) {
+        return normalizedValue;
+    }
+
+    return organizationKindLabels[normalizedValue.toLowerCase()] ?? '';
+};
+const formatHeadOrganization = (row, fallbackType = '') => {
+    const name = String(row.head_organization ?? '').trim();
+    const type = normalizeOrganizationKind(
+        row.head_organization_type_label || row.head_organization_type || fallbackType,
+    );
+
+    if (name === '' || type === '' || organizationKinds.some((kind) => name.startsWith(`${kind} `))) {
+        return name;
+    }
+
+    return `${type} ${name}`;
+};
+const displayRow = (row, fallbackType = '') => ({
+    ...row,
+    head_organization: formatHeadOrganization(row, fallbackType),
+});
+
+const replaceLocalRow = (updatedRow, fallbackType = '') => {
+    const rowForDisplay = displayRow(updatedRow, fallbackType);
+
     localRows.value = localRows.value.map((localRow) => (
-        localRow.id === rowId
-            ? { ...localRow, head_organization: value }
+        localRow.id === rowForDisplay.id
+            ? { ...localRow, ...rowForDisplay }
             : localRow
     ));
+};
+
+const saveHeadOrganization = async (payload) => {
+    const updatedRow = await updateHeadOrganization(payload);
+    replaceLocalRow(updatedRow, payload.head_organization_type);
 };
 </script>
 
@@ -114,7 +155,8 @@ const saveHeadOrganization = ({ rowId, value }) => {
                                 v-if="column.key === 'head_organization'"
                                 :row-id="row.id"
                                 :value="row[column.key]"
-                                @save="saveHeadOrganization"
+                                :organization-type="row.head_organization_type_label || row.head_organization_type"
+                                :save-action="saveHeadOrganization"
                             />
                             <span v-else>{{ row[column.key] }}</span>
                         </td>

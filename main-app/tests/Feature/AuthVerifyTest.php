@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Lcobucci\JWT\Encoding\ChainedFormatter;
@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 class AuthVerifyTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     //  php artisan test --filter=AuthVerifyTest
 
@@ -86,6 +86,17 @@ class AuthVerifyTest extends TestCase
             ->assertOk()
             ->assertHeader('X-User-Id', (string) $user->id)
             ->assertJson(['user_id' => $user->id]);
+    }
+
+    public function test_get_api_token_returns_existing_session_token(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession(['passport_token' => 'existing-session-token'])
+            ->getJson('/get-api-token')
+            ->assertOk()
+            ->assertJson(['token' => 'existing-session-token']);
     }
 
     private function createAccessToken(

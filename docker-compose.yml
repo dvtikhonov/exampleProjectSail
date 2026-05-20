@@ -57,6 +57,8 @@ services:
     build:
       context: ./service-a
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${SERVICE_A_PORT:-8081}:8000"
     environment:

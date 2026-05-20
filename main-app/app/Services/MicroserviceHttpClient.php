@@ -1,9 +1,9 @@
 <?php
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
 
 class MicroserviceHttpClient
 {
@@ -21,6 +21,13 @@ class MicroserviceHttpClient
      */
     protected function getAccessToken(): ?string
     {
+        $request = request();
+        $token = $request->bearerToken() ?: $request->session()->get('passport_token');
+
+        if ($token) {
+            return $token;
+        }
+
         $user = auth()->user();
         if (!$user) {
             return null;

@@ -11,9 +11,11 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    saveAction: {
+        type: Function,
+        required: true,
+    },
 });
-
-const emit = defineEmits(['save-cell']);
 
 const value = computed(() => props.row[props.column.key] ?? '');
 const cellType = computed(() => props.column.cellType ?? 'text');
@@ -28,13 +30,7 @@ const statusBadgeClass = computed(() => ({
     'bg-emerald-500/15 ring-emerald-400/30': props.row.status === 'approved',
 }));
 
-const savePoptipValue = ({ rowId, value: savedValue }) => {
-    emit('save-cell', {
-        rowId,
-        columnKey: props.column.key,
-        value: savedValue,
-    });
-};
+const savePoptipValue = (payload) => props.saveAction(payload);
 </script>
 
 <template>
@@ -43,8 +39,9 @@ const savePoptipValue = ({ rowId, value: savedValue }) => {
         v-if="poptipComponent"
         :row-id="row.id"
         :value="String(value)"
+        :organization-type="row.head_organization_type_label || row.head_organization_type"
         variant="dark"
-        @save="savePoptipValue"
+        :save-action="savePoptipValue"
     />
     <span
         v-else-if="cellType === 'statusBadge'"

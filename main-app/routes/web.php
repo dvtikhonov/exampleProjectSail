@@ -32,8 +32,13 @@ Route::middleware(['auth.passport'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 Route::middleware('auth')->get('/get-api-token', function (Request $request) {
-    $user = $request->user();
-    $token = $user->createToken('API Token')->accessToken;
+    $token = $request->session()->get('passport_token');
+
+    if (! $token) {
+        $token = $request->user()->createTokenForSession();
+        $request->session()->put('passport_token', $token);
+    }
+
     return response()->json(['token' => $token]);
 });
 

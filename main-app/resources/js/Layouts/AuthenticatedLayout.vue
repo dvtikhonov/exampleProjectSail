@@ -5,29 +5,20 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import { getApiToken } from '@/Services/apiToken';
 import { Link } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
 
-async function fetchApiToken() {
+const fetchApiToken = async () => {
     try {
-        const response = await fetch('/get-api-token');
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem('api_token', data.token);
-            console.log('API token saved');
-        } else {
-            console.error('Failed to get token');
-        }
+        await getApiToken();
     } catch (error) {
         console.error('Error fetching token:', error);
     }
-}
+};
 
-// Вызываем после загрузки страницы, если пользователь авторизован
-if (document.querySelector('[data-user-authenticated]') !== null) {
-    fetchApiToken();
-}
+fetchApiToken();
 </script>
 
 <template>

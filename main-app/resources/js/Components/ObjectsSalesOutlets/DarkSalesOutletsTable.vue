@@ -1,5 +1,6 @@
 <script setup>
 import DarkSalesOutletsCell from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsCell.vue';
+import { updateHeadOrganization } from '@/Services/salesOutlets';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -83,12 +84,52 @@ const actionsCellClass = (row) => ({
     'bg-slate-950': !row.row_tone,
 });
 
-const saveCell = ({ rowId, columnKey, value }) => {
+const organizationKindLabels = {
+    ooo: 'ООО',
+    ip: 'ИП',
+    ao: 'АО',
+    spk: 'СПК',
+};
+const organizationKinds = Object.values(organizationKindLabels);
+const normalizeOrganizationKind = (value) => {
+    const normalizedValue = String(value ?? '').trim();
+
+    if (organizationKinds.includes(normalizedValue)) {
+        return normalizedValue;
+    }
+
+    return organizationKindLabels[normalizedValue.toLowerCase()] ?? '';
+};
+const formatHeadOrganization = (row, fallbackType = '') => {
+    const name = String(row.head_organization ?? '').trim();
+    const type = normalizeOrganizationKind(
+        row.head_organization_type_label || row.head_organization_type || fallbackType,
+    );
+
+    if (name === '' || type === '' || organizationKinds.some((kind) => name.startsWith(`${kind} `))) {
+        return name;
+    }
+
+    return `${type} ${name}`;
+};
+const displayRow = (row, fallbackType = '') => ({
+    ...row,
+    head_organization: formatHeadOrganization(row, fallbackType),
+});
+
+const replaceLocalRow = (updatedRow, fallbackType = '') => {
+    const rowForDisplay = displayRow(updatedRow, fallbackType);
+
     localRows.value = localRows.value.map((localRow) => (
-        localRow.id === rowId
-            ? { ...localRow, [columnKey]: value }
+        localRow.id === rowForDisplay.id
+            ? { ...localRow, ...rowForDisplay }
             : localRow
     ));
+};
+
+const saveCell = async (payload) => {
+    const updatedRow = await updateHeadOrganization(payload);
+    replaceLocalRow(updatedRow, payload.head_organization_type);
 };
 
 const syncScroll = (source, target) => {
@@ -185,7 +226,7 @@ const syncTopScroll = () => {
                             <DarkSalesOutletsCell
                                 :column="column"
                                 :row="row"
-                                @save-cell="saveCell"
+                                :save-action="saveCell"
                             />
                         </td>
                         <td
