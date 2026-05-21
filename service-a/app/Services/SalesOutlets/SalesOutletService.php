@@ -7,10 +7,10 @@ use App\DTO\SalesOutlets\SalesOutletRowDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\Enums\SalesOutletStatus;
 use App\Models\SalesOutlet;
+use App\Repositories\SalesOutlets\SalesOutletRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Builder;
 
-class SalesOutletService
+class SalesOutletService implements SalesOutletServiceInterface
 {
     /**
      * @var array<int, array<string, bool|int|string>>
@@ -29,38 +29,9 @@ class SalesOutletService
         ['key' => 'approved', 'label' => 'Одобрено', 'sortable' => true, 'width' => 140, 'align' => 'center'],
     ];
 
-    /**
-     * @var array<int, string>
-     */
-    private const SEARCH_COLUMNS = [
-        'id',
-        'shop',
-        'manager',
-        'curator',
-        'name',
-        'inn',
-        'head_organization',
-        'head_organization_type',
-        'organization_name',
-        'approved',
-    ];
-
-    /**
-     * @var array<string, string>
-     */
-    private const SORT_COLUMNS = [
-        'id' => 'id',
-        'shop' => 'shop',
-        'manager' => 'manager',
-        'curator' => 'curator',
-        'name' => 'name',
-        'inn' => 'inn',
-        'head_organization' => 'head_organization',
-        'head_organization_type' => 'head_organization_type',
-        'organization_name' => 'organization_name',
-        'status_label' => 'status',
-        'approved' => 'approved',
-    ];
+    public function __construct(
+        private readonly SalesOutletRepositoryInterface $salesOutletRepository,
+    ) {}
 
     /**
      * @return array<int, array<string, bool|int|string>>
@@ -83,19 +54,7 @@ class SalesOutletService
      */
     public function index(SalesOutletIndexQueryDto $queryDto): array
     {
-        $query = SalesOutlet::query();
-
-        $this->applyStatus($query, $queryDto->status);
-        $this->applyColumnFilters($query, $queryDto->columnFilters);
-        $this->applySearch($query, $queryDto->search);
-        $this->applySort($query, $queryDto->sort, $queryDto->direction);
-
-        $paginator = $query->paginate(
-            perPage: $queryDto->perPage,
-            columns: ['*'],
-            pageName: 'page',
-            page: $queryDto->page,
-        );
+        $paginator = $this->salesOutletRepository->paginate($queryDto, $this->allowedColumnKeys());
 
         return [
             'data' => $paginator->getCollection()
@@ -125,88 +84,9 @@ class SalesOutletService
 
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutletRowDto
     {
-        $salesOutlet->forceFill([
-            'head_organization' => $dto->headOrganization,
-            'head_organization_type' => $dto->headOrganizationType,
-        ])->save();
+        $salesOutlet = $this->salesOutletRepository->updateHeadOrganization($salesOutlet, $dto);
 
-        return SalesOutletRowDto::fromModel($salesOutlet->refresh());
-    }
-
-    private function applyStatus(Builder $query, string $status): void
-    {
-        if (SalesOutletStatus::tryFrom($status) === null) {
-            return;
-        }
-
-        $query->where('status', $status);
-    }
-
-    /**
-     * @param  array<string, string>  $columnFilters
-     */
-    private function applyColumnFilters(Builder $query, array $columnFilters): void
-    {
-        foreach ($columnFilters as $column => $value) {
-            if (! in_array($column, $this->allowedColumnKeys(), true)) {
-                continue;
-            }
-
-            $this->whereLike($query, $column, $value);
-        }
-    }
-
-    private function applySearch(Builder $query, string $search): void
-    {
-        if ($search === '') {
-            return;
-        }
-
-        $query->where(function (Builder $query) use ($search): void {
-            foreach (self::SEARCH_COLUMNS as $column) {
-                $this->orWhereLike($query, $column, $search);
-            }
-        });
-    }
-
-    private function applySort(Builder $query, string $sort, string $direction): void
-    {
-        $sortColumn = self::SORT_COLUMNS[$sort] ?? 'id';
-
-        $query->orderBy($sortColumn, $direction);
-    }
-
-    private function whereLike(Builder $query, string $column, string $value): void
-    {
-        if ($column === 'status_label') {
-            $query->whereIn('status', $this->statusesByLabel($value));
-
-            return;
-        }
-
-        $query->where($column, 'like', '%'.$value.'%');
-    }
-
-    private function orWhereLike(Builder $query, string $column, string $value): void
-    {
-        $query->orWhere($column, 'like', '%'.$value.'%');
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function statusesByLabel(string $value): array
-    {
-        return array_values(array_map(
-            fn (SalesOutletStatus $status): string => $status->value,
-            array_filter(
-                SalesOutletStatus::cases(),
-                fn (SalesOutletStatus $status): bool => str_contains(
-                    mb_strtolower($status->label()),
-                    mb_strtolower($value),
-                ),
-            ),
-        ));
+        return SalesOutletRowDto::fromModel($salesOutlet);
     }
 
     /**

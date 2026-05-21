@@ -6,14 +6,14 @@ use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\Http\Controllers\Controller;
 use App\Models\SalesOutlet;
-use App\Services\SalesOutlets\SalesOutletService;
+use App\Services\SalesOutlets\SalesOutletServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SalesOutletsController extends Controller
 {
     public function __construct(
-        private readonly SalesOutletService $salesOutletService,
+        private readonly SalesOutletServiceInterface $salesOutletService,
     ) {}
 
     public function index(Request $request): JsonResponse
