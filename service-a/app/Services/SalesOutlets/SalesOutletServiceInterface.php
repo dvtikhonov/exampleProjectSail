@@ -25,4 +25,6 @@ interface SalesOutletServiceInterface
     public function index(SalesOutletIndexQueryDto $queryDto): array;
 
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutletRowDto;
+
+    public function delete(SalesOutlet $salesOutlet): void;
 }

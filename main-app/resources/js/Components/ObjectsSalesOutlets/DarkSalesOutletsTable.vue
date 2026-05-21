@@ -30,6 +30,7 @@ const emit = defineEmits(['sort']);
 const localRows = ref(props.rows.map((row) => ({ ...row })));
 const topScrollbar = ref(null);
 const tableScrollbar = ref(null);
+const openPoptipId = ref(null);
 
 watch(
     () => props.rows,
@@ -132,6 +133,8 @@ const saveCell = async (payload) => {
     replaceLocalRow(updatedRow, payload.head_organization_type);
 };
 
+const makePoptipId = (row, column) => `${row.id}:${column.key}`;
+
 const syncScroll = (source, target) => {
     if (!source || !target || source.scrollLeft === target.scrollLeft) {
         return;
@@ -227,6 +230,10 @@ const syncTopScroll = () => {
                                 :column="column"
                                 :row="row"
                                 :save-action="saveCell"
+                                :poptip-id="makePoptipId(row, column)"
+                                :open-poptip-id="openPoptipId"
+                                @open-poptip="openPoptipId = $event"
+                                @close-poptip="openPoptipId = null"
                             />
                         </td>
                         <td

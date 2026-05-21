@@ -25,6 +25,7 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
         'head_organization_type',
         'organization_name',
         'approved',
+        'user_id',
     ];
 
     /**
@@ -42,6 +43,7 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
         'organization_name' => 'organization_name',
         'status_label' => 'status',
         'approved' => 'approved',
+        'user_id' => 'user_id',
     ];
 
     /**
@@ -72,6 +74,11 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
         ])->save();
 
         return $salesOutlet->refresh();
+    }
+
+    public function delete(SalesOutlet $salesOutlet): void
+    {
+        $salesOutlet->delete();
     }
 
     private function applyStatus(Builder $query, string $status): void

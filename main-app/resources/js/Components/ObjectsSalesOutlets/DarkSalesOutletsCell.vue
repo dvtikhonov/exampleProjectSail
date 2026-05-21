@@ -15,8 +15,17 @@ const props = defineProps({
         type: Function,
         required: true,
     },
+    poptipId: {
+        type: String,
+        default: null,
+    },
+    openPoptipId: {
+        type: String,
+        default: null,
+    },
 });
 
+const emit = defineEmits(['open-poptip', 'close-poptip']);
 const value = computed(() => props.row[props.column.key] ?? '');
 const cellType = computed(() => props.column.cellType ?? 'text');
 const poptipCellComponents = {
@@ -42,6 +51,10 @@ const savePoptipValue = (payload) => props.saveAction(payload);
         :organization-type="row.head_organization_type_label || row.head_organization_type"
         variant="dark"
         :save-action="savePoptipValue"
+        :poptip-id="poptipId"
+        :open-poptip-id="openPoptipId"
+        @open="emit('open-poptip', $event)"
+        @close="emit('close-poptip')"
     />
     <span
         v-else-if="cellType === 'statusBadge'"

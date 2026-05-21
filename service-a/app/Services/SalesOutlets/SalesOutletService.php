@@ -27,6 +27,7 @@ class SalesOutletService implements SalesOutletServiceInterface
         ['key' => 'organization_name', 'label' => 'Название организации', 'sortable' => true, 'width' => 260, 'align' => 'center'],
         ['key' => 'status_label', 'label' => 'Статус', 'sortable' => true, 'width' => 170, 'align' => 'center', 'cellType' => 'statusBadge'],
         ['key' => 'approved', 'label' => 'Одобрено', 'sortable' => true, 'width' => 140, 'align' => 'center'],
+        ['key' => 'user_id', 'label' => 'Последний пользователь', 'sortable' => true, 'width' => 170, 'align' => 'center'],
     ];
 
     public function __construct(
@@ -87,6 +88,11 @@ class SalesOutletService implements SalesOutletServiceInterface
         $salesOutlet = $this->salesOutletRepository->updateHeadOrganization($salesOutlet, $dto);
 
         return SalesOutletRowDto::fromModel($salesOutlet);
+    }
+
+    public function delete(SalesOutlet $salesOutlet): void
+    {
+        $this->salesOutletRepository->delete($salesOutlet);
     }
 
     /**

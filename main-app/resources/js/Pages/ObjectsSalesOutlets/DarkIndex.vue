@@ -39,8 +39,13 @@ const props = defineProps({
 const tableSettings = usePersistentTableSettings('objects-sales-outlets:dark-index', props.columns);
 const selectedColumns = ref(tableSettings.savedColumns ?? [...props.filters.columns]);
 const columnFilters = ref(tableSettings.savedFilters ?? { ...props.filters.column_filters });
-const isColumnModalOpen = ref(false);
-const isFilterModalOpen = ref(false);
+const modalIds = Object.freeze({
+    columns: 'columns',
+    filters: 'filters',
+});
+const activeModal = ref(null);
+const isColumnModalOpen = computed(() => activeModal.value === modalIds.columns);
+const isFilterModalOpen = computed(() => activeModal.value === modalIds.filters);
 const hasActiveColumnFilters = computed(() => Object.keys(columnFilters.value).length > 0);
 const isSameArray = (first, second) =>
     first.length === second.length && first.every((value, index) => value === second[index]);
@@ -132,21 +137,21 @@ const changePage = (page) => {
 
 const applyColumnFilters = (filters) => {
     columnFilters.value = { ...filters };
-    isFilterModalOpen.value = false;
+    activeModal.value = null;
     tableSettings.saveFilters(columnFilters.value);
     visitSalesOutlets({ column_filters: columnFilters.value });
 };
 
 const clearColumnFilters = () => {
     columnFilters.value = {};
-    isFilterModalOpen.value = false;
+    activeModal.value = null;
     tableSettings.saveFilters({});
     visitSalesOutlets({ column_filters: {} });
 };
 
 const applyColumns = (columns) => {
     selectedColumns.value = columns;
-    isColumnModalOpen.value = false;
+    activeModal.value = null;
     tableSettings.saveColumns(columns);
     visitSalesOutlets({ columns });
 };
@@ -185,8 +190,8 @@ const applyColumns = (columns) => {
                 <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30">
                     <DarkSalesOutletsToolbar
                         :has-active-filters="hasActiveColumnFilters"
-                        @open-columns="isColumnModalOpen = true"
-                        @open-filters="isFilterModalOpen = true"
+                        @open-columns="activeModal = modalIds.columns"
+                        @open-filters="activeModal = modalIds.filters"
                     />
 
                     <DarkSalesOutletsTable
@@ -210,7 +215,7 @@ const applyColumns = (columns) => {
             :show="isColumnModalOpen"
             :columns="columns"
             :selected-columns="selectedColumns"
-            @close="isColumnModalOpen = false"
+            @close="activeModal = null"
             @apply="applyColumns"
         />
 
@@ -218,7 +223,7 @@ const applyColumns = (columns) => {
             :show="isFilterModalOpen"
             :columns="columns"
             :filters="columnFilters"
-            @close="isFilterModalOpen = false"
+            @close="activeModal = null"
             @clear="clearColumnFilters"
             @apply="applyColumnFilters"
         />

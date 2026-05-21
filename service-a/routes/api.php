@@ -7,8 +7,11 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/pingS', [PingController::class, 'pingS']);
 Route::post('/ping', [PingController::class, 'ping']);
-Route::get('/sales-outlets', [SalesOutletsController::class, 'index']);
-Route::post('/sales-outlets/{salesOutlet}/head-organization', [SalesOutletsController::class, 'updateHeadOrganization']);
+Route::middleware('trust.gateway')->group(function (): void {
+    Route::get('/sales-outlets', [SalesOutletsController::class, 'index']);
+    Route::post('/sales-outlets/{salesOutlet}/head-organization', [SalesOutletsController::class, 'updateHeadOrganization']);
+    Route::delete('/sales-outlets/{salesOutlet}', [SalesOutletsController::class, 'destroy']);
+});
 //Route::middleware('auth:api')->get('/pingS', [PingController::class, 'pingS']);
 
 //Route::get('/pingS', function (\Illuminate\Support\Facades\Request $request) {

@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Enums\HeadOrganizationType;
+use App\Enums\SalesOutletStatus;
+use App\Models\SalesOutlet;
+use App\Models\User;
 use Database\Seeders\SalesOutletSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -85,22 +89,90 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_updates_head_organization(): void
     {
-        $response = $this->postJson('/api/sales-outlets/1001/head-organization', [
-            'head_organization' => 'Новая головная организация',
-            'head_organization_type' => 'АО',
-        ]);
+        $user = User::factory()->create();
+
+        $response = $this
+            ->withHeader('X-User-Id', (string) $user->id)
+            ->postJson('/api/sales-outlets/1001/head-organization', [
+                'head_organization' => 'Новая головная организация',
+                'head_organization_type' => 'АО',
+            ]);
 
         $response
             ->assertOk()
             ->assertJsonPath('id', 1001)
             ->assertJsonPath('head_organization', 'Новая головная организация')
             ->assertJsonPath('head_organization_type', 'ao')
-            ->assertJsonPath('head_organization_type_label', 'АО');
+            ->assertJsonPath('head_organization_type_label', 'АО')
+            ->assertJsonPath('user_id', $user->id);
 
         $this->assertDatabaseHas('sales_outlets', [
             'id' => 1001,
             'head_organization' => 'Новая головная организация',
             'head_organization_type' => 'ao',
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_it_soft_deletes_sales_outlet_and_stores_last_user(): void
+    {
+        $user = User::factory()->create();
+
+        $this
+            ->withHeader('X-User-Id', (string) $user->id)
+            ->deleteJson('/api/sales-outlets/1001')
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('sales_outlets', [
+            'id' => 1001,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_it_automatically_stores_current_user_on_sales_outlet_create(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+
+        $salesOutlet = SalesOutlet::query()->create([
+            'shop' => 'Москва',
+            'manager' => 'Иванов И. И.',
+            'curator' => 'Петров П. П.',
+            'name' => 'Новая точка',
+            'inn' => '7701234567',
+            'head_organization' => 'ООО Новая точка',
+            'head_organization_type' => HeadOrganizationType::LimitedLiabilityCompany,
+            'organization_name' => 'ООО Новая точка',
+            'status' => SalesOutletStatus::Review,
+            'approved' => 'Частично',
+        ]);
+
+        $this->assertDatabaseHas('sales_outlets', [
+            'id' => $salesOutlet->id,
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_it_automatically_stores_gateway_user_header_on_sales_outlet_update(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->withHeader('X-User-Id', (string) $user->id)
+            ->postJson('/api/sales-outlets/1001/head-organization', [
+                'head_organization' => 'Головная через gateway',
+                'head_organization_type' => 'ООО',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('user_id', $user->id);
+
+        $this->assertDatabaseHas('sales_outlets', [
+            'id' => 1001,
+            'head_organization' => 'Головная через gateway',
+            'user_id' => $user->id,
         ]);
     }
 

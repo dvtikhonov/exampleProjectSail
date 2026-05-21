@@ -34,4 +34,11 @@ class SalesOutletsController extends Controller
             $this->salesOutletService->updateHeadOrganization($salesOutlet, $dto)->toArray(),
         );
     }
+
+    public function destroy(SalesOutlet $salesOutlet): JsonResponse
+    {
+        $this->salesOutletService->delete($salesOutlet);
+
+        return response()->json(null, 204);
+    }
 }

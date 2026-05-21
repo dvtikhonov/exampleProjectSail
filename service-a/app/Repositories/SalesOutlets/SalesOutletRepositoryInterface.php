@@ -15,4 +15,6 @@ interface SalesOutletRepositoryInterface
     public function paginate(SalesOutletIndexQueryDto $queryDto, array $allowedColumnKeys): LengthAwarePaginator;
 
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet;
+
+    public function delete(SalesOutlet $salesOutlet): void;
 }

@@ -23,8 +23,17 @@ const props = defineProps({
         type: Function,
         required: true,
     },
+    poptipId: {
+        type: String,
+        default: null,
+    },
+    openPoptipId: {
+        type: String,
+        default: null,
+    },
 });
 
+const emit = defineEmits(['open', 'close']);
 const organizationKinds = ['ООО', 'ИП', 'АО', 'СПК'];
 const isOpen = ref(false);
 const form = ref({
@@ -51,7 +60,13 @@ const normalizeOrganizationKind = (value, fallback = '') => {
 
     return organizationKindLabels[normalizedValue.toLowerCase()] ?? fallback;
 };
-const poptipId = computed(() => `head-organization-poptip-${props.rowId}`);
+const resolvedPoptipId = computed(() => props.poptipId ?? `head-organization-poptip-${props.rowId}`);
+const isControlled = computed(() => props.poptipId !== null);
+const isPoptipOpen = computed(() => (
+    isControlled.value
+        ? props.openPoptipId === resolvedPoptipId.value
+        : isOpen.value
+));
 const hasChanges = computed(() =>
     form.value.kind !== initialForm.value.kind
     || form.value.name.trim() !== initialForm.value.name.trim(),
@@ -138,6 +153,12 @@ const openPoptip = () => {
     }
 
     resetForm();
+
+    if (isControlled.value) {
+        emit('open', resolvedPoptipId.value);
+        return;
+    }
+
     isOpen.value = true;
 };
 
@@ -146,7 +167,12 @@ const closePoptip = () => {
         return;
     }
 
-    isOpen.value = false;
+    if (isControlled.value) {
+        emit('close');
+    } else {
+        isOpen.value = false;
+    }
+
     errors.value = {};
     serverError.value = '';
 };
@@ -189,7 +215,12 @@ const save = async () => {
             head_organization_type: form.value.kind,
         });
         initialForm.value = { ...form.value, name: form.value.name.trim() };
-        isOpen.value = false;
+
+        if (isControlled.value) {
+            emit('close');
+        } else {
+            isOpen.value = false;
+        }
     } catch (error) {
         serverError.value = error?.message ?? 'Не удалось сохранить изменения';
     } finally {
@@ -200,7 +231,7 @@ const save = async () => {
 watch(
     () => props.value,
     () => {
-        if (isOpen.value) {
+        if (isPoptipOpen.value) {
             resetForm();
         }
     },
@@ -212,8 +243,8 @@ watch(
         <button
             type="button"
             :class="styles.button"
-            :aria-expanded="isOpen"
-            :aria-controls="poptipId"
+            :aria-expanded="isPoptipOpen"
+            :aria-controls="resolvedPoptipId"
             :disabled="isSaving"
             @click="openPoptip"
         >
@@ -221,8 +252,8 @@ watch(
         </button>
 
         <div
-            v-if="isOpen"
-            :id="poptipId"
+            v-if="isPoptipOpen"
+            :id="resolvedPoptipId"
             :class="styles.panel"
         >
             <span :class="styles.arrow"></span>

@@ -20,6 +20,7 @@ readonly class SalesOutletRowDto
         public string $status,
         public string $statusLabel,
         public string $approved,
+        public ?int $userId,
         public string $rowTone,
     ) {}
 
@@ -39,12 +40,13 @@ readonly class SalesOutletRowDto
             status: $salesOutlet->status->value,
             statusLabel: $salesOutlet->status->label(),
             approved: $salesOutlet->approved,
+            userId: $salesOutlet->user_id,
             rowTone: $salesOutlet->status->rowTone(),
         );
     }
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int|string|null>
      */
     public function toArray(): array
     {
@@ -62,6 +64,7 @@ readonly class SalesOutletRowDto
             'status' => $this->status,
             'status_label' => $this->statusLabel,
             'approved' => $this->approved,
+            'user_id' => $this->userId,
             'row_tone' => $this->rowTone,
         ];
     }
