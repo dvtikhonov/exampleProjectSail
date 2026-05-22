@@ -27,6 +27,12 @@ Route::middleware(['auth.passport'])->group(function () {
         ->name('objectsSalesOutlets.index');
     Route::get('/objects-sales-outlets-2', [ObjectsSalesOutletsController::class, 'darkIndex'])
         ->name('objectsSalesOutlets.darkIndex');
+    Route::post('/objects-sales-outlets-2/export', [ObjectsSalesOutletsController::class, 'createExport'])
+        ->name('objectsSalesOutlets.export.create');
+    Route::get('/objects-sales-outlets-2/export/{uuid}', [ObjectsSalesOutletsController::class, 'exportStatus'])
+        ->name('objectsSalesOutlets.export.status');
+    Route::get('/objects-sales-outlets-2/export/{uuid}/download', [ObjectsSalesOutletsController::class, 'downloadExport'])
+        ->name('objectsSalesOutlets.export.download');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

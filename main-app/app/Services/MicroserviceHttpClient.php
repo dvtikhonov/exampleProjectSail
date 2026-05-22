@@ -13,6 +13,7 @@ class MicroserviceHttpClient
     {
         $this->client = Http::timeout(10)
             ->retry(3, 100)
+            ->withHeaders($this->userHeaders())
             ->withToken($this->getAccessToken());
     }
 
@@ -36,6 +37,32 @@ class MicroserviceHttpClient
         // Генерируем короткоживущий токен для внутренних вызовов
         $token = $user->createToken('internal_api', ['*'])->accessToken;
         return $token;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function userHeaders(): array
+    {
+        $userId = $this->currentUserId();
+
+        if ($userId === null) {
+            return [];
+        }
+
+        return ['X-User-Id' => (string) $userId];
+    }
+
+    private function currentUserId(): ?int
+    {
+        $request = request();
+        $userId = $request->attributes->get('auth_user_id') ?: $request->header('X-User-Id');
+
+        if (is_numeric($userId) && (int) $userId > 0) {
+            return (int) $userId;
+        }
+
+        return auth()->id();
     }
 
     /**

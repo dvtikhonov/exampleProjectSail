@@ -48,6 +48,9 @@ readonly class SalesOutletsPageDto
             'statusOptions' => $this->statusOptions,
             'routes' => [
                 'index' => route($routeName),
+                'exportCreate' => route('objectsSalesOutlets.export.create'),
+                'exportStatus' => route('objectsSalesOutlets.export.status', ['uuid' => '__uuid__']),
+                'exportDownload' => route('objectsSalesOutlets.export.download', ['uuid' => '__uuid__']),
             ],
         ];
     }

@@ -4,9 +4,9 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpFoundation\Response;
 
 class TrustGatewayAuth
 {
@@ -18,10 +18,10 @@ class TrustGatewayAuth
     public function handle(Request $request, Closure $next): Response
     {
         $userId = $request->header('X-User-Id');
-        if ($userId) {
+        if ($userId && Schema::hasTable('users')) {
             $user = \App\Models\User::find($userId);
             if ($user) {
-                Auth::guard('api')->login($user);
+                Auth::login($user);
             }
         }
         return $next($request);

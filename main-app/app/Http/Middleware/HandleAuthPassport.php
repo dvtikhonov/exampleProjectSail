@@ -71,7 +71,7 @@ class HandleAuthPassport
             // (опционально) можно извлечь user_id из ответа service-a
             // и положить в request, чтобы не делать повторных запросов
             $userData = $response->json();
-            $request->merge(['auth_user_id' => $userData['user_id'] ?? null]);
+            $request->attributes->set('auth_user_id', $userData['user_id'] ?? null);
             Log::info('Middleware-HandleAuthPassport  – successful');
 
             return $next($request);

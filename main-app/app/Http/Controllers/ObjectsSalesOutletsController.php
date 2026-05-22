@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\DTO\ObjectsSalesOutlets\SalesOutletIndexQueryDto;
 use App\Services\ObjectsSalesOutlets\SalesOutletsApiClient;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,6 +26,28 @@ class ObjectsSalesOutletsController extends Controller
         return $this->renderIndex($request, 'ObjectsSalesOutlets/DarkIndex', 'objectsSalesOutlets.darkIndex');
     }
 
+    public function createExport(Request $request): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->createExport($request->all()),
+        );
+    }
+
+    public function exportStatus(string $uuid): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->exportStatus($uuid),
+        );
+    }
+
+    public function downloadExport(string $uuid): HttpResponse
+    {
+        $response = $this->salesOutletsApiClient->downloadExport($uuid);
+
+        return response($response->body(), $response->status())
+            ->withHeaders($this->downloadHeaders($response->headers()));
+    }
+
     private function renderIndex(Request $request, string $component, string $routeName): Response
     {
         $page = $this->salesOutletsApiClient->index(
@@ -31,5 +55,26 @@ class ObjectsSalesOutletsController extends Controller
         );
 
         return Inertia::render($component, $page->toInertiaProps($routeName));
+    }
+
+    /**
+     * @param  array<string, array<int, string>>  $headers
+     * @return array<string, string>
+     */
+    private function downloadHeaders(array $headers): array
+    {
+        $allowedHeaders = ['content-type', 'content-disposition', 'content-length'];
+        $downloadHeaders = [];
+        $normalizedHeaders = array_change_key_case($headers, CASE_LOWER);
+
+        foreach ($allowedHeaders as $header) {
+            $value = $normalizedHeaders[$header][0] ?? null;
+
+            if ($value !== null) {
+                $downloadHeaders[$header] = $value;
+            }
+        }
+
+        return $downloadHeaders;
     }
 }

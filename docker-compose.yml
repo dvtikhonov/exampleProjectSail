@@ -82,17 +82,22 @@ services:
     build:
       context: ./service-b
       dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${SERVICE_B_PORT:-8082}:8000"
     environment:
       - APP_ENV=local
       - APP_URL=http://service-b
-#      - DB_CONNECTION=mysql
-#      - DB_HOST=mysql
-#      - DB_PORT=3306
-#      - DB_DATABASE=service_b_db
-#      - DB_USERNAME=root
-#      - DB_PASSWORD=root
+      - CACHE_STORE=file
+      - DB_QUEUE_RETRY_AFTER=960
+      - SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS=10
+      - DB_CONNECTION=mysql
+      - DB_HOST=${SERVICE_B_DB_HOST:-host.docker.internal}
+      - DB_PORT=${SERVICE_B_DB_PORT:-3306}
+      - DB_DATABASE=${SERVICE_B_DB_DATABASE:-sail_db}
+      - DB_USERNAME=${SERVICE_B_DB_USERNAME:-root}
+      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:-12345678AS}
     volumes:
 #      - ./service-b:/var/www/html
       - ./service-b/app:/var/www/html/app
@@ -101,11 +106,48 @@ services:
       - ./service-b/database:/var/www/html/database
       - ./service-b/resources:/var/www/html/resources
       - ./service-b/tests:/var/www/html/tests
-      # НЕ монтируем vendor, storage, bootstrap/cache
+      - ./service-b/phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./service-b/storage:/var/www/html/storage
+      - ./service-b/.env:/var/www/html/.env:ro
+      # НЕ монтируем vendor и bootstrap/cache
     networks:
       - internal
     depends_on:
 #      - mysql
+      - redis
+
+  service-b-queue:
+    build:
+      context: ./service-b
+      dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: php artisan queue:work --timeout=900 --tries=1
+    environment:
+      - APP_ENV=local
+      - APP_URL=http://service-b
+      - CACHE_STORE=file
+      - DB_QUEUE_RETRY_AFTER=960
+      - SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS=10
+      - DB_CONNECTION=mysql
+      - DB_HOST=${SERVICE_B_DB_HOST:-host.docker.internal}
+      - DB_PORT=${SERVICE_B_DB_PORT:-3306}
+      - DB_DATABASE=${SERVICE_B_DB_DATABASE:-sail_db}
+      - DB_USERNAME=${SERVICE_B_DB_USERNAME:-root}
+      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:-12345678AS}
+    volumes:
+      - ./service-b/app:/var/www/html/app
+      - ./service-b/routes:/var/www/html/routes
+      - ./service-b/config:/var/www/html/config
+      - ./service-b/database:/var/www/html/database
+      - ./service-b/resources:/var/www/html/resources
+      - ./service-b/tests:/var/www/html/tests
+      - ./service-b/storage:/var/www/html/storage
+      - ./service-b/.env:/var/www/html/.env:ro
+    networks:
+      - internal
+    depends_on:
+      - service-b
       - redis
 
   # ----- Единый сервер MySQL -----

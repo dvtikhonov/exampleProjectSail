@@ -43,10 +43,10 @@ COPY composer.json ./
 #        --ignore-platform-req=php --no-scripts \
 #    && rm -f vendor/composer/platform_check.php
 
-    # Установка зависимостей (Composer сам выполнит post-autoload-dump и artisan package:discover)
+# Установка зависимостей (Composer сам выполнит post-autoload-dump и artisan package:discover)
 #RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-req=php  2>&1 || { echo "Composer install failed!"; exit 1; }
 # RUN composer install --no-interaction --optimize-autoloader --no-dev 2>&1 || { echo "Composer install failed!"; exit 1; }
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN composer install --no-interaction --optimize-autoloader
 
 # Проверка создания vendor/autoload.php
 # RUN test -f vendor/autoload.php && echo "autoload.php exists" || (echo "autoload.php NOT found!" && exit 1)
@@ -66,8 +66,9 @@ RUN composer install --no-interaction --optimize-autoloader --no-dev
 # СОЗДАЁМ необходимые папки (если их нет) и ставим права
 # RUN mkdir -p storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache
 
-# Убедимся, что копирование не затерло vendor (если локально есть папка vendor, она будет проигнорирована .dockerignore)
-RUN mkdir -p storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache
+# Убедимся, что Laravel всегда видит writable cache/session/view paths.
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 
 # Переключаемся на пользователя sail (для безопасности)

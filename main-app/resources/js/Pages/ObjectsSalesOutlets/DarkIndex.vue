@@ -7,7 +7,7 @@ import DarkSalesOutletsTable from '@/Components/ObjectsSalesOutlets/DarkSalesOut
 import DarkSalesOutletsToolbar from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsToolbar.vue';
 import { usePersistentTableSettings } from '@/Composables/usePersistentTableSettings';
 import { Head, router } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({
     columns: {
@@ -44,9 +44,34 @@ const modalIds = Object.freeze({
     filters: 'filters',
 });
 const activeModal = ref(null);
+const exportJobUuid = ref(null);
+const exportStatus = ref('idle');
+const exportError = ref('');
+const exportPollTimer = ref(null);
 const isColumnModalOpen = computed(() => activeModal.value === modalIds.columns);
 const isFilterModalOpen = computed(() => activeModal.value === modalIds.filters);
 const hasActiveColumnFilters = computed(() => Object.keys(columnFilters.value).length > 0);
+const isExporting = computed(() => ['pending', 'processing'].includes(exportStatus.value));
+const exportButtonText = computed(() => (isExporting.value ? 'Файл собирается...' : 'Сохранить в файл'));
+const exportStatusText = computed(() => {
+    if (exportError.value) {
+        return exportError.value;
+    }
+
+    if (exportStatus.value === 'pending') {
+        return 'Экспорт поставлен в очередь.';
+    }
+
+    if (exportStatus.value === 'processing') {
+        return 'Файл собирается, можно продолжать работу с таблицей.';
+    }
+
+    if (exportStatus.value === 'completed') {
+        return 'Файл готов и скачивается.';
+    }
+
+    return '';
+});
 const isSameArray = (first, second) =>
     first.length === second.length && first.every((value, index) => value === second[index]);
 const isSameObject = (first, second) => {
@@ -155,6 +180,96 @@ const applyColumns = (columns) => {
     tableSettings.saveColumns(columns);
     visitSalesOutlets({ columns });
 };
+
+const exportPayload = () => ({
+    search: props.filters.search,
+    status: props.filters.status,
+    column_filters: columnFilters.value,
+    sort: props.filters.sort,
+    direction: props.filters.direction,
+    columns: selectedColumns.value,
+});
+
+const exportRoute = (template, uuid) => template.replace('__uuid__', uuid);
+
+const stopExportPolling = () => {
+    if (exportPollTimer.value === null) {
+        return;
+    }
+
+    window.clearTimeout(exportPollTimer.value);
+    exportPollTimer.value = null;
+};
+
+const downloadExport = (uuid) => {
+    window.location.href = exportRoute(props.routes.exportDownload, uuid);
+};
+
+const pollExportStatus = async (uuid) => {
+    const response = await fetch(exportRoute(props.routes.exportStatus, uuid), {
+        headers: {
+            Accept: 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error('Не удалось получить статус экспорта.');
+    }
+
+    const data = await response.json();
+    exportStatus.value = data.status;
+
+    if (data.status === 'completed') {
+        stopExportPolling();
+        downloadExport(uuid);
+        return;
+    }
+
+    if (data.status === 'failed') {
+        stopExportPolling();
+        exportError.value = data.error_message || 'Не удалось собрать CSV-файл.';
+        return;
+    }
+
+    exportPollTimer.value = window.setTimeout(() => pollExportStatus(uuid), 2000);
+};
+
+const saveToFile = async () => {
+    if (isExporting.value) {
+        return;
+    }
+
+    stopExportPolling();
+    exportError.value = '';
+    exportStatus.value = 'pending';
+
+    try {
+        const response = await fetch(props.routes.exportCreate, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify(exportPayload()),
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось запустить экспорт.');
+        }
+
+        const data = await response.json();
+        exportJobUuid.value = data.uuid;
+        exportStatus.value = data.status;
+        await pollExportStatus(data.uuid);
+    } catch (error) {
+        stopExportPolling();
+        exportStatus.value = 'failed';
+        exportError.value = error.message || 'Не удалось запустить экспорт.';
+    }
+};
+
+onBeforeUnmount(stopExportPolling);
 </script>
 
 <template>
@@ -190,8 +305,12 @@ const applyColumns = (columns) => {
                 <div class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl shadow-black/30">
                     <DarkSalesOutletsToolbar
                         :has-active-filters="hasActiveColumnFilters"
+                        :is-exporting="isExporting"
+                        :export-button-text="exportButtonText"
+                        :export-status-text="exportStatusText"
                         @open-columns="activeModal = modalIds.columns"
                         @open-filters="activeModal = modalIds.filters"
+                        @save-file="saveToFile"
                     />
 
                     <DarkSalesOutletsTable
