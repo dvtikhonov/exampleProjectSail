@@ -125,6 +125,22 @@ docker compose up -d main-app
 
 Gateway переписывает префиксы `/api/a/` и `/api/b/` в `/api/` перед проксированием в соответствующий сервис.
 
+Для `/api/a/...` и `/api/b/...` в gateway настроен CORS:
+
+- `OPTIONS` preflight обрабатывается на стороне `nginx-gateway` и возвращает `204`.
+- Разрешены методы `GET, POST, PUT, PATCH, DELETE, OPTIONS`.
+- Разрешены заголовки `Authorization, Content-Type, Accept`.
+- `Access-Control-Allow-Origin` берётся из `$http_origin`, а `Vary Origin` добавляется всегда.
+- CORS-заголовки от backend-сервисов скрываются через `proxy_hide_header`, чтобы gateway был единственной точкой управления CORS и не появлялись дубли заголовков.
+
+Это важно для браузерных запросов из frontend `main-app`. Например, изменение головной организации торговой точки вызывается из Vue напрямую через gateway:
+
+```text
+POST ${VITE_GATEWAY_ORIGIN}/api/a/sales-outlets/{rowId}/head-organization
+```
+
+Этот вызов не проходит через Laravel-controller `main-app`: браузер обращается к `service-a` через `nginx-gateway`, поэтому preflight и заголовок `Authorization` должны корректно обрабатываться gateway.
+
 ## Основные маршруты
 
 `main-app`:
