@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\HandleAuthPassport;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,6 +16,7 @@ class ProfileTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
             ->actingAs($user)
             ->get('/profile');
 
@@ -26,6 +28,7 @@ class ProfileTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
             ->actingAs($user)
             ->patch('/profile', [
                 'name' => 'Test User',
@@ -48,6 +51,7 @@ class ProfileTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
             ->actingAs($user)
             ->patch('/profile', [
                 'name' => 'Test User',
@@ -66,6 +70,7 @@ class ProfileTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
             ->actingAs($user)
             ->delete('/profile', [
                 'password' => 'password',
@@ -84,6 +89,7 @@ class ProfileTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
             ->actingAs($user)
             ->from('/profile')
             ->delete('/profile', [
