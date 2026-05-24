@@ -1,5 +1,5 @@
-# main-app/Dockerfile
-FROM php:8.3-fpm
+# service-a/Dockerfile
+FROM php:8.4-fpm
 #FROM laravelsail/php83-composer:latest
 
 # Установка необходимых системных пакетов и PHP-расширений
@@ -24,19 +24,16 @@ WORKDIR /var/www/html
 COPY composer.json composer.lock ./
 
 # Установка зависимостей
-#RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-req=php \
-#    && rm -f vendor/composer/platform_check.php
+#RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Устанавливаем зависимости, НО без выполнения скриптов (--no-scripts)
 RUN composer install --no-interaction --optimize-autoloader --no-dev \
-        --ignore-platform-req=php --no-scripts \
-    && rm -f vendor/composer/platform_check.php
+        --no-scripts
 
 COPY . .
 
 # Устанавливаем зависимости (без dev-пакетов, composer уже есть в образе)
-#RUN composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-req=php \
-#    && rm -f vendor/composer/platform_check.php
+#RUN composer install --no-interaction --optimize-autoloader --no-dev
 #RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Запускаем скрипты композера (они выполнят artisan package:discover)

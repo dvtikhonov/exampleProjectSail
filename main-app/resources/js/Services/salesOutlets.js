@@ -25,3 +25,39 @@ export const updateHeadOrganization = async ({ rowId, head_organization, head_or
 
     return response.json();
 };
+
+export class SalesOutletValidationError extends Error {
+    constructor(message, errors = {}) {
+        super(message);
+        this.name = 'SalesOutletValidationError';
+        this.errors = errors;
+    }
+}
+
+export const updateSalesOutlet = async (rowId, payload) => {
+    const response = await authorizedJsonRequest(`${gatewayOrigin}/api/a/sales-outlets/${rowId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+
+    if (! response.ok) {
+        const data = response.headers.get('content-type')?.includes('application/json')
+            ? await response.json()
+            : {};
+
+        if (response.status === 422) {
+            throw new SalesOutletValidationError(
+                data.message ?? 'Проверьте заполнение полей',
+                data.errors ?? {},
+            );
+        }
+
+        throw new Error(data.message ?? 'Не удалось сохранить объект продаж');
+    }
+
+    if (! response.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Сервис вернул некорректный ответ');
+    }
+
+    return response.json();
+};

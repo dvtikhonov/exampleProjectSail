@@ -5,6 +5,7 @@ namespace App\Services\SalesOutlets;
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
 use App\DTO\SalesOutlets\SalesOutletRowDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
+use App\DTO\SalesOutlets\UpdateSalesOutletDto;
 use App\Enums\SalesOutletStatus;
 use App\Models\SalesOutlet;
 use App\Repositories\SalesOutlets\SalesOutletRepositoryInterface;
@@ -86,6 +87,13 @@ class SalesOutletService implements SalesOutletServiceInterface
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutletRowDto
     {
         $salesOutlet = $this->salesOutletRepository->updateHeadOrganization($salesOutlet, $dto);
+
+        return SalesOutletRowDto::fromModel($salesOutlet);
+    }
+
+    public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutletRowDto
+    {
+        $salesOutlet = $this->salesOutletRepository->update($salesOutlet, $dto);
 
         return SalesOutletRowDto::fromModel($salesOutlet);
     }

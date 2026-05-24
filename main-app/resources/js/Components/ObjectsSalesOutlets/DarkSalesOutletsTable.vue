@@ -26,7 +26,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['sort']);
+const emit = defineEmits(['sort', 'edit']);
 const localRows = ref(props.rows.map((row) => ({ ...row })));
 const topScrollbar = ref(null);
 const tableScrollbar = ref(null);
@@ -247,6 +247,7 @@ const syncTopScroll = () => {
                                         type="button"
                                         class="rounded-lg bg-cyan-500 px-2.5 py-1 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900"
                                         :aria-label="`Редактировать объект продаж ${row.id}`"
+                                        @click="emit('edit', row)"
                                     >
                                         ✎
                                     </button>

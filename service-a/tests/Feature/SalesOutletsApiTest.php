@@ -113,6 +113,98 @@ class SalesOutletsApiTest extends TestCase
         ]);
     }
 
+    public function test_it_updates_sales_outlet(): void
+    {
+        $userId = 12345;
+
+        $response = $this
+            ->withHeader('X-User-Id', (string) $userId)
+            ->patchJson('/api/sales-outlets/1001', [
+                'shop' => 'Воронеж',
+                'manager' => 'Новый менеджер',
+                'curator' => 'Новый куратор',
+                'name' => 'Обновленная точка',
+                'inn' => '3666123456',
+                'head_organization' => 'Новая головная организация',
+                'head_organization_type' => 'ООО',
+                'organization_name' => 'ООО Новая организация',
+                'status' => 'approved',
+                'id' => 999999,
+                'row_tone' => 'danger',
+                'approved' => 'Нет',
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('id', 1001)
+            ->assertJsonPath('shop', 'Воронеж')
+            ->assertJsonPath('manager', 'Новый менеджер')
+            ->assertJsonPath('curator', 'Новый куратор')
+            ->assertJsonPath('name', 'Обновленная точка')
+            ->assertJsonPath('inn', '3666123456')
+            ->assertJsonPath('head_organization', 'Новая головная организация')
+            ->assertJsonPath('head_organization_type', 'ooo')
+            ->assertJsonPath('head_organization_type_label', 'ООО')
+            ->assertJsonPath('organization_name', 'ООО Новая организация')
+            ->assertJsonPath('status', 'approved')
+            ->assertJsonPath('status_label', 'Одобрено')
+            ->assertJsonPath('user_id', $userId)
+            ->assertJsonPath('row_tone', 'success');
+
+        $this->assertDatabaseHas('sales_outlets', [
+            'id' => 1001,
+            'shop' => 'Воронеж',
+            'manager' => 'Новый менеджер',
+            'curator' => 'Новый куратор',
+            'name' => 'Обновленная точка',
+            'inn' => '3666123456',
+            'head_organization' => 'Новая головная организация',
+            'head_organization_type' => 'ooo',
+            'organization_name' => 'ООО Новая организация',
+            'status' => 'approved',
+            'user_id' => $userId,
+        ]);
+
+        $this->assertDatabaseMissing('sales_outlets', [
+            'id' => 999999,
+        ]);
+    }
+
+    public function test_it_validates_sales_outlet_update(): void
+    {
+        $response = $this->patchJson('/api/sales-outlets/1001', [
+            'shop' => '',
+            'manager' => '',
+            'curator' => '',
+            'name' => '',
+            'inn' => 'bad-inn',
+            'head_organization' => '',
+            'head_organization_type' => 'ЗАО',
+            'organization_name' => '',
+            'status' => 'archived',
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'shop',
+                'manager',
+                'curator',
+                'name',
+                'inn',
+                'head_organization',
+                'head_organization_type',
+                'organization_name',
+                'status',
+            ]);
+    }
+
+    public function test_it_returns_not_found_for_unknown_sales_outlet_on_update(): void
+    {
+        $this->patchJson('/api/sales-outlets/999999', $this->updateSalesOutletData())
+            ->assertNotFound();
+    }
+
     public function test_it_soft_deletes_sales_outlet_and_stores_last_user(): void
     {
         $userId = 12345;
@@ -200,6 +292,24 @@ class SalesOutletsApiTest extends TestCase
             'organization_name' => 'ООО Новая точка',
             'status' => SalesOutletStatus::Review,
             'approved' => 'Частично',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function updateSalesOutletData(): array
+    {
+        return [
+            'shop' => 'Воронеж',
+            'manager' => 'Новый менеджер',
+            'curator' => 'Новый куратор',
+            'name' => 'Обновленная точка',
+            'inn' => '3666123456',
+            'head_organization' => 'Новая головная организация',
+            'head_organization_type' => 'ООО',
+            'organization_name' => 'ООО Новая организация',
+            'status' => 'approved',
         ];
     }
 }

@@ -2,10 +2,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DarkColumnFiltersModal from '@/Components/ObjectsSalesOutlets/DarkColumnFiltersModal.vue';
 import DarkColumnSettingsModal from '@/Components/ObjectsSalesOutlets/DarkColumnSettingsModal.vue';
+import DarkSalesOutletEditModal from '@/Components/ObjectsSalesOutlets/DarkSalesOutletEditModal.vue';
 import DarkSalesOutletsPagination from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsPagination.vue';
 import DarkSalesOutletsTable from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsTable.vue';
 import DarkSalesOutletsToolbar from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsToolbar.vue';
 import { usePersistentTableSettings } from '@/Composables/usePersistentTableSettings';
+import { SalesOutletValidationError, updateSalesOutlet } from '@/Services/salesOutlets';
 import { Head, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
@@ -48,6 +50,12 @@ const exportJobUuid = ref(null);
 const exportStatus = ref('idle');
 const exportError = ref('');
 const exportPollTimer = ref(null);
+const localSalesOutlets = ref(props.salesOutlets.map((row) => ({ ...row })));
+const editingSalesOutlet = ref(null);
+const isEditModalOpen = ref(false);
+const isSavingSalesOutlet = ref(false);
+const editModalError = ref('');
+const editFieldErrors = ref({});
 const isColumnModalOpen = computed(() => activeModal.value === modalIds.columns);
 const isFilterModalOpen = computed(() => activeModal.value === modalIds.filters);
 const hasActiveColumnFilters = computed(() => Object.keys(columnFilters.value).length > 0);
@@ -104,6 +112,13 @@ if (hasSavedTableSettings && !currentSettingsMatchSaved) {
         },
     );
 }
+
+watch(
+    () => props.salesOutlets,
+    (salesOutlets) => {
+        localSalesOutlets.value = salesOutlets.map((row) => ({ ...row }));
+    },
+);
 
 watch(
     () => props.filters.columns,
@@ -269,6 +284,65 @@ const saveToFile = async () => {
     }
 };
 
+const openEditModal = (row) => {
+    editingSalesOutlet.value = { ...row };
+    editModalError.value = '';
+    editFieldErrors.value = {};
+    isEditModalOpen.value = true;
+};
+
+const closeEditModal = () => {
+    if (isSavingSalesOutlet.value) {
+        return;
+    }
+
+    isEditModalOpen.value = false;
+    editingSalesOutlet.value = null;
+    editModalError.value = '';
+    editFieldErrors.value = {};
+};
+
+const finishEditModal = () => {
+    isEditModalOpen.value = false;
+    editingSalesOutlet.value = null;
+    editModalError.value = '';
+    editFieldErrors.value = {};
+};
+
+const replaceSalesOutlet = (updatedRow) => {
+    localSalesOutlets.value = localSalesOutlets.value.map((row) => (
+        row.id === updatedRow.id
+            ? { ...row, ...updatedRow }
+            : row
+    ));
+};
+
+const saveSalesOutlet = async (payload) => {
+    if (! editingSalesOutlet.value) {
+        return;
+    }
+
+    isSavingSalesOutlet.value = true;
+    editModalError.value = '';
+    editFieldErrors.value = {};
+
+    try {
+        const updatedRow = await updateSalesOutlet(editingSalesOutlet.value.id, payload);
+        replaceSalesOutlet(updatedRow);
+        finishEditModal();
+    } catch (error) {
+        if (error instanceof SalesOutletValidationError) {
+            editFieldErrors.value = error.errors;
+            editModalError.value = error.message;
+            return;
+        }
+
+        editModalError.value = error?.message ?? 'Не удалось сохранить объект продаж.';
+    } finally {
+        isSavingSalesOutlet.value = false;
+    }
+};
+
 onBeforeUnmount(stopExportPolling);
 </script>
 
@@ -315,11 +389,12 @@ onBeforeUnmount(stopExportPolling);
 
                     <DarkSalesOutletsTable
                         :columns="columns"
-                        :rows="salesOutlets"
+                        :rows="localSalesOutlets"
                         :visible-columns="selectedColumns"
                         :sort="filters.sort"
                         :direction="filters.direction"
                         @sort="sortBy"
+                        @edit="openEditModal"
                     />
 
                     <DarkSalesOutletsPagination
@@ -345,6 +420,16 @@ onBeforeUnmount(stopExportPolling);
             @close="activeModal = null"
             @clear="clearColumnFilters"
             @apply="applyColumnFilters"
+        />
+
+        <DarkSalesOutletEditModal
+            :show="isEditModalOpen"
+            :row="editingSalesOutlet"
+            :is-saving="isSavingSalesOutlet"
+            :server-error="editModalError"
+            :field-errors="editFieldErrors"
+            @close="closeEditModal"
+            @save="saveSalesOutlet"
         />
     </AuthenticatedLayout>
 </template>

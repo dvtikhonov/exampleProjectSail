@@ -111,6 +111,7 @@ services:
       - ./service-b/phpunit.xml:/var/www/html/phpunit.xml:ro
       - ./service-b/storage:/var/www/html/storage
       - ./service-b/.env:/var/www/html/.env:ro
+      - ./service-b/.env.testing:/var/www/html/.env.testing:ro
       # НЕ монтируем vendor и bootstrap/cache
     networks:
       - internal
@@ -146,6 +147,7 @@ services:
       - ./service-b/tests:/var/www/html/tests
       - ./service-b/storage:/var/www/html/storage
       - ./service-b/.env:/var/www/html/.env:ro
+      - ./service-b/.env.testing:/var/www/html/.env.testing:ro
     networks:
       - internal
     depends_on:

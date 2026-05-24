@@ -257,6 +257,49 @@ docker compose exec service-b php artisan test
 
 Для тестов используйте отдельную тестовую базу `sail_db_testing` и проверьте, что тестовое окружение не указывает на рабочую БД.
 
+## Единый тестовый контур
+
+Для интеграционных проверок всех сервисов используйте корневой сценарий `scripts/test-services.sh`. Он работает через контейнеры Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app`, `service-a`, `service-b`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что Laravel `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+
+Подготовить только тестовую БД:
+
+```bash
+./scripts/test-services.sh prepare
+```
+
+Подготовить БД и запустить все тесты:
+
+```bash
+./scripts/test-services.sh all
+```
+
+Подготовить БД и запустить тесты одного сервиса:
+
+```bash
+./scripts/test-services.sh main-app
+./scripts/test-services.sh service-a
+./scripts/test-services.sh service-b
+```
+
+Для быстрого повторного запуска без пересоздания БД добавьте `--no-prepare`:
+
+```bash
+./scripts/test-services.sh service-a --no-prepare
+```
+
+По умолчанию используется подключение к MySQL на `host.docker.internal:3306` с базой `sail_db_testing`. При необходимости параметры можно переопределить переменными окружения:
+
+```bash
+TEST_DATABASE=sail_db_testing \
+TEST_DB_HOST=host.docker.internal \
+TEST_DB_PORT=3306 \
+TEST_DB_USERNAME=root \
+TEST_DB_PASSWORD=12345678AS \
+./scripts/test-services.sh all
+```
+
+Миграции изменяют состояние базы данных, поэтому запускайте `prepare` и режимы без `--no-prepare` только после явного согласия на выполнение миграций.
+
 ## База данных
 
 Внутренний MySQL-контейнер в `docker-compose.yml` сейчас закомментирован. Проект использует внешний MySQL.

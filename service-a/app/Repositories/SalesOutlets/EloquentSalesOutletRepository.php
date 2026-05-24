@@ -4,6 +4,7 @@ namespace App\Repositories\SalesOutlets;
 
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
+use App\DTO\SalesOutlets\UpdateSalesOutletDto;
 use App\Enums\SalesOutletStatus;
 use App\Models\SalesOutlet;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -71,6 +72,23 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
         $salesOutlet->forceFill([
             'head_organization' => $dto->headOrganization,
             'head_organization_type' => $dto->headOrganizationType,
+        ])->save();
+
+        return $salesOutlet->refresh();
+    }
+
+    public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutlet
+    {
+        $salesOutlet->forceFill([
+            'shop' => $dto->shop,
+            'manager' => $dto->manager,
+            'curator' => $dto->curator,
+            'name' => $dto->name,
+            'inn' => $dto->inn,
+            'head_organization' => $dto->headOrganization,
+            'head_organization_type' => $dto->headOrganizationType,
+            'organization_name' => $dto->organizationName,
+            'status' => $dto->status,
         ])->save();
 
         return $salesOutlet->refresh();
