@@ -3,9 +3,30 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_ENV_FILE="${ROOT_DIR}/.env.testing.local"
+
+if [[ -f "$LOCAL_ENV_FILE" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$LOCAL_ENV_FILE"
+    set +a
+fi
+
+TEST_DATABASE="${TEST_DATABASE-}"
+TEST_DB_USERNAME="${TEST_DB_USERNAME-}"
+TEST_DB_PASSWORD="${TEST_DB_PASSWORD-}"
+TEST_DB_HOST="${TEST_DB_HOST-}"
+TEST_DB_PORT="${TEST_DB_PORT-}"
+
+TEST_DATABASE="${TEST_DATABASE%$'\r'}"
+TEST_DB_USERNAME="${TEST_DB_USERNAME%$'\r'}"
+TEST_DB_PASSWORD="${TEST_DB_PASSWORD%$'\r'}"
+TEST_DB_HOST="${TEST_DB_HOST%$'\r'}"
+TEST_DB_PORT="${TEST_DB_PORT%$'\r'}"
+
 TEST_DATABASE="${TEST_DATABASE:-sail_db_testing}"
 MYSQL_USER="${TEST_DB_USERNAME:-root}"
-MYSQL_PASSWORD="${TEST_DB_PASSWORD:-12345678AS}"
+MYSQL_PASSWORD="${TEST_DB_PASSWORD:?Set TEST_DB_PASSWORD in .env.testing.local or environment}"
 MYSQL_HOST="${TEST_DB_HOST:-host.docker.internal}"
 MYSQL_PORT="${TEST_DB_PORT:-3306}"
 
@@ -23,7 +44,9 @@ Environment overrides:
   TEST_DB_HOST=host.docker.internal
   TEST_DB_PORT=3306
   TEST_DB_USERNAME=root
-  TEST_DB_PASSWORD=12345678AS
+  TEST_DB_PASSWORD=<required>
+
+Local overrides can be stored in .env.testing.local.
 USAGE
 }
 

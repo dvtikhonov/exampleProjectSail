@@ -30,7 +30,6 @@
         <env name="DB_DATABASE" value="sail_db_testing" force="true"/>
         <env name="DB_TEST_DATABASE" value="sail_db_testing" force="true"/>
         <env name="DB_USERNAME" value="root" force="true"/>
-        <env name="DB_PASSWORD" value="12345678AS" force="true"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

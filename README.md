@@ -39,7 +39,7 @@
    SERVICE_B_DB_PORT=3306
    SERVICE_B_DB_DATABASE=sail_db
    SERVICE_B_DB_USERNAME=root
-   SERVICE_B_DB_PASSWORD=12345678AS
+   SERVICE_B_DB_PASSWORD=<your-local-password>
    ```
 
    Для `service-a` задайте свои `DB_CONNECTION`, `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
@@ -287,14 +287,20 @@ docker compose exec service-b php artisan test
 ./scripts/test-services.sh service-a --no-prepare
 ```
 
-По умолчанию используется подключение к MySQL на `host.docker.internal:3306` с базой `sail_db_testing`. При необходимости параметры можно переопределить переменными окружения:
+По умолчанию используется подключение к MySQL на `host.docker.internal:3306` с базой `sail_db_testing`. Пароль задаётся в локальном файле `.env.testing.local`, который не должен попадать в git:
+
+```bash
+TEST_DB_PASSWORD=<your-local-password>
+```
+
+При необходимости параметры можно переопределить переменными окружения:
 
 ```bash
 TEST_DATABASE=sail_db_testing \
 TEST_DB_HOST=host.docker.internal \
 TEST_DB_PORT=3306 \
 TEST_DB_USERNAME=root \
-TEST_DB_PASSWORD=12345678AS \
+TEST_DB_PASSWORD=<your-local-password> \
 ./scripts/test-services.sh all
 ```
 
