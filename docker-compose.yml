@@ -74,6 +74,7 @@ services:
 #      - DB_PASSWORD=root
     volumes:
       - ./service-a:/var/www/html
+      - ./shared:/var/www/shared
     networks:
       - internal
     depends_on:
@@ -99,7 +100,7 @@ services:
       - DB_PORT=${SERVICE_B_DB_PORT:-3306}
       - DB_DATABASE=${SERVICE_B_DB_DATABASE:-sail_db}
       - DB_USERNAME=${SERVICE_B_DB_USERNAME:-root}
-      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:-12345678}
+      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:-12345678AS}
     volumes:
 #      - ./service-b:/var/www/html
       - ./service-b/app:/var/www/html/app
@@ -110,8 +111,12 @@ services:
       - ./service-b/tests:/var/www/html/tests
       - ./service-b/phpunit.xml:/var/www/html/phpunit.xml:ro
       - ./service-b/storage:/var/www/html/storage
+      - ./service-b/vendor:/var/www/html/vendor
+      - ./service-b/composer.json:/var/www/html/composer.json:ro
+      - ./service-b/composer.lock:/var/www/html/composer.lock:ro
       - ./service-b/.env:/var/www/html/.env:ro
       - ./service-b/.env.testing:/var/www/html/.env.testing:ro
+      - ./shared:/var/www/shared
       # НЕ монтируем vendor и bootstrap/cache
     networks:
       - internal
@@ -137,7 +142,7 @@ services:
       - DB_PORT=${SERVICE_B_DB_PORT:-3306}
       - DB_DATABASE=${SERVICE_B_DB_DATABASE:-sail_db}
       - DB_USERNAME=${SERVICE_B_DB_USERNAME:-root}
-      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:-12345678}
+      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:-12345678AS}
     volumes:
       - ./service-b/app:/var/www/html/app
       - ./service-b/routes:/var/www/html/routes
@@ -146,8 +151,12 @@ services:
       - ./service-b/resources:/var/www/html/resources
       - ./service-b/tests:/var/www/html/tests
       - ./service-b/storage:/var/www/html/storage
+      - ./service-b/vendor:/var/www/html/vendor
+      - ./service-b/composer.json:/var/www/html/composer.json:ro
+      - ./service-b/composer.lock:/var/www/html/composer.lock:ro
       - ./service-b/.env:/var/www/html/.env:ro
       - ./service-b/.env.testing:/var/www/html/.env.testing:ro
+      - ./shared:/var/www/shared
     networks:
       - internal
     depends_on:

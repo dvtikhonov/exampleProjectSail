@@ -5,7 +5,17 @@
     "description": "The skeleton application for the Laravel framework.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../shared/sales-outlets-domain",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "require": {
+        "example/sales-outlets-domain": "*",
         "php": "^8.3",
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0"

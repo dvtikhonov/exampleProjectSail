@@ -2,15 +2,15 @@
 
 namespace Tests\Feature;
 
-use App\Enums\HeadOrganizationType;
 use App\Enums\SalesOutletExportStatus;
-use App\Enums\SalesOutletStatus;
 use App\Jobs\BuildSalesOutletsCsvExportJob;
 use App\Models\SalesOutlet;
 use App\Models\SalesOutletExportJob;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 use Tests\TestCase;
 
 class SalesOutletsExportTest extends TestCase

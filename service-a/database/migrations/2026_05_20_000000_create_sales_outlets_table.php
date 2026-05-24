@@ -1,10 +1,10 @@
 <?php
 
-use App\Enums\HeadOrganizationType;
-use App\Enums\SalesOutletStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
 return new class extends Migration
 {

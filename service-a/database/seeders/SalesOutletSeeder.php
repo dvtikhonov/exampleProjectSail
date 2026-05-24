@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Enums\HeadOrganizationType;
-use App\Enums\SalesOutletStatus;
 use App\Models\SalesOutlet;
 use Illuminate\Database\Seeder;
+use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
 class SalesOutletSeeder extends Seeder
 {

@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Enums\HeadOrganizationType;
-use App\Enums\SalesOutletStatus;
 use App\Models\SalesOutlet;
 use Database\Seeders\SalesOutletSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 use Tests\TestCase;
 
 class SalesOutletsApiTest extends TestCase

@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use App\Enums\HeadOrganizationType;
-use App\Enums\SalesOutletStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
 #[Fillable([
     'shop',

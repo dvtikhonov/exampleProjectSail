@@ -2,11 +2,11 @@
 
 namespace App\DTO\SalesOutlets;
 
-use App\Enums\HeadOrganizationType;
-use App\Enums\SalesOutletStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
 readonly class UpdateSalesOutletDto
 {

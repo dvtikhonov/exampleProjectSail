@@ -3,10 +3,10 @@
 namespace App\Services\SalesOutlets;
 
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
-use App\DTO\SalesOutlets\SalesOutletRowDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\DTO\SalesOutlets\UpdateSalesOutletDto;
 use App\Models\SalesOutlet;
+use Shared\SalesOutletsDomain\DTO\SalesOutletRowDto;
 
 interface SalesOutletServiceInterface
 {

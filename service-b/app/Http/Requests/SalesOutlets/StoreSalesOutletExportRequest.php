@@ -3,10 +3,10 @@
 namespace App\Http\Requests\SalesOutlets;
 
 use App\DTO\SalesOutlets\SalesOutletExportFilterDto;
-use App\Enums\SalesOutletStatus;
 use App\Services\SalesOutlets\SalesOutletsExportServiceInterface;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
 class StoreSalesOutletExportRequest extends FormRequest
 {

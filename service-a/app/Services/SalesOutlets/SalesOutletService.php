@@ -3,32 +3,33 @@
 namespace App\Services\SalesOutlets;
 
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
-use App\DTO\SalesOutlets\SalesOutletRowDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\DTO\SalesOutlets\UpdateSalesOutletDto;
-use App\Enums\SalesOutletStatus;
 use App\Models\SalesOutlet;
 use App\Repositories\SalesOutlets\SalesOutletRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Shared\SalesOutletsDomain\DTO\SalesOutletRowDto;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
+use Shared\SalesOutletsDomain\Metadata\SalesOutletColumns;
 
 class SalesOutletService implements SalesOutletServiceInterface
 {
     /**
      * @var array<int, array<string, bool|int|string>>
      */
-    private const COLUMNS = [
-        ['key' => 'id', 'label' => 'ID объекта продаж', 'sortable' => true, 'width' => 120, 'align' => 'center'],
-        ['key' => 'shop', 'label' => 'Магазин', 'sortable' => true, 'width' => 150, 'align' => 'center'],
-        ['key' => 'manager', 'label' => 'Менеджер', 'sortable' => true, 'width' => 190, 'align' => 'center'],
-        ['key' => 'curator', 'label' => 'Куратор ТТ', 'sortable' => true, 'width' => 190, 'align' => 'center'],
-        ['key' => 'name', 'label' => 'Название ТТ', 'sortable' => true, 'width' => 170, 'align' => 'center'],
-        ['key' => 'inn', 'label' => 'ИНН головной', 'sortable' => true, 'width' => 170, 'align' => 'center'],
-        ['key' => 'head_organization', 'label' => 'Головная организация', 'sortable' => true, 'width' => 260, 'align' => 'center', 'cellType' => 'headOrganizationPoptip'],
-        ['key' => 'head_organization_type', 'label' => 'Вид', 'sortable' => true, 'width' => 120, 'align' => 'center'],
-        ['key' => 'organization_name', 'label' => 'Название организации', 'sortable' => true, 'width' => 260, 'align' => 'center'],
-        ['key' => 'status_label', 'label' => 'Статус', 'sortable' => true, 'width' => 170, 'align' => 'center', 'cellType' => 'statusBadge'],
-        ['key' => 'approved', 'label' => 'Одобрено', 'sortable' => true, 'width' => 140, 'align' => 'center'],
-        ['key' => 'user_id', 'label' => 'Последний пользователь', 'sortable' => true, 'width' => 170, 'align' => 'center'],
+    private const COLUMN_UI = [
+        'id' => ['width' => 120, 'align' => 'center'],
+        'shop' => ['width' => 150, 'align' => 'center'],
+        'manager' => ['width' => 190, 'align' => 'center'],
+        'curator' => ['width' => 190, 'align' => 'center'],
+        'name' => ['width' => 170, 'align' => 'center'],
+        'inn' => ['width' => 170, 'align' => 'center'],
+        'head_organization' => ['width' => 260, 'align' => 'center', 'cellType' => 'headOrganizationPoptip'],
+        'head_organization_type' => ['width' => 120, 'align' => 'center'],
+        'organization_name' => ['width' => 260, 'align' => 'center'],
+        'status_label' => ['width' => 170, 'align' => 'center', 'cellType' => 'statusBadge'],
+        'approved' => ['width' => 140, 'align' => 'center'],
+        'user_id' => ['width' => 170, 'align' => 'center'],
     ];
 
     public function __construct(
@@ -40,7 +41,10 @@ class SalesOutletService implements SalesOutletServiceInterface
      */
     public function columns(): array
     {
-        return self::COLUMNS;
+        return array_map(
+            fn (array $column): array => array_merge($column, self::COLUMN_UI[$column['key']] ?? []),
+            SalesOutletColumns::all(),
+        );
     }
 
     /**
@@ -48,7 +52,7 @@ class SalesOutletService implements SalesOutletServiceInterface
      */
     public function allowedColumnKeys(): array
     {
-        return array_column(self::COLUMNS, 'key');
+        return SalesOutletColumns::keys();
     }
 
     /**
@@ -64,7 +68,7 @@ class SalesOutletService implements SalesOutletServiceInterface
                 ->values()
                 ->all(),
             'meta' => [
-                'columns' => self::COLUMNS,
+                'columns' => $this->columns(),
                 'filters' => [
                     'search' => $queryDto->search,
                     'status' => $queryDto->status,

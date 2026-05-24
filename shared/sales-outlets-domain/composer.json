@@ -1,0 +1,18 @@
+{
+    "name": "example/sales-outlets-domain",
+    "description": "Shared sales outlets domain primitives.",
+    "type": "library",
+    "version": "1.0.0",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "illuminate/database": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Shared\\SalesOutletsDomain\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
