@@ -6,9 +6,7 @@ use App\Enums\HeadOrganizationType;
 use App\Enums\SalesOutletStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Auth;
 
 #[Fillable([
     'shop',
@@ -51,14 +49,9 @@ class SalesOutlet extends Model
         ];
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
     private function fillCurrentUserId(): void
     {
-        $userId = Auth::id() ?? $this->currentUserIdFromGatewayHeader();
+        $userId = $this->currentUserIdFromGatewayHeader();
 
         if ($userId === null) {
             return;
@@ -71,12 +64,12 @@ class SalesOutlet extends Model
 
     private function currentUserIdFromGatewayHeader(): ?int
     {
-        $userId = request()->header('X-User-Id');
+        $userId = request()->attributes->get('gateway_user_id');
 
-        if (! is_numeric($userId)) {
+        if (! is_int($userId)) {
             return null;
         }
 
-        return (int) $userId;
+        return $userId;
     }
 }

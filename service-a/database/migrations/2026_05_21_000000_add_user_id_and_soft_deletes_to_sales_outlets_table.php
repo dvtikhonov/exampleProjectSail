@@ -12,8 +12,7 @@ return new class extends Migration
             $table->foreignId('user_id')
                 ->nullable()
                 ->after('approved')
-                ->constrained()
-                ->nullOnDelete();
+                ->index();
             $table->softDeletes();
         });
     }
@@ -21,7 +20,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sales_outlets', function (Blueprint $table): void {
-            $table->dropConstrainedForeignId('user_id');
+            $table->dropIndex(['user_id']);
+            $table->dropColumn('user_id');
             $table->dropSoftDeletes();
         });
     }

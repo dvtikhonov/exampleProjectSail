@@ -2,10 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class TrustGatewayAuth
@@ -17,12 +15,8 @@ class TrustGatewayAuth
     {
         $userId = $request->header('X-User-Id');
 
-        if ($userId !== null) {
-            $user = User::query()->find($userId);
-
-            if ($user !== null) {
-                Auth::login($user);
-            }
+        if (is_numeric($userId)) {
+            $request->attributes->set('gateway_user_id', (int) $userId);
         }
 
         return $next($request);

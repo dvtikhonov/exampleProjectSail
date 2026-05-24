@@ -41,6 +41,8 @@ services:
       - ./main-app/resources:/var/www/html/resources
       - ./main-app/tests:/var/www/html/tests
       - ./main-app/public:/var/www/html/public
+      - ./main-app/phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./main-app/.env.testing:/var/www/html/.env.testing:ro
       - ./main-app/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
       # bind mount вместо томов
       - ./main-app/storage:/var/www/html/storage
