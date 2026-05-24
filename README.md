@@ -8,6 +8,7 @@
 - `service-a` - Laravel API-сервис с маршрутами `/api/pingS`, `/api/ping`, `/api/sales-outlets`, изменением головной организации и удалением торговой точки.
 - `service-b` - Laravel API-сервис для доверенной авторизации через `X-User-Id` и фоновых экспортов торговых точек.
 - `service-b-queue` - отдельный worker очереди `service-b` для обработки экспортов.
+- `shared/sales-outlets-domain` - локальный Composer-пакет с общей доменной частью торговых точек для `service-a` и `service-b`.
 - `nginx-gateway` - единая точка входа на OpenResty/Nginx. Проксирует запросы в сервисы и проверяет Bearer-токен через `main-app`.
 - `docker-compose.yml` - основной compose-файл для запуска всей системы.
 - `main-app/compose.yaml` - отдельный Laravel Sail compose для изолированного запуска `main-app`; для общего запуска проекта обычно не используется.
@@ -228,6 +229,43 @@ docker compose exec main-app npm run build
 VITE_DEV_SERVER_URL=http://localhost:5173
 VITE_GATEWAY_ORIGIN=http://localhost:8080
 ```
+
+## Shared domain package
+
+`shared/sales-outlets-domain` - локальный Composer-пакет `example/sales-outlets-domain` с namespace `Shared\SalesOutletsDomain\`. Он содержит общие для `service-a` и `service-b` доменные примитивы торговых точек:
+
+- enum `SalesOutletStatus` и `HeadOrganizationType`;
+- DTO `SalesOutletRowDto` и `SalesOutletFilterDto`;
+- метаданные колонок `SalesOutletColumns`;
+- Eloquent query-filter `SalesOutletQueryFilter`.
+
+Пакет подключён в `service-a/composer.json` и `service-b/composer.json` через Composer `path` repository:
+
+```json
+{
+  "type": "path",
+  "url": "../shared/sales-outlets-domain",
+  "options": {
+    "symlink": true
+  }
+}
+```
+
+После изменений в пакете обновите автозагрузку в сервисах:
+
+```bash
+docker compose exec service-a composer dump-autoload
+docker compose exec service-b composer dump-autoload
+```
+
+Если менялась версия пакета или Composer-зависимости, обновите пакет отдельно в каждом сервисе:
+
+```bash
+docker compose exec service-a composer update example/sales-outlets-domain
+docker compose exec service-b composer update example/sales-outlets-domain
+```
+
+В пакет не вынесены Eloquent-модели, контроллеры, FormRequest, сервисы экспорта, job и миграции. Они остаются внутри конкретных Laravel-сервисов, потому что завязаны на их таблицы, auth, lifecycle hooks и workflow.
 
 ## Полезные команды
 
