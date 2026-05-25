@@ -5,9 +5,32 @@ namespace Shared\SalesOutletsDomain\Query;
 use Illuminate\Database\Eloquent\Builder;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
 use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
+use Shared\SalesOutletsDomain\Query\SalesOutletFilterQuery\FilterQuerySalesOutletComposite;
 
 final class SalesOutletQueryFilter
 {
+    protected FilterQuerySalesOutletComposite $filterQuerySalesOutletComposite;
+
+    public function __construct()
+    {
+        $this->filterQuerySalesOutletComposite = app(FilterQuerySalesOutletComposite::class, []);
+    }
+
+    /**
+     * Добавить фильтр
+     *
+     * @param $data
+     * @param Closure $next
+     * @return mixed
+     */
+    public function handle($data)
+    {
+
+        $this->filterQuerySalesOutletComposite->run($data);
+
+        return $next($data);
+    }
+
     /**
      * @var array<int, string>
      */
@@ -80,6 +103,21 @@ final class SalesOutletQueryFilter
 
     private function applySearch(Builder $query, string $search): void
     {
+        if ($search === '') {
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($search): void {
+            foreach (self::SEARCH_COLUMNS as $column) {
+                $query->orWhere($column, 'like', '%'.$search.'%');
+            }
+        });
+    }
+    // todo надо доделать
+    private function applySearch_2(Builder $query, string $search): void
+    {
+        $this->filterQuerySalesOutletComposite->run($query);
+
         if ($search === '') {
             return;
         }

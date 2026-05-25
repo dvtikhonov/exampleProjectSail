@@ -15,13 +15,18 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Устанавливаем расширение pdo_mysql
 RUN docker-php-ext-install pdo_mysql
 
+# Устанавливаем Xdebug для локальной отладки в PHPStorm.
+RUN pecl install xdebug \
+    && docker-php-ext-enable xdebug
+
 # Рабочая директория внутри контейнера
 WORKDIR /var/www/html
 #WORKDIR /var/www
 
 # Копируем исходники
 # Копирование composer файлов (для оптимального кэширования слоёв)
-COPY composer.json composer.lock ./
+COPY service-a/composer.json service-a/composer.lock ./
+COPY shared /var/www/shared
 
 # Установка зависимостей
 #RUN composer install --no-interaction --optimize-autoloader --no-dev
@@ -30,7 +35,7 @@ COPY composer.json composer.lock ./
 RUN composer install --no-interaction --optimize-autoloader --no-dev \
         --no-scripts
 
-COPY . .
+COPY service-a .
 
 # Устанавливаем зависимости (без dev-пакетов, composer уже есть в образе)
 #RUN composer install --no-interaction --optimize-autoloader --no-dev

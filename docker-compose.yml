@@ -57,8 +57,8 @@ services:
 
   service-a:
     build:
-      context: ./service-a
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: service-a/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -66,6 +66,8 @@ services:
     environment:
       - APP_ENV=local
       - APP_URL=http://service-a
+      - XDEBUG_MODE=debug,develop
+      - PHP_IDE_CONFIG=serverName=service-a
 #      - DB_CONNECTION=mysql
 #      - DB_HOST=mysql
 #      - DB_PORT=3306
@@ -74,6 +76,7 @@ services:
 #      - DB_PASSWORD=root
     volumes:
       - ./service-a:/var/www/html
+      - ./service-a/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
       - ./shared:/var/www/shared
     networks:
       - internal
