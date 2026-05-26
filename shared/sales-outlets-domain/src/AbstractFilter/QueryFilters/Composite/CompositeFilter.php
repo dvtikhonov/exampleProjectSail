@@ -1,8 +1,8 @@
 <?php
 
-namespace App\AbstractFilter\QueryFilters\Composite;
+namespace Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Composite;
 
-use App\AbstractFilter\QueryFilters\Contracts\Filter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Contracts\Filter;
 use Illuminate\Database\Eloquent\Builder;
 
 final class CompositeFilter implements Filter

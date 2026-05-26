@@ -16,6 +16,7 @@ services:
     environment:
       - APP_ENV=local
       - APP_URL=http://main-app
+      - LOG_CHANNEL=stderr
       - DB_CONNECTION=mysql
       - DB_HOST=host.docker.internal   # доступ к внешнему MySQL
       - DB_PORT=3306
@@ -66,6 +67,7 @@ services:
     environment:
       - APP_ENV=local
       - APP_URL=http://service-a
+      - LOG_CHANNEL=stderr
       - XDEBUG_MODE=debug,develop
       - PHP_IDE_CONFIG=serverName=service-a
 #      - DB_CONNECTION=mysql

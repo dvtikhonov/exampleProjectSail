@@ -2,40 +2,74 @@
 
 namespace Shared\SalesOutletsDomain\Query\SalesOutletFilterQuery;
 
-use App\AbstractFilter\QueryFilters\Filters\WhereHasFilter;
-use App\AbstractFilter\QueryFilters\Filters\WhereInFilter;
-use App\AbstractFilter\QueryFilters\Composite\CompositeFilter;
-use App\AbstractFilter\QueryFilters\Contracts\Filter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Composite\CompositeFilter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Contracts\Filter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Filters\WhereInFilter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Filters\WhereLikePrefixFilter;
+use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
 final class SalesOutletFilterFactory
 {
+    /**
+     * @var array<int, string>
+     */
+    private const LIKE_PREFIX_COLUMNS = [
+        'id',
+        'shop',
+        'manager',
+        'curator',
+        'name',
+        'inn',
+        'head_organization',
+        'head_organization_type',
+        'organization_name',
+        'approved',
+//        'user_id',
+    ];
+
+    /**
+     * @param array<string, string> $filterData
+     */
     public function fromArrayData(array $filterData): Filter
     {
-        $groupHead = $filterData['groupHead'] ?? [];
-        $recruiter = $filterData['recruiter'] ?? [];
-        $direction = $filterData['direction'] ?? [];
+        $filters = [];
 
-        return new CompositeFilter([
-            new WhereHasFilter(
-                relation: 'recruiter.operator',
-                filter: new WhereInFilter(column: 'direction', values: $direction, enabled: true),
-                enabled: count($direction) > 0, // true,
+        foreach (self::LIKE_PREFIX_COLUMNS as $column) {
+            $filters[] = new WhereLikePrefixFilter(
+                column: $column,
+                prefix: $filterData[$column] ?? '',
+            );
+        }
+
+        $filters[] = new WhereInFilter(
+            column: 'status',
+            values: $this->statusesByLabel($filterData['status_label'] ?? ''),
+        );
+
+        return new CompositeFilter($filters);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function statusesByLabel(string $value): array
+    {
+        if ($value === '') {
+            return [];
+        }
+
+        $needle = mb_strtolower($value);
+
+        return array_values(array_map(
+            fn (SalesOutletStatus $status): string => $status->value,
+            array_filter(
+                SalesOutletStatus::cases(),
+                fn (SalesOutletStatus $status): bool => str_contains(
+                    mb_strtolower($status->label()),
+                    $needle,
+                ),
             ),
-            new WhereHasFilter(
-                relation: 'recruiter.operator',
-                filter: new WhereInFilter(column: 'head', values: $groupHead, enabled: true),
-                enabled: count($groupHead) > 0, // true,
-            ),
-            new WhereHasFilter(
-                relation: 'recruiter',
-                filter: new WhereInFilter(column: 'recruiter_id', values: $recruiter, enabled: true),
-                enabled: count($recruiter) > 0, //true,
-            ),
-            new WhereInFilter(column: 'project_id', values: $filterData['project'] ?? [], enabled: true),
-            new WhereInFilter(column: 'shop_id', values: $filterData['shops'] ?? [], enabled: true),
-            new WhereInFilter(column: 'job_id', values: $filterData['jobs'] ?? [], enabled: true),
-            new WhereInFilter(column: 'sales_point_id', values: $filterData['salesPoint'] ?? [], enabled: true),
-        ]);
+        ));
     }
 }
 

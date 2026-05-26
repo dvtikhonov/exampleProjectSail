@@ -8,7 +8,9 @@ use App\DTO\SalesOutlets\UpdateSalesOutletDto;
 use App\Models\SalesOutlet;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
+// todo временно отключили Shared
 use Shared\SalesOutletsDomain\Query\SalesOutletQueryFilter;
+//use App\QueryDebug\SalesOutletQueryFilter;
 
 class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
 {

@@ -17,21 +17,6 @@ final class SalesOutletQueryFilter
     }
 
     /**
-     * Добавить фильтр
-     *
-     * @param $data
-     * @param Closure $next
-     * @return mixed
-     */
-    public function handle($data)
-    {
-
-        $this->filterQuerySalesOutletComposite->run($data);
-
-        return $next($data);
-    }
-
-    /**
      * @var array<int, string>
      */
     private const SEARCH_COLUMNS = [
@@ -92,32 +77,15 @@ final class SalesOutletQueryFilter
      */
     private function applyColumnFilters(Builder $query, array $columnFilters, array $allowedColumnKeys): void
     {
-        foreach ($columnFilters as $column => $value) {
-            if (! in_array($column, $allowedColumnKeys, true)) {
-                continue;
-            }
+        $data = new \stdClass();
+        $data->query = $query;
+        $data->filterData = $columnFilters;
 
-            $this->whereLike($query, $column, $value);
-        }
+        $this->filterQuerySalesOutletComposite->run($data);
     }
 
     private function applySearch(Builder $query, string $search): void
     {
-        if ($search === '') {
-            return;
-        }
-
-        $query->where(function (Builder $query) use ($search): void {
-            foreach (self::SEARCH_COLUMNS as $column) {
-                $query->orWhere($column, 'like', '%'.$search.'%');
-            }
-        });
-    }
-    // todo надо доделать
-    private function applySearch_2(Builder $query, string $search): void
-    {
-        $this->filterQuerySalesOutletComposite->run($query);
-
         if ($search === '') {
             return;
         }

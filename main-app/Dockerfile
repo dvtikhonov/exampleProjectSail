@@ -49,6 +49,16 @@ RUN mkdir -p storage/framework/{sessions,views,cache} bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
+# Nginx worker runs as www-data and needs write access to FastCGI temp buffers.
+RUN mkdir -p \
+        /var/lib/nginx/tmp/client_body \
+        /var/lib/nginx/tmp/proxy \
+        /var/lib/nginx/tmp/fastcgi \
+        /var/lib/nginx/tmp/uwsgi \
+        /var/lib/nginx/tmp/scgi \
+        /run/nginx \
+    && chown -R www-data:www-data /var/lib/nginx /run/nginx
+
 RUN if [ ! -f .env ]; then cp .env.example .env; fi \
     && sed -i '/Laravel\\Passport\\PassportServiceProvider::class,/s/^/\/\//' config/app.php \
     && php artisan package:discover \

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\AbstractFilter\QueryFilters\Contracts;
+namespace Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Contracts;
 
 use Illuminate\Database\Eloquent\Builder;
 

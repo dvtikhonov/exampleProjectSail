@@ -1,8 +1,8 @@
 <?php
 
-namespace App\AbstractFilter\QueryFilters\Groups;
+namespace Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Groups;
 
-use App\AbstractFilter\QueryFilters\Contracts\Filter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Contracts\Filter;
 use Illuminate\Database\Eloquent\Builder;
 
 /**

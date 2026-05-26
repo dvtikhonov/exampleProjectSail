@@ -53,7 +53,7 @@ class HandleAuthPassport
         $response = Http::withToken($token)
             ->timeout(2) // небольшой таймаут
 //            ->get('http://service-a:8000/api/pingS'); // имя сервиса из docker-compose
-            ->get('gateway/api/a/pingS'); // имя сервиса из docker-compose
+            ->get('http://gateway/api/a/pingS'); // имя сервиса из docker-compose
 
 
 //        $response = $this->http->serviceA('get', 'pingS');

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\AbstractFilter\QueryFilters\Filters;
+namespace Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Filters;
 
-use App\AbstractFilter\QueryFilters\Contracts\Filter;
+use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Contracts\Filter;
 use Illuminate\Database\Eloquent\Builder;
 
 final class WhereHasFilter implements Filter

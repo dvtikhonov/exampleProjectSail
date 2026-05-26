@@ -12,7 +12,8 @@ class MicroserviceHttpClient
     public function __construct()
     {
         $this->client = Http::timeout(10)
-            ->retry(3, 100)
+            ->retry(3, 100, throw: false)
+            ->acceptJson()
             ->withHeaders($this->userHeaders())
             ->withToken($this->getAccessToken());
     }
