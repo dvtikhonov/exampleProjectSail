@@ -307,7 +307,7 @@ final class QueryFiltersTest extends TestCase
     }
 
     /**
-     * @param list<string> $methods
+     * @param  list<string>  $methods
      */
     private function assertFilterDoesNotTouchBuilder(Filter $filter, array $methods): void
     {

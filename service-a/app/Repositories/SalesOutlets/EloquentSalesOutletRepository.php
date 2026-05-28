@@ -10,12 +10,13 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
 // todo временно отключили Shared
 use Shared\SalesOutletsDomain\Query\SalesOutletQueryFilter;
-//use App\QueryDebug\SalesOutletQueryFilter;
+
+// use App\QueryDebug\SalesOutletQueryFilter;
 
 class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
 {
     public function __construct(
-        private readonly SalesOutletQueryFilter $queryFilter = new SalesOutletQueryFilter(),
+        private readonly SalesOutletQueryFilter $queryFilter = new SalesOutletQueryFilter,
     ) {}
 
     /**

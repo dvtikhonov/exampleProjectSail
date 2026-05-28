@@ -13,7 +13,7 @@ class EloquentSalesOutletsDataRepository implements SalesOutletsDataRepositoryIn
 {
     public function __construct(
         private readonly SalesOutletsExportMetadataRepositoryInterface $metadataRepository,
-        private readonly SalesOutletQueryFilter $queryFilter = new SalesOutletQueryFilter(),
+        private readonly SalesOutletQueryFilter $queryFilter = new SalesOutletQueryFilter,
     ) {}
 
     public function exportRows(SalesOutletExportFilterDto $filters): Collection

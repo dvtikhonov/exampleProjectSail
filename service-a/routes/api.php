@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\PingController;
 use App\Http\Controllers\Api\SalesOutletsController;
 use Illuminate\Support\Facades\Route;
 
-
 Route::get('/pingS', [PingController::class, 'pingS']);
 Route::post('/ping', [PingController::class, 'ping']);
 Route::middleware('trust.gateway')->group(function (): void {
@@ -13,9 +12,9 @@ Route::middleware('trust.gateway')->group(function (): void {
     Route::post('/sales-outlets/{salesOutlet}/head-organization', [SalesOutletsController::class, 'updateHeadOrganization']);
     Route::delete('/sales-outlets/{salesOutlet}', [SalesOutletsController::class, 'destroy']);
 });
-//Route::middleware('auth:api')->get('/pingS', [PingController::class, 'pingS']);
+// Route::middleware('auth:api')->get('/pingS', [PingController::class, 'pingS']);
 
-//Route::get('/pingS', function (\Illuminate\Support\Facades\Request $request) {
+// Route::get('/pingS', function (\Illuminate\Support\Facades\Request $request) {
 //
 //    return response()->json(['status' => 'ok', 'user_id' => 'ZZZZZ777']);
 //
@@ -32,4 +31,4 @@ Route::middleware('trust.gateway')->group(function (): void {
 //        return response()->json(['status' => 'ok', 'user_id' => $tokenRecord->user_id]);
 //    }
 //    return response()->json(['error' => 'Invalid token'], 401);
-//});
+// });

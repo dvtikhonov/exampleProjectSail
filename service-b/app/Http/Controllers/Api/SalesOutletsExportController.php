@@ -41,7 +41,7 @@ class SalesOutletsExportController extends Controller
 
         abort_if($exportJob === null, Response::HTTP_NOT_FOUND);
 
-        if (!$this->exportService->isDownloadReady($exportJob)) {
+        if (! $this->exportService->isDownloadReady($exportJob)) {
             return response()->json(['message' => 'Export file is not ready.'], Response::HTTP_CONFLICT);
         }
 

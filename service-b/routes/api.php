@@ -1,4 +1,5 @@
 <?php
+
 use App\Http\Controllers\Api\SalesOutletsExportController;
 use Illuminate\Support\Facades\Route;
 

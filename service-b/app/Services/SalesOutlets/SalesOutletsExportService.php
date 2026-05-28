@@ -81,7 +81,7 @@ class SalesOutletsExportService implements SalesOutletsExportServiceInterface
 
     public function download(SalesOutletExportJob $exportJob): StreamedResponse
     {
-        if (!$this->isDownloadReady($exportJob)) {
+        if (! $this->isDownloadReady($exportJob)) {
             throw new RuntimeException('Export file is not ready.');
         }
 
