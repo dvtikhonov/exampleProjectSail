@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use Illuminate\Http\Client\PendingRequest;
@@ -31,12 +32,13 @@ class MicroserviceHttpClient
         }
 
         $user = auth()->user();
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
         // Генерируем короткоживущий токен для внутренних вызовов
         $token = $user->createToken('internal_api', ['*'])->accessToken;
+
         return $token;
     }
 
@@ -71,7 +73,8 @@ class MicroserviceHttpClient
      */
     public function serviceA(string $method, string $uri, array $data = []): Response
     {
-        $url = config('services.service_a.gateway_url') . '/' . ltrim($uri, '/');
+        $url = config('services.service_a.gateway_url').'/'.ltrim($uri, '/');
+
         return $this->client->$method($url, $data);
     }
 
@@ -80,7 +83,8 @@ class MicroserviceHttpClient
      */
     public function serviceB(string $method, string $uri, array $data = []): Response
     {
-        $url = config('services.service_b.gateway_url') . '/' . ltrim($uri, '/');
+        $url = config('services.service_b.gateway_url').'/'.ltrim($uri, '/');
+
         return $this->client->$method($url, $data);
     }
 }

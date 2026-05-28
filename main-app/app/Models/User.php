@@ -16,7 +16,7 @@ use Laravel\Passport\HasApiTokens;
 class User extends Authenticatable implements OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens ,HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -30,12 +30,14 @@ class User extends Authenticatable implements OAuthenticatable
             'password' => 'hashed',
         ];
     }
+
     /**
      * Создать Passport-токен для сессии.
      */
     public function createTokenForSession($name = 'web-session')
     {
         $tokenResult = $this->createToken($name);
+
         return $tokenResult->accessToken; // строка токена
     }
 }

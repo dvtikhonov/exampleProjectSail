@@ -5,8 +5,8 @@ namespace Tests;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase

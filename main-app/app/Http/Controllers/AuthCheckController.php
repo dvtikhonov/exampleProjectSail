@@ -12,5 +12,4 @@ class AuthCheckController extends Controller
         // Если дошли сюда – токен валиден
         return response()->json(['valid' => true], 200);
     }
-
 }

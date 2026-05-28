@@ -13,9 +13,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(MicroserviceHttpClient::class, function ($app) {
-            return new MicroserviceHttpClient();
-        });
+        $this->app->singleton(MicroserviceHttpClient::class, fn (): MicroserviceHttpClient => new MicroserviceHttpClient);
     }
 
     /**
