@@ -1,74 +1,90 @@
 # exampleProjectSail
 
-Монорепозиторий с несколькими Laravel-сервисами и единым Nginx/OpenResty gateway. Основной сценарий запуска - через корневой `docker-compose.yml`.
+Монорепозиторий с несколькими Laravel-сервисами и единым Nginx/OpenResty gateway. Основной сценарий запуска — через корневой `docker-compose.yml`.
 
 ## Состав проекта
 
-- `main-app` - основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, веб-авторизация и проверка токенов для gateway.
-- `service-a` - Laravel API-сервис с маршрутами `/api/pingS`, `/api/ping`, `/api/sales-outlets`, изменением головной организации и удалением торговой точки.
-- `service-b` - Laravel API-сервис для доверенной авторизации через `X-User-Id` и фоновых экспортов торговых точек.
-- `service-b-queue` - отдельный worker очереди `service-b` для обработки экспортов.
-- `shared/sales-outlets-domain` - локальный Composer-пакет с общей доменной частью торговых точек для `service-a` и `service-b`.
-- `nginx-gateway` - единая точка входа на OpenResty/Nginx. Проксирует запросы в сервисы и проверяет Bearer-токен через `main-app`.
-- `docker-compose.yml` - основной compose-файл для запуска всей системы.
-- `main-app/compose.yaml` - отдельный Laravel Sail compose для изолированного запуска `main-app`; для общего запуска проекта обычно не используется.
+| Каталог / файл | Назначение |
+|---|---|
+| `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, веб-авторизация и проверка токенов для gateway |
+| `service-a` | Laravel API: торговые точки (`/api/sales-outlets`), ping-эндпоинты |
+| `service-b` | Laravel API: экспорты торговых точек, доверенная авторизация через `X-User-Id` |
+| `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых экспортов |
+| `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
+| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/` и `/api/b/` |
+| `docker-compose.yml` | Основной compose-файл для локального запуска |
+| `docker-compose.ci.yml` | Overlay для CI: внутренний MySQL и `depends_on` с healthcheck |
+| `scripts/test-services.sh` | Единый сценарий подготовки тестовой БД и запуска тестов всех сервисов |
+| `.github/workflows/ci.yml` | CI: Pint, сборка frontend, Docker-тесты |
+| `.github/workflows/deploy.yml` | CD: деплой на VPS по SSH |
+| `main-app/compose.yaml` | Отдельный Laravel Sail compose для изолированного запуска `main-app`; для общего запуска обычно не используется |
 
 ## Требования
 
 - Docker и Docker Compose.
 - WSL/Linux shell или PowerShell с доступом к Docker.
-- Внешний MySQL, доступный контейнерам.
+- Внешний MySQL, доступный контейнерам (для локальной разработки).
 
-Локальный PowerShell может не видеть `php`, поэтому PHP/Artisan-команды выполняйте внутри контейнеров через `docker compose exec`.
+Локальный PowerShell может не видеть `php`, поэтому PHP/Artisan/Composer/npm-команды выполняйте внутри контейнеров через `docker compose exec` или через WSL.
 
 ## Первый запуск
 
-1. Проверьте настройки подключения к MySQL.
+### 1. Настройка MySQL
 
-   В корневом `docker-compose.yml` для `main-app` уже задано подключение к MySQL на хосте:
+В корневом `docker-compose.yml` для `main-app` уже задано подключение к MySQL на хосте:
 
-   ```env
-   DB_CONNECTION=mysql
-   DB_HOST=host.docker.internal
-   DB_PORT=3306
-   ```
+```env
+DB_CONNECTION=mysql
+DB_HOST=host.docker.internal
+DB_PORT=3306
+```
 
-   Для `service-b` подключение задано через переменные окружения с дефолтами:
+Для `service-b` и `service-b-queue` подключение задаётся через переменные окружения с дефолтами:
 
-   ```env
-   SERVICE_B_DB_HOST=host.docker.internal
-   SERVICE_B_DB_PORT=3306
-   SERVICE_B_DB_DATABASE=sail_db
-   SERVICE_B_DB_USERNAME=root
-   SERVICE_B_DB_PASSWORD=<your-local-password>
-   ```
+```env
+SERVICE_B_DB_HOST=host.docker.internal
+SERVICE_B_DB_PORT=3306
+SERVICE_B_DB_DATABASE=sail_db
+SERVICE_B_DB_USERNAME=root
+SERVICE_B_DB_PASSWORD=<your-local-password>
+```
 
-   Для `service-a` задайте свои `DB_CONNECTION`, `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
+Для `service-a` задайте `DB_*` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
 
-2. Соберите и запустите контейнеры.
+Стандартные `.env.example` у сервисов по умолчанию настроены на SQLite — для Docker-запуска через корневой compose их нужно перевести на MySQL.
 
-   ```bash
-   docker compose up -d --build
-   ```
+### 2. Сборка и запуск
 
-3. Сгенерируйте ключи приложений, если `.env` сервисов ещё пустые.
+```bash
+docker compose up -d --build
+```
 
-   `main-app` создаёт `.env` из `.env.example` при сборке образа и при старте через `entrypoint.sh` генерирует `APP_KEY` и Passport-ключи, если они отсутствуют.
+### 3. Ключи приложений
 
-   ```bash
-   docker compose exec service-a php artisan key:generate
-   docker compose exec service-b php artisan key:generate
-   ```
+`main-app` создаёт `.env` из `.env.example` при сборке образа; при старте `entrypoint.sh` генерирует `APP_KEY` и Passport-ключи, если они отсутствуют.
 
-4. Запустите миграции.
+Для `service-a` и `service-b` при пустом `.env`:
 
-   Миграции затрагивают базы сервисов, поэтому перед запуском проверьте выбранные `.env`/`environment` и убедитесь, что команда выполняется для нужной базы.
+```bash
+docker compose exec service-a php artisan key:generate
+docker compose exec service-b php artisan key:generate
+```
 
-   ```bash
-   docker compose exec main-app php artisan migrate
-   docker compose exec service-a php artisan migrate
-   docker compose exec service-b php artisan migrate
-   ```
+### 4. Миграции
+
+Миграции затрагивают базы сервисов. Перед запуском проверьте `.env` / `environment` и убедитесь, что команда выполняется для нужной БД.
+
+```bash
+docker compose exec main-app php artisan migrate
+docker compose exec service-a php artisan migrate
+docker compose exec service-b php artisan migrate
+```
+
+Для экспортов `service-b` нужен запущенный worker:
+
+```bash
+docker compose up -d service-b-queue
+```
 
 ## Запуск и обслуживание
 
@@ -110,13 +126,15 @@ docker compose up -d main-app
 
 ## Адреса
 
-- Gateway: `http://localhost:8080`
-- `main-app` напрямую: `http://localhost`
-- `service-a` напрямую: `http://localhost:8081`
-- `service-b` напрямую: `http://localhost:8082`
-- Vite dev server: `http://localhost:5173`
-- MailHog: `http://localhost:8025`
-- Redis: `localhost:6379`
+| Сервис | URL |
+|---|---|
+| Gateway | `http://localhost:8080` |
+| `main-app` напрямую | `http://localhost` (порт `MAIN_APP_PORT`, по умолчанию `80`) |
+| `service-a` напрямую | `http://localhost:8081` |
+| `service-b` напрямую | `http://localhost:8082` |
+| Vite dev server | `http://localhost:5173` |
+| MailHog | `http://localhost:8025` |
+| Redis | `localhost:6379` |
 
 Через gateway:
 
@@ -131,49 +149,72 @@ Gateway переписывает префиксы `/api/a/` и `/api/b/` в `/ap
 - `OPTIONS` preflight обрабатывается на стороне `nginx-gateway` и возвращает `204`.
 - Разрешены методы `GET, POST, PUT, PATCH, DELETE, OPTIONS`.
 - Разрешены заголовки `Authorization, Content-Type, Accept`.
-- `Access-Control-Allow-Origin` берётся из `$http_origin`, а `Vary Origin` добавляется всегда.
-- CORS-заголовки от backend-сервисов скрываются через `proxy_hide_header`, чтобы gateway был единственной точкой управления CORS и не появлялись дубли заголовков.
+- `Access-Control-Allow-Origin` берётся из `$http_origin`, заголовок `Vary: Origin` добавляется всегда.
+- CORS-заголовки от backend-сервисов скрываются через `proxy_hide_header`, чтобы gateway был единственной точкой управления CORS.
 
-Это важно для браузерных запросов из frontend `main-app`. Например, изменение головной организации торговой точки вызывается из Vue напрямую через gateway:
+Браузерные запросы из frontend `main-app` идут напрямую через gateway, например:
 
 ```text
-POST ${VITE_GATEWAY_ORIGIN}/api/a/sales-outlets/{rowId}/head-organization
+PATCH ${VITE_GATEWAY_ORIGIN}/api/a/sales-outlets/{rowId}
+POST  ${VITE_GATEWAY_ORIGIN}/api/a/sales-outlets/{rowId}/head-organization
 ```
 
-Этот вызов не проходит через Laravel-controller `main-app`: браузер обращается к `service-a` через `nginx-gateway`, поэтому preflight и заголовок `Authorization` должны корректно обрабатываться gateway.
+Эти вызовы не проходят через Laravel-контроллеры `main-app`: браузер обращается к `service-a` через `nginx-gateway`, поэтому preflight и заголовок `Authorization` должны корректно обрабатываться gateway.
 
 ## Основные маршруты
 
-`main-app`:
+### `main-app`
 
-- `GET /` - стартовая Inertia-страница.
-- `GET /dashboard` - dashboard после web-авторизации.
-- `GET /objects-sales-outlets` - страница объектов торговых точек.
-- `GET /objects-sales-outlets-2` - альтернативная тёмная страница объектов торговых точек.
-- `POST /objects-sales-outlets-2/export` - создание экспорта.
-- `GET /objects-sales-outlets-2/export/{uuid}` - статус экспорта.
-- `GET /objects-sales-outlets-2/export/{uuid}/download` - скачивание экспорта.
-- `GET /get-api-token` - получение Passport-токена из сессии.
-- `GET|POST /api/auth/verify` - внутренняя проверка Bearer-токена для gateway.
+Web (Inertia):
 
-`service-a` напрямую:
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/` | Стартовая страница |
+| `GET` | `/dashboard` | Dashboard после web-авторизации |
+| `GET` | `/objects-sales-outlets` | Страница объектов торговых точек |
+| `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница |
+| `POST` | `/objects-sales-outlets-2/export` | Создание экспорта |
+| `GET` | `/objects-sales-outlets-2/export/{uuid}` | Статус экспорта |
+| `GET` | `/objects-sales-outlets-2/export/{uuid}/download` | Скачивание экспорта |
+| `GET` | `/get-api-token` | Passport-токен из сессии |
+| `GET/PATCH/DELETE` | `/profile` | Профиль пользователя (Breeze) |
 
-- `GET /api/pingS`
-- `POST /api/ping`
-- `GET /api/sales-outlets`
-- `POST /api/sales-outlets/{salesOutlet}/head-organization`
-- `DELETE /api/sales-outlets/{salesOutlet}`
+Страницы объектов и профиля защищены middleware `auth.passport`: для web-запросов токен берётся из сессии, при отсутствии — редирект на login.
 
-Через gateway те же маршруты `service-a` доступны с префиксом `/api/a`, например `GET /api/a/sales-outlets`.
+API:
 
-`service-b` напрямую:
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET\|POST` | `/api/auth/verify` | Проверка Bearer-токена для gateway (`X-User-Id`) |
+| `POST` | `/api/auth/check` | Внутренняя проверка токена (исключена из CSRF) |
 
-- `GET /api/data`
-- `POST /api/sales-outlets/exports`
-- `GET /api/sales-outlets/exports/{uuid}`
-- `GET /api/sales-outlets/exports/{uuid}/download`
+### `service-a`
 
-Через gateway те же маршруты `service-b` доступны с префиксом `/api/b`, например `POST /api/b/sales-outlets/exports`.
+Напрямую (`/api/...`):
+
+| Метод | Путь | Auth |
+|---|---|---|
+| `GET` | `/pingS` | — |
+| `POST` | `/ping` | — |
+| `GET` | `/sales-outlets` | `trust.gateway` |
+| `PATCH` | `/sales-outlets/{salesOutlet}` | `trust.gateway` |
+| `POST` | `/sales-outlets/{salesOutlet}/head-organization` | `trust.gateway` |
+| `DELETE` | `/sales-outlets/{salesOutlet}` | `trust.gateway` |
+
+Через gateway — те же маршруты с префиксом `/api/a`, например `GET /api/a/sales-outlets`.
+
+### `service-b`
+
+Напрямую (`/api/...`):
+
+| Метод | Путь | Auth |
+|---|---|---|
+| `GET` | `/data` | `trust.gateway` |
+| `POST` | `/sales-outlets/exports` | `trust.gateway` |
+| `GET` | `/sales-outlets/exports/{uuid}` | `trust.gateway` |
+| `GET` | `/sales-outlets/exports/{uuid}/download` | `trust.gateway` |
+
+Через gateway — префикс `/api/b`, например `POST /api/b/sales-outlets/exports`.
 
 ## Авторизация через gateway
 
@@ -183,33 +224,35 @@ POST ${VITE_GATEWAY_ORIGIN}/api/a/sales-outlets/{rowId}/head-organization
 /api/auth/verify
 ```
 
-`main-app` проверяет JWT Passport-токен, ищет его по `jti` в таблице Passport-токенов и возвращает `X-User-Id` при успешной проверке. Gateway передаёт этот заголовок дальше в сервисы.
+`main-app` разбирает JWT Passport-токен, ищет его по `jti` в таблице Passport-токенов и возвращает заголовок `X-User-Id` при успешной проверке. Gateway передаёт этот заголовок дальше в сервисы.
 
-Открытые маршруты gateway:
+Результаты успешной проверки кэшируются в nginx на 60 секунд (`proxy_cache auth_cache`). Заголовок ответа `X-Auth-Cache` показывает статус кэша (`HIT`, `MISS`, `BYPASS`).
+
+Открытые маршруты gateway (без `auth_request`):
 
 - `/login`
 - `/register`
 - `/oauth/token`
 
-Остальные маршруты через gateway, включая `/`, `/api/a/...` и `/api/b/...`, проходят через `auth_request` и должны вызываться с заголовком:
+Остальные маршруты через gateway, включая `/`, `/api/a/...` и `/api/b/...`, требуют:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-В `main-app` после web-login создаётся Passport-токен и сохраняется в сессии. Текущий токен можно получить через:
+В `main-app` после web-login создаётся Passport-токен и сохраняется в сессии. Текущий токен:
 
 ```text
-/get-api-token
+GET /get-api-token
 ```
 
-`service-a` и `service-b` доверяют gateway через middleware `trust.gateway`: сервисы ожидают `X-User-Id`, который gateway получает от `main-app` после проверки токена.
+`service-a` и `service-b` доверяют gateway через middleware `trust.gateway`: сервисы ожидают заголовок `X-User-Id`, который gateway получает от `main-app` после проверки токена.
 
 ## Frontend `main-app`
 
 `main-app` использует Breeze UI на Inertia/Vue, Vite и Tailwind CSS.
 
-Команды frontend нужно запускать внутри контейнера `main-app`:
+Команды frontend запускайте внутри контейнера `main-app`:
 
 ```bash
 docker compose exec main-app npm install
@@ -223,21 +266,24 @@ docker compose exec main-app npm install
 docker compose exec main-app npm run build
 ```
 
-Порт Vite `5173` проброшен в `docker-compose.yml`. В `main-app/.env.example` также указаны:
+Порт Vite `5173` проброшен в `docker-compose.yml`. В `main-app/.env.example`:
 
 ```env
 VITE_DEV_SERVER_URL=http://localhost:5173
 VITE_GATEWAY_ORIGIN=http://localhost:8080
 ```
 
+HTTP-вызовы к `service-a` из Vue идут через `VITE_GATEWAY_ORIGIN` (см. `main-app/resources/js/Services/salesOutlets.js`).
+
 ## Shared domain package
 
-`shared/sales-outlets-domain` - локальный Composer-пакет `example/sales-outlets-domain` с namespace `Shared\SalesOutletsDomain\`. Он содержит общие для `service-a` и `service-b` доменные примитивы торговых точек:
+`shared/sales-outlets-domain` — локальный Composer-пакет `example/sales-outlets-domain` с namespace `Shared\SalesOutletsDomain\`. Содержит общие для `service-a` и `service-b` примитивы:
 
-- enum `SalesOutletStatus` и `HeadOrganizationType`;
-- DTO `SalesOutletRowDto` и `SalesOutletFilterDto`;
+- enum `SalesOutletStatus`, `HeadOrganizationType`;
+- DTO `SalesOutletRowDto`, `SalesOutletFilterDto`;
 - метаданные колонок `SalesOutletColumns`;
-- Eloquent query-filter `SalesOutletQueryFilter`.
+- composable query-filters (`AbstractFilter/QueryFilters/*`);
+- `SalesOutletQueryFilter`, `SalesOutletFilterFactory`, `FilterQuerySalesOutletComposite`.
 
 Пакет подключён в `service-a/composer.json` и `service-b/composer.json` через Composer `path` repository:
 
@@ -251,21 +297,21 @@ VITE_GATEWAY_ORIGIN=http://localhost:8080
 }
 ```
 
-После изменений в пакете обновите автозагрузку в сервисах:
+После изменений в пакете:
 
 ```bash
 docker compose exec service-a composer dump-autoload
 docker compose exec service-b composer dump-autoload
 ```
 
-Если менялась версия пакета или Composer-зависимости, обновите пакет отдельно в каждом сервисе:
+При изменении версии или зависимостей:
 
 ```bash
 docker compose exec service-a composer update example/sales-outlets-domain
 docker compose exec service-b composer update example/sales-outlets-domain
 ```
 
-В пакет не вынесены Eloquent-модели, контроллеры, FormRequest, сервисы экспорта, job и миграции. Они остаются внутри конкретных Laravel-сервисов, потому что завязаны на их таблицы, auth, lifecycle hooks и workflow.
+Eloquent-модели, контроллеры, FormRequest, сервисы экспорта, job и миграции остаются внутри конкретных Laravel-сервисов.
 
 ## Полезные команды
 
@@ -285,7 +331,7 @@ docker compose exec service-a php artisan optimize:clear
 docker compose exec service-b php artisan optimize:clear
 ```
 
-Запуск тестов:
+Запуск тестов одного сервиса:
 
 ```bash
 docker compose exec main-app php artisan test
@@ -293,33 +339,61 @@ docker compose exec service-a php artisan test
 docker compose exec service-b php artisan test
 ```
 
-Для тестов используйте отдельную тестовую базу `sail_db_testing` и проверьте, что тестовое окружение не указывает на рабочую БД.
+## CI
 
-## CD-стратегия (целевой вариант)
+Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_request`.
 
-В проекте выбран вариант деплоя **VPS/SSH** через workflow `.github/workflows/deploy.yml`.
+| Job | Что проверяет |
+|---|---|
+| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b` (PHP 8.4) |
+| `frontend-build` | `npm ci` + `npm run build` в `main-app` (Node 22) |
+| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, затем `./scripts/test-services.sh all` |
 
-- Триггер CD: ручной запуск `workflow_dispatch` c параметрами `deploy_ref` и `run_migrations`.
-- Деплой выполняется только в окружение GitHub `production`.
-- На сервере выполняется `docker compose build` и `docker compose up -d --remove-orphans`.
-- Миграции выполняются только по явному флагу `run_migrations=true`, иначе пропускаются.
+Локально воспроизвести CI-контур тестов:
 
-### Обязательные GitHub Secrets для CD
+```bash
+export COMPOSE_FILE=docker-compose.yml:docker-compose.ci.yml
+export TEST_DB_PASSWORD=12345678
+export TEST_DB_HOST=mysql
+export SERVICE_B_DB_HOST=mysql
+export SERVICE_B_DB_DATABASE=sail_db_testing
+export SERVICE_B_DB_PASSWORD=12345678
 
-Следующие Secrets обязательны и валидируются в workflow:
+docker compose build main-app service-a service-b
+docker compose up -d mysql redis main-app service-a service-b
+./scripts/test-services.sh all
+```
 
-- `DEPLOY_HOST` - хост VPS/сервера деплоя.
-- `DEPLOY_USER` - SSH-пользователь на сервере.
-- `DEPLOY_PATH` - путь к проекту на сервере.
-- `DEPLOY_SSH_KEY` - приватный SSH-ключ для подключения.
+## CD (деплой на VPS)
 
-Дополнительно поддерживается:
+Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_dispatch`.
 
-- `DEPLOY_PORT` - SSH-порт (если не задан, используется `22`).
+| Параметр | Описание |
+|---|---|
+| `deploy_ref` | Ветка или тег для деплоя (по умолчанию `main`) |
+| `run_migrations` | Запускать миграции после деплоя (`false` по умолчанию) |
+
+Этапы:
+
+1. **`deploy-via-ssh`** (окружение GitHub `production`) — `git checkout`, `docker compose build`, `docker compose up -d --remove-orphans`. При ошибке выполняется откат к предыдущему коммиту.
+2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех трёх сервисах через SSH.
+
+### Обязательные GitHub Secrets
+
+| Secret | Назначение |
+|---|---|
+| `DEPLOY_HOST` | Хост VPS |
+| `DEPLOY_USER` | SSH-пользователь |
+| `DEPLOY_PATH` | Путь к проекту на сервере |
+| `DEPLOY_SSH_KEY` | Приватный SSH-ключ |
+
+Опционально: `DEPLOY_PORT` (по умолчанию `22`).
+
+Рекомендуется защитить окружения `production` и `production-migrations` правилами approval в GitHub.
 
 ## Единый тестовый контур
 
-Для интеграционных проверок всех сервисов используйте корневой сценарий `scripts/test-services.sh`. Он работает через контейнеры Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app`, `service-a`, `service-b`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что Laravel `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app` → `service-a` → `service-b` (для `service-b` — только миграция таблицы экспортов). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -341,19 +415,19 @@ docker compose exec service-b php artisan test
 ./scripts/test-services.sh service-b
 ```
 
-Для быстрого повторного запуска без пересоздания БД добавьте `--no-prepare`:
+Быстрый повторный запуск без пересоздания БД:
 
 ```bash
 ./scripts/test-services.sh service-a --no-prepare
 ```
 
-По умолчанию используется подключение к MySQL на `host.docker.internal:3306` с базой `sail_db_testing`. Пароль задаётся в локальном файле `.env.testing.local`, который не должен попадать в git:
+Пароль задаётся в `.env.testing.local` (не коммитится в git):
 
 ```bash
 TEST_DB_PASSWORD=<your-local-password>
 ```
 
-При необходимости параметры можно переопределить переменными окружения:
+Переопределение через переменные окружения:
 
 ```bash
 TEST_DATABASE=sail_db_testing \
@@ -364,20 +438,23 @@ TEST_DB_PASSWORD=<your-local-password> \
 ./scripts/test-services.sh all
 ```
 
-Миграции изменяют состояние базы данных, поэтому запускайте `prepare` и режимы без `--no-prepare` только после явного согласия на выполнение миграций.
+Для тестов используйте только базу `sail_db_testing` и убедитесь, что тестовое окружение не указывает на рабочую БД.
+
+Миграции изменяют состояние базы данных — запускайте `prepare` и режимы без `--no-prepare` только после явного согласия на выполнение миграций.
 
 ## База данных
 
-Внутренний MySQL-контейнер в `docker-compose.yml` сейчас закомментирован. Проект использует внешний MySQL.
+Внутренний MySQL-контейнер в `docker-compose.yml` закомментирован: локально проект использует внешний MySQL на хосте.
 
-Для доступа к MySQL на хосте используется `host.docker.internal`. В Linux/WSL он пробрасывается через `extra_hosts` у `main-app`, `service-a`, `service-b` и `service-b-queue`.
+Для доступа с контейнеров используется `host.docker.internal` (пробрасывается через `extra_hosts: host-gateway` у `main-app`, `service-a`, `service-b`, `service-b-queue`).
 
-Если сервис запускается вне корневого compose, проверьте его локальный `.env`: стандартные `.env.example` у сервисов по умолчанию настроены на SQLite и требуют актуализации под MySQL.
+В CI overlay `docker-compose.ci.yml` поднимает контейнер `mysql:8.0` внутри compose-сети.
 
 ## Примечания
 
-- `main-app` запускается в контейнере через Nginx + PHP-FPM + Supervisor на внутреннем порту `8000`; образ основан на PHP 8.4 Alpine.
-- `service-a` и `service-b` запускаются через `php artisan serve` на внутреннем порту `8000`.
-- `service-b-queue` запускает `php artisan queue:work --timeout=900 --tries=1`.
-- `nginx-gateway/auth.lua` сейчас не используется: директивы `access_by_lua_file` в `nginx-gateway/nginx.conf` закомментированы.
-- `PASSPORT_CLIENT_SECRET` нужен только если gateway будет переведён на схему, где он сам использует OAuth client credentials. В текущей схеме `auth_request` secret не требуется для первого запуска.
+- `main-app` — Nginx + PHP-FPM 8.4 Alpine + Supervisor, внутренний порт `8000`; для hot-reload смонтированы `app`, `routes`, `config`, `database`, `resources`, `tests`, `public`, `storage`.
+- `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса.
+- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ.
+- `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
+- `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.
+- Redis используется сервисами; MailHog — для перехвата почты в dev.
