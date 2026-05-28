@@ -13,7 +13,8 @@ class ProfileTest extends TestCase
 
     public function test_profile_page_is_displayed(): void
     {
-        $user = User::factory()->create();
+//        $user = User::factory()->create();
+        $user = 25;
 
         $response = $this
             ->withoutMiddleware(HandleAuthPassport::class)
