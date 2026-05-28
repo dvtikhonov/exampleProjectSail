@@ -1,8 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Http\Middleware\HandleAuthPassport;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -13,15 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'api/auth/check',   // исключаем эндпоинт проверки токена
             'api/auth/verify',   // исключаем эндпоинт проверки токена
         ]);
         $middleware->alias([
-            'auth.passport' => \App\Http\Middleware\HandleAuthPassport::class,
+            'auth.passport' => HandleAuthPassport::class,
         ]);
 
         //
