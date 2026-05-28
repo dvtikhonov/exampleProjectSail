@@ -4,9 +4,9 @@ namespace Tests;
 
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
@@ -14,6 +14,7 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
 
         $this->withoutMiddleware(PreventRequestForgery::class);
         $this->withoutMiddleware(ValidateCsrfToken::class);
@@ -42,7 +43,7 @@ abstract class TestCase extends BaseTestCase
                 'updated_at' => now(),
             ]);
         } catch (QueryException $exception) {
-            if (! str_contains($exception->getMessage(), 'oauth_clients')) {
+            if (!str_contains($exception->getMessage(), 'oauth_clients')) {
                 throw $exception;
             }
         }
