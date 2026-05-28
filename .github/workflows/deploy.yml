@@ -1,0 +1,117 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_ref:
+        description: Branch or tag to deploy
+        required: true
+        default: main
+      run_migrations:
+        description: Run Laravel migrations after deployment
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy-via-ssh:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+    # Manual approval point #1: protect this environment in GitHub.
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_REF: ${{ inputs.deploy_ref }}
+      RUN_MIGRATIONS: ${{ inputs.run_migrations }}
+
+    steps:
+      - name: Validate deployment secrets
+        run: |
+          missing=0
+
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_PATH DEPLOY_SSH_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          port="${DEPLOY_PORT:-22}"
+          ssh-keyscan -p "$port" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy Docker Compose project
+        run: |
+          port="${DEPLOY_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -euo pipefail
+             cd '$DEPLOY_PATH'
+             previous_ref=\$(git rev-parse HEAD)
+             rollback() {
+               echo 'Deployment failed. Rolling back to previous commit.'
+               git reset --hard \"\$previous_ref\"
+               docker compose up -d --remove-orphans
+             }
+             trap rollback ERR
+             git fetch --all --prune
+             git checkout '$DEPLOY_REF'
+             git pull --ff-only origin '$DEPLOY_REF'
+             docker compose build
+             docker compose up -d --remove-orphans"
+
+  run-migrations:
+    name: Run production migrations
+    runs-on: ubuntu-latest
+    needs: deploy-via-ssh
+    if: inputs.run_migrations == true
+    # Manual approval point #2: separate protected environment for migrations.
+    environment: production-migrations
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          port="${DEPLOY_PORT:-22}"
+          ssh-keyscan -p "$port" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Run migrations on remote host
+        run: |
+          port="${DEPLOY_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -euo pipefail
+             cd '$DEPLOY_PATH'
+             docker compose exec -T main-app php artisan migrate --force
+             docker compose exec -T service-a php artisan migrate --force
+             docker compose exec -T service-b php artisan migrate --force"

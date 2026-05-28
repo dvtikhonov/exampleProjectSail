@@ -88,8 +88,8 @@ services:
 
   service-b:
     build:
-      context: ./service-b
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: service-b/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -131,8 +131,8 @@ services:
 
   service-b-queue:
     build:
-      context: ./service-b
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: service-b/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: php artisan queue:work --timeout=900 --tries=1

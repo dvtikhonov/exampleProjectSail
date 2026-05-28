@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php-style:
+    name: PHP style (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - main-app
+          - service-a
+          - service-b
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: bcmath, mbstring, pdo_mysql, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles(format('{0}/composer.lock', matrix.service)) }}
+          restore-keys: |
+            composer-${{ runner.os }}-${{ matrix.service }}-
+            composer-${{ runner.os }}-
+
+      - name: Install PHP dependencies
+        working-directory: ${{ matrix.service }}
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run Laravel Pint
+        working-directory: ${{ matrix.service }}
+        run: vendor/bin/pint --test
+
+  frontend-build:
+    name: Frontend build (main-app)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-main-app-${{ hashFiles('main-app/package.json', 'main-app/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-main-app-
+            npm-${{ runner.os }}-
+
+      - name: Install frontend dependencies
+        working-directory: main-app
+        run: npm ci
+
+      - name: Build frontend assets
+        working-directory: main-app
+        run: npm run build
+
+  backend-tests:
+    name: Backend tests (Docker)
+    runs-on: ubuntu-latest
+    needs:
+      - php-style
+      - frontend-build
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
+      TEST_DATABASE: sail_db_testing
+      TEST_DB_HOST: mysql
+      TEST_DB_PORT: "3306"
+      TEST_DB_USERNAME: root
+      TEST_DB_PASSWORD: 12345678
+      SERVICE_B_DB_HOST: mysql
+      SERVICE_B_DB_PORT: "3306"
+      SERVICE_B_DB_DATABASE: sail_db_testing
+      SERVICE_B_DB_USERNAME: root
+      SERVICE_B_DB_PASSWORD: 12345678
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker compose build main-app service-a service-b
+
+      - name: Install mounted service dependencies
+        run: |
+          docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
+          docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Start services
+        run: docker compose up -d mysql redis main-app service-a service-b
+
+      - name: Wait for MySQL readiness
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T mysql mysqladmin ping -h 127.0.0.1 -uroot -p"${TEST_DB_PASSWORD}" --silent; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL did not become ready in time" >&2
+          exit 1
+
+      - name: Show service status
+        run: docker compose ps
+
+      - name: Run service tests
+        run: bash ./scripts/test-services.sh all
+
+      - name: Dump Docker logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v --remove-orphans

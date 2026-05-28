@@ -295,6 +295,28 @@ docker compose exec service-b php artisan test
 
 Для тестов используйте отдельную тестовую базу `sail_db_testing` и проверьте, что тестовое окружение не указывает на рабочую БД.
 
+## CD-стратегия (целевой вариант)
+
+В проекте выбран вариант деплоя **VPS/SSH** через workflow `.github/workflows/deploy.yml`.
+
+- Триггер CD: ручной запуск `workflow_dispatch` c параметрами `deploy_ref` и `run_migrations`.
+- Деплой выполняется только в окружение GitHub `production`.
+- На сервере выполняется `docker compose build` и `docker compose up -d --remove-orphans`.
+- Миграции выполняются только по явному флагу `run_migrations=true`, иначе пропускаются.
+
+### Обязательные GitHub Secrets для CD
+
+Следующие Secrets обязательны и валидируются в workflow:
+
+- `DEPLOY_HOST` - хост VPS/сервера деплоя.
+- `DEPLOY_USER` - SSH-пользователь на сервере.
+- `DEPLOY_PATH` - путь к проекту на сервере.
+- `DEPLOY_SSH_KEY` - приватный SSH-ключ для подключения.
+
+Дополнительно поддерживается:
+
+- `DEPLOY_PORT` - SSH-порт (если не задан, используется `22`).
+
 ## Единый тестовый контур
 
 Для интеграционных проверок всех сервисов используйте корневой сценарий `scripts/test-services.sh`. Он работает через контейнеры Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app`, `service-a`, `service-b`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что Laravel `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.

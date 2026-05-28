@@ -32,26 +32,20 @@ COPY shared /var/www/shared
 #RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Устанавливаем зависимости, НО без выполнения скриптов (--no-scripts)
-RUN composer install --no-interaction --optimize-autoloader --no-dev \
-        --no-scripts
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-progress --no-dev --no-scripts
 
 COPY service-a .
 
-# Устанавливаем зависимости (без dev-пакетов, composer уже есть в образе)
-#RUN composer install --no-interaction --optimize-autoloader --no-dev
-#RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 # Запускаем скрипты композера (они выполнят artisan package:discover)
 RUN composer run-script post-autoload-dump
 
-# Права на storage
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
 # Переключаемся на пользователя sail (для безопасности)
 #USER sail
 
-# Стартуем встроенный сервер (только для разработки!)
-# Для production лучше использовать php-fpm + nginx внутри pod-а, но т.к. у нас уже gateway – можно оставить artisan serve
-CMD php artisan serve --host=0.0.0.0 --port=8000
+EXPOSE 8000
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
 #EXPOSE 80
 #CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]
