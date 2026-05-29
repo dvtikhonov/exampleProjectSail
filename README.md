@@ -330,7 +330,7 @@ docker compose exec main-app php artisan optimize:clear
 docker compose exec service-a php artisan optimize:clear
 docker compose exec service-b php artisan optimize:clear
 docker compose exec service-b-queue php artisan optimize:clear
-docker compose restart service-b-queue
+docker compose up -d --force-recreate service-b-queue
 ```
 
 Запуск тестов одного сервиса:
