@@ -4,7 +4,7 @@ use App\Mail\SalesOutletsReportMailable;
 use Illuminate\Support\Facades\Mail;
 
 require __DIR__.'/../vendor/autoload.php';
-
+// 777
 $app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
