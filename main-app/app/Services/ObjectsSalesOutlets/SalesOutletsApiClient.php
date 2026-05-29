@@ -62,4 +62,31 @@ class SalesOutletsApiClient
 
         return $response;
     }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     *
+     * @throws RequestException
+     */
+    public function createMail(array $payload): array
+    {
+        $response = $this->httpClient->serviceB('post', 'sales-outlets/mail', $payload);
+        $response->throw();
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws RequestException
+     */
+    public function mailStatus(string $uuid): array
+    {
+        $response = $this->httpClient->serviceB('get', "sales-outlets/mail/{$uuid}");
+        $response->throw();
+
+        return $response->json() ?? [];
+    }
 }

@@ -2,12 +2,12 @@
 
 namespace App\Jobs;
 
-use App\Services\SalesOutlets\SalesOutletsExportWorkerServiceInterface;
+use App\Services\SalesOutlets\SalesOutletsMailWorkerServiceInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
 
-class BuildSalesOutletsCsvExportJob implements ShouldQueue
+class SendSalesOutletsReportMailJob implements ShouldQueue
 {
     use Queueable;
 
@@ -17,14 +17,14 @@ class BuildSalesOutletsCsvExportJob implements ShouldQueue
         private readonly string $uuid,
     ) {}
 
-    public function handle(SalesOutletsExportWorkerServiceInterface $exportWorker): void
+    public function handle(SalesOutletsMailWorkerServiceInterface $mailWorker): void
     {
-        $exportWorker->buildByUuid($this->uuid);
+        $mailWorker->sendByUuid($this->uuid);
     }
 
     public function failed(?Throwable $exception): void
     {
-        app(SalesOutletsExportWorkerServiceInterface::class)->markAsFailed(
+        app(SalesOutletsMailWorkerServiceInterface::class)->markAsFailed(
             uuid: $this->uuid,
             errorMessage: $exception?->getMessage(),
         );

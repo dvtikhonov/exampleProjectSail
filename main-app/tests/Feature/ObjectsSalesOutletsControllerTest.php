@@ -148,6 +148,59 @@ class ObjectsSalesOutletsControllerTest extends TestCase
             ->assertSee('"ID"', false);
     }
 
+    public function test_objects_sales_outlets_mail_create_is_proxied_to_service_b(): void
+    {
+        Http::fake([
+            'http://gateway/api/b/sales-outlets/mail' => Http::response([
+                'uuid' => 'mail-uuid',
+                'status' => 'pending',
+                'error_message' => null,
+            ], 202),
+        ]);
+
+        $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->withSession(['_token' => 'test-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-token')
+            ->postJson('/objects-sales-outlets-2/mail', [
+                'search' => 'Курск',
+                'status' => 'approved',
+                'column_filters' => ['shop' => 'Курск'],
+                'sort' => 'shop',
+                'direction' => 'desc',
+                'columns' => ['id', 'shop'],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('uuid', 'mail-uuid')
+            ->assertJsonPath('status', 'pending');
+
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/mail'
+            && $request['search'] === 'Курск'
+            && $request['column_filters'] === ['shop' => 'Курск']
+            && $request['columns'] === ['id', 'shop']);
+    }
+
+    public function test_objects_sales_outlets_mail_status_is_proxied_to_service_b(): void
+    {
+        Http::fake([
+            'http://gateway/api/b/sales-outlets/mail/mail-uuid' => Http::response([
+                'uuid' => 'mail-uuid',
+                'status' => 'completed',
+                'error_message' => null,
+            ]),
+        ]);
+
+        $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->getJson('/objects-sales-outlets-2/mail/mail-uuid')
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/mail/mail-uuid');
+    }
+
     /**
      * @return array<string, mixed>
      */

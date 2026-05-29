@@ -48,6 +48,20 @@ class ObjectsSalesOutletsController extends Controller
             ->withHeaders($this->downloadHeaders($response->headers()));
     }
 
+    public function createMail(Request $request): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->createMail($request->all()),
+        );
+    }
+
+    public function mailStatus(string $uuid): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->mailStatus($uuid),
+        );
+    }
+
     private function renderIndex(Request $request, string $component, string $routeName): Response
     {
         $page = $this->salesOutletsApiClient->index(

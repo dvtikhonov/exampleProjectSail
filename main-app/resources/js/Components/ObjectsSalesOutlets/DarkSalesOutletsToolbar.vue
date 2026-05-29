@@ -16,9 +16,21 @@ defineProps({
         type: String,
         default: '',
     },
+    isMailing: {
+        type: Boolean,
+        default: false,
+    },
+    mailButtonText: {
+        type: String,
+        default: 'Отправить по почте',
+    },
+    mailStatusText: {
+        type: String,
+        default: '',
+    },
 });
 
-const emit = defineEmits(['open-columns', 'open-filters', 'save-file']);
+const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mail']);
 </script>
 
 <template>
@@ -28,7 +40,7 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file']);
                 Управление таблицей объектов продаж
             </div>
             <div class="mt-1 text-xs text-slate-500">
-                Настройки колонок, фильтры и сохранение данных в файл.
+                Настройки колонок, фильтры, экспорт и отправка отчёта по почте.
             </div>
         </div>
 
@@ -67,6 +79,22 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file']);
                     class="text-xs text-slate-400"
                 >
                     {{ exportStatusText }}
+                </span>
+            </div>
+            <div class="flex flex-col gap-1">
+                <button
+                    type="button"
+                    class="inline-flex items-center rounded-lg border border-cyan-500/60 bg-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-300 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
+                    :disabled="isMailing"
+                    @click="emit('send-mail')"
+                >
+                    {{ mailButtonText }}
+                </button>
+                <span
+                    v-if="mailStatusText"
+                    class="text-xs text-slate-400"
+                >
+                    {{ mailStatusText }}
                 </span>
             </div>
         </div>

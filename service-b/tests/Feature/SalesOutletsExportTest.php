@@ -130,7 +130,7 @@ class SalesOutletsExportTest extends TestCase
             ],
         ]);
 
-        BuildSalesOutletsCsvExportJob::dispatchSync($exportJob->uuid);
+        dispatch_sync(new BuildSalesOutletsCsvExportJob(uuid: $exportJob->uuid));
 
         $exportJob->refresh();
 

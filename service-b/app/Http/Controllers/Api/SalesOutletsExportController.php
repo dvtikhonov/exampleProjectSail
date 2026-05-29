@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\DTO\SalesOutlets\SalesOutletExportJobDto;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SalesOutlets\StoreSalesOutletExportRequest;
-use App\Services\SalesOutlets\SalesOutletsExportServiceInterface;
+use App\Services\SalesOutlets\SalesOutletsExportApiServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class SalesOutletsExportController extends Controller
 {
     public function __construct(
-        private readonly SalesOutletsExportServiceInterface $exportService,
+        private readonly SalesOutletsExportApiServiceInterface $exportService,
     ) {}
 
     public function store(StoreSalesOutletExportRequest $request): JsonResponse

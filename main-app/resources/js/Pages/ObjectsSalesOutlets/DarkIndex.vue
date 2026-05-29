@@ -50,6 +50,10 @@ const exportJobUuid = ref(null);
 const exportStatus = ref('idle');
 const exportError = ref('');
 const exportPollTimer = ref(null);
+const mailJobUuid = ref(null);
+const mailStatus = ref('idle');
+const mailError = ref('');
+const mailPollTimer = ref(null);
 const localSalesOutlets = ref(props.salesOutlets.map((row) => ({ ...row })));
 const editingSalesOutlet = ref(null);
 const isEditModalOpen = ref(false);
@@ -60,7 +64,9 @@ const isColumnModalOpen = computed(() => activeModal.value === modalIds.columns)
 const isFilterModalOpen = computed(() => activeModal.value === modalIds.filters);
 const hasActiveColumnFilters = computed(() => Object.keys(columnFilters.value).length > 0);
 const isExporting = computed(() => ['pending', 'processing'].includes(exportStatus.value));
+const isMailing = computed(() => ['pending', 'processing'].includes(mailStatus.value));
 const exportButtonText = computed(() => (isExporting.value ? 'Файл собирается...' : 'Сохранить в файл'));
+const mailButtonText = computed(() => (isMailing.value ? 'Данные собираются...' : 'Отправить по почте'));
 const exportStatusText = computed(() => {
     if (exportError.value) {
         return exportError.value;
@@ -76,6 +82,25 @@ const exportStatusText = computed(() => {
 
     if (exportStatus.value === 'completed') {
         return 'Файл готов и скачивается.';
+    }
+
+    return '';
+});
+const mailStatusText = computed(() => {
+    if (mailError.value) {
+        return mailError.value;
+    }
+
+    if (mailStatus.value === 'pending') {
+        return 'Отправка поставлена в очередь.';
+    }
+
+    if (mailStatus.value === 'processing') {
+        return 'Данные собираются, можно продолжать работу с таблицей.';
+    }
+
+    if (mailStatus.value === 'completed') {
+        return 'Письмо отправлено получателям.';
     }
 
     return '';
@@ -205,7 +230,7 @@ const exportPayload = () => ({
     columns: selectedColumns.value,
 });
 
-const exportRoute = (template, uuid) => template.replace('__uuid__', uuid);
+const routeWithUuid = (template, uuid) => template.replace('__uuid__', uuid);
 
 const stopExportPolling = () => {
     if (exportPollTimer.value === null) {
@@ -216,12 +241,21 @@ const stopExportPolling = () => {
     exportPollTimer.value = null;
 };
 
+const stopMailPolling = () => {
+    if (mailPollTimer.value === null) {
+        return;
+    }
+
+    window.clearTimeout(mailPollTimer.value);
+    mailPollTimer.value = null;
+};
+
 const downloadExport = (uuid) => {
-    window.location.href = exportRoute(props.routes.exportDownload, uuid);
+    window.location.href = routeWithUuid(props.routes.exportDownload, uuid);
 };
 
 const pollExportStatus = async (uuid) => {
-    const response = await fetch(exportRoute(props.routes.exportStatus, uuid), {
+    const response = await fetch(routeWithUuid(props.routes.exportStatus, uuid), {
         headers: {
             Accept: 'application/json',
         },
@@ -284,6 +318,75 @@ const saveToFile = async () => {
     }
 };
 
+const pollMailStatus = async (uuid) => {
+    try {
+        const response = await fetch(routeWithUuid(props.routes.mailStatus, uuid), {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось получить статус отправки.');
+        }
+
+        const data = await response.json();
+        mailStatus.value = data.status;
+
+        if (data.status === 'completed') {
+            stopMailPolling();
+            return;
+        }
+
+        if (data.status === 'failed') {
+            stopMailPolling();
+            mailError.value = data.error_message || 'Не удалось отправить отчёт по почте.';
+            return;
+        }
+
+        mailPollTimer.value = window.setTimeout(() => pollMailStatus(uuid), 2000);
+    } catch (error) {
+        stopMailPolling();
+        mailStatus.value = 'failed';
+        mailError.value = error.message || 'Не удалось получить статус отправки.';
+    }
+};
+
+const sendByMail = async () => {
+    if (isMailing.value) {
+        return;
+    }
+
+    stopMailPolling();
+    mailError.value = '';
+    mailStatus.value = 'pending';
+
+    try {
+        const response = await fetch(props.routes.mailCreate, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify(exportPayload()),
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось запустить отправку по почте.');
+        }
+
+        const data = await response.json();
+        mailJobUuid.value = data.uuid;
+        mailStatus.value = data.status;
+        await pollMailStatus(data.uuid);
+    } catch (error) {
+        stopMailPolling();
+        mailStatus.value = 'failed';
+        mailError.value = error.message || 'Не удалось запустить отправку по почте.';
+    }
+};
+
 const openEditModal = (row) => {
     editingSalesOutlet.value = { ...row };
     editModalError.value = '';
@@ -343,7 +446,10 @@ const saveSalesOutlet = async (payload) => {
     }
 };
 
-onBeforeUnmount(stopExportPolling);
+onBeforeUnmount(() => {
+    stopExportPolling();
+    stopMailPolling();
+});
 </script>
 
 <template>
@@ -382,9 +488,13 @@ onBeforeUnmount(stopExportPolling);
                         :is-exporting="isExporting"
                         :export-button-text="exportButtonText"
                         :export-status-text="exportStatusText"
+                        :is-mailing="isMailing"
+                        :mail-button-text="mailButtonText"
+                        :mail-status-text="mailStatusText"
                         @open-columns="activeModal = modalIds.columns"
                         @open-filters="activeModal = modalIds.filters"
                         @save-file="saveToFile"
+                        @send-mail="sendByMail"
                     />
 
                     <DarkSalesOutletsTable

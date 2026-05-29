@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
-class StoreSalesOutletExportRequest extends FormRequest
+class StoreSalesOutletMailRequest extends FormRequest
 {
     public function __construct(
         private readonly SalesOutletsExportMetadataRepositoryInterface $metadataRepository,

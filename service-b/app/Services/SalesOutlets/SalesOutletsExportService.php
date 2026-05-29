@@ -2,36 +2,34 @@
 
 namespace App\Services\SalesOutlets;
 
+use App\Contracts\SalesOutlets\ExportFileStorageInterface;
+use App\Contracts\SalesOutlets\ExportPathNamingInterface;
+use App\Contracts\SalesOutlets\SalesOutletsCsvWriterInterface;
 use App\DTO\SalesOutlets\SalesOutletExportFilterDto;
 use App\Enums\SalesOutletExportStatus;
 use App\Jobs\BuildSalesOutletsCsvExportJob;
 use App\Models\SalesOutletExportJob;
-use App\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
 use App\Repositories\SalesOutlets\SalesOutletsExportMetadataRepositoryInterface;
 use App\Repositories\SalesOutlets\SalesOutletsExportRepositoryInterface;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
-class SalesOutletsExportService implements SalesOutletsExportServiceInterface
+class SalesOutletsExportService implements SalesOutletsExportApiServiceInterface, SalesOutletsExportWorkerServiceInterface
 {
     public function __construct(
         private readonly SalesOutletsExportRepositoryInterface $exportRepository,
-        private readonly SalesOutletsDataRepositoryInterface $dataRepository,
         private readonly SalesOutletsExportMetadataRepositoryInterface $metadataRepository,
+        private readonly ExportFileStorageInterface $fileStorage,
+        private readonly SalesOutletsCsvWriterInterface $csvWriter,
+        private readonly ExportPathNamingInterface $pathNaming,
     ) {}
-
-    public function allowedColumnKeys(): array
-    {
-        return $this->metadataRepository->allowedColumnKeys();
-    }
 
     public function create(SalesOutletExportFilterDto $filters, ?int $userId): SalesOutletExportJob
     {
         $exportJob = $this->exportRepository->create($filters, $userId);
 
-        BuildSalesOutletsCsvExportJob::dispatch($exportJob->uuid);
+        dispatch(new BuildSalesOutletsCsvExportJob(uuid: $exportJob->uuid));
 
         return $exportJob;
     }
@@ -41,7 +39,53 @@ class SalesOutletsExportService implements SalesOutletsExportServiceInterface
         return $this->exportRepository->findByUuid($uuid);
     }
 
-    public function buildCsv(SalesOutletExportJob $exportJob): void
+    public function buildByUuid(string $uuid): void
+    {
+        $exportJob = $this->exportRepository->findByUuid($uuid);
+
+        if ($exportJob === null) {
+            return;
+        }
+
+        $this->buildCsv($exportJob);
+    }
+
+    public function markAsFailed(string $uuid, ?string $errorMessage = null): void
+    {
+        $exportJob = $this->exportRepository->findByUuid($uuid);
+
+        if ($exportJob === null || $exportJob->status === SalesOutletExportStatus::Failed) {
+            return;
+        }
+
+        $this->exportRepository->updateStatus(
+            $exportJob,
+            SalesOutletExportStatus::Failed,
+            errorMessage: $errorMessage ?? 'Export job failed.',
+        );
+    }
+
+    public function isDownloadReady(SalesOutletExportJob $exportJob): bool
+    {
+        return $exportJob->status === SalesOutletExportStatus::Completed
+            && $exportJob->file_path !== null
+            && $this->fileStorage->exists($exportJob->file_path);
+    }
+
+    public function download(SalesOutletExportJob $exportJob): StreamedResponse
+    {
+        if (! $this->isDownloadReady($exportJob)) {
+            throw new RuntimeException('Export file is not ready.');
+        }
+
+        return $this->fileStorage->download(
+            $exportJob->file_path,
+            $this->pathNaming->downloadFileName($exportJob),
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
+    }
+
+    private function buildCsv(SalesOutletExportJob $exportJob): void
     {
         $this->exportRepository->updateStatus($exportJob, SalesOutletExportStatus::Processing);
 
@@ -54,11 +98,11 @@ class SalesOutletsExportService implements SalesOutletsExportServiceInterface
 
             $filters = SalesOutletExportFilterDto::fromValidated(
                 validated: $exportJob->filters,
-                allowedColumns: $this->allowedColumnKeys(),
+                allowedColumns: $this->metadataRepository->allowedColumnKeys(),
             );
-            $filePath = 'exports/sales-outlets-'.$exportJob->uuid.'.csv';
+            $filePath = $this->pathNaming->forJob($exportJob);
 
-            Storage::disk('local')->put($filePath, $this->csv($filters));
+            $this->fileStorage->put($filePath, $this->csvWriter->build($filters));
 
             $this->exportRepository->updateStatus($exportJob, SalesOutletExportStatus::Completed, $filePath);
         } catch (Throwable $exception) {
@@ -70,64 +114,5 @@ class SalesOutletsExportService implements SalesOutletsExportServiceInterface
 
             throw $exception;
         }
-    }
-
-    public function isDownloadReady(SalesOutletExportJob $exportJob): bool
-    {
-        return $exportJob->status === SalesOutletExportStatus::Completed
-            && $exportJob->file_path !== null
-            && Storage::disk('local')->exists($exportJob->file_path);
-    }
-
-    public function download(SalesOutletExportJob $exportJob): StreamedResponse
-    {
-        if (! $this->isDownloadReady($exportJob)) {
-            throw new RuntimeException('Export file is not ready.');
-        }
-
-        return Storage::disk('local')->download(
-            $exportJob->file_path,
-            $this->downloadFileName($exportJob),
-            ['Content-Type' => 'text/csv; charset=UTF-8'],
-        );
-    }
-
-    private function downloadFileName(SalesOutletExportJob $exportJob): string
-    {
-        if ($exportJob->user_id === null) {
-            return 'objects-sales-outlets.csv';
-        }
-
-        return 'objects-sales-outlets-'.$exportJob->user_id.'.csv';
-    }
-
-    private function csv(SalesOutletExportFilterDto $filters): string
-    {
-        $columns = array_values(array_filter(
-            $this->metadataRepository->columns(),
-            fn (array $column): bool => in_array($column['key'], $filters->columns, true),
-        ));
-
-        $rows = [$this->csvLine(array_column($columns, 'label'))];
-
-        foreach ($this->dataRepository->exportRows($filters) as $row) {
-            $rows[] = $this->csvLine(array_map(
-                fn (array $column): string => (string) ($row[$column['key']] ?? ''),
-                $columns,
-            ));
-        }
-
-        return "\xEF\xBB\xBF".implode("\n", $rows);
-    }
-
-    /**
-     * @param  array<int, string>  $values
-     */
-    private function csvLine(array $values): string
-    {
-        return implode(';', array_map(
-            fn (string $value): string => '"'.str_replace('"', '""', $value).'"',
-            $values,
-        ));
     }
 }
