@@ -16,5 +16,4 @@ interface SalesOutletsDownloadableReportStrategyInterface extends SalesOutletsRe
     public function downloadFileName(SalesOutletAsyncJob $job): string;
 
     public function downloadContentType(): string;
-
 }
