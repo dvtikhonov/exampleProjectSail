@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\SalesOutlets\SalesOutletsReportApiServiceInterface;
+use App\Contracts\SalesOutlets\SalesOutletsReportDownloadServiceInterface;
 use App\DTO\SalesOutlets\SalesOutletReportJobDto;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SalesOutlets\StoreSalesOutletReportRequest;
-use App\Contracts\SalesOutlets\SalesOutletsReportApiServiceInterface;
-use App\Contracts\SalesOutlets\SalesOutletsReportDownloadServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
