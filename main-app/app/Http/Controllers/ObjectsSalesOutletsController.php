@@ -29,20 +29,20 @@ class ObjectsSalesOutletsController extends Controller
     public function createExport(Request $request): JsonResponse
     {
         return response()->json(
-            $this->salesOutletsApiClient->createExport($request->all()),
+            $this->salesOutletsApiClient->createReport($request->all(), 'csv_download'),
         );
     }
 
     public function exportStatus(string $uuid): JsonResponse
     {
         return response()->json(
-            $this->salesOutletsApiClient->exportStatus($uuid),
+            $this->salesOutletsApiClient->reportStatus($uuid),
         );
     }
 
     public function downloadExport(string $uuid): HttpResponse
     {
-        $response = $this->salesOutletsApiClient->downloadExport($uuid);
+        $response = $this->salesOutletsApiClient->downloadReport($uuid);
 
         return response($response->body(), $response->status())
             ->withHeaders($this->downloadHeaders($response->headers()));
@@ -51,14 +51,14 @@ class ObjectsSalesOutletsController extends Controller
     public function createMail(Request $request): JsonResponse
     {
         return response()->json(
-            $this->salesOutletsApiClient->createMail($request->all()),
+            $this->salesOutletsApiClient->createReport($request->all(), 'html_email'),
         );
     }
 
     public function mailStatus(string $uuid): JsonResponse
     {
         return response()->json(
-            $this->salesOutletsApiClient->mailStatus($uuid),
+            $this->salesOutletsApiClient->reportStatus($uuid),
         );
     }
 

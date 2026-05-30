@@ -2,7 +2,9 @@
 
 namespace App\Repositories\SalesOutlets;
 
-use App\DTO\SalesOutlets\SalesOutletExportFilterDto;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
+use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Models\SalesOutlet;
 use Illuminate\Support\Collection;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
@@ -12,11 +14,11 @@ use Shared\SalesOutletsDomain\Query\SalesOutletQueryFilter;
 class EloquentSalesOutletsDataRepository implements SalesOutletsDataRepositoryInterface
 {
     public function __construct(
-        private readonly SalesOutletsExportMetadataRepositoryInterface $metadataRepository,
-        private readonly SalesOutletQueryFilter $queryFilter = new SalesOutletQueryFilter,
+        private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
+        private readonly SalesOutletQueryFilter $queryFilter,
     ) {}
 
-    public function exportRows(SalesOutletExportFilterDto $filters): Collection
+    public function reportRows(SalesOutletReportFilterDto $filters): Collection
     {
         $query = SalesOutlet::query();
         $allowedColumns = $this->metadataRepository->allowedColumnKeys();

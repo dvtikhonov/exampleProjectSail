@@ -135,7 +135,7 @@ prepare_database() {
     artisan service-a migrate --database=mysql --path=database/migrations --env=testing --force
 
     echo "Running service-b migrations..."
-    artisan service-b migrate --database=mysql --path=database/migrations/2026_05_22_000001_create_sales_outlet_export_jobs_table.php --env=testing --force
+    artisan service-b migrate --database=mysql --path=database/migrations --env=testing --force
 }
 
 run_tests_for() {

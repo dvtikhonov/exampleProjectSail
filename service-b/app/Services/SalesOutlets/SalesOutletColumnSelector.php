@@ -2,19 +2,19 @@
 
 namespace App\Services\SalesOutlets;
 
-use App\DTO\SalesOutlets\SalesOutletExportFilterDto;
-use App\Repositories\SalesOutlets\SalesOutletsExportMetadataRepositoryInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
+use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 
 class SalesOutletColumnSelector
 {
     public function __construct(
-        private readonly SalesOutletsExportMetadataRepositoryInterface $metadataRepository,
+        private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
     ) {}
 
     /**
      * @return array<int, array<string, bool|int|string>>
      */
-    public function select(SalesOutletExportFilterDto $filters): array
+    public function select(SalesOutletReportFilterDto $filters): array
     {
         return array_values(array_filter(
             $this->metadataRepository->columns(),

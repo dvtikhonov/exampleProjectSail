@@ -75,7 +75,7 @@ class ObjectsSalesOutletsControllerTest extends TestCase
     public function test_objects_sales_outlets_export_create_is_proxied_to_service_b(): void
     {
         Http::fake([
-            'http://gateway/api/b/sales-outlets/exports' => Http::response([
+            'http://gateway/api/b/sales-outlets/reports' => Http::response([
                 'uuid' => 'export-uuid',
                 'status' => 'pending',
                 'error_message' => null,
@@ -100,7 +100,8 @@ class ObjectsSalesOutletsControllerTest extends TestCase
             ->assertJsonPath('uuid', 'export-uuid')
             ->assertJsonPath('status', 'pending');
 
-        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/exports'
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports'
+            && $request['report_type'] === 'csv_download'
             && $request['search'] === 'Курск'
             && $request['column_filters'] === ['shop' => 'Курск']
             && $request['columns'] === ['id', 'shop']);
@@ -109,7 +110,7 @@ class ObjectsSalesOutletsControllerTest extends TestCase
     public function test_objects_sales_outlets_export_status_is_proxied_to_service_b(): void
     {
         Http::fake([
-            'http://gateway/api/b/sales-outlets/exports/export-uuid' => Http::response([
+            'http://gateway/api/b/sales-outlets/reports/export-uuid' => Http::response([
                 'uuid' => 'export-uuid',
                 'status' => 'completed',
                 'error_message' => null,
@@ -122,13 +123,13 @@ class ObjectsSalesOutletsControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'completed');
 
-        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/exports/export-uuid');
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/export-uuid');
     }
 
     public function test_objects_sales_outlets_export_download_is_proxied_to_service_b(): void
     {
         Http::fake([
-            'http://gateway/api/b/sales-outlets/exports/export-uuid/download' => Http::response(
+            'http://gateway/api/b/sales-outlets/reports/export-uuid/download' => Http::response(
                 "\xEF\xBB\xBF\"ID\"",
                 200,
                 [
@@ -151,7 +152,7 @@ class ObjectsSalesOutletsControllerTest extends TestCase
     public function test_objects_sales_outlets_mail_create_is_proxied_to_service_b(): void
     {
         Http::fake([
-            'http://gateway/api/b/sales-outlets/mail' => Http::response([
+            'http://gateway/api/b/sales-outlets/reports' => Http::response([
                 'uuid' => 'mail-uuid',
                 'status' => 'pending',
                 'error_message' => null,
@@ -176,7 +177,8 @@ class ObjectsSalesOutletsControllerTest extends TestCase
             ->assertJsonPath('uuid', 'mail-uuid')
             ->assertJsonPath('status', 'pending');
 
-        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/mail'
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports'
+            && $request['report_type'] === 'html_email'
             && $request['search'] === 'Курск'
             && $request['column_filters'] === ['shop' => 'Курск']
             && $request['columns'] === ['id', 'shop']);
@@ -185,7 +187,7 @@ class ObjectsSalesOutletsControllerTest extends TestCase
     public function test_objects_sales_outlets_mail_status_is_proxied_to_service_b(): void
     {
         Http::fake([
-            'http://gateway/api/b/sales-outlets/mail/mail-uuid' => Http::response([
+            'http://gateway/api/b/sales-outlets/reports/mail-uuid' => Http::response([
                 'uuid' => 'mail-uuid',
                 'status' => 'completed',
                 'error_message' => null,
@@ -198,7 +200,7 @@ class ObjectsSalesOutletsControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', 'completed');
 
-        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/mail/mail-uuid');
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/mail-uuid');
     }
 
     /**

@@ -210,11 +210,13 @@ API:
 | Метод | Путь | Auth |
 |---|---|---|
 | `GET` | `/data` | `trust.gateway` |
-| `POST` | `/sales-outlets/exports` | `trust.gateway` |
-| `GET` | `/sales-outlets/exports/{uuid}` | `trust.gateway` |
-| `GET` | `/sales-outlets/exports/{uuid}/download` | `trust.gateway` |
+| `POST` | `/sales-outlets/reports` | `trust.gateway` |
+| `GET` | `/sales-outlets/reports/{uuid}` | `trust.gateway` |
+| `GET` | `/sales-outlets/reports/{uuid}/download` | `trust.gateway` |
 
-Через gateway — префикс `/api/b`, например `POST /api/b/sales-outlets/exports`.
+Через gateway — префикс `/api/b`, например `POST /api/b/sales-outlets/reports`.
+
+Тело `POST /sales-outlets/reports` включает `report_type`: `csv_download` (скачивание CSV) или `html_email` (отправка на email).
 
 ## Авторизация через gateway
 

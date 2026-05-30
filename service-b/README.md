@@ -1,58 +1,297 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# service-b
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Микросервис отчётов по объектам продаж (Sales Outlets). Обрабатывает асинхронные задачи: CSV-выгрузка и HTML-отчёт по email.
 
-## About Laravel
+## API
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Все маршруты под префиксом `/api`, middleware `trust.gateway` (заголовок `X-User-Id` от nginx-gateway).
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/data` | Проверка авторизации (debug) |
+| `POST` | `/sales-outlets/reports` | Создать задачу отчёта |
+| `GET` | `/sales-outlets/reports/{uuid}` | Статус задачи |
+| `GET` | `/sales-outlets/reports/{uuid}/download` | Скачать CSV (только `csv_download`) |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Через gateway: префикс `/api/b`, например `POST /api/b/sales-outlets/reports`.
 
-## Learning Laravel
+### Создание отчёта
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+```http
+POST /api/sales-outlets/reports
+X-User-Id: 123
+Content-Type: application/json
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+{
+  "report_type": "csv_download",
+  "search": "Курск",
+  "status": "approved",
+  "column_filters": { "shop": "Курск" },
+  "sort": "shop",
+  "direction": "desc",
+  "columns": ["id", "shop"]
+}
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+`report_type`:
 
-## Contributing
+| Значение | Поведение |
+|---|---|
+| `csv_download` | CSV в `storage/app/exports/`, доступен через `/download` |
+| `html_email` | HTML-таблица в теле письма, получатели из конфига |
+| `xls_email` | *(пример ниже)* XLS во вложении, сопроводительный текст в теле, те же получатели, что у `html_email` |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Ответ `202 Accepted`:
 
-## Code of Conduct
+```json
+{
+  "uuid": "...",
+  "status": "pending",
+  "report_type": "csv_download",
+  "error_message": null
+}
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Фильтры (общие для обоих типов)
 
-## Security Vulnerabilities
+| Поле | Описание |
+|---|---|
+| `search` | Поиск по строкам |
+| `status` | `approved`, `pending`, `rejected` |
+| `column_filters` | Фильтры по колонкам |
+| `sort` / `direction` | Сортировка |
+| `columns` | Список колонок отчёта |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Архитектура
 
-## License
+- **Strategy** — `CsvDownloadReportStrategy`, `HtmlEmailReportStrategy` (+ пример расширения: `XlsEmailReportStrategy`)
+- **Очередь** — `BuildSalesOutletsReportJob` (worker: `service-b-queue`)
+- **Shared domain** — `shared/sales-outlets-domain`
+- **Таблица** — `sales_outlet_report_jobs`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### Strategy contracts (ISP)
+
+Контракты отчётных стратегий разделены по Interface Segregation — потребители зависят только от нужных абстракций:
+
+| Контракт | Назначение |
+|---|---|
+| `SalesOutletsReportProcessingStrategyInterface` | Обработка отчёта: `reportType()`, `build()`, `deliver()` — реализуют CSV и HTML |
+| `SalesOutletsDownloadableReportStrategyInterface` | Marker (пустой `extends` Processing): type-level tag для downloadable-ветки; CSV-иерархия реализует marker, HTML — только Processing |
+| `SalesOutletsReportStrategyResolverInterface` | `resolve(SalesOutletsReportType)` — выбор стратегии по типу отчёта |
+| `SalesOutletsReportDownloadCapabilityInterface` | `supportsDownload(SalesOutletsReportType)` — проверка через `instanceof` marker в registry |
+
+**Registry и DI:** `SalesOutletsReportStrategyRegistry` реализует resolver и capability; в `AppServiceProvider` один singleton регистрируется двумя alias на эти интерфейсы. `SalesOutletsReportJobProcessor` получает оба контракта; `SalesOutletsReportDownloadService` — только capability (не видит `resolve()`).
+
+## Конфигурация
+
+Единый файл `config/sales_outlets_reports.php`:
+
+| Секция | Ключ | Назначение |
+|---|---|---|
+| корень | `storage_disk` | Диск для CSV-файлов |
+| `types.csv_download` | `fake_delay_seconds` | Задержка в local/testing (CSV) |
+| `types.html_email` | `recipients`, `subject`, `fake_delay_seconds` | Email-отчёт |
+
+Переменные окружения: `SALES_OUTLETS_REPORTS_STORAGE_DISK`, `SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS`, `SALES_OUTLETS_MAIL_RECIPIENTS`, `SALES_OUTLETS_MAIL_SUBJECT`, `SALES_OUTLETS_MAIL_FAKE_DELAY_SECONDS`.
+
+## Пример: стратегия `xls_email` (XLS во вложении)
+
+Цель: новый тип отчёта без правок `SalesOutletsReportJobProcessor` (OCP) — только enum, стратегия, DI и узкие расширения mail-слоя.
+
+| Отличие от `html_email` | `html_email` | `xls_email` |
+|---|---|---|
+| Тело письма | HTML-таблица с данными | Фиксированный сопроводительный текст |
+| Данные отчёта | В теле | Во вложении `.xls` |
+| Получатели / тема | `MailReportConfigProviderInterface` | **Тот же** провайдер (`types.html_email`) |
+| Download API | Нет | Нет (без marker `SalesOutletsDownloadableReportStrategyInterface`) |
+
+### 1. Тип отчёта
+
+`app/Enums/SalesOutletsReportType.php`:
+
+```php
+case XlsEmail = 'xls_email';
+```
+
+Валидация `StoreSalesOutletReportRequest` подхватит значение через `Rule::enum` автоматически.
+
+### 2. Генерация XLS
+
+Контракт (например `app/Contracts/SalesOutlets/XlsReportWriterInterface.php`):
+
+```php
+interface XlsReportWriterInterface
+{
+    /**
+     * @param  array<int, array{key: string, label: string}>  $columns
+     * @param  iterable<int, array<string, mixed>>  $rows
+     */
+    public function writeToTempFile(array $columns, iterable $rows): string;
+}
+```
+
+Реализация пишет файл в `storage/app/tmp/` и возвращает абсолютный путь. `build()` стратегии возвращает этот путь как `string` (соглашение для email-стратегий с вложением).
+
+### 3. Стратегия
+
+`app/Services/SalesOutlets/Reports/Strategies/XlsEmailReportStrategy.php` — по образцу `HtmlEmailReportStrategy`: trait `ResolvesSalesOutletsReportData`, те же зависимости для данных и почты:
+
+```php
+class XlsEmailReportStrategy implements SalesOutletsReportProcessingStrategyInterface
+{
+    use ResolvesSalesOutletsReportData;
+
+    public function __construct(
+        SalesOutletsDataRepositoryInterface $dataRepository,
+        SalesOutletColumnSelector $columnSelector,
+        private readonly XlsReportWriterInterface $xlsWriter,
+        private readonly ReportMailSenderInterface $mailSender,
+        private readonly MailReportConfigProviderInterface $mailReportConfig,
+    ) {
+        $this->dataRepository = $dataRepository;
+        $this->columnSelector = $columnSelector;
+    }
+
+    public function reportType(): SalesOutletsReportType
+    {
+        return SalesOutletsReportType::XlsEmail;
+    }
+
+    public function build(SalesOutletReportContextDto $context): string
+    {
+        $columns = $this->resolveColumns($context);
+
+        return $this->xlsWriter->writeToTempFile(
+            $columns,
+            $this->resolveRows($context, $columns),
+        );
+    }
+
+    public function deliver(SalesOutletAsyncJob $job, string $content): ReportDeliveryResult
+    {
+        $config = $this->mailReportConfig->config(); // recipients + subject из types.html_email
+
+        $this->mailSender->sendWithXlsAttachment(
+            recipients: $config->recipients,
+            subject: $config->subject,
+            xlsPath: $content,
+            attachmentName: 'objects-sales-outlets-'.$job->uuid.'.xls',
+        );
+
+        @unlink($content);
+
+        return ReportDeliveryResult::none();
+    }
+}
+```
+
+Получатели и тема — через уже существующий `ConfigMailReportConfigProvider` (`SALES_OUTLETS_MAIL_RECIPIENTS`, `SALES_OUTLETS_MAIL_SUBJECT`). Отдельная секция конфига для адресов не нужна.
+
+Опционально — задержка в local/testing:
+
+```php
+// config/sales_outlets_reports.php
+'xls_email' => [
+    'fake_delay_seconds' => (int) env('SALES_OUTLETS_MAIL_FAKE_DELAY_SECONDS', 10),
+],
+```
+
+### 4 Письмо: сопроводительный текст + вложение
+
+View `resources/views/mail/sales-outlets-xls-cover.blade.php`:
+
+```blade
+<p>Здравствуйте!</p>
+<p>Во вложении отчёт по объектам продаж. Параметры выборки соответствуют запросу в системе.</p>
+<p>С уважением,<br>{{ config('app.name') }}</p>
+```
+
+Mailable `app/Mail/SalesOutletsXlsReportMailable.php`:
+
+```php
+public function attachments(): array
+{
+    return [
+        Attachment::fromPath($this->xlsPath)
+            ->as($this->attachmentName)
+            ->withMime('application/vnd.ms-excel'),
+    ];
+}
+
+public function content(): Content
+{
+    return new Content(view: 'mail.sales-outlets-xls-cover');
+}
+```
+
+Расширение sender (`ReportMailSenderInterface` + `LaravelReportMailSender`):
+
+```php
+public function sendWithXlsAttachment(
+    array $recipients,
+    string $subject,
+    string $xlsPath,
+    string $attachmentName,
+): void {
+    $this->mailer->to($recipients)->send(new SalesOutletsXlsReportMailable(
+        subjectLine: $subject,
+        xlsPath: $xlsPath,
+        attachmentName: $attachmentName,
+    ));
+}
+```
+
+`HtmlEmailReportStrategy` и `SalesOutletsReportMailable` при этом **не меняются**.
+
+### 5 Регистрация в DI
+
+`AppServiceProvider`:
+
+```php
+$this->app->bind(XlsReportWriterInterface::class, PhpSpreadsheetXlsReportWriter::class);
+
+$this->app->tag([
+    CsvDownloadReportStrategy::class,
+    HtmlEmailReportStrategy::class,
+    XlsEmailReportStrategy::class,
+], 'sales-outlets.report-strategies');
+```
+
+Processor, registry и download-сервис трогать не нужно — registry подхватит стратегию по `reportType()`.
+
+### 6 Запрос API
+
+```http
+POST /api/sales-outlets/reports
+X-User-Id: 123
+Content-Type: application/json
+
+{
+  "report_type": "xls_email",
+  "search": "Курск",
+  "status": "approved",
+  "columns": ["id", "shop"]
+}
+```
+
+Проверка в Mailhog: `docker compose up -d mailhog` → UI http://localhost:8025 — письмо с коротким текстом и вложением `.xls`.
+
+## Тесты
+
+```bash
+# из корня репозитория
+docker compose exec -T service-b php artisan test
+
+# или через общий скрипт
+./scripts/test-services.sh service-b
+```
+
+Тестовая БД: `sail_db_testing` (см. `phpunit.xml`).
+
+## Локальный запуск
+
+```bash
+docker compose up -d service-b service-b-queue
+```
+
+Порт по умолчанию: `8082`.

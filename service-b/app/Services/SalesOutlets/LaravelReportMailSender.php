@@ -4,13 +4,17 @@ namespace App\Services\SalesOutlets;
 
 use App\Contracts\SalesOutlets\ReportMailSenderInterface;
 use App\Mail\SalesOutletsReportMailable;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Contracts\Mail\Mailer;
 
 class LaravelReportMailSender implements ReportMailSenderInterface
 {
+    public function __construct(
+        private readonly Mailer $mailer,
+    ) {}
+
     public function send(array $recipients, string $subject, string $html): void
     {
-        Mail::to($recipients)->send(new SalesOutletsReportMailable(
+        $this->mailer->to($recipients)->send(new SalesOutletsReportMailable(
             subjectLine: $subject,
             htmlContent: $html,
         ));

@@ -1,7 +1,6 @@
 <?php
 
-use App\Http\Controllers\Api\SalesOutletsExportController;
-use App\Http\Controllers\Api\SalesOutletsMailController;
+use App\Http\Controllers\Api\SalesOutletsReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('trust.gateway')->group(function () {
@@ -9,9 +8,7 @@ Route::middleware('trust.gateway')->group(function () {
     Route::get('/data', function () {
         return response()->json(['user' => auth()->user()]);
     });
-    Route::post('/sales-outlets/exports', [SalesOutletsExportController::class, 'store']);
-    Route::get('/sales-outlets/exports/{uuid}', [SalesOutletsExportController::class, 'show']);
-    Route::get('/sales-outlets/exports/{uuid}/download', [SalesOutletsExportController::class, 'download']);
-    Route::post('/sales-outlets/mail', [SalesOutletsMailController::class, 'store']);
-    Route::get('/sales-outlets/mail/{uuid}', [SalesOutletsMailController::class, 'show']);
+    Route::post('/sales-outlets/reports', [SalesOutletsReportController::class, 'store']);
+    Route::get('/sales-outlets/reports/{uuid}', [SalesOutletsReportController::class, 'show']);
+    Route::get('/sales-outlets/reports/{uuid}/download', [SalesOutletsReportController::class, 'download']);
 });

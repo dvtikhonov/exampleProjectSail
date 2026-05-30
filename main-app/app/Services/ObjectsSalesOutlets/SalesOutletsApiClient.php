@@ -31,9 +31,12 @@ class SalesOutletsApiClient
      *
      * @throws RequestException
      */
-    public function createExport(array $payload): array
+    public function createReport(array $payload, string $reportType): array
     {
-        $response = $this->httpClient->serviceB('post', 'sales-outlets/exports', $payload);
+        $response = $this->httpClient->serviceB('post', 'sales-outlets/reports', [
+            ...$payload,
+            'report_type' => $reportType,
+        ]);
         $response->throw();
 
         return $response->json() ?? [];
@@ -44,9 +47,9 @@ class SalesOutletsApiClient
      *
      * @throws RequestException
      */
-    public function exportStatus(string $uuid): array
+    public function reportStatus(string $uuid): array
     {
-        $response = $this->httpClient->serviceB('get', "sales-outlets/exports/{$uuid}");
+        $response = $this->httpClient->serviceB('get', "sales-outlets/reports/{$uuid}");
         $response->throw();
 
         return $response->json() ?? [];
@@ -55,38 +58,11 @@ class SalesOutletsApiClient
     /**
      * @throws RequestException
      */
-    public function downloadExport(string $uuid): Response
+    public function downloadReport(string $uuid): Response
     {
-        $response = $this->httpClient->serviceB('get', "sales-outlets/exports/{$uuid}/download");
+        $response = $this->httpClient->serviceB('get', "sales-outlets/reports/{$uuid}/download");
         $response->throw();
 
         return $response;
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
-     *
-     * @throws RequestException
-     */
-    public function createMail(array $payload): array
-    {
-        $response = $this->httpClient->serviceB('post', 'sales-outlets/mail', $payload);
-        $response->throw();
-
-        return $response->json() ?? [];
-    }
-
-    /**
-     * @return array<string, mixed>
-     *
-     * @throws RequestException
-     */
-    public function mailStatus(string $uuid): array
-    {
-        $response = $this->httpClient->serviceB('get', "sales-outlets/mail/{$uuid}");
-        $response->throw();
-
-        return $response->json() ?? [];
     }
 }
