@@ -10,7 +10,7 @@ readonly class ReportDeliveryResult
 
     public static function none(): self
     {
-        return new self();
+        return new self;
     }
 
     public static function withFile(string $path): self
