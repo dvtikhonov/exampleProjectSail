@@ -7,9 +7,7 @@ use App\Contracts\SalesOutlets\SalesOutletsReportJobFailureServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportJobProcessorInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportProcessorWorkerInterface;
 
-class SalesOutletsReportWorkerService extends AbstractSalesOutletsAsyncJobService implements
-    SalesOutletsReportProcessorWorkerInterface,
-    SalesOutletsReportJobFailureServiceInterface
+class SalesOutletsReportWorkerService extends AbstractSalesOutletsAsyncJobService implements SalesOutletsReportJobFailureServiceInterface, SalesOutletsReportProcessorWorkerInterface
 {
     public function __construct(
         private readonly SalesOutletsAsyncJobRepositoryInterface $reportRepository,

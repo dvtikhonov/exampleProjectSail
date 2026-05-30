@@ -3,13 +3,13 @@
 namespace App\Services\SalesOutlets\Reports\Strategies;
 
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
+use App\Contracts\SalesOutlets\HtmlTableRendererInterface;
 use App\Contracts\SalesOutlets\MailReportConfigProviderInterface;
 use App\Contracts\SalesOutlets\ReportMailSenderInterface;
 use App\Domain\SalesOutlets\SalesOutletAsyncJob;
 use App\DTO\SalesOutlets\ReportDeliveryResult;
 use App\Enums\SalesOutletsReportType;
 use App\Services\SalesOutlets\Reports\AbstractSalesOutletsHtmlReportStrategy;
-use App\Contracts\SalesOutlets\HtmlTableRendererInterface;
 use App\Services\SalesOutlets\SalesOutletColumnSelector;
 use Shared\SalesOutletsDomain\DTO\SalesOutletReportContextDto;
 

@@ -2,8 +2,8 @@
 
 namespace App\Services\SalesOutlets;
 
-use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
 use App\Contracts\SalesOutlets\ReportProcessingDelayInterface;
+use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportContextFactoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportJobProcessorInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportStrategyResolverInterface;
