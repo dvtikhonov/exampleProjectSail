@@ -9,7 +9,7 @@ class HtmlTableRendererTest extends TestCase
 {
     public function test_it_builds_table_with_headers_and_row_values(): void
     {
-        $renderer = new HtmlTableRenderer();
+        $renderer = new HtmlTableRenderer;
 
         $html = $renderer->render(
             columns: [

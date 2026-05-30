@@ -37,7 +37,7 @@ class HtmlEmailReportStrategyTest extends TestCase
         );
 
         $html = $strategy->build(
-            (new SalesOutletsReportContextFactory())->fromReportFilter($filters),
+            (new SalesOutletsReportContextFactory)->fromReportFilter($filters),
         );
 
         $this->assertStringContainsString('Самара', $html);
@@ -116,7 +116,7 @@ class HtmlEmailReportStrategyTest extends TestCase
         return new HtmlEmailReportStrategy(
             dataRepository: $dataRepository,
             columnSelector: new SalesOutletColumnSelector($metadataRepository),
-            htmlTableRenderer: new HtmlTableRenderer(),
+            htmlTableRenderer: new HtmlTableRenderer,
             mailSender: $mailSender ?? $this->createMock(ReportMailSenderInterface::class),
             mailReportConfig: new ConfigMailReportConfigProvider(
                 $this->makeMailConfigRepository($mailRecipients, $mailSubject),

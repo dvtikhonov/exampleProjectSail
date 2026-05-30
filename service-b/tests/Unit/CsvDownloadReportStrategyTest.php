@@ -1,49 +1,26 @@
 <?php
 
-
-
 namespace Tests\Unit;
 
-
-
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
-
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
-
 use App\Contracts\SalesOutlets\ReportFileStorageInterface;
-
 use App\Contracts\SalesOutlets\SalesOutletsDownloadableReportStrategyInterface;
-
-use App\DTO\SalesOutlets\ReportDeliveryResult;
-
 use App\Domain\SalesOutlets\SalesOutletAsyncJob;
-
+use App\DTO\SalesOutlets\ReportDeliveryResult;
 use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
-
 use App\Enums\AsyncJobStatus;
-
 use App\Enums\SalesOutletsReportType;
-
 use App\Services\SalesOutlets\Reports\SalesOutletsReportContextFactory;
-
 use App\Services\SalesOutlets\Reports\Strategies\CsvDownloadReportStrategy;
-
 use App\Services\SalesOutlets\SalesOutletColumnSelector;
-
 use Illuminate\Support\Collection;
-
 use PHPUnit\Framework\TestCase;
-
 use Shared\SalesOutletsDomain\AbstractStrategy\CsvReportWriter;
 
-
-
 class CsvDownloadReportStrategyTest extends TestCase
-
 {
-
     public function test_build_csv_writes_utf8_bom_csv_with_selected_columns(): void
-
     {
 
         $strategy = $this->makeStrategy(
@@ -56,8 +33,6 @@ class CsvDownloadReportStrategyTest extends TestCase
 
         );
 
-
-
         $filters = SalesOutletReportFilterDto::fromValidated(
 
             validated: ['columns' => ['id', 'shop']],
@@ -66,15 +41,11 @@ class CsvDownloadReportStrategyTest extends TestCase
 
         );
 
-
-
         $csv = $strategy->build(
 
-            (new SalesOutletsReportContextFactory())->fromReportFilter($filters),
+            (new SalesOutletsReportContextFactory)->fromReportFilter($filters),
 
         );
-
-
 
         $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
 
@@ -84,17 +55,12 @@ class CsvDownloadReportStrategyTest extends TestCase
 
     }
 
-
-
     public function test_deliver_stores_csv_in_report_storage(): void
-
     {
 
         $storedPath = null;
 
         $storedContent = null;
-
-
 
         $fileStorage = $this->createMock(ReportFileStorageInterface::class);
 
@@ -112,8 +78,6 @@ class CsvDownloadReportStrategyTest extends TestCase
 
             });
 
-
-
         $strategy = $this->makeStrategy(
 
             rows: [['id' => '42', 'shop' => 'Москва']],
@@ -122,15 +86,9 @@ class CsvDownloadReportStrategyTest extends TestCase
 
         );
 
-
-
         $job = $this->makeJob();
 
-
-
         $delivery = $strategy->deliver($job, 'csv-content');
-
-
 
         $this->assertSame('reports/sales-outlets-11111111-1111-1111-1111-111111111111.csv', $storedPath);
 
@@ -146,15 +104,10 @@ class CsvDownloadReportStrategyTest extends TestCase
 
     }
 
-
-
     public function test_storage_path_for_job(): void
-
     {
 
         $strategy = $this->makeStrategy(rows: []);
-
-
 
         $this->assertSame(
 
@@ -166,15 +119,10 @@ class CsvDownloadReportStrategyTest extends TestCase
 
     }
 
-
-
     public function test_download_file_name_contains_user_id(): void
-
     {
 
         $strategy = $this->makeStrategy(rows: []);
-
-
 
         $this->assertSame(
 
@@ -186,15 +134,10 @@ class CsvDownloadReportStrategyTest extends TestCase
 
     }
 
-
-
     public function test_download_file_name_without_user_id(): void
-
     {
 
         $strategy = $this->makeStrategy(rows: []);
-
-
 
         $job = new SalesOutletAsyncJob(
 
@@ -216,62 +159,40 @@ class CsvDownloadReportStrategyTest extends TestCase
 
         );
 
-
-
         $this->assertSame('objects-sales-outlets.csv', $strategy->downloadFileName($job));
 
     }
 
-
-
     public function test_download_content_type_is_csv(): void
-
     {
 
         $strategy = $this->makeStrategy(rows: []);
-
-
 
         $this->assertSame('text/csv; charset=UTF-8', $strategy->downloadContentType());
 
     }
 
-
-
     public function test_report_type_is_csv_download(): void
-
     {
 
         $strategy = $this->makeStrategy(rows: []);
-
-
 
         $this->assertSame(SalesOutletsReportType::CsvDownload, $strategy->reportType());
 
     }
 
-
-
     public function test_supports_download(): void
-
     {
 
         $strategy = $this->makeStrategy(rows: []);
-
-
 
         $this->assertInstanceOf(SalesOutletsDownloadableReportStrategyInterface::class, $strategy);
 
     }
 
-
-
     /**
-
      * @param  iterable<int, array<string, int|string|null>>  $rows
-
      */
-
     private function makeStrategy(
 
         iterable $rows,
@@ -288,8 +209,6 @@ class CsvDownloadReportStrategyTest extends TestCase
 
             ->willReturn(new Collection($rows));
 
-
-
         $metadataRepository = $this->createMock(SalesOutletsMetadataRepositoryInterface::class);
 
         $metadataRepository->method('columns')->willReturn([
@@ -300,15 +219,13 @@ class CsvDownloadReportStrategyTest extends TestCase
 
         ]);
 
-
-
         return new CsvDownloadReportStrategy(
 
             dataRepository: $dataRepository,
 
             columnSelector: new SalesOutletColumnSelector($metadataRepository),
 
-            csvWriter: new CsvReportWriter(),
+            csvWriter: new CsvReportWriter,
 
             fileStorage: $fileStorage ?? $this->createMock(ReportFileStorageInterface::class),
 
@@ -316,10 +233,7 @@ class CsvDownloadReportStrategyTest extends TestCase
 
     }
 
-
-
     private function makeJob(): SalesOutletAsyncJob
-
     {
 
         return new SalesOutletAsyncJob(
@@ -343,6 +257,4 @@ class CsvDownloadReportStrategyTest extends TestCase
         );
 
     }
-
 }
-

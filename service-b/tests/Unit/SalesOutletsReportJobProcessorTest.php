@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
 use App\Contracts\SalesOutlets\ReportProcessingDelayInterface;
+use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsDownloadableReportStrategyInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportContextFactoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportProcessingStrategyInterface;
@@ -13,8 +13,8 @@ use App\DTO\SalesOutlets\ReportDeliveryResult;
 use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Enums\AsyncJobStatus;
 use App\Enums\SalesOutletsReportType;
-use App\Services\SalesOutlets\SalesOutletsReportJobProcessor;
 use App\Services\SalesOutlets\Reports\SalesOutletsReportContextFactory;
+use App\Services\SalesOutlets\SalesOutletsReportJobProcessor;
 use PHPUnit\Framework\TestCase;
 use Shared\SalesOutletsDomain\DTO\SalesOutletReportContextDto;
 
@@ -68,7 +68,7 @@ class SalesOutletsReportJobProcessorTest extends TestCase
             ->with(SalesOutletsReportType::CsvDownload);
 
         $contextFactory = $this->createMock(SalesOutletsReportContextFactoryInterface::class);
-        $realContextFactory = new SalesOutletsReportContextFactory();
+        $realContextFactory = new SalesOutletsReportContextFactory;
         $contextFactory
             ->expects($this->once())
             ->method('fromJob')
@@ -130,7 +130,7 @@ class SalesOutletsReportJobProcessorTest extends TestCase
         $processingDelay->expects($this->once())->method('apply');
 
         $contextFactory = $this->createMock(SalesOutletsReportContextFactoryInterface::class);
-        $realContextFactory = new SalesOutletsReportContextFactory();
+        $realContextFactory = new SalesOutletsReportContextFactory;
         $contextFactory
             ->expects($this->once())
             ->method('fromJob')
@@ -154,7 +154,7 @@ class SalesOutletsReportJobProcessorTest extends TestCase
         SalesOutletsReportType $reportType,
         bool $supportsDownload,
         string $buildResult = '',
-        ReportDeliveryResult $deliveryResult = new ReportDeliveryResult(),
+        ReportDeliveryResult $deliveryResult = new ReportDeliveryResult,
     ): SalesOutletsReportProcessingStrategyInterface {
         if ($supportsDownload) {
             return new class($reportType, $buildResult, $deliveryResult) implements SalesOutletsDownloadableReportStrategyInterface
