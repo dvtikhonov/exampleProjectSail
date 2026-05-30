@@ -10,5 +10,4 @@ interface SalesOutletsReportDownloadPresentationInterface
     public function downloadFileName(SalesOutletAsyncJob $job): string;
 
     public function downloadContentType(SalesOutletsReportType $type): string;
-
 }
