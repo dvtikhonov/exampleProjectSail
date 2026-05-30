@@ -11,5 +11,4 @@ interface SalesOutletsReportContextFactoryInterface
     public function fromReportFilter(SalesOutletReportFilterDto $reportFilter): SalesOutletReportContextDto;
 
     public function fromJob(SalesOutletAsyncJob $job): SalesOutletReportContextDto;
-
 }
