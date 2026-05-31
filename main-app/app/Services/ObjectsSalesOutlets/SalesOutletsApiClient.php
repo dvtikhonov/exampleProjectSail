@@ -56,6 +56,19 @@ class SalesOutletsApiClient
     }
 
     /**
+     * @return array<string, mixed>
+     *
+     * @throws RequestException
+     */
+    public function reportStats(): array
+    {
+        $response = $this->httpClient->serviceB('get', 'sales-outlets/reports/stats');
+        $response->throw();
+
+        return $response->json() ?? [];
+    }
+
+    /**
      * @throws RequestException
      */
     public function downloadReport(string $uuid): Response

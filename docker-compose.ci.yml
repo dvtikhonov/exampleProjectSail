@@ -37,6 +37,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      reverb:
+        condition: service_started
 
   service-b-queue:
     build:
@@ -45,5 +47,12 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
+      reverb:
+        condition: service_started
+
+  reverb:
+    depends_on:
       redis:
         condition: service_started

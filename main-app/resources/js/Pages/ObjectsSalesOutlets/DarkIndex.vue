@@ -5,10 +5,12 @@ import DarkColumnSettingsModal from '@/Components/ObjectsSalesOutlets/DarkColumn
 import DarkSalesOutletEditModal from '@/Components/ObjectsSalesOutlets/DarkSalesOutletEditModal.vue';
 import DarkSalesOutletsPagination from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsPagination.vue';
 import DarkSalesOutletsTable from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsTable.vue';
+import DarkReportJobStatsPanel from '@/Components/ObjectsSalesOutlets/DarkReportJobStatsPanel.vue';
 import DarkSalesOutletsToolbar from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsToolbar.vue';
 import { usePersistentTableSettings } from '@/Composables/usePersistentTableSettings';
+import { useReportJobStats } from '@/Composables/useReportJobStats';
 import { SalesOutletValidationError, updateSalesOutlet } from '@/Services/salesOutlets';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -37,6 +39,12 @@ const props = defineProps({
         required: true,
     },
 });
+
+const {
+    statsByType: reportStatsByType,
+    isLoading: reportStatsLoading,
+    error: reportStatsError,
+} = useReportJobStats(props.routes.reportStats);
 
 const tableSettings = usePersistentTableSettings('objects-sales-outlets:dark-index', props.columns);
 const selectedColumns = ref(tableSettings.savedColumns ?? [...props.filters.columns]);
@@ -470,13 +478,20 @@ onBeforeUnmount(() => {
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    class="inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 shadow-lg shadow-black/20 transition hover:border-cyan-400 hover:text-white"
-                    @click="history.back()"
-                >
-                    Назад
-                </button>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
+                    <DarkReportJobStatsPanel
+                        :stats-by-type="reportStatsByType"
+                        :is-loading="reportStatsLoading"
+                        :error="reportStatsError"
+                    />
+
+                    <Link
+                        :href="route('objectsSalesOutlets.index')"
+                        class="inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 shadow-lg shadow-black/20 transition hover:border-cyan-400 hover:text-white"
+                    >
+                        Назад
+                    </Link>
+                </div>
             </div>
         </template>
 

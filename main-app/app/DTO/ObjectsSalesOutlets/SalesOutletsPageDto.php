@@ -53,6 +53,7 @@ readonly class SalesOutletsPageDto
                 'exportDownload' => route('objectsSalesOutlets.export.download', ['uuid' => '__uuid__']),
                 'mailCreate' => route('objectsSalesOutlets.mail.create'),
                 'mailStatus' => route('objectsSalesOutlets.mail.status', ['uuid' => '__uuid__']),
+                'reportStats' => route('objectsSalesOutlets.reports.stats'),
             ],
         ];
     }

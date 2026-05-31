@@ -4,6 +4,7 @@ namespace App\Repositories\SalesOutlets;
 
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
+use App\Contracts\SalesOutlets\SalesOutletsReportStatsBroadcasterInterface;
 use App\Domain\SalesOutlets\SalesOutletAsyncJob;
 use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Enums\AsyncJobStatus;
@@ -15,6 +16,7 @@ class EloquentSalesOutletsReportJobRepository implements SalesOutletsAsyncJobRep
 {
     public function __construct(
         private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
+        private readonly SalesOutletsReportStatsBroadcasterInterface $statsBroadcaster,
     ) {}
 
     public function create(
@@ -29,6 +31,8 @@ class EloquentSalesOutletsReportJobRepository implements SalesOutletsAsyncJobRep
             'status' => AsyncJobStatus::Pending,
             'filters' => $filters->toArray(),
         ]);
+
+        $this->statsBroadcaster->broadcastCurrentStats();
 
         return $this->toAsyncJob($reportJob);
     }
@@ -57,6 +61,8 @@ class EloquentSalesOutletsReportJobRepository implements SalesOutletsAsyncJobRep
             'file_path' => $filePath ?? $reportJob->file_path,
             'error_message' => $errorMessage,
         ])->save();
+
+        $this->statsBroadcaster->broadcastCurrentStats();
 
         return $this->toAsyncJob($reportJob->refresh());
     }

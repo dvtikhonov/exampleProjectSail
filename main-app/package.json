@@ -7,6 +7,8 @@
         "dev": "vite"
     },
     "dependencies": {
+        "laravel-echo": "^2.2.0",
+        "pusher-js": "^8.4.0",
         "ziggy-js": "^2.6.0"
     },
     "devDependencies": {

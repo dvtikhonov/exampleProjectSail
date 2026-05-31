@@ -6,18 +6,42 @@
 
 | Каталог / файл | Назначение |
 |---|---|
-| `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, веб-авторизация и проверка токенов для gateway |
+| `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, Laravel Reverb (Echo), веб-авторизация и проверка токенов для gateway |
 | `service-a` | Laravel API: торговые точки (`/api/sales-outlets`), ping-эндпоинты |
-| `service-b` | Laravel API: экспорты торговых точек, доверенная авторизация через `X-User-Id` |
-| `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых экспортов |
+| `service-b` | Laravel API: асинхронные отчёты по торговым точкам (CSV / email), агрегированная статистика задач, broadcast событий в Reverb |
+| `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
+| `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/` и `/api/b/` |
 | `docker-compose.yml` | Основной compose-файл для локального запуска |
 | `docker-compose.ci.yml` | Overlay для CI: внутренний MySQL и `depends_on` с healthcheck |
 | `scripts/test-services.sh` | Единый сценарий подготовки тестовой БД и запуска тестов всех сервисов |
+| `scripts/e2e-verify-report-stats.cjs` | E2E-проверка: два WebSocket-клиента + REST статистики отчётов |
 | `.github/workflows/ci.yml` | CI: Pint, сборка frontend, Docker-тесты |
 | `.github/workflows/deploy.yml` | CD: деплой на VPS по SSH |
 | `main-app/compose.yaml` | Отдельный Laravel Sail compose для изолированного запуска `main-app`; для общего запуска обычно не используется |
+
+## Архитектура запросов
+
+```mermaid
+flowchart LR
+  Browser --> Gateway
+  Gateway -->|auth_request| MainApp
+  Gateway --> ServiceA
+  Gateway --> ServiceB
+  Browser -->|сессия / Inertia| MainApp
+  MainApp -->|MicroserviceHttpClient| Gateway
+  Gateway --> ServiceA
+  Gateway --> ServiceB
+  ServiceB -->|ReportJobStatsChanged| Reverb
+  Browser -->|Echo private channel| Reverb
+  MainApp -->|/broadcasting/auth| Reverb
+  ServiceBQueue --> ServiceB
+```
+
+- **Торговые точки (CRUD, фильтры):** браузер → `VITE_GATEWAY_ORIGIN` → `service-a` (Bearer + CORS на gateway).
+- **Экспорт, почта, статистика отчётов:** браузер → `main-app` (web-сессия, `auth.passport`) → gateway → `service-b` (`MicroserviceHttpClient`).
+- **Live-статистика отчётов:** `service-b` шлёт `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на канал `private-report-jobs.stats` (авторизация — `GET /broadcasting/auth`).
 
 ## Требования
 
@@ -59,6 +83,8 @@ SERVICE_B_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `reverb`, `redis`, `mailhog`, `gateway`.
+
 ### 3. Ключи приложений
 
 `main-app` создаёт `.env` из `.env.example` при сборке образа; при старте `entrypoint.sh` генерирует `APP_KEY` и Passport-ключи, если они отсутствуют.
@@ -80,11 +106,13 @@ docker compose exec service-a php artisan migrate
 docker compose exec service-b php artisan migrate
 ```
 
-Для экспортов `service-b` нужен запущенный worker:
+Для отчётов `service-b` нужны worker и Reverb (в compose уже описаны):
 
 ```bash
-docker compose up -d service-b-queue
+docker compose up -d service-b-queue reverb
 ```
+
+Письма `html_email` в dev перехватывает MailHog (`http://localhost:8025`).
 
 ## Запуск и обслуживание
 
@@ -108,6 +136,7 @@ docker compose logs -f main-app
 docker compose logs -f service-a
 docker compose logs -f service-b
 docker compose logs -f service-b-queue
+docker compose logs -f reverb
 docker compose logs -f gateway
 ```
 
@@ -132,6 +161,7 @@ docker compose up -d main-app
 | `main-app` напрямую | `http://localhost` (порт `MAIN_APP_PORT`, по умолчанию `80`) |
 | `service-a` напрямую | `http://localhost:8081` |
 | `service-b` напрямую | `http://localhost:8082` |
+| Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
 | Vite dev server | `http://localhost:5173` |
 | MailHog | `http://localhost:8025` |
 | Redis | `localhost:6379` |
@@ -152,7 +182,7 @@ Gateway переписывает префиксы `/api/a/` и `/api/b/` в `/ap
 - `Access-Control-Allow-Origin` берётся из `$http_origin`, заголовок `Vary: Origin` добавляется всегда.
 - CORS-заголовки от backend-сервисов скрываются через `proxy_hide_header`, чтобы gateway был единственной точкой управления CORS.
 
-Браузерные запросы из frontend `main-app` идут напрямую через gateway, например:
+Браузерные запросы к `service-a` из Vue идут напрямую через gateway, например:
 
 ```text
 PATCH ${VITE_GATEWAY_ORIGIN}/api/a/sales-outlets/{rowId}
@@ -172,10 +202,13 @@ Web (Inertia):
 | `GET` | `/` | Стартовая страница |
 | `GET` | `/dashboard` | Dashboard после web-авторизации |
 | `GET` | `/objects-sales-outlets` | Страница объектов торговых точек |
-| `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница |
-| `POST` | `/objects-sales-outlets-2/export` | Создание экспорта |
+| `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница (экспорт, почта, live-статистика) |
+| `POST` | `/objects-sales-outlets-2/export` | Создание CSV-экспорта (прокси в `service-b`) |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}` | Статус экспорта |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}/download` | Скачивание экспорта |
+| `POST` | `/objects-sales-outlets-2/mail` | Создание отчёта на email |
+| `GET` | `/objects-sales-outlets-2/mail/{uuid}` | Статус email-отчёта |
+| `GET` | `/objects-sales-outlets-2/reports/stats` | Агрегированная статистика задач отчётов |
 | `GET` | `/get-api-token` | Passport-токен из сессии |
 | `GET/PATCH/DELETE` | `/profile` | Профиль пользователя (Breeze) |
 
@@ -187,6 +220,12 @@ API:
 |---|---|---|
 | `GET\|POST` | `/api/auth/verify` | Проверка Bearer-токена для gateway (`X-User-Id`) |
 | `POST` | `/api/auth/check` | Внутренняя проверка токена (исключена из CSRF) |
+
+Broadcasting (web + `AuthenticateBroadcastingPassport`):
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `POST` | `/broadcasting/auth` | Авторизация подписки Echo на `private-report-jobs.stats` |
 
 ### `service-a`
 
@@ -210,13 +249,21 @@ API:
 | Метод | Путь | Auth |
 |---|---|---|
 | `GET` | `/data` | `trust.gateway` |
+| `GET` | `/sales-outlets/reports/stats` | `trust.gateway` |
 | `POST` | `/sales-outlets/reports` | `trust.gateway` |
 | `GET` | `/sales-outlets/reports/{uuid}` | `trust.gateway` |
 | `GET` | `/sales-outlets/reports/{uuid}/download` | `trust.gateway` |
 
 Через gateway — префикс `/api/b`, например `POST /api/b/sales-outlets/reports`.
 
-Тело `POST /sales-outlets/reports` включает `report_type`: `csv_download` (скачивание CSV) или `html_email` (отправка на email).
+Тело `POST /sales-outlets/reports` включает `report_type`:
+
+- `csv_download` — CSV-файл для скачивания;
+- `html_email` — HTML-отчёт на email (в dev — MailHog).
+
+Ответ `GET /sales-outlets/reports/stats` — JSON с полями `by_type` (счётчики `pending`, `processing`, `completed`, `failed`, `total` по каждому типу) и `generated_at`.
+
+При смене статуса задачи `service-b` отправляет broadcast `ReportJobStatsChanged` на канал `private-report-jobs.stats`.
 
 ## Авторизация через gateway
 
@@ -250,9 +297,11 @@ GET /get-api-token
 
 `service-a` и `service-b` доверяют gateway через middleware `trust.gateway`: сервисы ожидают заголовок `X-User-Id`, который gateway получает от `main-app` после проверки токена.
 
+Серверные вызовы из `main-app` в микросервисы идут на `http://gateway/api/a` и `http://gateway/api/b` (см. `config/services.php`), с Bearer-токеном и при необходимости `X-User-Id`.
+
 ## Frontend `main-app`
 
-`main-app` использует Breeze UI на Inertia/Vue, Vite и Tailwind CSS.
+`main-app` использует Breeze UI на Inertia/Vue, Vite, Tailwind CSS и Laravel Echo (Reverb).
 
 Команды frontend запускайте внутри контейнера `main-app`:
 
@@ -273,9 +322,15 @@ docker compose exec main-app npm run build
 ```env
 VITE_DEV_SERVER_URL=http://localhost:5173
 VITE_GATEWAY_ORIGIN=http://localhost:8080
+VITE_REVERB_APP_KEY=local-app-key
+VITE_REVERB_HOST=localhost
+VITE_REVERB_PORT=8090
+VITE_REVERB_SCHEME=http
 ```
 
 HTTP-вызовы к `service-a` из Vue идут через `VITE_GATEWAY_ORIGIN` (см. `main-app/resources/js/Services/salesOutlets.js`).
+
+На странице `/objects-sales-outlets-2` composable `useReportJobStats` загружает начальный снимок с `GET /objects-sales-outlets-2/reports/stats` и подписывается на `Echo.private('report-jobs.stats')` → событие `.ReportJobStatsChanged`.
 
 ## Shared domain package
 
@@ -287,7 +342,7 @@ HTTP-вызовы к `service-a` из Vue идут через `VITE_GATEWAY_ORIG
 - composable query-filters (`AbstractFilter/QueryFilters/*`);
 - `SalesOutletQueryFilter`, `SalesOutletFilterFactory`, `FilterQuerySalesOutletComposite`.
 
-Пакет подключён в `service-a/composer.json` и `service-b/composer.json` через Composer `path` repository:
+Пакет подключён в `service-a/composer.json` и `service-b/composer.json` через Composer `path` repository. В Docker каталог `shared` монтируется в `/var/www/shared`.
 
 ```json
 {
@@ -313,7 +368,7 @@ docker compose exec service-a composer update example/sales-outlets-domain
 docker compose exec service-b composer update example/sales-outlets-domain
 ```
 
-Eloquent-модели, контроллеры, FormRequest, сервисы экспорта, job и миграции остаются внутри конкретных Laravel-сервисов.
+Eloquent-модели, контроллеры, FormRequest, сервисы экспорта, job, события broadcast и миграции остаются внутри конкретных Laravel-сервисов.
 
 ## Полезные команды
 
@@ -343,6 +398,24 @@ docker compose exec service-a php artisan test
 docker compose exec service-b php artisan test
 ```
 
+## E2E: статистика отчётов и WebSocket
+
+Скрипт `scripts/e2e-verify-report-stats.cjs` проверяет, что два независимых WebSocket-клиента получают одинаковые события `ReportJobStatsChanged`, пока `service-b-queue` обрабатывает CSV- и email-отчёты.
+
+Предварительно: запущен compose, есть пользователь с Passport-токеном, работают `reverb` и `service-b-queue`.
+
+```bash
+# из корня репозитория; pusher-js берётся из main-app/node_modules
+export TOKEN="<passport-bearer-token>"
+export AUTH_BASE_URL=http://localhost
+export MAIN_APP_URL=http://localhost
+export SERVICE_B_URL=http://localhost:8082
+export REVERB_HOST=localhost
+export REVERB_PORT=8090
+
+node scripts/e2e-verify-report-stats.cjs
+```
+
 ## CI
 
 Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_request`.
@@ -351,7 +424,7 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 |---|---|
 | `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b` (PHP 8.4) |
 | `frontend-build` | `npm ci` + `npm run build` в `main-app` (Node 22) |
-| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, затем `./scripts/test-services.sh all` |
+| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в `service-a`/`service-b`, затем `./scripts/test-services.sh all` |
 
 Локально воспроизвести CI-контур тестов:
 
@@ -364,6 +437,8 @@ export SERVICE_B_DB_DATABASE=sail_db_testing
 export SERVICE_B_DB_PASSWORD=12345678
 
 docker compose build main-app service-a service-b
+docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
+docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
 docker compose up -d mysql redis main-app service-a service-b
 ./scripts/test-services.sh all
 ```
@@ -397,7 +472,7 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app` → `service-a` → `service-b` (для `service-b` — только миграция таблицы экспортов). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app` → `service-a` → `service-b`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -457,8 +532,9 @@ TEST_DB_PASSWORD=<your-local-password> \
 ## Примечания
 
 - `main-app` — Nginx + PHP-FPM 8.4 Alpine + Supervisor, внутренний порт `8000`; для hot-reload смонтированы `app`, `routes`, `config`, `database`, `resources`, `tests`, `public`, `storage`.
-- `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса.
-- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ.
+- `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса и `shared`.
+- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`.
+- `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.
-- Redis используется сервисами; MailHog — для перехвата почты в dev.
+- Redis используется сервисами и Reverb; MailHog — для перехвата почты в dev (`html_email`).

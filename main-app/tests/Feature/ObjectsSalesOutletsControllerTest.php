@@ -203,6 +203,41 @@ class ObjectsSalesOutletsControllerTest extends TestCase
         Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/mail-uuid');
     }
 
+    public function test_objects_sales_outlets_report_stats_is_proxied_to_service_b(): void
+    {
+        Http::fake([
+            'http://gateway/api/b/sales-outlets/reports/stats' => Http::response([
+                'by_type' => [
+                    'csv_download' => [
+                        'pending' => 3,
+                        'processing' => 1,
+                        'completed' => 42,
+                        'failed' => 2,
+                        'total' => 48,
+                    ],
+                    'html_email' => [
+                        'pending' => 0,
+                        'processing' => 0,
+                        'completed' => 5,
+                        'failed' => 0,
+                        'total' => 5,
+                    ],
+                ],
+                'generated_at' => '2026-05-31T12:00:00+00:00',
+            ]),
+        ]);
+
+        $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->getJson('/objects-sales-outlets-2/reports/stats')
+            ->assertOk()
+            ->assertJsonPath('by_type.csv_download.pending', 3)
+            ->assertJsonPath('by_type.html_email.total', 5)
+            ->assertJsonPath('generated_at', '2026-05-31T12:00:00+00:00');
+
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/stats');
+    }
+
     /**
      * @return array<string, mixed>
      */

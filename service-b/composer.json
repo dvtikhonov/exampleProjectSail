@@ -15,9 +15,10 @@
         }
     ],
     "require": {
-        "example/sales-outlets-domain": "*",
         "php": "^8.3",
+        "example/sales-outlets-domain": "*",
         "laravel/framework": "^13.0",
+        "laravel/reverb": "^1.0",
         "laravel/tinker": "^3.0"
     },
     "require-dev": {

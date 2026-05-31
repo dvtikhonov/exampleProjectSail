@@ -13,8 +13,8 @@ RUN apk add --no-cache \
     nodejs \
     npm
 
-# Установка PHP-расширений
-RUN docker-php-ext-install pdo_mysql mbstring zip xml bcmath
+# Установка PHP-расширений (pcntl нужен Laravel Reverb для SIGINT/SIGTERM)
+RUN docker-php-ext-install pdo_mysql mbstring zip xml bcmath pcntl
 
 
 # Установка Xdebug из исходников (рабочий вариант на Alpine)
@@ -40,6 +40,10 @@ WORKDIR /var/www/html
 # Копируем исходники (сначала composer файлы для кеширования)
 COPY composer.json composer.lock ./
 RUN composer install --no-interaction --optimize-autoloader --no-scripts
+
+# Копируем npm-манифесты и устанавливаем фронтенд-зависимости
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
 
 # Копируем весь проект (включая routes, database, и т.д.)
 COPY . .

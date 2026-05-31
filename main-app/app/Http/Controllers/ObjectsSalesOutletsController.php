@@ -62,6 +62,13 @@ class ObjectsSalesOutletsController extends Controller
         );
     }
 
+    public function reportStats(): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->reportStats(),
+        );
+    }
+
     private function renderIndex(Request $request, string $component, string $routeName): Response
     {
         $page = $this->salesOutletsApiClient->index(
