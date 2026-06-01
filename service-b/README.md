@@ -131,7 +131,7 @@ X-User-Id: 123
 
 Файлы `main-app`: `resources/js/Composables/useReportJobStats.js`, `resources/js/bootstrap.js`, `app/Http/Controllers/ObjectsSalesOutletsController.php`.
 
-Troubleshooting live-статистики — в [корневом README.md](../README.md) (раздел **Troubleshooting live-статистики**).
+Диагностика live-статистики — в [корневом README.md](../README.md) (раздел **Диагностика live-статистики**).
 
 ## Архитектура
 

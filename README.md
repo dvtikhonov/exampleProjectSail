@@ -355,7 +355,7 @@ HTTP-вызовы к `service-a` из Vue идут через `VITE_GATEWAY_ORIG
 
 Live-статистика на странице `/objects-sales-outlets-2` реализована в `useReportJobStats` (см. раздел **Live-статистика отчётов** выше и [service-b/README.md](service-b/README.md)).
 
-### Troubleshooting live-статистики
+### Диагностика live-статистики
 
 | Симптом | Что проверить |
 |---|---|
