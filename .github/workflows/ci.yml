@@ -105,6 +105,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare environment files for Docker bind mounts
+        run: |
+          for service in main-app service-a service-b; do
+            cp "$service/.env.testing" "$service/.env"
+            sed -i 's/DB_HOST=host.docker.internal/DB_HOST=mysql/' "$service/.env"
+          done
+
       - name: Build Docker images
         run: docker compose build main-app service-a service-b
 
