@@ -100,6 +100,39 @@ X-User-Id: 123
 }
 ```
 
+### Live-статистика: термины, broadcast и фронтенд
+
+| Термин | Значение |
+|---|---|
+| **snapshot** | Начальный REST-снимок статистики (`by_type`, `generated_at`) |
+| **broadcast** | Публикация обновления в Reverb после `create` / `updateStatus` |
+| **channel** | Private-канал `report-jobs.stats` (`Echo.private('report-jobs.stats')`) |
+| **event** | Broadcast-событие `ReportJobStatsChanged` (в Echo: `.ReportJobStatsChanged`) |
+| **payload** | JSON с полями `by_type` и `generated_at` — одинаковый формат для snapshot и event |
+
+Помимо REST (`GET /api/sales-outlets/reports/stats`), сервис публикует изменение агрегатов через broadcaster:
+
+- `EloquentSalesOutletsReportJobRepository::create()` и `::updateStatus()` вызывают `broadcastCurrentStats()`;
+- `SalesOutletsReportStatsBroadcaster::broadcastCurrentStats()` диспатчит **event** `ReportJobStatsChanged` с **payload** из `aggregate()`;
+- событие публикуется в **channel** `PrivateChannel('report-jobs.stats')`.
+
+Реализация в `service-b`:
+
+- `app/Repositories/SalesOutlets/EloquentSalesOutletsReportJobRepository.php`
+- `app/Services/SalesOutlets/SalesOutletsReportStatsBroadcaster.php`
+- `app/Events/ReportJobStatsChanged.php`
+
+**Как статистика доходит до фронтенда** (через `main-app`):
+
+1. Загружается **snapshot**: `GET /objects-sales-outlets-2/reports/stats` → прокси в `/api/sales-outlets/reports/stats`.
+2. Подписка на **channel** `report-jobs.stats` через Laravel Echo/Reverb; авторизация — `POST /broadcasting/auth`.
+3. При `create` / `updateStatus` `service-b` отправляет **broadcast** **event** `ReportJobStatsChanged`.
+4. `useReportJobStats` применяет **payload** к UI без перезагрузки страницы.
+
+Файлы `main-app`: `resources/js/Composables/useReportJobStats.js`, `resources/js/bootstrap.js`, `app/Http/Controllers/ObjectsSalesOutletsController.php`.
+
+Troubleshooting live-статистики — в [корневом README.md](../README.md) (раздел **Troubleshooting live-статистики**).
+
 ## Архитектура
 
 - Strategy-обработчики: `CsvDownloadReportStrategy`, `HtmlEmailReportStrategy`;

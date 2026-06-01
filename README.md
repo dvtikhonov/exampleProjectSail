@@ -41,7 +41,7 @@ flowchart LR
 
 - **Торговые точки (CRUD, фильтры):** браузер → `VITE_GATEWAY_ORIGIN` → `service-a` (Bearer + CORS на gateway).
 - **Экспорт, почта, статистика отчётов:** браузер → `main-app` (web-сессия, `auth.passport`) → gateway → `service-b` (`MicroserviceHttpClient`).
-- **Live-статистика отчётов:** `service-b` шлёт `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на канал `private-report-jobs.stats` (авторизация — `GET /broadcasting/auth`).
+- **Live-статистика отчётов:** `service-b` публикует broadcast-событие `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на private-канал `report-jobs.stats` (авторизация — `POST /broadcasting/auth`).
 
 ## Требования
 
@@ -263,7 +263,30 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 
 Ответ `GET /sales-outlets/reports/stats` — JSON с полями `by_type` (счётчики `pending`, `processing`, `completed`, `failed`, `total` по каждому типу) и `generated_at`.
 
-При смене статуса задачи `service-b` отправляет broadcast `ReportJobStatsChanged` на канал `private-report-jobs.stats`.
+### Live-статистика отчётов: термины и поток
+
+| Термин | Значение |
+|---|---|
+| **snapshot** | Начальный REST-снимок статистики (`by_type`, `generated_at`) |
+| **broadcast** | Публикация обновления из `service-b` в Reverb после `create` / `updateStatus` |
+| **channel** | Private-канал `report-jobs.stats` (`Echo.private('report-jobs.stats')`, wire-имя `private-report-jobs.stats`) |
+| **event** | Broadcast-событие `ReportJobStatsChanged` (в Echo слушается как `.ReportJobStatsChanged`) |
+| **payload** | JSON с полями `by_type` и `generated_at` — одинаковый формат для snapshot и event |
+
+**Backend (`service-b`):**
+
+- `EloquentSalesOutletsReportJobRepository::create()` и `::updateStatus()` вызывают `broadcastCurrentStats()`;
+- `SalesOutletsReportStatsBroadcaster::broadcastCurrentStats()` диспатчит `ReportJobStatsChanged` с payload из `aggregate()`;
+- `ReportJobStatsChanged` публикуется в `PrivateChannel('report-jobs.stats')`.
+
+**Frontend (`main-app`, страница `/objects-sales-outlets-2`):**
+
+1. Загружается **snapshot**: `GET /objects-sales-outlets-2/reports/stats` → прокси в `service-b` (`/api/b/sales-outlets/reports/stats`).
+2. Подписка на **channel** через Laravel Echo: `Echo.private('report-jobs.stats')`, авторизация — `POST /broadcasting/auth`.
+3. При создании/смене статуса задачи `service-b` отправляет **broadcast** **event** `ReportJobStatsChanged`.
+4. Composable `useReportJobStats` получает **event** и применяет **payload** к UI без перезагрузки страницы.
+
+Подробнее о backend-механизме: [service-b/README.md](service-b/README.md).
 
 ## Авторизация через gateway
 
@@ -330,7 +353,27 @@ VITE_REVERB_SCHEME=http
 
 HTTP-вызовы к `service-a` из Vue идут через `VITE_GATEWAY_ORIGIN` (см. `main-app/resources/js/Services/salesOutlets.js`).
 
-На странице `/objects-sales-outlets-2` composable `useReportJobStats` загружает начальный снимок с `GET /objects-sales-outlets-2/reports/stats` и подписывается на `Echo.private('report-jobs.stats')` → событие `.ReportJobStatsChanged`.
+Live-статистика на странице `/objects-sales-outlets-2` реализована в `useReportJobStats` (см. раздел **Live-статистика отчётов** выше и [service-b/README.md](service-b/README.md)).
+
+### Troubleshooting live-статистики
+
+| Симптом | Что проверить |
+|---|---|
+| Snapshot не загружается | Авторизация в `main-app`; `service-b` доступен; `GET /objects-sales-outlets-2/reports/stats` возвращает `200` |
+| Snapshot есть, live-обновлений нет | Контейнеры `reverb` и `service-b-queue` запущены; в `service-b` — `BROADCAST_CONNECTION=reverb` |
+| Echo не инициализируется | В `main-app/.env` задан `VITE_REVERB_APP_KEY`; после изменения `.env` — пересборка frontend (`npm run dev` / `npm run build`) |
+| WebSocket не подключается | `VITE_REVERB_HOST=localhost`, `VITE_REVERB_PORT=8090`; порт `8090` проброшен (`REVERB_EXTERNAL_PORT`) |
+| Подписка на channel отклоняется | `POST /broadcasting/auth` возвращает `200`; пользователь авторизован (web-сессия + Passport) |
+| Event не приходит после экспорта | Работает `service-b-queue`; статус задачи меняется (`pending` → `processing` → `completed` / `failed`) |
+
+Быстрая проверка инфраструктуры:
+
+```bash
+docker compose up -d reverb service-b service-b-queue
+docker compose logs -f reverb service-b service-b-queue
+```
+
+E2E-проверка двух WebSocket-клиентов: раздел **E2E: статистика отчётов и WebSocket** ниже.
 
 ## Shared domain package
 
