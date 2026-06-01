@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 class AuthenticateBroadcastingPassport
 {
     /**
-     * @param \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response) $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -33,14 +33,14 @@ class AuthenticateBroadcastingPassport
         }
 
         Auth::setUser($user);
-        $request->setUserResolver(static fn() => $user);
+        $request->setUserResolver(static fn () => $user);
 
         return $next($request);
     }
 
     private function resolveUserId(?string $bearerToken): ?int
     {
-        if (!$bearerToken) {
+        if (! $bearerToken) {
             return null;
         }
 
@@ -50,13 +50,13 @@ class AuthenticateBroadcastingPassport
             $jwt = $parser->parse($bearerToken);
             $claims = $jwt->claims();
 
-            if (!$claims->has('jti')) {
+            if (! $claims->has('jti')) {
                 return null;
             }
 
             $token = Token::find($claims->get('jti'));
 
-            if (!$token || $token->revoked) {
+            if (! $token || $token->revoked) {
                 return null;
             }
 
@@ -64,9 +64,9 @@ class AuthenticateBroadcastingPassport
                 return null;
             }
 
-            $userId = (int)$token->user_id;
+            $userId = (int) $token->user_id;
 
-            if ($userId <= 0 || !User::query()->whereKey($userId)->exists()) {
+            if ($userId <= 0 || ! User::query()->whereKey($userId)->exists()) {
                 return null;
             }
 

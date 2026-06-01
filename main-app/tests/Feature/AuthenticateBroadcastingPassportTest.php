@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Contracts\Broadcasting\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -42,7 +43,7 @@ class AuthenticateBroadcastingPassportTest extends TestCase
             ],
         ]);
 
-        $this->app->forgetInstance(\Illuminate\Contracts\Broadcasting\Factory::class);
+        $this->app->forgetInstance(Factory::class);
     }
 
     protected function tearDown(): void
