@@ -27,10 +27,13 @@ class SalesOutletsReportStatsTest extends TestCase
 
     public function test_stats_endpoint_returns_aggregated_counts_by_type_and_status(): void
     {
+        $user = User::factory()->create();
+
         SalesOutletReportJob::query()->create([
             'uuid' => '11111111-1111-1111-1111-111111111111',
             'report_type' => SalesOutletsReportType::CsvDownload,
             'status' => AsyncJobStatus::Pending,
+            'user_id' => $user->id,
             'filters' => ['columns' => ['id']],
         ]);
 
@@ -38,6 +41,7 @@ class SalesOutletsReportStatsTest extends TestCase
             'uuid' => '22222222-2222-2222-2222-222222222222',
             'report_type' => SalesOutletsReportType::CsvDownload,
             'status' => AsyncJobStatus::Completed,
+            'user_id' => $user->id,
             'filters' => ['columns' => ['id']],
         ]);
 
@@ -45,10 +49,12 @@ class SalesOutletsReportStatsTest extends TestCase
             'uuid' => '33333333-3333-3333-3333-333333333333',
             'report_type' => SalesOutletsReportType::HtmlEmail,
             'status' => AsyncJobStatus::Failed,
+            'user_id' => $user->id,
             'filters' => ['columns' => ['id']],
         ]);
 
         $this
+            ->withHeader('X-User-Id', (string) $user->id)
             ->getJson('/api/sales-outlets/reports/stats')
             ->assertOk()
             ->assertJsonPath('by_type.csv_download.pending', 1)

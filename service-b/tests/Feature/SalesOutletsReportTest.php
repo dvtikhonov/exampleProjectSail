@@ -87,8 +87,11 @@ class SalesOutletsReportTest extends TestCase
 
     public function test_it_returns_report_status(): void
     {
+        $user = User::factory()->create();
+
         $reportJob = SalesOutletReportJob::query()->create([
             'uuid' => '11111111-1111-1111-1111-111111111111',
+            'user_id' => $user->id,
             'report_type' => SalesOutletsReportType::CsvDownload,
             'status' => AsyncJobStatus::Completed,
             'filters' => ['columns' => ['id']],
@@ -96,6 +99,7 @@ class SalesOutletsReportTest extends TestCase
         ]);
 
         $this
+            ->withHeader('X-User-Id', (string) $user->id)
             ->getJson('/api/sales-outlets/reports/'.$reportJob->uuid)
             ->assertOk()
             ->assertJsonPath('uuid', $reportJob->uuid)
@@ -104,14 +108,18 @@ class SalesOutletsReportTest extends TestCase
 
     public function test_download_is_unavailable_until_completed(): void
     {
+        $user = User::factory()->create();
+
         $reportJob = SalesOutletReportJob::query()->create([
             'uuid' => '11111111-1111-1111-1111-111111111111',
+            'user_id' => $user->id,
             'report_type' => SalesOutletsReportType::CsvDownload,
             'status' => AsyncJobStatus::Processing,
             'filters' => ['columns' => ['id']],
         ]);
 
         $this
+            ->withHeader('X-User-Id', (string) $user->id)
             ->getJson('/api/sales-outlets/reports/'.$reportJob->uuid.'/download')
             ->assertConflict()
             ->assertJsonPath('message', 'Report file is not ready.');
@@ -121,7 +129,8 @@ class SalesOutletsReportTest extends TestCase
     {
         Storage::fake('local');
 
-        $userId = 12345;
+        $user = User::factory()->create();
+        $userId = $user->id;
         $filePath = 'reports/file.csv';
 
         Storage::disk('local')->put($filePath, "\xEF\xBB\xBF\"ID\"");
@@ -136,6 +145,7 @@ class SalesOutletsReportTest extends TestCase
         ]);
 
         $this
+            ->withHeader('X-User-Id', (string) $userId)
             ->get('/api/sales-outlets/reports/'.$reportJob->uuid.'/download')
             ->assertOk()
             ->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
@@ -268,14 +278,18 @@ class SalesOutletsReportTest extends TestCase
 
     public function test_download_returns_not_found_for_html_email_report(): void
     {
+        $user = User::factory()->create();
+
         $reportJob = SalesOutletReportJob::query()->create([
             'uuid' => '44444444-4444-4444-4444-444444444444',
+            'user_id' => $user->id,
             'report_type' => SalesOutletsReportType::HtmlEmail,
             'status' => AsyncJobStatus::Completed,
             'filters' => ['columns' => ['id']],
         ]);
 
         $this
+            ->withHeader('X-User-Id', (string) $user->id)
             ->getJson('/api/sales-outlets/reports/'.$reportJob->uuid.'/download')
             ->assertNotFound();
     }

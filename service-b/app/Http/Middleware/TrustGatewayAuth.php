@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
+use App\Http\Responses\GatewayUnauthorizedResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,9 +23,11 @@ class TrustGatewayAuth
     {
         $dto = $this->userResolver->resolveFromRequest($request);
 
-        if ($dto !== null) {
-            $this->authSession->login($dto);
+        if ($dto === null) {
+            return GatewayUnauthorizedResponse::make();
         }
+
+        $this->authSession->login($dto);
 
         return $next($request);
     }

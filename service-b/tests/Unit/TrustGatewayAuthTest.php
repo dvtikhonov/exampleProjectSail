@@ -6,8 +6,10 @@ use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
 use App\DTO\Auth\GatewayUserDto;
 use App\Http\Middleware\TrustGatewayAuth;
+use App\Http\Responses\GatewayUnauthorizedResponse;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 class TrustGatewayAuthTest extends TestCase
@@ -34,7 +36,7 @@ class TrustGatewayAuthTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
     }
 
-    public function test_skips_login_when_resolver_returns_null(): void
+    public function test_returns_unauthorized_when_resolver_returns_null(): void
     {
         $resolver = $this->createMock(GatewayUserResolverInterface::class);
         $resolver->method('resolveFromRequest')->willReturn(null);
@@ -45,8 +47,12 @@ class TrustGatewayAuthTest extends TestCase
         $middleware = new TrustGatewayAuth($resolver, $session);
         $request = Request::create('/test');
 
-        $middleware->handle($request, fn (Request $req) => response('ok'));
+        $response = $middleware->handle($request, fn (Request $req) => response('ok'));
 
-        $this->addToAssertionCount(1);
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
+        $this->assertSame(
+            json_encode(['message' => GatewayUnauthorizedResponse::MESSAGE], JSON_THROW_ON_ERROR),
+            $response->getContent(),
+        );
     }
 }

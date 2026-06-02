@@ -6,7 +6,6 @@ use App\Contracts\SalesOutlets\SalesOutletsReportJobFailureHandlerInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportProcessorWorkerInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Throwable;
 
 class BuildSalesOutletsReportJob implements ShouldQueue
 {
@@ -20,13 +19,13 @@ class BuildSalesOutletsReportJob implements ShouldQueue
 
     public function handle(
         SalesOutletsReportProcessorWorkerInterface $reportWorker,
+        SalesOutletsReportJobFailureHandlerInterface $failureHandler,
     ): void {
-        $reportWorker->processByUuid($this->uuid);
-    }
-
-    public function failed(?Throwable $exception): void
-    {
-        app(SalesOutletsReportJobFailureHandlerInterface::class)
-            ->handle($this->uuid, $exception?->getMessage());
+        try {
+            $reportWorker->processByUuid($this->uuid);
+        } catch (\Throwable $exception) {
+            $failureHandler->handle($this->uuid, $exception->getMessage());
+            throw $exception;
+        }
     }
 }

@@ -2,8 +2,6 @@
 
 namespace App\Http\Requests\SalesOutlets;
 
-use App\Contracts\SalesOutlets\SalesOutletReportFilterDtoFactoryInterface;
-use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Rules\SalesOutlets\InAllowedSalesOutletColumn;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -19,10 +17,8 @@ class StoreSalesOutletFilterRequest extends FormRequest
     /**
      * @return array<string, mixed>
      */
-    public function rules(): array
+    public function rules(InAllowedSalesOutletColumn $allowedColumnRule): array
     {
-        $allowedColumnRule = $this->container->make(InAllowedSalesOutletColumn::class);
-
         return [
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'string', Rule::in(array_column(SalesOutletStatus::cases(), 'value'))],
@@ -33,12 +29,5 @@ class StoreSalesOutletFilterRequest extends FormRequest
             'columns' => ['nullable', 'array'],
             'columns.*' => ['string', $allowedColumnRule],
         ];
-    }
-
-    public function toDto(): SalesOutletReportFilterDto
-    {
-        return $this->container
-            ->make(SalesOutletReportFilterDtoFactoryInterface::class)
-            ->fromValidated($this->validated());
     }
 }
