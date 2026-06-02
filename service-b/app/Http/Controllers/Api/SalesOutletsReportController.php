@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\SalesOutlets\SalesOutletReportFilterDtoFactoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportApiServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportDownloadServiceInterface;
 use App\DTO\SalesOutlets\SalesOutletReportJobDto;
@@ -16,12 +17,13 @@ class SalesOutletsReportController extends Controller
     public function __construct(
         private readonly SalesOutletsReportApiServiceInterface $reportService,
         private readonly SalesOutletsReportDownloadServiceInterface $downloadService,
+        private readonly SalesOutletReportFilterDtoFactoryInterface $filterDtoFactory,
     ) {}
 
     public function store(StoreSalesOutletReportRequest $request): JsonResponse
     {
         $reportJob = $this->reportService->create(
-            filters: $request->toDto(),
+            filters: $this->filterDtoFactory->fromValidated($request->validated()),
             userId: $request->user()?->id,
             reportType: $request->toReportType(),
         );

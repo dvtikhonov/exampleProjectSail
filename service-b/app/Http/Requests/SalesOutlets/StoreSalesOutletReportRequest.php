@@ -3,6 +3,7 @@
 namespace App\Http\Requests\SalesOutlets;
 
 use App\Enums\SalesOutletsReportType;
+use App\Rules\SalesOutlets\InAllowedSalesOutletColumn;
 use Illuminate\Validation\Rule;
 
 class StoreSalesOutletReportRequest extends StoreSalesOutletFilterRequest
@@ -10,10 +11,10 @@ class StoreSalesOutletReportRequest extends StoreSalesOutletFilterRequest
     /**
      * @return array<string, mixed>
      */
-    public function rules(): array
+    public function rules(InAllowedSalesOutletColumn $allowedColumnRule): array
     {
         return [
-            ...parent::rules(),
+            ...parent::rules($allowedColumnRule),
             'report_type' => ['required', 'string', Rule::enum(SalesOutletsReportType::class)],
         ];
     }

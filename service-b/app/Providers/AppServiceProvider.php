@@ -11,11 +11,14 @@ use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterf
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsReportStatsRepositoryInterface;
 use App\Contracts\SalesOutlets\HtmlTableRendererInterface;
 use App\Contracts\SalesOutlets\MailReportConfigProviderInterface;
+use App\Contracts\SalesOutlets\ReportCompletionPolicyInterface;
 use App\Contracts\SalesOutlets\ReportFileStorageInterface;
+use App\Contracts\SalesOutlets\ReportJobLifecycleInterface;
 use App\Contracts\SalesOutlets\ReportMailSenderInterface;
 use App\Contracts\SalesOutlets\ReportProcessingDelayConfigInterface;
 use App\Contracts\SalesOutlets\ReportProcessingDelayInterface;
 use App\Contracts\SalesOutlets\ReportStorageConfigInterface;
+use App\Contracts\SalesOutlets\ReportStrategyExecutionInterface;
 use App\Contracts\SalesOutlets\SalesOutletReportFilterDtoFactoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsJobQueueInterface;
@@ -27,6 +30,7 @@ use App\Contracts\SalesOutlets\SalesOutletsReportDownloadServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportJobFailureHandlerInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportJobFailureServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportJobProcessorInterface;
+use App\Contracts\SalesOutlets\SalesOutletsReportProcessingOrchestratorInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportProcessorWorkerInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportStatsBroadcasterInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportStrategyResolverInterface;
@@ -44,6 +48,8 @@ use App\Services\Queue\LaravelJobDispatcher;
 use App\Services\SalesOutlets\LaravelReportMailSender;
 use App\Services\SalesOutlets\LaravelSalesOutletsJobQueue;
 use App\Services\SalesOutlets\LocalReportFileStorage;
+use App\Services\SalesOutlets\ReportCompletionPolicy;
+use App\Services\SalesOutlets\ReportJobLifecycleService;
 use App\Services\SalesOutlets\Reports\ConfigReportProcessingDelay;
 use App\Services\SalesOutlets\Reports\ConfigSalesOutletsReportsConfig;
 use App\Services\SalesOutlets\Reports\Html\ConfigMailReportConfigProvider;
@@ -52,11 +58,13 @@ use App\Services\SalesOutlets\Reports\SalesOutletsReportContextFactory;
 use App\Services\SalesOutlets\Reports\SalesOutletsReportStrategyRegistry;
 use App\Services\SalesOutlets\Reports\Strategies\CsvDownloadReportStrategy;
 use App\Services\SalesOutlets\Reports\Strategies\HtmlEmailReportStrategy;
+use App\Services\SalesOutlets\ReportStrategyExecutionService;
 use App\Services\SalesOutlets\SalesOutletReportFilterDtoFactory;
 use App\Services\SalesOutlets\SalesOutletsReportApiService;
 use App\Services\SalesOutlets\SalesOutletsReportDownloadService;
 use App\Services\SalesOutlets\SalesOutletsReportJobFailureHandler;
 use App\Services\SalesOutlets\SalesOutletsReportJobProcessor;
+use App\Services\SalesOutlets\SalesOutletsReportProcessingOrchestrator;
 use App\Services\SalesOutlets\SalesOutletsReportStatsBroadcaster;
 use App\Services\SalesOutlets\SalesOutletsReportWorkerService;
 use Illuminate\Contracts\Config\Repository;
@@ -68,9 +76,6 @@ use Shared\SalesOutletsDomain\Query\SalesOutletQueryFilter;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->singleton(ConfigSalesOutletsReportsConfig::class, function ($app): ConfigSalesOutletsReportsConfig {
@@ -105,7 +110,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MailReportConfigProviderInterface::class, ConfigMailReportConfigProvider::class);
         $this->app->bind(HtmlTableRendererInterface::class, HtmlTableRenderer::class);
         $this->app->bind(SalesOutletsReportContextFactoryInterface::class, SalesOutletsReportContextFactory::class);
+
+        $this->app->bind(ReportJobLifecycleInterface::class, ReportJobLifecycleService::class);
+        $this->app->bind(ReportStrategyExecutionInterface::class, ReportStrategyExecutionService::class);
+        $this->app->bind(ReportCompletionPolicyInterface::class, ReportCompletionPolicy::class);
+        $this->app->bind(SalesOutletsReportProcessingOrchestratorInterface::class, SalesOutletsReportProcessingOrchestrator::class);
         $this->app->bind(SalesOutletsReportJobProcessorInterface::class, SalesOutletsReportJobProcessor::class);
+
         $this->app->bind(SalesOutletsReportJobFailureHandlerInterface::class, SalesOutletsReportJobFailureHandler::class);
         $this->app->bind(SalesOutletsJobQueueInterface::class, LaravelSalesOutletsJobQueue::class);
         $this->app->bind(JobDispatcherInterface::class, LaravelJobDispatcher::class);
@@ -125,7 +136,6 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
-        // One singleton, segregated interfaces: resolver vs download capability vs presentation.
         $this->app->alias(
             SalesOutletsReportStrategyRegistry::class,
             SalesOutletsReportStrategyResolverInterface::class,
@@ -140,9 +150,6 @@ class AppServiceProvider extends ServiceProvider
         );
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         Event::listen(

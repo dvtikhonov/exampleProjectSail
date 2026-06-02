@@ -5,6 +5,7 @@ namespace App\Services\SalesOutlets\Reports;
 use App\Contracts\SalesOutlets\ReportProcessingDelayConfigInterface;
 use App\Contracts\SalesOutlets\ReportStorageConfigInterface;
 use App\Enums\SalesOutletsReportType;
+use App\Support\Config\SalesOutletsReportsConfigKeys;
 use Illuminate\Contracts\Config\Repository;
 
 final class ConfigSalesOutletsReportsConfig implements ReportProcessingDelayConfigInterface, ReportStorageConfigInterface
@@ -16,13 +17,13 @@ final class ConfigSalesOutletsReportsConfig implements ReportProcessingDelayConf
 
     public function storageDisk(): string
     {
-        return (string) $this->config->get('sales_outlets_reports.storage_disk', 'local');
+        return (string) $this->config->get(SalesOutletsReportsConfigKeys::STORAGE_DISK, 'local');
     }
 
     public function fakeDelaySeconds(SalesOutletsReportType $reportType): int
     {
         return (int) $this->config->get(
-            'sales_outlets_reports.types.'.$reportType->configKey().'.fake_delay_seconds',
+            SalesOutletsReportsConfigKeys::fakeDelaySeconds($reportType),
             0,
         );
     }
@@ -31,7 +32,7 @@ final class ConfigSalesOutletsReportsConfig implements ReportProcessingDelayConf
     {
         return in_array(
             $this->environment,
-            (array) $this->config->get('sales_outlets_reports.apply_fake_delay_environments', []),
+            (array) $this->config->get(SalesOutletsReportsConfigKeys::APPLY_FAKE_DELAY_ENVIRONMENTS, []),
             true,
         );
     }

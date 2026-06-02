@@ -39,7 +39,11 @@ class SalesOutletsReportStrategyRegistry implements SalesOutletsReportDownloadCa
 
     public function supportsDownload(SalesOutletsReportType $type): bool
     {
-        return $this->resolve($type) instanceof SalesOutletsDownloadableReportStrategyInterface;
+        try {
+            return $this->resolve($type) instanceof SalesOutletsDownloadableReportStrategyInterface;
+        } catch (InvalidArgumentException) {
+            return false;
+        }
     }
 
     public function downloadFileName(SalesOutletAsyncJob $job): string
