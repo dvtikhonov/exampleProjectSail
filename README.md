@@ -8,7 +8,7 @@
 |---|---|
 | `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, Laravel Reverb (Echo), веб-авторизация и проверка токенов для gateway |
 | `service-a` | Laravel API: торговые точки (`/api/sales-outlets`), ping-эндпоинты |
-| `service-b` | Laravel API: асинхронные отчёты по торговым точкам (CSV / email), агрегированная статистика задач, broadcast событий в Reverb |
+| `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
@@ -33,19 +33,21 @@ flowchart LR
   MainApp -->|MicroserviceHttpClient| Gateway
   Gateway --> ServiceA
   Gateway --> ServiceB
-  ServiceB -->|ReportJobStatsChanged| Reverb
+  ServiceBQueue -->|create / updateStatus| ServiceB
+  ServiceB -->|SalesOutletReportJobMutated| Listeners
+  Listeners -->|ReportJobStatsChanged| Reverb
   Browser -->|Echo private channel| Reverb
   MainApp -->|/broadcasting/auth| Reverb
-  ServiceBQueue --> ServiceB
 ```
 
 - **Торговые точки (CRUD, фильтры):** браузер → `VITE_GATEWAY_ORIGIN` → `service-a` (Bearer + CORS на gateway).
 - **Экспорт, почта, статистика отчётов:** браузер → `main-app` (web-сессия, `auth.passport`) → gateway → `service-b` (`MicroserviceHttpClient`).
-- **Live-статистика отчётов:** `service-b` публикует broadcast-событие `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на private-канал `report-jobs.stats` (авторизация — `POST /broadcasting/auth`).
+- **Live-статистика отчётов:** после мутации задачи `service-b` диспатчит `SalesOutletReportJobMutated` → listener `BroadcastReportJobStatsOnJobMutation` → broadcast `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на private-канал `report-jobs.stats` (авторизация — `POST /broadcasting/auth`).
 
 ## Требования
 
 - Docker и Docker Compose.
+- PHP **8.3+** в контейнерах (CI — PHP 8.4).
 - WSL/Linux shell или PowerShell с доступом к Docker.
 - Внешний MySQL, доступный контейнерам (для локальной разработки).
 
@@ -248,7 +250,7 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 
 | Метод | Путь | Auth |
 |---|---|---|
-| `GET` | `/data` | `trust.gateway` |
+| `GET` | `/data` | `trust.gateway` (только `local` / `testing`) |
 | `GET` | `/sales-outlets/reports/stats` | `trust.gateway` |
 | `POST` | `/sales-outlets/reports` | `trust.gateway` |
 | `GET` | `/sales-outlets/reports/{uuid}` | `trust.gateway` |
@@ -268,25 +270,37 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 | Термин | Значение |
 |---|---|
 | **snapshot** | Начальный REST-снимок статистики (`by_type`, `generated_at`) |
-| **broadcast** | Публикация обновления из `service-b` в Reverb после `create` / `updateStatus` |
+| **broadcast** | Публикация в Reverb после мутации задачи: `SalesOutletReportJobMutated` → listener → `ReportJobStatsChanged` |
 | **channel** | Private-канал `report-jobs.stats` (`Echo.private('report-jobs.stats')`, wire-имя `private-report-jobs.stats`) |
 | **event** | Broadcast-событие `ReportJobStatsChanged` (в Echo слушается как `.ReportJobStatsChanged`) |
 | **payload** | JSON с полями `by_type` и `generated_at` — одинаковый формат для snapshot и event |
 
 **Backend (`service-b`):**
 
-- `EloquentSalesOutletsReportJobRepository::create()` и `::updateStatus()` вызывают `broadcastCurrentStats()`;
-- `SalesOutletsReportStatsBroadcaster::broadcastCurrentStats()` диспатчит `ReportJobStatsChanged` с payload из `aggregate()`;
-- `ReportJobStatsChanged` публикуется в `PrivateChannel('report-jobs.stats')`.
+Цепочка из трёх уровней (persistence не вызывает Reverb напрямую):
+
+```text
+EloquentSalesOutletsReportJobRepository (create / updateStatus)
+    → SalesOutletReportJobMutated
+        → BroadcastReportJobStatsOnJobMutation → ReportJobStatsChanged → Reverb
+        → LogSalesOutletReportJobMutation → PSR-3 log (audit)
+```
+
+- после `create()` / `updateStatus()` репозиторий диспатчит domain event `SalesOutletReportJobMutated` через `EventDispatcherInterface`;
+- `BroadcastReportJobStatsOnJobMutation` вызывает `SalesOutletsReportStatsBroadcaster::broadcastCurrentStats()`;
+- broadcaster собирает payload через `SalesOutletsReportStatsRepositoryInterface::aggregate()` и диспатчит `ReportJobStatsChanged` в `PrivateChannel('report-jobs.stats')`;
+- `findByUuid()` событие **не** диспатчит — только мутации.
+
+Ключевые файлы: `service-b/app/Events/SalesOutletReportJobMutated.php`, `app/Listeners/BroadcastReportJobStatsOnJobMutation.php`, `app/Repositories/SalesOutlets/EloquentSalesOutletsReportStatsRepository.php`.
+
+Подробнее (Strategy, контракты, расширение через listeners): [service-b/README.md](service-b/README.md).
 
 **Frontend (`main-app`, страница `/objects-sales-outlets-2`):**
 
 1. Загружается **snapshot**: `GET /objects-sales-outlets-2/reports/stats` → прокси в `service-b` (`/api/b/sales-outlets/reports/stats`).
 2. Подписка на **channel** через Laravel Echo: `Echo.private('report-jobs.stats')`, авторизация — `POST /broadcasting/auth`.
 3. При создании/смене статуса задачи `service-b` отправляет **broadcast** **event** `ReportJobStatsChanged`.
-4. Composable `useReportJobStats` получает **event** и применяет **payload** к UI без перезагрузки страницы.
-
-Подробнее о backend-механизме: [service-b/README.md](service-b/README.md).
+4. Composable `useReportJobStats` (`resources/js/Composables/useReportJobStats.js`) получает **event** и применяет **payload** к UI без перезагрузки страницы.
 
 ## Авторизация через gateway
 
@@ -411,7 +425,7 @@ docker compose exec service-a composer update example/sales-outlets-domain
 docker compose exec service-b composer update example/sales-outlets-domain
 ```
 
-Eloquent-модели, контроллеры, FormRequest, сервисы экспорта, job, события broadcast и миграции остаются внутри конкретных Laravel-сервисов.
+Eloquent-модели, контроллеры, FormRequest, Report API (Strategy, jobs, domain/broadcast events) и миграции остаются внутри конкретных Laravel-сервисов.
 
 ## Полезные команды
 
@@ -576,7 +590,7 @@ TEST_DB_PASSWORD=<your-local-password> \
 
 - `main-app` — Nginx + PHP-FPM 8.4 Alpine + Supervisor, внутренний порт `8000`; для hot-reload смонтированы `app`, `routes`, `config`, `database`, `resources`, `tests`, `public`, `storage`.
 - `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса и `shared`.
-- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`.
+- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; live-stats идут через domain event `SalesOutletReportJobMutated` и listeners; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`.
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.
