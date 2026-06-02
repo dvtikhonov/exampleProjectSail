@@ -5,19 +5,23 @@
 - `csv_download` — формирует CSV-файл для скачивания;
 - `html_email` — отправляет отчёт HTML-таблицей на email.
 
+Связанные документы: [корневой README](../README.md) (Docker, gateway, Reverb, E2E), [service-b-reports-strategy](../.cursor/rules/service-b-reports-strategy.mdc) (зафиксированные решения Strategy).
+
 ## API
 
 Все маршруты доступны под префиксом `/api` и защищены middleware `trust.gateway` (ожидается `X-User-Id` от `nginx-gateway`).
 
 Через gateway используется префикс `/api/b`, например: `POST /api/b/sales-outlets/reports`.
 
-| Метод | Путь | Описание |
-|---|---|---|
-| `GET` | `/data` | Проверка gateway-авторизации (debug) |
-| `GET` | `/sales-outlets/reports/stats` | Агрегированная статистика задач по типам отчётов |
-| `POST` | `/sales-outlets/reports` | Создать асинхронную задачу отчёта |
-| `GET` | `/sales-outlets/reports/{uuid}` | Получить статус задачи |
-| `GET` | `/sales-outlets/reports/{uuid}/download` | Скачать файл (только для `csv_download`) |
+| Метод | Путь | Контроллер | Описание |
+|---|---|---|---|
+| `GET` | `/data` | closure | Проверка gateway-авторизации (только `local` / `testing`) |
+| `GET` | `/sales-outlets/reports/stats` | `SalesOutletsReportStatsController` | Агрегированная статистика задач по типам |
+| `POST` | `/sales-outlets/reports` | `SalesOutletsReportController` | Создать асинхронную задачу (`202 Accepted`) |
+| `GET` | `/sales-outlets/reports/{uuid}` | `SalesOutletsReportController` | Статус задачи |
+| `GET` | `/sales-outlets/reports/{uuid}/download` | `SalesOutletsReportController` | Скачать CSV (`csv_download` только) |
+
+`GET .../download`: `404` — задача не найдена или тип без download; `409` — файл ещё не готов (`status` не `completed`); `200` — streamed-ответ.
 
 ## Создание отчёта
 
@@ -105,7 +109,7 @@ X-User-Id: 123
 | Термин | Значение |
 |---|---|
 | **snapshot** | Начальный REST-снимок статистики (`by_type`, `generated_at`) |
-| **broadcast** | Публикация обновления в Reverb после `create` / `updateStatus` |
+| **broadcast** | Reverb после мутации: `SalesOutletReportJobMutated` → listener → `ReportJobStatsChanged` |
 | **channel** | Private-канал `report-jobs.stats` (`Echo.private('report-jobs.stats')`) |
 | **event** | Broadcast-событие `ReportJobStatsChanged` (в Echo: `.ReportJobStatsChanged`) |
 | **payload** | JSON с полями `by_type` и `generated_at` — одинаковый формат для snapshot и event |
@@ -114,7 +118,7 @@ X-User-Id: 123
 
 - `EloquentSalesOutletsReportJobRepository` после `create()` / `updateStatus()` диспатчит domain event `SalesOutletReportJobMutated`;
 - listeners на `SalesOutletReportJobMutated`: `BroadcastReportJobStatsOnJobMutation` (live stats), `LogSalesOutletReportJobMutation` (audit log);
-- broadcaster диспатчит **event** `ReportJobStatsChanged` через `EventDispatcherInterface` с **payload** из `EloquentSalesOutletsReportStatsRepository::aggregate()`;
+- broadcaster диспатчит **event** `ReportJobStatsChanged` через `EventDispatcherInterface` с **payload** из `SalesOutletsReportStatsRepositoryInterface::aggregate()`;
 - событие публикуется в **channel** `PrivateChannel('report-jobs.stats')`.
 
 Реализация в `service-b`:
@@ -132,9 +136,9 @@ X-User-Id: 123
 1. Загружается **snapshot**: `GET /objects-sales-outlets-2/reports/stats` → прокси в `/api/sales-outlets/reports/stats`.
 2. Подписка на **channel** `report-jobs.stats` через Laravel Echo/Reverb; авторизация — `POST /broadcasting/auth`.
 3. При `create` / `updateStatus` `service-b` отправляет **broadcast** **event** `ReportJobStatsChanged`.
-4. `useReportJobStats` применяет **payload** к UI без перезагрузки страницы.
+4. `useReportJobStats` (`resources/js/Composables/useReportJobStats.js`) применяет **payload** к UI без перезагрузки страницы.
 
-Файлы `main-app`: `resources/js/Composables/useReportJobStats.js`, `resources/js/bootstrap.js`, `app/Http/Controllers/ObjectsSalesOutletsController.php`.
+Файлы `main-app`: `resources/js/bootstrap.js`, `app/Http/Controllers/ObjectsSalesOutletsController.php`.
 
 Диагностика live-статистики — в [корневом README.md](../README.md) (раздел **Диагностика live-статистики**).
 
@@ -158,7 +162,7 @@ EloquentSalesOutletsReportJobRepository
 **Почему так (SOLID):**
 
 - **SRP** — репозиторий только сохраняет; broadcast и лог — отдельные listener'ы.
-- **OCP** — новая реакция на мутацию = новый listener + `Event::listen`, без изменения `SalesOutletsReportApiService`, processor и worker.
+- **OCP** — новая реакция на мутацию = новый listener + `Event::listen`, без изменения API-сервиса, orchestrator, strategies и worker.
 - **DIP** — репозиторий зависит от `EventDispatcherInterface`; listener broadcast — от `SalesOutletsReportStatsBroadcasterInterface`; audit log — от `Psr\Log\LoggerInterface`.
 
 **Что не менялось для клиентов:** формат REST snapshot, канал `report-jobs.stats`, событие `.ReportJobStatsChanged`, payload `by_type` + `generated_at`.
@@ -245,42 +249,74 @@ final class NotifyOnReportJobFailure
 Единый Report API построен на Strategy + узких контрактах (ISP/DIP). Legacy-слой Export/Mail удалён; все отчёты идут через `SalesOutletsReportController` и `BuildSalesOutletsReportJob`.
 
 - Strategy-обработчики: `CsvDownloadReportStrategy`, `HtmlEmailReportStrategy`;
-- Очередь: `BuildSalesOutletsReportJob` (воркер `service-b-queue`);
-- Shared domain: `shared/sales-outlets-domain`;
-- Хранилище задач: таблица `sales_outlet_report_jobs`;
+- Очередь: `BuildSalesOutletsReportJob` (контейнер `service-b-queue`, `php artisan queue:work`);
+- Shared domain: `shared/sales-outlets-domain` (CSV writer, query filters);
+- Хранилище задач: таблица `sales_outlet_report_jobs`, domain-модель `SalesOutletAsyncJob`;
 - Live-stats: domain event `SalesOutletReportJobMutated` → listeners → `ReportJobStatsChanged` (см. раздел выше).
+
+### Поток обработки задачи
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant API as SalesOutletsReportController
+  participant App as SalesOutletsReportApiService
+  participant Repo as EloquentSalesOutletsReportJobRepository
+  participant Q as BuildSalesOutletsReportJob
+  participant W as SalesOutletsReportWorkerService
+  participant Orch as SalesOutletsReportProcessingOrchestrator
+  participant Strat as ReportStrategyExecutionService
+
+  Client->>API: POST /reports
+  API->>App: create(filters, userId, reportType)
+  App->>Repo: create → SalesOutletReportJobMutated
+  App->>Q: dispatch(uuid)
+  Q->>W: processByUuid(uuid)
+  W->>Orch: process(job)
+  Orch->>Orch: markProcessing
+  Orch->>Strat: execute → build + deliver
+  Orch->>Orch: complete (file path / email)
+  Repo->>Repo: updateStatus → SalesOutletReportJobMutated
+```
+
+При ошибке в очереди `SalesOutletsReportJobFailureHandler` помечает задачу `failed` (тоже мутация → broadcast stats).
 
 ### Слои и ключевые контракты
 
 | Слой | Примеры | Контракты |
 |---|---|---|
-| HTTP | `SalesOutletsReportController`, FormRequest | `*ServiceInterface`, repository interfaces |
-| Application | `SalesOutletsReportApiService`, `SalesOutletsReportJobProcessor`, `SalesOutletsReportDownloadService` | `SalesOutletsReport*Interface` |
-| Domain | `SalesOutletAsyncJob`, DTO, enums | — |
-| Infra | `Eloquent*Repository`, `LocalReportFileStorage`, listeners | `EventDispatcherInterface`, `ReportFileStorageInterface` |
+| HTTP | `SalesOutletsReportController`, `SalesOutletsReportStatsController`, `StoreSalesOutletReportRequest` | `SalesOutletsReportApiServiceInterface`, `SalesOutletsReportStatsRepositoryInterface` |
+| Application | `SalesOutletsReportApiService`, `SalesOutletsReportDownloadService`, `SalesOutletsReportProcessingOrchestrator`, `ReportStrategyExecutionService`, `ReportJobLifecycleService` | `SalesOutletsReport*Interface`, `ReportJobLifecycleInterface`, `ReportStrategyExecutionInterface` |
+| Worker | `BuildSalesOutletsReportJob`, `SalesOutletsReportWorkerService` | `SalesOutletsReportProcessorWorkerInterface`, `SalesOutletsReportJobFailureHandlerInterface` |
+| Domain | `SalesOutletAsyncJob`, DTO, `AsyncJobStatus`, `SalesOutletsReportType` | — |
+| Infra | `EloquentSalesOutletsReportJobRepository`, `EloquentSalesOutletsReportStatsRepository`, `LocalReportFileStorage`, listeners | `SalesOutletsAsyncJobRepositoryInterface`, `EventDispatcherInterface` |
 | Integration | `ReportJobStatsChanged`, Reverb, Mailhog | Laravel broadcasting |
 
-Ключевые контракты отчётов:
+`SalesOutletsReportJobProcessor` — тонкая обёртка над orchestrator (точка входа для worker).
 
-- `SalesOutletsReportProcessingStrategyInterface` — единый контракт обработки отчёта;
-- `SalesOutletsDownloadableReportStrategyInterface` — marker-интерфейс для downloadable-стратегий;
+Ключевые контракты Strategy:
+
+- `SalesOutletsReportProcessingStrategyInterface` — `build()` + `deliver()` → `ReportDeliveryResult`;
+- `SalesOutletsDownloadableReportStrategyInterface` — marker для типов с `/download`;
 - `SalesOutletsReportStrategyResolverInterface` — выбор стратегии по `report_type`;
-- `SalesOutletsReportDownloadCapabilityInterface` — проверка возможности скачивания.
+- `SalesOutletsReportDownloadCapabilityInterface` — `supportsDownload()` для download-сервиса.
 
-`SalesOutletsReportStrategyRegistry` зарегистрирован как singleton и алиасится на узкие интерфейсы (resolver/capability/presentation), чтобы потребители зависели только от нужных абстракций.
+`SalesOutletsReportStrategyRegistry` — singleton с alias на resolver, capability и presentation (ISP: download-сервис не видит `resolve()`).
 
 ### Зафиксированные архитектурные решения
 
 | Решение | Зачем |
 |---|---|
-| Strategy marker `SalesOutletsDownloadableReportStrategyInterface` | Download capability на уровне типа; processor не ветвится по форматам |
+| Orchestrator (lifecycle → strategy → completion) | SRP: processor/worker не содержат шагов pipeline |
+| Strategy marker `SalesOutletsDownloadableReportStrategyInterface` | Download capability на уровне типа; orchestrator не ветвится по форматам |
 | Triple-alias registry (resolver / capability / presentation) | ISP: download-сервис не видит `resolve()` |
-| `ReportDeliveryResult` из `deliver()` | OCP доставки: file vs email без правок processor |
+| `ReportDeliveryResult` из `deliver()` | OCP доставки: file vs email без правок orchestrator |
 | `SalesOutletReportJobMutated` + listeners | OCP побочных эффектов stats/log; persistence отделён от реакций |
 | `EventDispatcherInterface` вместо `event()` в application | DIP для тестов и подмены bus |
+| `SalesOutletsReportStatsRepositoryInterface` | REST stats и broadcast читают агрегаты через один контракт |
 | Gateway auth через `GatewayUserResolverInterface` + DTO | `$request->user()` — реальный Eloquent `User` |
 
-Не «упрощать» без явного запроса: объединять registry-интерфейсы, переносить `supportsDownload()` в processor, вшивать broadcast stats в репозиторий вместо listeners.
+Не «упрощать» без явного запроса: объединять registry-интерфейсы, переносить `supportsDownload()` в orchestrator/processor, вшивать broadcast stats в репозиторий вместо listeners.
 
 ## Конфигурация
 
@@ -288,20 +324,26 @@ final class NotifyOnReportJobFailure
 
 | Секция | Ключ | Назначение |
 |---|---|---|
-| корень | `storage_disk` | Диск хранения файлов отчётов |
-| `types.csv_download` | `fake_delay_seconds` | Искусственная задержка в `local/testing` |
+| корень | `storage_disk` | Диск хранения CSV (`FILESYSTEM_DISK` / `SALES_OUTLETS_REPORTS_STORAGE_DISK`) |
+| корень | `apply_fake_delay_environments` | Окружения с искусственной задержкой (`local`, `testing`) |
+| `types.csv_download` | `fake_delay_seconds` | Задержка перед завершением CSV в dev |
 | `types.html_email` | `recipients`, `subject`, `fake_delay_seconds` | Email-получатели, тема и задержка |
 
 Переменные окружения:
 
-- `SALES_OUTLETS_REPORTS_STORAGE_DISK`
-- `SALES_OUTLETS_EXPORT_STORAGE_DISK` (legacy fallback)
-- `SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS`
-- `SALES_OUTLETS_MAIL_RECIPIENTS`
-- `SALES_OUTLETS_MAIL_SUBJECT`
-- `SALES_OUTLETS_MAIL_FAKE_DELAY_SECONDS`
+| Переменная | Назначение |
+|---|---|
+| `SALES_OUTLETS_REPORTS_STORAGE_DISK` | Диск для CSV-файлов |
+| `SALES_OUTLETS_EXPORT_STORAGE_DISK` | Legacy fallback для `storage_disk` |
+| `SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS` | Задержка `csv_download` |
+| `SALES_OUTLETS_MAIL_RECIPIENTS` | Список через запятую |
+| `SALES_OUTLETS_MAIL_SUBJECT` | Тема письма |
+| `SALES_OUTLETS_MAIL_FAKE_DELAY_SECONDS` | Задержка `html_email` |
+| `BROADCAST_CONNECTION=reverb` | Live-stats (обязательно в Docker) |
+| `REVERB_HOST=reverb` | Внутри compose-сети (см. корневой `docker-compose.yml`) |
+| `MAIL_HOST=mailhog` | SMTP для `html_email` в dev |
 
-Для `html_email` в локальной среде используется `mailhog` (`http://localhost:8025`).
+Для `html_email` в локальной среде используется Mailhog: `http://localhost:8025`.
 
 ## Пример: стратегия `xls_email` (XLS во вложении)
 
@@ -490,13 +532,21 @@ Content-Type: application/json
 
 ## Локальный запуск
 
-Из корня репозитория:
+Из корня репозитория (минимум для отчётов и live-stats):
 
 ```bash
-docker compose up -d service-b service-b-queue mailhog
+docker compose up -d service-b service-b-queue reverb redis mailhog
 ```
 
-Сервис доступен на порту `8082` (по умолчанию, можно переопределить `SERVICE_B_PORT`).
+| Сервис | Порт / URL |
+|---|---|
+| `service-b` API | `http://localhost:8082` (`SERVICE_B_PORT`) |
+| Gateway → API | `http://localhost:8080/api/b/...` |
+| Mailhog | `http://localhost:8025` |
+
+Пароль и хост MySQL для `service-b` задаются в корневом `docker-compose.yml` (`SERVICE_B_DB_*`). После первого запуска: `php artisan key:generate`, миграции (с согласия), `composer install` при изменении `composer.lock`.
+
+Полный стек и первичная настройка — в [корневом README](../README.md).
 
 ## Тесты
 
@@ -504,8 +554,10 @@ docker compose up -d service-b service-b-queue mailhog
 # из корня репозитория
 docker compose exec -T service-b php artisan test
 
-# или через общий скрипт
+# или через общий скрипт (пересоздаёт sail_db_testing)
 ./scripts/test-services.sh service-b
 ```
 
-Тестовая БД: `sail_db_testing` (см. `service-b/phpunit.xml` и `service-b/.env.testing`).
+Тестовая БД: **`sail_db_testing`** (см. `phpunit.xml`, `.env.testing`). Не указывайте рабочую БД в тестовом окружении.
+
+Покрытие по областям: Report API (`SalesOutletsReportTest`), stats + domain events (`SalesOutletsReportStatsTest`), Strategy/registry/download, listeners broadcast/log, gateway auth.

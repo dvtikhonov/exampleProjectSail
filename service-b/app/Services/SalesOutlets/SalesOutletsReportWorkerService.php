@@ -22,13 +22,7 @@ class SalesOutletsReportWorkerService extends AbstractSalesOutletsAsyncJobServic
             return;
         }
 
-        try {
-            $this->jobProcessor->process($job);
-        } catch (\Throwable $exception) {
-            $this->markAsFailed($uuid, $exception->getMessage());
-
-            throw $exception;
-        }
+        $this->jobProcessor->process($job);
     }
 
     public function markAsFailed(string $uuid, ?string $errorMessage = null): void

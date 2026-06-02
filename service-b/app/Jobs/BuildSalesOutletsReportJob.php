@@ -25,6 +25,7 @@ class BuildSalesOutletsReportJob implements ShouldQueue
             $reportWorker->processByUuid($this->uuid);
         } catch (\Throwable $exception) {
             $failureHandler->handle($this->uuid, $exception->getMessage());
+
             throw $exception;
         }
     }
