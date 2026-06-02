@@ -5,11 +5,11 @@ namespace App\Repositories\SalesOutlets;
 use App\Contracts\Events\EventDispatcherInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
-use App\Events\SalesOutletReportJobMutated;
 use App\Domain\SalesOutlets\SalesOutletAsyncJob;
 use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Enums\AsyncJobStatus;
 use App\Enums\SalesOutletsReportType;
+use App\Events\SalesOutletReportJobMutated;
 use App\Models\SalesOutletReportJob;
 use Illuminate\Support\Str;
 
