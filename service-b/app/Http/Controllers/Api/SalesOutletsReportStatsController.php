@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Contracts\SalesOutlets\SalesOutletsReportStatsServiceInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsReportStatsRepositoryInterface;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
 class SalesOutletsReportStatsController extends Controller
 {
     public function __construct(
-        private readonly SalesOutletsReportStatsServiceInterface $statsService,
+        private readonly SalesOutletsReportStatsRepositoryInterface $statsRepository,
     ) {}
 
     public function index(): JsonResponse
     {
         return response()->json(
-            $this->statsService->aggregate()->toArray(),
+            $this->statsRepository->aggregate()->toArray(),
         );
     }
 }

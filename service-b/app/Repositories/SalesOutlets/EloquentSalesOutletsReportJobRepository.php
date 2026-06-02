@@ -2,9 +2,10 @@
 
 namespace App\Repositories\SalesOutlets;
 
+use App\Contracts\Events\EventDispatcherInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
-use App\Contracts\SalesOutlets\SalesOutletsReportStatsBroadcasterInterface;
+use App\Events\SalesOutletReportJobMutated;
 use App\Domain\SalesOutlets\SalesOutletAsyncJob;
 use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Enums\AsyncJobStatus;
@@ -16,7 +17,7 @@ class EloquentSalesOutletsReportJobRepository implements SalesOutletsAsyncJobRep
 {
     public function __construct(
         private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
-        private readonly SalesOutletsReportStatsBroadcasterInterface $statsBroadcaster,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {}
 
     public function create(
@@ -32,7 +33,7 @@ class EloquentSalesOutletsReportJobRepository implements SalesOutletsAsyncJobRep
             'filters' => $filters->toArray(),
         ]);
 
-        $this->statsBroadcaster->broadcastCurrentStats();
+        $this->dispatchMutated($reportJob->uuid);
 
         return $this->toAsyncJob($reportJob);
     }
@@ -62,9 +63,16 @@ class EloquentSalesOutletsReportJobRepository implements SalesOutletsAsyncJobRep
             'error_message' => $errorMessage,
         ])->save();
 
-        $this->statsBroadcaster->broadcastCurrentStats();
+        $asyncJob = $this->toAsyncJob($reportJob->refresh());
 
-        return $this->toAsyncJob($reportJob->refresh());
+        $this->dispatchMutated($asyncJob->uuid);
+
+        return $asyncJob;
+    }
+
+    private function dispatchMutated(string $uuid): void
+    {
+        $this->eventDispatcher->dispatch(new SalesOutletReportJobMutated($uuid));
     }
 
     private function toAsyncJob(SalesOutletReportJob $reportJob): SalesOutletAsyncJob

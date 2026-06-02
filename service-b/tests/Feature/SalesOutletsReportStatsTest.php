@@ -6,6 +6,7 @@ use App\Contracts\SalesOutlets\SalesOutletsAsyncJobRepositoryInterface;
 use App\Enums\AsyncJobStatus;
 use App\Enums\SalesOutletsReportType;
 use App\Events\ReportJobStatsChanged;
+use App\Events\SalesOutletReportJobMutated;
 use App\Models\SalesOutletReportJob;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -85,6 +86,23 @@ class SalesOutletsReportStatsTest extends TestCase
         });
     }
 
+    public function test_find_by_uuid_does_not_dispatch_mutation_event(): void
+    {
+        Event::fake([SalesOutletReportJobMutated::class]);
+
+        SalesOutletReportJob::query()->create([
+            'uuid' => '55555555-5555-5555-5555-555555555555',
+            'report_type' => SalesOutletsReportType::CsvDownload,
+            'status' => AsyncJobStatus::Pending,
+            'filters' => ['columns' => ['id']],
+        ]);
+
+        $repository = $this->app->make(SalesOutletsAsyncJobRepositoryInterface::class);
+        $repository->findByUuid('55555555-5555-5555-5555-555555555555');
+
+        Event::assertNotDispatched(SalesOutletReportJobMutated::class);
+    }
+
     public function test_update_status_dispatches_report_job_stats_changed_event(): void
     {
         Event::fake([ReportJobStatsChanged::class]);
@@ -104,8 +122,6 @@ class SalesOutletsReportStatsTest extends TestCase
         ]);
 
         $repository = $this->app->make(SalesOutletsAsyncJobRepositoryInterface::class);
-
-        Event::fake([ReportJobStatsChanged::class]);
 
         $asyncJob = $repository->findByUuid($reportJob->uuid);
         $this->assertNotNull($asyncJob);

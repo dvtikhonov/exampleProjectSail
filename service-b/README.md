@@ -112,13 +112,18 @@ X-User-Id: 123
 
 Помимо REST (`GET /api/sales-outlets/reports/stats`), сервис публикует изменение агрегатов через broadcaster:
 
-- `EloquentSalesOutletsReportJobRepository::create()` и `::updateStatus()` вызывают `broadcastCurrentStats()`;
-- `SalesOutletsReportStatsBroadcaster::broadcastCurrentStats()` диспатчит **event** `ReportJobStatsChanged` с **payload** из `aggregate()`;
+- `EloquentSalesOutletsReportJobRepository` после `create()` / `updateStatus()` диспатчит domain event `SalesOutletReportJobMutated`;
+- listeners на `SalesOutletReportJobMutated`: `BroadcastReportJobStatsOnJobMutation` (live stats), `LogSalesOutletReportJobMutation` (audit log);
+- broadcaster диспатчит **event** `ReportJobStatsChanged` через `EventDispatcherInterface` с **payload** из `EloquentSalesOutletsReportStatsRepository::aggregate()`;
 - событие публикуется в **channel** `PrivateChannel('report-jobs.stats')`.
 
 Реализация в `service-b`:
 
+- `app/Events/SalesOutletReportJobMutated.php`
+- `app/Listeners/BroadcastReportJobStatsOnJobMutation.php`
+- `app/Listeners/LogSalesOutletReportJobMutation.php`
 - `app/Repositories/SalesOutlets/EloquentSalesOutletsReportJobRepository.php`
+- `app/Repositories/SalesOutlets/EloquentSalesOutletsReportStatsRepository.php`
 - `app/Services/SalesOutlets/SalesOutletsReportStatsBroadcaster.php`
 - `app/Events/ReportJobStatsChanged.php`
 
@@ -133,14 +138,129 @@ X-User-Id: 123
 
 Диагностика live-статистики — в [корневом README.md](../README.md) (раздел **Диагностика live-статистики**).
 
+### Domain events и listeners
+
+Live-stats обновляются через domain event: persistence не вызывает broadcast напрямую, а диспатчит событие; реакции подключаются listener'ами. Цепочка из трёх уровней:
+
+```
+EloquentSalesOutletsReportJobRepository
+    → SalesOutletReportJobMutated          (domain event: «job изменился»)
+        → BroadcastReportJobStatsOnJobMutation   → ReportJobStatsChanged → Reverb
+        → LogSalesOutletReportJobMutation          → PSR-3 log (audit)
+```
+
+| Уровень | Класс | Ответственность |
+|---|---|---|
+| Persistence | `EloquentSalesOutletsReportJobRepository` | Запись в БД + dispatch `SalesOutletReportJobMutated` |
+| Реакция | `app/Listeners/*` | Побочные эффекты **без** правки репозитория и processor |
+| Transport | `ReportJobStatsChanged` | Готовый snapshot для WebSocket (Echo/Reverb) |
+
+**Почему так (SOLID):**
+
+- **SRP** — репозиторий только сохраняет; broadcast и лог — отдельные listener'ы.
+- **OCP** — новая реакция на мутацию = новый listener + `Event::listen`, без изменения `SalesOutletsReportApiService`, processor и worker.
+- **DIP** — репозиторий зависит от `EventDispatcherInterface`; listener broadcast — от `SalesOutletsReportStatsBroadcasterInterface`; audit log — от `Psr\Log\LoggerInterface`.
+
+**Что не менялось для клиентов:** формат REST snapshot, канал `report-jobs.stats`, событие `.ReportJobStatsChanged`, payload `by_type` + `generated_at`.
+
+**Важно при регистрации:** несколько listener'ов на одно событие регистрируются **отдельными** вызовами `Event::listen` (не массивом классов — иначе Laravel ожидает один invokable-listener):
+
+```php
+Event::listen(SalesOutletReportJobMutated::class, BroadcastReportJobStatsOnJobMutation::class);
+Event::listen(SalesOutletReportJobMutated::class, LogSalesOutletReportJobMutation::class);
+```
+
+`findByUuid()` событие **не** диспатчит — только мутации (`create`, `updateStatus`).
+
+#### Активные listeners
+
+| Listener | Триггер | Действие |
+|---|---|---|
+| `BroadcastReportJobStatsOnJobMutation` | `SalesOutletReportJobMutated` | `aggregate()` из БД → broadcast `ReportJobStatsChanged` |
+| `LogSalesOutletReportJobMutation` | то же | `LoggerInterface::info` с `uuid` (audit trail в логах) |
+
+На один успешный CSV-job типично **3–4** mutation event (create → processing → completed) и столько же broadcast snapshot — осознанный компромисс «полный срез на каждое изменение».
+
+#### Перспективы: куда наращивать через listeners
+
+Тот же `SalesOutletReportJobMutated` — **единая точка расширения** для любых побочных эффектов после изменения задачи. Репозиторий и report pipeline трогать не нужно.
+
+| Направление | Идея listener'а | Зависимости / примечания |
+|---|---|---|
+| **Debounce broadcast** | Coalesce нескольких мутаций одного job в один Reverb-push (500 ms / per-request) | Внутренний cache/queue; снижает нагрузку на Reverb и SQL `aggregate()` |
+| **Метрики** | Счётчики Prometheus/OpenTelemetry: `report_jobs_mutated_total{status=...}` | `uuid` + повторный read status из репозитория или расширение payload события |
+| **Audit в БД** | Запись в `report_job_audit_log` (who/when/uuid) | Отдельный repository; не смешивать с application log |
+| **Уведомления** | Slack/Telegram при `failed` | Listener фильтрует по статусу после read job или слушает отдельное событие `SalesOutletReportJobFailed` (узче domain event) |
+| **Cache invalidation** | Сброс Redis-ключа stats snapshot | Если REST stats начнут кешироваться |
+| **Аналитика** | Отправка в очередь analytics (Segment, internal bus) | Async listener `ShouldQueue` |
+| **Rate limiting / алерты** | Алерт при всплеске `failed` за минуту | Агрегация в listener + threshold |
+
+**Когда выделять отдельное domain event** (вместо общего `SalesOutletReportJobMutated`):
+
+- нужны **разные** listener'ы только на `failed` или только на `create` — например `SalesOutletReportJobFailed`, `SalesOutletReportJobCreated`;
+- payload события должен нести `fromStatus` / `toStatus`, чтобы listener не ходил в БД повторно.
+
+**Когда оставить один `SalesOutletReportJobMutated`:**
+
+- все реакции одинаково актуальны на любую мутацию (как сейчас: full stats snapshot + log);
+- минимум классов событий, один контракт «строка job изменилась».
+
+#### Как добавить новый listener
+
+1. Создать класс в `app/Listeners/` с методом `handle(SalesOutletReportJobMutated $event): void`.
+2. Зависимости — только через constructor (контракты / `LoggerInterface`, не фасады в domain).
+3. Зарегистрировать **отдельным** `Event::listen` в `AppServiceProvider::boot()`.
+4. Unit-тест: mock зависимостей, один вызов `handle()`.
+5. При необходимости — feature-тест с `Event::fake()` / проверкой побочного эффекта.
+
+Пример каркаса:
+
+```php
+final class NotifyOnReportJobFailure
+{
+    public function __construct(
+        private readonly SalesOutletsAsyncJobRepositoryInterface $jobs,
+        private readonly NotificationSenderInterface $notifications,
+    ) {}
+
+    public function handle(SalesOutletReportJobMutated $event): void
+    {
+        $job = $this->jobs->findByUuid($event->uuid);
+
+        if ($job?->status !== AsyncJobStatus::Failed) {
+            return;
+        }
+
+        $this->notifications->sendReportFailed($job);
+    }
+}
+```
+
+Для тяжёлых операций реализуйте `Illuminate\Contracts\Queue\ShouldQueue` на listener'е — мутация в БД останется синхронной, реакция уйдёт в очередь `service-b-queue`.
+
+См. также [.cursor/rules/service-b-reports-strategy.mdc](../.cursor/rules/service-b-reports-strategy.mdc) — зафиксированные решения по Strategy.
+
 ## Архитектура
+
+Единый Report API построен на Strategy + узких контрактах (ISP/DIP). Legacy-слой Export/Mail удалён; все отчёты идут через `SalesOutletsReportController` и `BuildSalesOutletsReportJob`.
 
 - Strategy-обработчики: `CsvDownloadReportStrategy`, `HtmlEmailReportStrategy`;
 - Очередь: `BuildSalesOutletsReportJob` (воркер `service-b-queue`);
 - Shared domain: `shared/sales-outlets-domain`;
-- Хранилище задач: таблица `sales_outlet_report_jobs`.
+- Хранилище задач: таблица `sales_outlet_report_jobs`;
+- Live-stats: domain event `SalesOutletReportJobMutated` → listeners → `ReportJobStatsChanged` (см. раздел выше).
 
-Ключевые контракты:
+### Слои и ключевые контракты
+
+| Слой | Примеры | Контракты |
+|---|---|---|
+| HTTP | `SalesOutletsReportController`, FormRequest | `*ServiceInterface`, repository interfaces |
+| Application | `SalesOutletsReportApiService`, `SalesOutletsReportJobProcessor`, `SalesOutletsReportDownloadService` | `SalesOutletsReport*Interface` |
+| Domain | `SalesOutletAsyncJob`, DTO, enums | — |
+| Infra | `Eloquent*Repository`, `LocalReportFileStorage`, listeners | `EventDispatcherInterface`, `ReportFileStorageInterface` |
+| Integration | `ReportJobStatsChanged`, Reverb, Mailhog | Laravel broadcasting |
+
+Ключевые контракты отчётов:
 
 - `SalesOutletsReportProcessingStrategyInterface` — единый контракт обработки отчёта;
 - `SalesOutletsDownloadableReportStrategyInterface` — marker-интерфейс для downloadable-стратегий;
@@ -148,6 +268,19 @@ X-User-Id: 123
 - `SalesOutletsReportDownloadCapabilityInterface` — проверка возможности скачивания.
 
 `SalesOutletsReportStrategyRegistry` зарегистрирован как singleton и алиасится на узкие интерфейсы (resolver/capability/presentation), чтобы потребители зависели только от нужных абстракций.
+
+### Зафиксированные архитектурные решения
+
+| Решение | Зачем |
+|---|---|
+| Strategy marker `SalesOutletsDownloadableReportStrategyInterface` | Download capability на уровне типа; processor не ветвится по форматам |
+| Triple-alias registry (resolver / capability / presentation) | ISP: download-сервис не видит `resolve()` |
+| `ReportDeliveryResult` из `deliver()` | OCP доставки: file vs email без правок processor |
+| `SalesOutletReportJobMutated` + listeners | OCP побочных эффектов stats/log; persistence отделён от реакций |
+| `EventDispatcherInterface` вместо `event()` в application | DIP для тестов и подмены bus |
+| Gateway auth через `GatewayUserResolverInterface` + DTO | `$request->user()` — реальный Eloquent `User` |
+
+Не «упрощать» без явного запроса: объединять registry-интерфейсы, переносить `supportsDownload()` в processor, вшивать broadcast stats в репозиторий вместо listeners.
 
 ## Конфигурация
 

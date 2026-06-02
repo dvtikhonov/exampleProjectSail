@@ -2,14 +2,14 @@
 
 namespace App\Repositories\SalesOutlets;
 
-use App\Contracts\SalesOutlets\SalesOutletsReportStatsServiceInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsReportStatsRepositoryInterface;
 use App\DTO\SalesOutlets\SalesOutletReportStatsDto;
 use App\Enums\AsyncJobStatus;
 use App\Enums\SalesOutletsReportType;
 use App\Models\SalesOutletReportJob;
 use Illuminate\Support\Carbon;
 
-class EloquentSalesOutletsReportStatsService implements SalesOutletsReportStatsServiceInterface
+class EloquentSalesOutletsReportStatsRepository implements SalesOutletsReportStatsRepositoryInterface
 {
     public function aggregate(): SalesOutletReportStatsDto
     {

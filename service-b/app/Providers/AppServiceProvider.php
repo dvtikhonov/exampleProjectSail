@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
+use App\Contracts\Events\EventDispatcherInterface;
 use App\Contracts\Queue\JobDispatcherInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsReportStatsRepositoryInterface;
 use App\Contracts\SalesOutlets\HtmlTableRendererInterface;
 use App\Contracts\SalesOutlets\MailReportConfigProviderInterface;
 use App\Contracts\SalesOutlets\ReportFileStorageInterface;
@@ -27,14 +29,17 @@ use App\Contracts\SalesOutlets\SalesOutletsReportJobFailureServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportJobProcessorInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportProcessorWorkerInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportStatsBroadcasterInterface;
-use App\Contracts\SalesOutlets\SalesOutletsReportStatsServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportStrategyResolverInterface;
+use App\Events\SalesOutletReportJobMutated;
+use App\Listeners\BroadcastReportJobStatsOnJobMutation;
+use App\Listeners\LogSalesOutletReportJobMutation;
 use App\Repositories\SalesOutlets\EloquentSalesOutletsDataRepository;
 use App\Repositories\SalesOutlets\EloquentSalesOutletsReportJobRepository;
-use App\Repositories\SalesOutlets\EloquentSalesOutletsReportStatsService;
+use App\Repositories\SalesOutlets\EloquentSalesOutletsReportStatsRepository;
 use App\Repositories\SalesOutlets\SalesOutletsMetadataRepository;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
+use App\Services\Events\LaravelEventDispatcher;
 use App\Services\Queue\LaravelJobDispatcher;
 use App\Services\SalesOutlets\LaravelReportMailSender;
 use App\Services\SalesOutlets\LaravelSalesOutletsJobQueue;
@@ -55,6 +60,7 @@ use App\Services\SalesOutlets\SalesOutletsReportJobProcessor;
 use App\Services\SalesOutlets\SalesOutletsReportStatsBroadcaster;
 use App\Services\SalesOutlets\SalesOutletsReportWorkerService;
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Shared\SalesOutletsDomain\AbstractStrategy\CsvReportWriter;
 use Shared\SalesOutletsDomain\AbstractStrategy\CsvReportWriterInterface;
@@ -77,8 +83,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->alias(ConfigSalesOutletsReportsConfig::class, ReportProcessingDelayConfigInterface::class);
 
         $this->app->bind(SalesOutletsAsyncJobRepositoryInterface::class, EloquentSalesOutletsReportJobRepository::class);
-        $this->app->bind(SalesOutletsReportStatsServiceInterface::class, EloquentSalesOutletsReportStatsService::class);
+        $this->app->bind(SalesOutletsReportStatsRepositoryInterface::class, EloquentSalesOutletsReportStatsRepository::class);
         $this->app->bind(SalesOutletsReportStatsBroadcasterInterface::class, SalesOutletsReportStatsBroadcaster::class);
+        $this->app->bind(EventDispatcherInterface::class, LaravelEventDispatcher::class);
         $this->app->bind(SalesOutletsReportApiServiceInterface::class, SalesOutletsReportApiService::class);
         $this->app->bind(SalesOutletsReportDownloadServiceInterface::class, SalesOutletsReportDownloadService::class);
         $this->app->bind(SalesOutletsReportProcessorWorkerInterface::class, SalesOutletsReportWorkerService::class);
@@ -138,6 +145,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Event::listen(
+            SalesOutletReportJobMutated::class,
+            BroadcastReportJobStatsOnJobMutation::class,
+        );
+        Event::listen(
+            SalesOutletReportJobMutated::class,
+            LogSalesOutletReportJobMutation::class,
+        );
     }
 }

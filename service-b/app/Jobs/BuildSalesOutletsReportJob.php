@@ -24,10 +24,9 @@ class BuildSalesOutletsReportJob implements ShouldQueue
         $reportWorker->processByUuid($this->uuid);
     }
 
-    public function failed(
-        ?Throwable $exception,
-        SalesOutletsReportJobFailureHandlerInterface $failureHandler,
-    ): void {
-        $failureHandler->handle($this->uuid, $exception?->getMessage());
+    public function failed(?Throwable $exception): void
+    {
+        app(SalesOutletsReportJobFailureHandlerInterface::class)
+            ->handle($this->uuid, $exception?->getMessage());
     }
 }

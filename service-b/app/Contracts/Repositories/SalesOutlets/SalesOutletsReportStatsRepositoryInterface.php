@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Contracts\SalesOutlets;
+namespace App\Contracts\Repositories\SalesOutlets;
 
 use App\DTO\SalesOutlets\SalesOutletReportStatsDto;
 
-interface SalesOutletsReportStatsServiceInterface
+interface SalesOutletsReportStatsRepositoryInterface
 {
     public function aggregate(): SalesOutletReportStatsDto;
 }
