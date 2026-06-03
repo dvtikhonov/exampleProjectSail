@@ -53,6 +53,14 @@ class SalesOutletsReportStatsTest extends TestCase
             'filters' => ['columns' => ['id']],
         ]);
 
+        SalesOutletReportJob::query()->create([
+            'uuid' => '66666666-6666-6666-6666-666666666666',
+            'report_type' => SalesOutletsReportType::MaxMessage,
+            'status' => AsyncJobStatus::Completed,
+            'user_id' => $user->id,
+            'filters' => ['columns' => ['id']],
+        ]);
+
         $this
             ->withHeader('X-User-Id', (string) $user->id)
             ->getJson('/api/sales-outlets/reports/stats')
@@ -62,10 +70,13 @@ class SalesOutletsReportStatsTest extends TestCase
             ->assertJsonPath('by_type.csv_download.total', 2)
             ->assertJsonPath('by_type.html_email.failed', 1)
             ->assertJsonPath('by_type.html_email.total', 1)
+            ->assertJsonPath('by_type.max_message.completed', 1)
+            ->assertJsonPath('by_type.max_message.total', 1)
             ->assertJsonStructure([
                 'by_type' => [
                     'csv_download' => ['pending', 'processing', 'completed', 'failed', 'total'],
                     'html_email' => ['pending', 'processing', 'completed', 'failed', 'total'],
+                    'max_message' => ['pending', 'processing', 'completed', 'failed', 'total'],
                 ],
                 'generated_at',
             ]);

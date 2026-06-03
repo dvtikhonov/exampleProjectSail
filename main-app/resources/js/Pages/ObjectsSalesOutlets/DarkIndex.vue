@@ -9,6 +9,7 @@ import DarkReportJobStatsPanel from '@/Components/ObjectsSalesOutlets/DarkReport
 import DarkSalesOutletsToolbar from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsToolbar.vue';
 import { usePersistentTableSettings } from '@/Composables/usePersistentTableSettings';
 import { useReportJobStats } from '@/Composables/useReportJobStats';
+import { resolveSalesOutletsRoute, routeWithUuid } from '@/Composables/useSalesOutletsRoutes';
 import { SalesOutletValidationError, updateSalesOutlet } from '@/Services/salesOutlets';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -44,7 +45,9 @@ const {
     statsByType: reportStatsByType,
     isLoading: reportStatsLoading,
     error: reportStatsError,
-} = useReportJobStats(props.routes.reportStats);
+} = useReportJobStats(
+    typeof props.routes?.reportStats === 'string' ? props.routes.reportStats : null,
+);
 
 const tableSettings = usePersistentTableSettings('objects-sales-outlets:dark-index', props.columns);
 const selectedColumns = ref(tableSettings.savedColumns ?? [...props.filters.columns]);
@@ -62,6 +65,10 @@ const mailJobUuid = ref(null);
 const mailStatus = ref('idle');
 const mailError = ref('');
 const mailPollTimer = ref(null);
+const maxJobUuid = ref(null);
+const maxStatus = ref('idle');
+const maxError = ref('');
+const maxPollTimer = ref(null);
 const localSalesOutlets = ref(props.salesOutlets.map((row) => ({ ...row })));
 const editingSalesOutlet = ref(null);
 const isEditModalOpen = ref(false);
@@ -73,8 +80,10 @@ const isFilterModalOpen = computed(() => activeModal.value === modalIds.filters)
 const hasActiveColumnFilters = computed(() => Object.keys(columnFilters.value).length > 0);
 const isExporting = computed(() => ['pending', 'processing'].includes(exportStatus.value));
 const isMailing = computed(() => ['pending', 'processing'].includes(mailStatus.value));
+const isMaxSending = computed(() => ['pending', 'processing'].includes(maxStatus.value));
 const exportButtonText = computed(() => (isExporting.value ? 'Файл собирается...' : 'Сохранить в файл'));
 const mailButtonText = computed(() => (isMailing.value ? 'Данные собираются...' : 'Отправить по почте'));
+const maxButtonText = computed(() => (isMaxSending.value ? 'Данные собираются...' : 'Отправить в MAX'));
 const exportStatusText = computed(() => {
     if (exportError.value) {
         return exportError.value;
@@ -113,6 +122,25 @@ const mailStatusText = computed(() => {
 
     return '';
 });
+const maxStatusText = computed(() => {
+    if (maxError.value) {
+        return maxError.value;
+    }
+
+    if (maxStatus.value === 'pending') {
+        return 'Отправка в MAX поставлена в очередь.';
+    }
+
+    if (maxStatus.value === 'processing') {
+        return 'Данные собираются, можно продолжать работу с таблицей.';
+    }
+
+    if (maxStatus.value === 'completed') {
+        return 'Отчёт отправлен в MAX.';
+    }
+
+    return '';
+});
 const isSameArray = (first, second) =>
     first.length === second.length && first.every((value, index) => value === second[index]);
 const isSameObject = (first, second) => {
@@ -128,22 +156,26 @@ const currentSettingsMatchSaved =
     && isSameObject(columnFilters.value, props.filters.column_filters);
 
 if (hasSavedTableSettings && !currentSettingsMatchSaved) {
-    router.get(
-        props.routes.index,
-        {
-            sort: props.filters.sort,
-            direction: props.filters.direction,
-            page: props.filters.page,
-            per_page: props.filters.per_page,
-            columns: selectedColumns.value,
-            column_filters: columnFilters.value,
-        },
-        {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        },
-    );
+    try {
+        router.get(
+            resolveSalesOutletsRoute(props.routes, 'index'),
+            {
+                sort: props.filters.sort,
+                direction: props.filters.direction,
+                page: props.filters.page,
+                per_page: props.filters.per_page,
+                columns: selectedColumns.value,
+                column_filters: columnFilters.value,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    } catch (error) {
+        console.error(error?.message ?? error);
+    }
 }
 
 watch(
@@ -169,7 +201,7 @@ watch(
 
 const visitSalesOutlets = (overrides = {}) => {
     router.get(
-        props.routes.index,
+        resolveSalesOutletsRoute(props.routes, 'index'),
         {
             sort: props.filters.sort,
             direction: props.filters.direction,
@@ -238,8 +270,6 @@ const exportPayload = () => ({
     columns: selectedColumns.value,
 });
 
-const routeWithUuid = (template, uuid) => template.replace('__uuid__', uuid);
-
 const stopExportPolling = () => {
     if (exportPollTimer.value === null) {
         return;
@@ -258,12 +288,24 @@ const stopMailPolling = () => {
     mailPollTimer.value = null;
 };
 
+const stopMaxPolling = () => {
+    if (maxPollTimer.value === null) {
+        return;
+    }
+
+    window.clearTimeout(maxPollTimer.value);
+    maxPollTimer.value = null;
+};
+
 const downloadExport = (uuid) => {
-    window.location.href = routeWithUuid(props.routes.exportDownload, uuid);
+    window.location.href = routeWithUuid(
+        resolveSalesOutletsRoute(props.routes, 'exportDownload'),
+        uuid,
+    );
 };
 
 const pollExportStatus = async (uuid) => {
-    const response = await fetch(routeWithUuid(props.routes.exportStatus, uuid), {
+    const response = await fetch(routeWithUuid(resolveSalesOutletsRoute(props.routes, 'exportStatus'), uuid), {
         headers: {
             Accept: 'application/json',
         },
@@ -301,7 +343,7 @@ const saveToFile = async () => {
     exportStatus.value = 'pending';
 
     try {
-        const response = await fetch(props.routes.exportCreate, {
+        const response = await fetch(resolveSalesOutletsRoute(props.routes, 'exportCreate'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -328,7 +370,7 @@ const saveToFile = async () => {
 
 const pollMailStatus = async (uuid) => {
     try {
-        const response = await fetch(routeWithUuid(props.routes.mailStatus, uuid), {
+        const response = await fetch(routeWithUuid(resolveSalesOutletsRoute(props.routes, 'mailStatus'), uuid), {
             headers: {
                 Accept: 'application/json',
             },
@@ -370,7 +412,7 @@ const sendByMail = async () => {
     mailStatus.value = 'pending';
 
     try {
-        const response = await fetch(props.routes.mailCreate, {
+        const response = await fetch(resolveSalesOutletsRoute(props.routes, 'mailCreate'), {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
@@ -392,6 +434,75 @@ const sendByMail = async () => {
         stopMailPolling();
         mailStatus.value = 'failed';
         mailError.value = error.message || 'Не удалось запустить отправку по почте.';
+    }
+};
+
+const pollMaxStatus = async (uuid) => {
+    try {
+        const response = await fetch(routeWithUuid(resolveSalesOutletsRoute(props.routes, 'maxStatus'), uuid), {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось получить статус отправки в MAX.');
+        }
+
+        const data = await response.json();
+        maxStatus.value = data.status;
+
+        if (data.status === 'completed') {
+            stopMaxPolling();
+            return;
+        }
+
+        if (data.status === 'failed') {
+            stopMaxPolling();
+            maxError.value = data.error_message || 'Не удалось отправить отчёт в MAX.';
+            return;
+        }
+
+        maxPollTimer.value = window.setTimeout(() => pollMaxStatus(uuid), 2000);
+    } catch (error) {
+        stopMaxPolling();
+        maxStatus.value = 'failed';
+        maxError.value = error.message || 'Не удалось получить статус отправки в MAX.';
+    }
+};
+
+const sendToMax = async () => {
+    if (isMaxSending.value) {
+        return;
+    }
+
+    stopMaxPolling();
+    maxError.value = '';
+    maxStatus.value = 'pending';
+
+    try {
+        const response = await fetch(resolveSalesOutletsRoute(props.routes, 'maxCreate'), {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '',
+            },
+            body: JSON.stringify(exportPayload()),
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось запустить отправку в MAX.');
+        }
+
+        const data = await response.json();
+        maxJobUuid.value = data.uuid;
+        maxStatus.value = data.status;
+        await pollMaxStatus(data.uuid);
+    } catch (error) {
+        stopMaxPolling();
+        maxStatus.value = 'failed';
+        maxError.value = error.message || 'Не удалось запустить отправку в MAX.';
     }
 };
 
@@ -457,6 +568,7 @@ const saveSalesOutlet = async (payload) => {
 onBeforeUnmount(() => {
     stopExportPolling();
     stopMailPolling();
+    stopMaxPolling();
 });
 </script>
 
@@ -506,10 +618,14 @@ onBeforeUnmount(() => {
                         :is-mailing="isMailing"
                         :mail-button-text="mailButtonText"
                         :mail-status-text="mailStatusText"
+                        :is-max-sending="isMaxSending"
+                        :max-button-text="maxButtonText"
+                        :max-status-text="maxStatusText"
                         @open-columns="activeModal = modalIds.columns"
                         @open-filters="activeModal = modalIds.filters"
                         @save-file="saveToFile"
                         @send-mail="sendByMail"
+                        @send-max="sendToMax"
                     />
 
                     <DarkSalesOutletsTable

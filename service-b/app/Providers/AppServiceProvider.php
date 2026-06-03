@@ -10,6 +10,9 @@ use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsReportStatsRepositoryInterface;
 use App\Contracts\SalesOutlets\HtmlTableRendererInterface;
+use App\Contracts\Max\MaxMessengerClientInterface;
+use App\Contracts\Max\MaxReportConfigProviderInterface;
+use App\Contracts\Max\ReportMaxMessageSenderInterface;
 use App\Contracts\SalesOutlets\MailReportConfigProviderInterface;
 use App\Contracts\SalesOutlets\ReportCompletionPolicyInterface;
 use App\Contracts\SalesOutlets\ReportFileStorageInterface;
@@ -45,6 +48,9 @@ use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Events\LaravelEventDispatcher;
 use App\Services\Queue\LaravelJobDispatcher;
+use App\Services\Max\ConfigMaxReportConfigProvider;
+use App\Services\Max\HttpMaxMessengerClient;
+use App\Services\Max\LaravelReportMaxMessageSender;
 use App\Services\SalesOutlets\LaravelReportMailSender;
 use App\Services\SalesOutlets\LaravelSalesOutletsJobQueue;
 use App\Services\SalesOutlets\LocalReportFileStorage;
@@ -58,6 +64,7 @@ use App\Services\SalesOutlets\Reports\SalesOutletsReportContextFactory;
 use App\Services\SalesOutlets\Reports\SalesOutletsReportStrategyRegistry;
 use App\Services\SalesOutlets\Reports\Strategies\CsvDownloadReportStrategy;
 use App\Services\SalesOutlets\Reports\Strategies\HtmlEmailReportStrategy;
+use App\Services\SalesOutlets\Reports\Strategies\MaxMessageReportStrategy;
 use App\Services\SalesOutlets\ReportStrategyExecutionService;
 use App\Services\SalesOutlets\SalesOutletReportFilterDtoFactory;
 use App\Services\SalesOutlets\SalesOutletsReportApiService;
@@ -108,6 +115,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ReportMailSenderInterface::class, LaravelReportMailSender::class);
         $this->app->bind(ReportProcessingDelayInterface::class, ConfigReportProcessingDelay::class);
         $this->app->bind(MailReportConfigProviderInterface::class, ConfigMailReportConfigProvider::class);
+        $this->app->bind(MaxMessengerClientInterface::class, HttpMaxMessengerClient::class);
+        $this->app->bind(MaxReportConfigProviderInterface::class, ConfigMaxReportConfigProvider::class);
+        $this->app->bind(ReportMaxMessageSenderInterface::class, LaravelReportMaxMessageSender::class);
         $this->app->bind(HtmlTableRendererInterface::class, HtmlTableRenderer::class);
         $this->app->bind(SalesOutletsReportContextFactoryInterface::class, SalesOutletsReportContextFactory::class);
 
@@ -128,6 +138,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->tag([
             CsvDownloadReportStrategy::class,
             HtmlEmailReportStrategy::class,
+            MaxMessageReportStrategy::class,
         ], 'sales-outlets.report-strategies');
 
         $this->app->singleton(SalesOutletsReportStrategyRegistry::class, function ($app): SalesOutletsReportStrategyRegistry {

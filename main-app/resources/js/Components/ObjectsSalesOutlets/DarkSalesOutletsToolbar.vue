@@ -28,9 +28,21 @@ defineProps({
         type: String,
         default: '',
     },
+    isMaxSending: {
+        type: Boolean,
+        default: false,
+    },
+    maxButtonText: {
+        type: String,
+        default: 'Отправить в MAX',
+    },
+    maxStatusText: {
+        type: String,
+        default: '',
+    },
 });
 
-const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mail']);
+const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mail', 'send-max']);
 </script>
 
 <template>
@@ -40,7 +52,7 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mai
                 Управление таблицей объектов продаж
             </div>
             <div class="mt-1 text-xs text-slate-500">
-                Настройки колонок, фильтры, экспорт и отправка отчёта по почте.
+                Настройки колонок, фильтры, экспорт, почта и отправка в MAX.
             </div>
         </div>
 
@@ -95,6 +107,22 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mai
                     class="text-xs text-slate-400"
                 >
                     {{ mailStatusText }}
+                </span>
+            </div>
+            <div class="flex flex-col gap-1">
+                <button
+                    type="button"
+                    class="inline-flex items-center rounded-lg border border-violet-500/60 bg-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-violet-300 transition hover:border-violet-400 hover:bg-slate-700 hover:text-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
+                    :disabled="isMaxSending"
+                    @click="emit('send-max')"
+                >
+                    {{ maxButtonText }}
+                </button>
+                <span
+                    v-if="maxStatusText"
+                    class="text-xs text-slate-400"
+                >
+                    {{ maxStatusText }}
                 </span>
             </div>
         </div>

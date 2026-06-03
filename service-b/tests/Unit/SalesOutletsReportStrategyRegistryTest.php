@@ -15,6 +15,7 @@ use App\Enums\SalesOutletsReportType;
 use App\Services\SalesOutlets\Reports\SalesOutletsReportStrategyRegistry;
 use App\Services\SalesOutlets\Reports\Strategies\CsvDownloadReportStrategy;
 use App\Services\SalesOutlets\Reports\Strategies\HtmlEmailReportStrategy;
+use App\Services\SalesOutlets\Reports\Strategies\MaxMessageReportStrategy;
 use InvalidArgumentException;
 use Shared\SalesOutletsDomain\DTO\SalesOutletReportContextDto;
 use Tests\TestCase;
@@ -61,7 +62,7 @@ class SalesOutletsReportStrategyRegistryTest extends TestCase
     {
         $strategies = iterator_to_array($this->app->tagged('sales-outlets.report-strategies'));
 
-        $this->assertCount(2, $strategies);
+        $this->assertCount(3, $strategies);
         $this->assertContainsOnlyInstancesOf(SalesOutletsReportProcessingStrategyInterface::class, $strategies);
 
         $types = array_map(
@@ -70,7 +71,11 @@ class SalesOutletsReportStrategyRegistryTest extends TestCase
         );
 
         $this->assertEqualsCanonicalizing(
-            [SalesOutletsReportType::CsvDownload->value, SalesOutletsReportType::HtmlEmail->value],
+            [
+                SalesOutletsReportType::CsvDownload->value,
+                SalesOutletsReportType::HtmlEmail->value,
+                SalesOutletsReportType::MaxMessage->value,
+            ],
             $types,
         );
     }
@@ -81,6 +86,7 @@ class SalesOutletsReportStrategyRegistryTest extends TestCase
 
         $this->assertInstanceOf(CsvDownloadReportStrategy::class, $registry->resolve(SalesOutletsReportType::CsvDownload));
         $this->assertInstanceOf(HtmlEmailReportStrategy::class, $registry->resolve(SalesOutletsReportType::HtmlEmail));
+        $this->assertInstanceOf(MaxMessageReportStrategy::class, $registry->resolve(SalesOutletsReportType::MaxMessage));
     }
 
     public function test_supports_download_returns_true_for_csv(): void
@@ -109,6 +115,7 @@ class SalesOutletsReportStrategyRegistryTest extends TestCase
 
         $this->assertTrue($registry->supportsDownload(SalesOutletsReportType::CsvDownload));
         $this->assertFalse($registry->supportsDownload(SalesOutletsReportType::HtmlEmail));
+        $this->assertFalse($registry->supportsDownload(SalesOutletsReportType::MaxMessage));
     }
 
     public function test_container_aliases_resolver_and_download_capability_to_same_registry(): void

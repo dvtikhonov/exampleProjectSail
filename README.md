@@ -8,7 +8,7 @@
 |---|---|
 | `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, Laravel Reverb (Echo), веб-авторизация и проверка токенов для gateway |
 | `service-a` | Laravel API: торговые точки (`/api/sales-outlets`), ping-эндпоинты |
-| `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
+| `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
@@ -41,7 +41,7 @@ flowchart LR
 ```
 
 - **Торговые точки (CRUD, фильтры):** браузер → `VITE_GATEWAY_ORIGIN` → `service-a` (Bearer + CORS на gateway).
-- **Экспорт, почта, статистика отчётов:** браузер → `main-app` (web-сессия, `auth.passport`) → gateway → `service-b` (`MicroserviceHttpClient`).
+- **Экспорт, почта, MAX, статистика отчётов:** браузер → `main-app` (web-сессия, `auth.passport`) → gateway → `service-b` (`MicroserviceHttpClient`).
 - **Live-статистика отчётов:** после мутации задачи `service-b` диспатчит `SalesOutletReportJobMutated` → listener `BroadcastReportJobStatsOnJobMutation` → broadcast `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на private-канал `report-jobs.stats` (авторизация — `POST /broadcasting/auth`).
 
 ## Требования
@@ -114,7 +114,7 @@ docker compose exec service-b php artisan migrate
 docker compose up -d service-b-queue reverb
 ```
 
-Письма `html_email` в dev перехватывает MailHog (`http://localhost:8025`).
+Письма `html_email` в dev перехватывает MailHog (`http://localhost:8025`). Отчёты `max_message` уходят в [MAX Bot API](https://dev.max.ru/docs-api) — токен и получатели только в `.env` `service-b` (см. [service-b/README.md](service-b/README.md)).
 
 ## Запуск и обслуживание
 
@@ -204,12 +204,14 @@ Web (Inertia):
 | `GET` | `/` | Стартовая страница |
 | `GET` | `/dashboard` | Dashboard после web-авторизации |
 | `GET` | `/objects-sales-outlets` | Страница объектов торговых точек |
-| `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница (экспорт, почта, live-статистика) |
+| `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница (экспорт, почта, MAX, live-статистика) |
 | `POST` | `/objects-sales-outlets-2/export` | Создание CSV-экспорта (прокси в `service-b`) |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}` | Статус экспорта |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}/download` | Скачивание экспорта |
 | `POST` | `/objects-sales-outlets-2/mail` | Создание отчёта на email |
 | `GET` | `/objects-sales-outlets-2/mail/{uuid}` | Статус email-отчёта |
+| `POST` | `/objects-sales-outlets-2/max` | Создание отчёта в MAX (`report_type=max_message`) |
+| `GET` | `/objects-sales-outlets-2/max/{uuid}` | Статус отчёта в MAX |
 | `GET` | `/objects-sales-outlets-2/reports/stats` | Агрегированная статистика задач отчётов |
 | `GET` | `/get-api-token` | Passport-токен из сессии |
 | `GET/PATCH/DELETE` | `/profile` | Профиль пользователя (Breeze) |
@@ -261,9 +263,10 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 Тело `POST /sales-outlets/reports` включает `report_type`:
 
 - `csv_download` — CSV-файл для скачивания;
-- `html_email` — HTML-отчёт на email (в dev — MailHog).
+- `html_email` — HTML-отчёт на email (в dev — MailHog);
+- `max_message` — HTML-таблица в мессенджер MAX ([POST /messages](https://dev.max.ru/docs-api/methods/POST/messages), лимит текста 4000 символов).
 
-Ответ `GET /sales-outlets/reports/stats` — JSON с полями `by_type` (счётчики `pending`, `processing`, `completed`, `failed`, `total` по каждому типу) и `generated_at`.
+Ответ `GET /sales-outlets/reports/stats` — JSON с полями `by_type` (счётчики `pending`, `processing`, `completed`, `failed`, `total` по каждому типу, включая `max_message`) и `generated_at`.
 
 ### Live-статистика отчётов: термины и поток
 
@@ -300,7 +303,8 @@ EloquentSalesOutletsReportJobRepository (create / updateStatus)
 1. Загружается **snapshot**: `GET /objects-sales-outlets-2/reports/stats` → прокси в `service-b` (`/api/b/sales-outlets/reports/stats`).
 2. Подписка на **channel** через Laravel Echo: `Echo.private('report-jobs.stats')`, авторизация — `POST /broadcasting/auth`.
 3. При создании/смене статуса задачи `service-b` отправляет **broadcast** **event** `ReportJobStatsChanged`.
-4. Composable `useReportJobStats` (`resources/js/Composables/useReportJobStats.js`) получает **event** и применяет **payload** к UI без перезагрузки страницы.
+4. Composable `useReportJobStats` (`resources/js/Composables/useReportJobStats.js`) получает **event** и применяет **payload** к UI без перезагрузки страницы (типы: CSV, Почта, MAX).
+5. Кнопка **«Отправить в MAX»** в `DarkSalesOutletsToolbar` → `POST /objects-sales-outlets-2/max` с теми же фильтрами/колонками, что у экспорта и почты; статус — polling `GET /objects-sales-outlets-2/max/{uuid}` каждые 2 с; при `failed` показывается `error_message` из API (без технических деталей токена).
 
 ## Авторизация через gateway
 
@@ -594,4 +598,4 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.
-- Redis используется сервисами и Reverb; MailHog — для перехвата почты в dev (`html_email`).
+- Redis используется сервисами и Reverb; MailHog — для перехвата почты в dev (`html_email`); MAX — исходящий HTTPS из `service-b` к `platform-api.max.ru` (`max_message`).
