@@ -4,11 +4,11 @@ namespace Tests\Unit;
 
 use App\Contracts\Max\MaxReportConfigProviderInterface;
 use App\Contracts\Max\ReportMaxMessageSenderInterface;
-use App\DTO\Max\MaxReportConfig;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsDownloadableReportStrategyInterface;
 use App\Domain\SalesOutlets\SalesOutletAsyncJob;
+use App\DTO\Max\MaxReportConfig;
 use App\DTO\SalesOutlets\ReportDeliveryResult;
 use App\DTO\SalesOutlets\SalesOutletReportFilterDto;
 use App\Enums\AsyncJobStatus;
