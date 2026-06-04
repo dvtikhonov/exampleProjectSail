@@ -62,6 +62,20 @@ class ObjectsSalesOutletsController extends Controller
         );
     }
 
+    public function createMax(Request $request): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->createReport($request->all(), 'max_message'),
+        );
+    }
+
+    public function maxStatus(string $uuid): JsonResponse
+    {
+        return response()->json(
+            $this->salesOutletsApiClient->reportStatus($uuid),
+        );
+    }
+
     public function reportStats(): JsonResponse
     {
         return response()->json(

@@ -6,6 +6,7 @@ import SalesOutletsPagination from '@/Components/ObjectsSalesOutlets/SalesOutlet
 import SalesOutletsTable from '@/Components/ObjectsSalesOutlets/SalesOutletsTable.vue';
 import SalesOutletsToolbar from '@/Components/ObjectsSalesOutlets/SalesOutletsToolbar.vue';
 import { usePersistentTableSettings } from '@/Composables/usePersistentTableSettings';
+import { resolveSalesOutletsRoute } from '@/Composables/useSalesOutletsRoutes';
 import { Head, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 
@@ -57,22 +58,26 @@ const currentSettingsMatchSaved =
     && isSameObject(columnFilters.value, props.filters.column_filters);
 
 if (hasSavedTableSettings && !currentSettingsMatchSaved) {
-    router.get(
-        props.routes.index,
-        {
-            sort: props.filters.sort,
-            direction: props.filters.direction,
-            page: props.filters.page,
-            per_page: props.filters.per_page,
-            columns: selectedColumns.value,
-            column_filters: columnFilters.value,
-        },
-        {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true,
-        },
-    );
+    try {
+        router.get(
+            resolveSalesOutletsRoute(props.routes, 'index'),
+            {
+                sort: props.filters.sort,
+                direction: props.filters.direction,
+                page: props.filters.page,
+                per_page: props.filters.per_page,
+                columns: selectedColumns.value,
+                column_filters: columnFilters.value,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    } catch (error) {
+        console.error(error?.message ?? error);
+    }
 }
 
 watch(
@@ -84,7 +89,7 @@ watch(
 
 const visitSalesOutlets = (overrides = {}) => {
     router.get(
-        props.routes.index,
+        resolveSalesOutletsRoute(props.routes, 'index'),
         {
             sort: props.filters.sort,
             direction: props.filters.direction,

@@ -1,10 +1,11 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
-export const REPORT_JOB_TYPES = Object.freeze(['csv_download', 'html_email']);
+export const REPORT_JOB_TYPES = Object.freeze(['csv_download', 'html_email', 'max_message']);
 
 const REPORT_TYPE_LABELS = Object.freeze({
     csv_download: 'CSV',
     html_email: 'Почта',
+    max_message: 'MAX',
 });
 
 const emptyTypeStats = () => ({

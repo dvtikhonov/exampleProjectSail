@@ -31,6 +31,9 @@ class ObjectsSalesOutletsControllerTest extends TestCase
                 ->where('pagination.current_page', 2)
                 ->where('statusOptions.1.value', 'approved')
                 ->where('routes.index', route('objectsSalesOutlets.darkIndex'))
+                ->where('routes.maxCreate', route('objectsSalesOutlets.max.create'))
+                ->where('routes.maxStatus', route('objectsSalesOutlets.max.status', ['uuid' => '__uuid__']))
+                ->where('routes.reportStats', route('objectsSalesOutlets.reports.stats'))
             );
 
         Http::assertSent(function (Request $request): bool {
@@ -201,6 +204,83 @@ class ObjectsSalesOutletsControllerTest extends TestCase
             ->assertJsonPath('status', 'completed');
 
         Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/mail-uuid');
+    }
+
+    public function test_objects_sales_outlets_max_create_is_proxied_to_service_b(): void
+    {
+        Http::fake([
+            'http://gateway/api/b/sales-outlets/reports' => Http::response([
+                'uuid' => 'max-uuid',
+                'status' => 'pending',
+                'error_message' => null,
+            ], 202),
+        ]);
+
+        $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->withSession(['_token' => 'test-token'])
+            ->withHeader('X-CSRF-TOKEN', 'test-token')
+            ->postJson('/objects-sales-outlets-2/max', [
+                'search' => 'Курск',
+                'status' => 'approved',
+                'column_filters' => ['shop' => 'Курск'],
+                'sort' => 'shop',
+                'direction' => 'desc',
+                'columns' => ['id', 'shop'],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('uuid', 'max-uuid')
+            ->assertJsonPath('status', 'pending');
+
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports'
+            && $request['report_type'] === 'max_message'
+            && $request['search'] === 'Курск'
+            && $request['column_filters'] === ['shop' => 'Курск']
+            && $request['columns'] === ['id', 'shop']);
+    }
+
+    public function test_objects_sales_outlets_max_status_is_proxied_to_service_b(): void
+    {
+        Http::fake([
+            'http://gateway/api/b/sales-outlets/reports/max-uuid' => Http::response([
+                'uuid' => 'max-uuid',
+                'status' => 'completed',
+                'error_message' => null,
+            ]),
+        ]);
+
+        $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->getJson('/objects-sales-outlets-2/max/max-uuid')
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/max-uuid');
+    }
+
+    public function test_objects_sales_outlets_max_status_proxies_failed_error_message(): void
+    {
+        Http::fake([
+            'http://gateway/api/b/sales-outlets/reports/max-uuid' => Http::response([
+                'uuid' => 'max-uuid',
+                'status' => 'failed',
+                'error_message' => 'Токен MAX недействителен или отозван. Обновите MAX_BOT_ACCESS_TOKEN в настройках сервиса.',
+            ]),
+        ]);
+
+        $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->getJson('/objects-sales-outlets-2/max/max-uuid')
+            ->assertOk()
+            ->assertJsonPath('status', 'failed')
+            ->assertJsonPath(
+                'error_message',
+                'Токен MAX недействителен или отозван. Обновите MAX_BOT_ACCESS_TOKEN в настройках сервиса.',
+            );
+
+        Http::assertSent(fn (Request $request): bool => $this->requestUrl($request) === 'http://gateway/api/b/sales-outlets/reports/max-uuid');
     }
 
     public function test_objects_sales_outlets_report_stats_is_proxied_to_service_b(): void

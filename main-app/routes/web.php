@@ -38,6 +38,10 @@ Route::middleware(['auth.passport'])->group(function () {
         ->name('objectsSalesOutlets.mail.create');
     Route::get('/objects-sales-outlets-2/mail/{uuid}', [ObjectsSalesOutletsController::class, 'mailStatus'])
         ->name('objectsSalesOutlets.mail.status');
+    Route::post('/objects-sales-outlets-2/max', [ObjectsSalesOutletsController::class, 'createMax'])
+        ->name('objectsSalesOutlets.max.create');
+    Route::get('/objects-sales-outlets-2/max/{uuid}', [ObjectsSalesOutletsController::class, 'maxStatus'])
+        ->name('objectsSalesOutlets.max.status');
     Route::get('/objects-sales-outlets-2/reports/stats', [ObjectsSalesOutletsController::class, 'reportStats'])
         ->name('objectsSalesOutlets.reports.stats');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

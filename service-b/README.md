@@ -1,11 +1,47 @@
 # service-b
 
-Микросервис асинхронной генерации отчётов по объектам продаж (Sales Outlets). Поддерживает два типа отчётов:
+Микросервис асинхронной генерации отчётов по объектам продаж (Sales Outlets). Поддерживает типы отчётов:
 
-- `csv_download` — формирует CSV-файл для скачивания;
-- `html_email` — отправляет отчёт HTML-таблицей на email.
+| `report_type` | Доставка |
+|---|---|
+| `csv_download` | CSV в файловом хранилище → `GET .../download` |
+| `html_email` | HTML-таблица по SMTP (Mailhog в dev) |
+| `max_message` | Intro-текст + **CSV-вложение** в MAX Bot API ([документация MAX](https://dev.max.ru/docs-api)): `POST /uploads` → `POST /messages` с `attachments` |
 
-Связанные документы: [корневой README](../README.md) (Docker, gateway, Reverb, E2E), [service-b-reports-strategy](../.cursor/rules/service-b-reports-strategy.mdc) (зафиксированные решения Strategy).
+**Связанные документы**
+
+| Документ | Назначение |
+|---|---|
+| [корневой README](../README.md) | Docker, gateway, Reverb, E2E, диагностика live-stats |
+| [service-b-reports-strategy](../.cursor/rules/service-b-reports-strategy.mdc) | Зафиксированные решения Strategy (не менять без запроса) |
+| [docs/plans/max-messenger-sales-outlets.md](../docs/plans/max-messenger-sales-outlets.md) | План и статус интеграции MAX |
+| [REFACTORING-CHECKLIST.md](./REFACTORING-CHECKLIST.md) | Чеклист рефакторинга Reports (фазы 0–8) |
+| [ORPHAN-FILES.md](./ORPHAN-FILES.md) | Аудит legacy/orphan (актуально: orphan в `app/` нет) |
+
+## Структура (ключевые каталоги)
+
+```
+service-b/
+├── app/
+│   ├── Contracts/Max/              # MaxMessengerClient, ReportMaxMessageSender
+│   ├── Contracts/SalesOutlets/     # Strategy, orchestrator, download, lifecycle
+│   ├── Domain/SalesOutlets/        # SalesOutletAsyncJob
+│   ├── Events/                     # SalesOutletReportJobMutated, ReportJobStatsChanged
+│   ├── Http/Controllers/Api/       # SalesOutletsReport*, Stats
+│   ├── Jobs/BuildSalesOutletsReportJob.php
+│   ├── Listeners/                  # broadcast stats, audit log
+│   ├── Services/Max/               # HttpMaxMessengerClient, LaravelReportMaxMessageSender
+│   └── Services/SalesOutlets/Reports/Strategies/
+│       ├── CsvDownloadReportStrategy.php
+│       ├── HtmlEmailReportStrategy.php
+│       └── MaxMessageReportStrategy.php   # extends AbstractSalesOutletsCsvReportStrategy
+├── config/sales_outlets_reports.php
+├── database/migrations/            # sales_outlet_report_jobs
+├── routes/api.php
+└── tests/                          # Feature + Unit (БД: sail_db_testing)
+```
+
+Shared-пакет: `../shared/sales-outlets-domain` (CSV writer, query filters, `AbstractStrategyReport`).
 
 ## API
 
@@ -47,6 +83,7 @@ Content-Type: application/json
 |---|---|
 | `csv_download` | Сохраняет CSV в файловом хранилище и делает доступным через `/download` |
 | `html_email` | Отправляет HTML-таблицу по email получателям из конфигурации |
+| `max_message` | Отправляет intro-текст и CSV-файл в чаты/диалоги MAX (`POST /uploads` + `POST /messages`) |
 
 Ответ `202 Accepted`:
 
@@ -98,6 +135,13 @@ X-User-Id: 123
       "completed": 7,
       "failed": 0,
       "total": 8
+    },
+    "max_message": {
+      "pending": 0,
+      "processing": 0,
+      "completed": 0,
+      "failed": 0,
+      "total": 0
     }
   },
   "generated_at": "2026-06-01T09:10:15+00:00"
@@ -248,10 +292,11 @@ final class NotifyOnReportJobFailure
 
 Единый Report API построен на Strategy + узких контрактах (ISP/DIP). Legacy-слой Export/Mail удалён; все отчёты идут через `SalesOutletsReportController` и `BuildSalesOutletsReportJob`.
 
-- Strategy-обработчики: `CsvDownloadReportStrategy`, `HtmlEmailReportStrategy`;
-- Очередь: `BuildSalesOutletsReportJob` (контейнер `service-b-queue`, `php artisan queue:work`);
+- Strategy-обработчики: `CsvDownloadReportStrategy`, `HtmlEmailReportStrategy`, `MaxMessageReportStrategy` (CSV build через `AbstractSalesOutletsCsvReportStrategy`);
+- MAX-интеграция: `HttpMaxMessengerClient` + `LaravelReportMaxMessageSender` (`app/Services/Max/`, `app/Contracts/Max/`);
+- Очередь: `BuildSalesOutletsReportJob` (контейнер `service-b-queue`, `php artisan queue:work --timeout=900 --tries=1`);
 - Shared domain: `shared/sales-outlets-domain` (CSV writer, query filters);
-- Хранилище задач: таблица `sales_outlet_report_jobs`, domain-модель `SalesOutletAsyncJob`;
+- Хранилище задач: таблица `sales_outlet_report_jobs`, Eloquent `SalesOutletReportJob`, domain `SalesOutletAsyncJob`;
 - Live-stats: domain event `SalesOutletReportJobMutated` → listeners → `ReportJobStatsChanged` (см. раздел выше).
 
 ### Поток обработки задачи
@@ -290,7 +335,7 @@ sequenceDiagram
 | Worker | `BuildSalesOutletsReportJob`, `SalesOutletsReportWorkerService` | `SalesOutletsReportProcessorWorkerInterface`, `SalesOutletsReportJobFailureHandlerInterface` |
 | Domain | `SalesOutletAsyncJob`, DTO, `AsyncJobStatus`, `SalesOutletsReportType` | — |
 | Infra | `EloquentSalesOutletsReportJobRepository`, `EloquentSalesOutletsReportStatsRepository`, `LocalReportFileStorage`, listeners | `SalesOutletsAsyncJobRepositoryInterface`, `EventDispatcherInterface` |
-| Integration | `ReportJobStatsChanged`, Reverb, Mailhog | Laravel broadcasting |
+| Integration | `ReportJobStatsChanged`, Reverb, Mailhog, `HttpMaxMessengerClient` | Broadcasting + MAX `https://platform-api.max.ru` |
 
 `SalesOutletsReportJobProcessor` — тонкая обёртка над orchestrator (точка входа для worker).
 
@@ -328,6 +373,7 @@ sequenceDiagram
 | корень | `apply_fake_delay_environments` | Окружения с искусственной задержкой (`local`, `testing`) |
 | `types.csv_download` | `fake_delay_seconds` | Задержка перед завершением CSV в dev |
 | `types.html_email` | `recipients`, `subject`, `fake_delay_seconds` | Email-получатели, тема и задержка |
+| `types.max_message` | `bot_access_token`, `chat_ids`, `user_ids`, `intro`, `max_text_length`, rate-limit/retry, `attachment_not_ready_retry_*` | MAX: токен, получатели, intro (≤4000), upload + messages |
 
 Переменные окружения:
 
@@ -342,13 +388,37 @@ sequenceDiagram
 | `BROADCAST_CONNECTION=reverb` | Live-stats (обязательно в Docker) |
 | `REVERB_HOST=reverb` | Внутри compose-сети (см. корневой `docker-compose.yml`) |
 | `MAIL_HOST=mailhog` | SMTP для `html_email` в dev |
+| `MAX_BOT_ACCESS_TOKEN` | Access token бота MAX (только в `.env`, не в git) |
+| `MAX_REPORT_CHAT_IDS` | Список `chat_id` через запятую |
+| `MAX_REPORT_USER_IDS` | Список `user_id` через запятую |
+| `MAX_REPORT_INTRO` | Текст сообщения (CSV прикрепляется отдельно) |
+| `MAX_MESSAGE_FAKE_DELAY_SECONDS` | Искусственная задержка `max_message` в `local`/`testing` |
 
 Для `html_email` в локальной среде используется Mailhog: `http://localhost:8025`.
 
+### Безопасность токена MAX
+
+- Токен передаётся **только** в заголовке `Authorization` ([обзор API](https://dev.max.ru/docs-api)); не логируется, не попадает в `error_message` job и не отдаётся на фронт.
+- Платформа может **отозвать** токен — все запросы вернут **401**; job завершается `failed` **без** автоматического retry.
+- Ротация: новый токен в кабинете MAX → обновить `MAX_BOT_ACCESS_TOKEN` в `.env` `service-b` → `php artisan config:clear` → перезапуск `service-b-queue`.
+
+### Лимиты MAX API (справочник для `max_message`)
+
+| Категория | Лимит | Поведение в сервисе |
+|---|---|---|
+| Intro-текст | ≤ **4000** символов | `MAX_REPORT_INTRO`; при превышении — `InvalidArgumentException` в `LaravelReportMaxMessageSender` |
+| Данные отчёта | без лимита 4000 | Полный CSV во вложении (`AbstractSalesOutletsCsvReportStrategy::build`) |
+| Rate limit | ~**30 rps** | `inter_recipient_delay_ms`; retry **429** / **503**; retry «attachment not ready» |
+| Auth | только `Authorization` | **401** → `MaxMessengerAuthException`, job `failed`, без retry |
+| Получатель | один `chat_id` **или** `user_id` на запрос | N получателей = N вызовов `POST /messages` (один upload на job) |
+| Формат | intro + CSV file | Имя файла: `objects-sales-outlets.csv` или `objects-sales-outlets-{userId}.csv` |
+
+Исходящий HTTPS из контейнера `service-b` к `https://platform-api.max.ru` обычно не требует доработок Docker.
+
 ## Пример: стратегия `xls_email` (XLS во вложении)
 
-> **Важно:** это архитектурный пример расширения (roadmap/blueprint), а не описание текущего обязательного production-флоу.  
-> Текущие рабочие типы отчётов в сервисе: `csv_download` и `html_email`.
+> **Важно:** это архитектурный пример расширения (roadmap/blueprint), а не реализованный тип.  
+> Production-типы: `csv_download`, `html_email`, `max_message` (см. `SalesOutletsReportType`).
 
 Цель: новый тип отчёта без правок `SalesOutletsReportJobProcessor` (OCP) — только enum, стратегия, DI и узкие расширения mail-слоя.
 
@@ -548,6 +618,99 @@ docker compose up -d service-b service-b-queue reverb redis mailhog
 
 Полный стек и первичная настройка — в [корневом README](../README.md).
 
+## Manual QA MAX (`max_message`)
+
+Ручная проверка выполняется **после** деплоя кода `max_message` на dev-стенд, с **реальным** ботом и токеном в `.env` контейнера `service-b` (значение **не** коммитить). Автотесты CI вызывают только `Http::fake` — сценарии ниже **не** входят в `php artisan test`.
+
+### Подготовка
+
+1. Бот добавлен в целевые чаты (`MAX_REPORT_CHAT_IDS`) и/или начат диалог для `user_id`.
+2. В `service-b/.env` заданы валидные `MAX_BOT_ACCESS_TOKEN`, минимум один непустой список `MAX_REPORT_CHAT_IDS` и/или `MAX_REPORT_USER_IDS`.
+3. Запущены: `service-b`, `service-b-queue`, `main-app`, `reverb`, `mailhog` (для сценария 6).
+4. Пользователь авторизован в `main-app`, открыта страница `/objects-sales-outlets-2` (Dark UI).
+
+Проверка конфигурации в контейнере (токен не выводить в лог/чат):
+
+```bash
+docker compose exec -T service-b php artisan tinker --execute="echo config('sales_outlets_reports.types.max_message.bot_access_token') !== '' ? 'token:set' : 'token:empty';"
+```
+
+### Чеклист (таблица)
+
+Заполняйте колонку **Факт** после прогона (дата, скрин/ссылка, OK/FAIL).
+
+| № | Сценарий | Действия | Ожидаемый результат | Факт |
+|---|---|---|---|---|
+| 1 | **Конфиг токена** | `tinker` / проверка `.env`: `MAX_BOT_ACCESS_TOKEN` не пуст | `token:set`; без токена job уйдёт в `failed` (401) | |
+| 2 | **CSV, мало данных** | UI: узкий фильтр (2–5 строк), 2–3 колонки → «Отправить в MAX»; poll до `completed` | В MAX: intro (`MAX_REPORT_INTRO`) + **CSV-вложение** с заголовками и строками | |
+| 3 | **Большой отчёт** | Широкий фильтр (много строк) → MAX | Тот же intro; CSV содержит **все** строки выборки; job `completed` | |
+| 4 | **401 — неверный/отозванный токен** | В `.env` подставить заведомо неверный `MAX_BOT_ACCESS_TOKEN` → `config:clear` → перезапуск queue → отправка с UI | Job `failed`; poll/UI: понятный текст (**без** значения токена), смысл «обновите MAX_BOT_ACCESS_TOKEN / обратитесь к администратору»; в логах `service-b` **нет** токена в URL/body | |
+| 5 | **Несколько `chat_id`** | `MAX_REPORT_CHAT_IDS=id1,id2` (оба чата с ботом), валидный токен → одна отправка с UI | **Оба** чата получили **одинаковое** сообщение (2 успешных `POST /messages`); при fail на первом получателе второй **не** должен получить сообщение (401) | |
+| 6 | **Сверка с MailHog** | Тот же фильтр и набор колонок: сначала «Отправить на почту» (`html_email`), затем «Отправить в MAX» | Данные в письме (HTML) и в CSV из MAX **совпадают** | |
+
+### Детальные шаги по ключевым сценариям
+
+#### 2. CSV-вложение в чате
+
+- В Network: `POST /objects-sales-outlets-2/max` с теми же `columns`, что в таблице UI.
+- После `completed`: в MAX — intro-текст; скачать вложение `.csv` — UTF-8 BOM, заголовки и строки совпадают с `csv_download` при тех же фильтрах.
+
+#### 3. Большой объём данных
+
+- CSV-файл должен содержать полный набор строк (без усечения intro; лимит 4000 символов только на `MAX_REPORT_INTRO`).
+- При таймаутах queue увеличить `--timeout` worker (в compose уже 900 с).
+
+#### 4. Ошибка 401
+
+```bash
+# в service-b/.env: MAX_BOT_ACCESS_TOKEN=invalid-for-qa-only
+docker compose exec -T service-b php artisan config:clear
+docker compose restart service-b-queue
+```
+
+- Poll: `GET /objects-sales-outlets-2/max/{uuid}` → `status: failed`, `error_message` без подстроки токена.
+- Вернуть валидный токен после проверки.
+
+#### 5. Два `chat_id`
+
+```env
+MAX_REPORT_CHAT_IDS=123456789,987654321
+```
+
+- Оба ID из `GET /chats` или кабинета MAX; бот — участник обоих чатов.
+- Один клик «Отправить в MAX» → два сообщения с идентичным содержимым.
+
+#### 6. Сравнение с `html_email`
+
+1. MailHog: `http://localhost:8025` — открыть последнее письмо с HTML-таблицей.
+2. MAX — то же сообщение по фильтру.
+3. Сравнить первые строки и значения ячеек в CSV и в HTML-письме.
+
+### API-прогон без UI (опционально)
+
+Для изоляции `service-b` от `main-app`:
+
+```http
+POST /api/b/sales-outlets/reports
+X-User-Id: 1
+Content-Type: application/json
+
+{
+  "report_type": "max_message",
+  "columns": ["id", "shop", "status"]
+}
+```
+
+Далее `GET /api/b/sales-outlets/reports/{uuid}` до `completed` или `failed`.
+
+### Что не проверяется вручную в v1
+
+- Реальный burst **429** при 30+ rps (нагрузка).
+- Webhook / Long Polling входящих событий MAX.
+- HTML-таблица в теле MAX-сообщения (только intro + CSV).
+- Отдельная Artisan-команда проверки токена (`max:ping` не реализована).
+- Дополнительные форматы вложений (XLS) через MAX Upload API.
+
 ## Тесты
 
 ```bash
@@ -560,4 +723,15 @@ docker compose exec -T service-b php artisan test
 
 Тестовая БД: **`sail_db_testing`** (см. `phpunit.xml`, `.env.testing`). Не указывайте рабочую БД в тестовом окружении.
 
-Покрытие по областям: Report API (`SalesOutletsReportTest`), stats + domain events (`SalesOutletsReportStatsTest`), Strategy/registry/download, listeners broadcast/log, gateway auth.
+Покрытие по областям:
+
+| Область | Тесты |
+|---|---|
+| Report API (все `report_type`, в т.ч. `max_message` с `Http::fake`) | `tests/Feature/SalesOutletsReportTest.php` |
+| Live-stats + domain events | `tests/Feature/SalesOutletsReportStatsTest.php` |
+| Strategy / registry / download / orchestrator | `tests/Unit/*ReportStrategy*`, `*Orchestrator*`, `*Download*` |
+| MAX config keys | `tests/Unit/SalesOutletsReportsConfigKeysTest.php` |
+| Listeners broadcast / log | `tests/Unit/BroadcastReportJobStatsOnJobMutationTest.php`, `LogSalesOutletReportJobMutationTest.php` |
+| Gateway auth | `tests/Unit/TrustGatewayAuthTest.php` |
+
+Запуск в Docker (PHP 8.4+ в образе; локальный WSL PHP 8.3 для `artisan` не подходит — см. [REFACTORING-CHECKLIST](./REFACTORING-CHECKLIST.md)).
