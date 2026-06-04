@@ -45,7 +45,10 @@ class MaxHtmlTableMessageBuilderTest extends TestCase
         $rows = [];
 
         for ($i = 1; $i <= 100; $i++) {
-            $rows[] = ['id' => (string) $i, 'shop' => "Магазин {$i}"];
+            $rows[] = [
+                'id' => (string) $i,
+                'shop' => sprintf('Магазин №%03d — филиал', $i),
+            ];
         }
 
         $result = $this->builder->build(
