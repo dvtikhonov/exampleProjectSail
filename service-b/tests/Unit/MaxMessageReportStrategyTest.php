@@ -2,7 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Contracts\Max\MaxReportConfigProviderInterface;
 use App\Contracts\Max\ReportMaxMessageSenderInterface;
+use App\DTO\Max\MaxReportConfig;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsDownloadableReportStrategyInterface;
@@ -22,8 +24,6 @@ class MaxMessageReportStrategyTest extends TestCase
 {
     public function test_build_returns_csv_with_selected_columns(): void
     {
-        config(['sales_outlets_reports.types.max_message.intro' => 'Объекты продаж — отчёт']);
-
         $strategy = $this->makeStrategy(
             rows: [
                 ['id' => '5', 'shop' => 'Тула'],
@@ -47,8 +47,6 @@ class MaxMessageReportStrategyTest extends TestCase
 
     public function test_deliver_sends_intro_and_csv_via_max_sender(): void
     {
-        config(['sales_outlets_reports.types.max_message.intro' => 'Объекты продаж — отчёт']);
-
         $maxSender = $this->createMock(ReportMaxMessageSenderInterface::class);
         $maxSender
             ->expects($this->once())
@@ -59,7 +57,11 @@ class MaxMessageReportStrategyTest extends TestCase
                 'objects-sales-outlets-10.csv',
             );
 
-        $strategy = $this->makeStrategy(rows: [], maxSender: $maxSender);
+        $strategy = $this->makeStrategy(
+            rows: [],
+            maxSender: $maxSender,
+            intro: 'Объекты продаж — отчёт',
+        );
 
         $delivery = $strategy->deliver(
             $this->makeJob(),
@@ -89,6 +91,7 @@ class MaxMessageReportStrategyTest extends TestCase
     private function makeStrategy(
         iterable $rows,
         ?ReportMaxMessageSenderInterface $maxSender = null,
+        string $intro = '',
     ): MaxMessageReportStrategy {
         $dataRepository = $this->createMock(SalesOutletsDataRepositoryInterface::class);
         $dataRepository
@@ -106,7 +109,24 @@ class MaxMessageReportStrategyTest extends TestCase
             columnSelector: new SalesOutletColumnSelector($metadataRepository),
             csvWriter: new CsvReportWriter,
             maxMessageSender: $maxSender ?? $this->createMock(ReportMaxMessageSenderInterface::class),
+            maxReportConfig: $this->makeConfigProvider($intro),
         );
+    }
+
+    private function makeConfigProvider(string $intro): MaxReportConfigProviderInterface
+    {
+        $provider = $this->createMock(MaxReportConfigProviderInterface::class);
+        $provider->method('config')->willReturn(new MaxReportConfig(
+            chatIds: [12345],
+            userIds: [],
+            intro: $intro,
+            maxTextLength: 4000,
+            rateLimitRetryMax: 2,
+            rateLimitRetryDelayMs: 500,
+            interRecipientDelayMs: 50,
+        ));
+
+        return $provider;
     }
 
     private function makeJob(): SalesOutletAsyncJob

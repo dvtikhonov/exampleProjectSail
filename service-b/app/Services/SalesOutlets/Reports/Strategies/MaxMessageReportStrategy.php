@@ -2,6 +2,7 @@
 
 namespace App\Services\SalesOutlets\Reports\Strategies;
 
+use App\Contracts\Max\MaxReportConfigProviderInterface;
 use App\Contracts\Max\ReportMaxMessageSenderInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletsDataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletsReportProcessingStrategyInterface;
@@ -10,7 +11,6 @@ use App\DTO\SalesOutlets\ReportDeliveryResult;
 use App\Enums\SalesOutletsReportType;
 use App\Services\SalesOutlets\Reports\AbstractSalesOutletsCsvReportStrategy;
 use App\Services\SalesOutlets\SalesOutletColumnSelector;
-use App\Support\Config\SalesOutletsReportsConfigKeys;
 use Shared\SalesOutletsDomain\AbstractStrategy\CsvReportWriterInterface;
 
 class MaxMessageReportStrategy extends AbstractSalesOutletsCsvReportStrategy implements SalesOutletsReportProcessingStrategyInterface
@@ -20,6 +20,7 @@ class MaxMessageReportStrategy extends AbstractSalesOutletsCsvReportStrategy imp
         SalesOutletColumnSelector $columnSelector,
         CsvReportWriterInterface $csvWriter,
         private readonly ReportMaxMessageSenderInterface $maxMessageSender,
+        private readonly MaxReportConfigProviderInterface $maxReportConfig,
     ) {
         parent::__construct($dataRepository, $columnSelector, $csvWriter);
     }
@@ -31,11 +32,10 @@ class MaxMessageReportStrategy extends AbstractSalesOutletsCsvReportStrategy imp
 
     public function deliver(SalesOutletAsyncJob $job, string $content): ReportDeliveryResult
     {
+        $config = $this->maxReportConfig->config();
+
         $this->maxMessageSender->send(
-            text: trim((string) config(
-                SalesOutletsReportsConfigKeys::MAX_MESSAGE_INTRO,
-                'Объекты продаж — отчёт',
-            )),
+            text: trim($config->intro),
             csvContent: $content,
             fileName: $this->csvFileName($job),
         );
