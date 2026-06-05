@@ -2,8 +2,6 @@
 
 namespace App\DTO\SalesOutlets;
 
-use Illuminate\Http\Request;
-
 readonly class SalesOutletIndexQueryDto
 {
     /**
@@ -22,11 +20,12 @@ readonly class SalesOutletIndexQueryDto
     ) {}
 
     /**
+     * @param  array<string, mixed>  $validated
      * @param  array<int, string>  $allowedColumns
      */
-    public static function fromRequest(Request $request, array $allowedColumns): self
+    public static function fromValidated(array $validated, array $allowedColumns): self
     {
-        $requestedColumns = $request->query('columns');
+        $requestedColumns = $validated['columns'] ?? null;
         $columns = is_array($requestedColumns)
             ? array_values(array_intersect(array_map('strval', $requestedColumns), $allowedColumns))
             : $allowedColumns;
@@ -36,25 +35,24 @@ readonly class SalesOutletIndexQueryDto
         }
 
         return new self(
-            search: trim((string) $request->query('search', '')),
-            status: trim((string) $request->query('status', '')),
-            columnFilters: self::columnFilters($request, $allowedColumns),
-            sort: (string) $request->query('sort', 'id'),
-            direction: $request->query('direction') === 'desc' ? 'desc' : 'asc',
-            page: max((int) $request->query('page', 1), 1),
-            perPage: min(max((int) $request->query('per_page', 10), 5), 50),
+            search: trim((string) ($validated['search'] ?? '')),
+            status: trim((string) ($validated['status'] ?? '')),
+            columnFilters: self::columnFilters($validated['column_filters'] ?? [], $allowedColumns),
+            sort: (string) ($validated['sort'] ?? 'id'),
+            direction: ($validated['direction'] ?? 'asc') === 'desc' ? 'desc' : 'asc',
+            page: max((int) ($validated['page'] ?? 1), 1),
+            perPage: min(max((int) ($validated['per_page'] ?? 10), 5), 50),
             columns: $columns,
         );
     }
 
     /**
+     * @param  array<mixed>  $requestedFilters
      * @param  array<int, string>  $allowedColumns
      * @return array<string, string>
      */
-    private static function columnFilters(Request $request, array $allowedColumns): array
+    private static function columnFilters(array $requestedFilters, array $allowedColumns): array
     {
-        $requestedFilters = $request->query('column_filters', []);
-
         if (! is_array($requestedFilters)) {
             return [];
         }

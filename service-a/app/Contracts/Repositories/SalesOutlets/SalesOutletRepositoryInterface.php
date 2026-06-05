@@ -1,19 +1,18 @@
 <?php
 
-namespace App\Repositories\SalesOutlets;
+namespace App\Contracts\Repositories\SalesOutlets;
 
+use App\Domain\SalesOutlets\SalesOutlet;
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\DTO\SalesOutlets\UpdateSalesOutletDto;
-use App\Models\SalesOutlet;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface SalesOutletRepositoryInterface
 {
-    /**
-     * @param  array<int, string>  $allowedColumnKeys
-     */
-    public function paginate(SalesOutletIndexQueryDto $queryDto, array $allowedColumnKeys): LengthAwarePaginator;
+    public function findById(int $id): ?SalesOutlet;
+
+    public function paginate(SalesOutletIndexQueryDto $queryDto): LengthAwarePaginator;
 
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet;
 
