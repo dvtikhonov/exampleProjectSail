@@ -57,7 +57,41 @@ service-a/
     └── Unit/Shared/SalesOutletsDomain/...
 ```
 
-Слои: **Controller → FormRequest → DTO → Service → Repository → Model**. На границе service↔repository и в route binding используется domain object `App\Domain\SalesOutlets\SalesOutlet`; Eloquent-модель остаётся только в репозитории. Контракты в `app/Contracts/` не импортируют `App\Models\*`. Валидация HTTP — в `FormRequest` и `Rules`; бизнес-данные передаются через DTO. Фильтрация списка — через `Shared\SalesOutletsDomain\Query\SalesOutletQueryFilter` (singleton в DI). Метаданные колонок — из shared `SalesOutletColumns` через `SalesOutletsMetadataRepository`; UI-meta и `status_options` — через `SalesOutletTableMetaProviderInterface` и опциональный `config/sales_outlets.php`.
+### Слои
+
+```mermaid
+flowchart TB
+    subgraph http [HTTP]
+        CTRL[SalesOutletsController]
+        REQ["FormRequest + Rules"]
+        RESP["IndexResponse / RowPresenter"]
+    end
+
+    subgraph app [Application]
+        DTO[DTO]
+        SVC[SalesOutletService]
+    end
+
+    subgraph domain [Domain]
+        DOM["SalesOutlet (readonly)"]
+    end
+
+    subgraph infra [Infrastructure]
+        REPO[EloquentSalesOutletRepository]
+        MODEL["SalesOutlet (Eloquent)"]
+        QF["SalesOutletQueryFilter (shared)"]
+    end
+
+    CTRL --> REQ --> DTO --> SVC --> REPO --> MODEL
+    REPO <-->|SalesOutletModelMapper| DOM
+    DOM --> RESP
+    QF -.-> REPO
+```
+
+- На границе service↔repository и в route binding используется `App\Domain\SalesOutlets\SalesOutlet`; Eloquent-модель остаётся только в репозитории.
+- Контракты в `app/Contracts/` не импортируют `App\Models\*`.
+- Валидация HTTP — в `FormRequest` и `Rules`; бизнес-данные передаются через DTO.
+- Метаданные колонок — shared `SalesOutletColumns` через `SalesOutletsMetadataRepository`; UI-meta и `status_options` — через `SalesOutletTableMetaProviderInterface` и опциональный `config/sales_outlets.php`.
 
 ### Конфигурация (`config/sales_outlets.php`)
 
@@ -97,25 +131,39 @@ return [
 | `SalesOutletRepositoryInterface` | `EloquentSalesOutletRepository` |
 | `SalesOutletQueryFilter` (shared) | singleton |
 
-```text
-TrustGatewayAuth → GatewayUserResolver (X-User-Id → GatewayUserDto)
-                         ↓
-              LaravelGatewayAuthSession (Guard::login)
-                         ↓
-              RequestGatewayUserContext ($request->user()->id)
-                         ↓
-         EloquentSalesOutletRepository (update / delete → user_id)
+### Поток данных
 
-Route::bind('salesOutlet') → Repository::findById() → Domain\SalesOutlet
-                         ↓
-SalesOutletsController → FormRequest → DTO → SalesOutletService → Repository → Model
-                                    ↓                      ↓
-              SalesOutletsMetadataRepository          Domain\SalesOutlet
-              (shared SalesOutletColumns)                    ↓
-                                    ↓              SalesOutletRowPresenter → SalesOutletRowDto (shared)
-                    ConfigSalesOutletTableMetaProvider
-                                    ↓
-                    config/sales_outlets.php (опционально)
+```mermaid
+flowchart TB
+    subgraph auth [Gateway auth]
+        TG[TrustGatewayAuth]
+        GUR["GatewayUserResolver\nX-User-Id → GatewayUserDto"]
+        GAS["LaravelGatewayAuthSession\nGuard::login"]
+        GUC["RequestGatewayUserContext\nrequest->user()->id"]
+        TG --> GUR --> GAS --> GUC
+    end
+
+    subgraph bind [Route binding]
+        RB["Route::bind salesOutlet"]
+        FIND["Repository::findById()"]
+        RB --> FIND --> DOM["Domain\\SalesOutlet"]
+    end
+
+    subgraph meta [Meta списка]
+        MD["SalesOutletsMetadataRepository\nSalesOutletColumns (shared)"]
+        TMP[ConfigSalesOutletTableMetaProvider]
+        CFG["config/sales_outlets.php\n(опционально)"]
+        MD --> TMP
+        CFG --> TMP
+    end
+
+    GUC -.->|user_id при update/delete| REPO
+    CTRL[SalesOutletsController] --> REQ[FormRequest] --> DTO[DTO]
+    DTO --> SVC[SalesOutletService] --> REPO[EloquentSalesOutletRepository]
+    REPO --> DOM
+    DOM --> PRES[SalesOutletRowPresenter] --> ROW["SalesOutletRowDto (shared)"]
+    CTRL --> MD
+    CTRL --> TMP
 ```
 
 ## API
