@@ -2,27 +2,36 @@
 
 namespace Tests\Feature;
 
-use App\Models\SalesOutlet;
+use App\Http\Responses\GatewayUnauthorizedResponse;
+use App\Models\User;
 use Database\Seeders\SalesOutletSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
-use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 use Tests\TestCase;
 
 class SalesOutletsApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $gatewayUser;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->seed(SalesOutletSeeder::class);
+        $this->gatewayUser = User::factory()->create();
+    }
+
+    public function test_it_returns_unauthorized_without_gateway_header(): void
+    {
+        $this->getJson('/api/sales-outlets')
+            ->assertUnauthorized()
+            ->assertJson(['message' => GatewayUnauthorizedResponse::MESSAGE]);
     }
 
     public function test_it_returns_sales_outlets_list(): void
     {
-        $response = $this->getJson('/api/sales-outlets');
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets');
 
         $response
             ->assertOk()
@@ -36,7 +45,7 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_filters_by_status(): void
     {
-        $response = $this->getJson('/api/sales-outlets?status=approved');
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets?status=approved');
 
         $response
             ->assertOk()
@@ -46,7 +55,7 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_searches_sales_outlets(): void
     {
-        $response = $this->getJson('/api/sales-outlets?search=Фермер');
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets?search=Фермер');
 
         $response
             ->assertOk()
@@ -56,7 +65,7 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_applies_column_filters(): void
     {
-        $response = $this->getJson('/api/sales-outlets?column_filters[shop]=Белгород&column_filters[inn]=3118');
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets?column_filters[shop]=Белгород&column_filters[inn]=3118');
 
         $response
             ->assertOk()
@@ -66,7 +75,7 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_sorts_sales_outlets(): void
     {
-        $response = $this->getJson('/api/sales-outlets?sort=shop&direction=desc');
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets?sort=shop&direction=desc');
 
         $response
             ->assertOk()
@@ -76,7 +85,7 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_limits_per_page(): void
     {
-        $response = $this->getJson('/api/sales-outlets?per_page=2&page=2');
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets?per_page=2&page=2');
 
         $response
             ->assertOk()
@@ -86,12 +95,21 @@ class SalesOutletsApiTest extends TestCase
             ->assertJsonPath('meta.pagination.from', 6);
     }
 
+    public function test_it_validates_sales_outlets_index_query(): void
+    {
+        $response = $this->withGatewayUser()->getJson('/api/sales-outlets?status=archived&sort=unknown&direction=sideways&columns[]=bad');
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['status', 'sort', 'direction', 'columns.0']);
+    }
+
     public function test_it_updates_head_organization(): void
     {
-        $userId = 12345;
+        $userId = $this->gatewayUser->id;
 
         $response = $this
-            ->withHeader('X-User-Id', (string) $userId)
+            ->withGatewayUser()
             ->postJson('/api/sales-outlets/1001/head-organization', [
                 'head_organization' => 'Новая головная организация',
                 'head_organization_type' => 'АО',
@@ -115,10 +133,10 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_updates_sales_outlet(): void
     {
-        $userId = 12345;
+        $userId = $this->gatewayUser->id;
 
         $response = $this
-            ->withHeader('X-User-Id', (string) $userId)
+            ->withGatewayUser()
             ->patchJson('/api/sales-outlets/1001', [
                 'shop' => 'Воронеж',
                 'manager' => 'Новый менеджер',
@@ -172,17 +190,19 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_validates_sales_outlet_update(): void
     {
-        $response = $this->patchJson('/api/sales-outlets/1001', [
-            'shop' => '',
-            'manager' => '',
-            'curator' => '',
-            'name' => '',
-            'inn' => 'bad-inn',
-            'head_organization' => '',
-            'head_organization_type' => 'ЗАО',
-            'organization_name' => '',
-            'status' => 'archived',
-        ]);
+        $response = $this
+            ->withGatewayUser()
+            ->patchJson('/api/sales-outlets/1001', [
+                'shop' => '',
+                'manager' => '',
+                'curator' => '',
+                'name' => '',
+                'inn' => 'bad-inn',
+                'head_organization' => '',
+                'head_organization_type' => 'ЗАО',
+                'organization_name' => '',
+                'status' => 'archived',
+            ]);
 
         $response
             ->assertUnprocessable()
@@ -201,16 +221,18 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_returns_not_found_for_unknown_sales_outlet_on_update(): void
     {
-        $this->patchJson('/api/sales-outlets/999999', $this->updateSalesOutletData())
+        $this
+            ->withGatewayUser()
+            ->patchJson('/api/sales-outlets/999999', $this->updateSalesOutletData())
             ->assertNotFound();
     }
 
     public function test_it_soft_deletes_sales_outlet_and_stores_last_user(): void
     {
-        $userId = 12345;
+        $userId = $this->gatewayUser->id;
 
         $this
-            ->withHeader('X-User-Id', (string) $userId)
+            ->withGatewayUser()
             ->deleteJson('/api/sales-outlets/1001')
             ->assertNoContent();
 
@@ -220,26 +242,12 @@ class SalesOutletsApiTest extends TestCase
         ]);
     }
 
-    public function test_it_automatically_stores_gateway_user_header_on_sales_outlet_create(): void
-    {
-        $userId = 12345;
-
-        request()->attributes->set('gateway_user_id', $userId);
-
-        $salesOutlet = SalesOutlet::query()->create($this->newSalesOutletData());
-
-        $this->assertDatabaseHas('sales_outlets', [
-            'id' => $salesOutlet->id,
-            'user_id' => $userId,
-        ]);
-    }
-
     public function test_it_automatically_stores_gateway_user_header_on_sales_outlet_update(): void
     {
-        $userId = 12345;
+        $userId = $this->gatewayUser->id;
 
         $response = $this
-            ->withHeader('X-User-Id', (string) $userId)
+            ->withGatewayUser()
             ->postJson('/api/sales-outlets/1001/head-organization', [
                 'head_organization' => 'Головная через gateway',
                 'head_organization_type' => 'ООО',
@@ -258,10 +266,12 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_validates_head_organization_update(): void
     {
-        $response = $this->postJson('/api/sales-outlets/1001/head-organization', [
-            'head_organization' => '',
-            'head_organization_type' => 'ЗАО',
-        ]);
+        $response = $this
+            ->withGatewayUser()
+            ->postJson('/api/sales-outlets/1001/head-organization', [
+                'head_organization' => '',
+                'head_organization_type' => 'ЗАО',
+            ]);
 
         $response
             ->assertUnprocessable()
@@ -270,29 +280,17 @@ class SalesOutletsApiTest extends TestCase
 
     public function test_it_returns_not_found_for_unknown_sales_outlet_on_head_organization_update(): void
     {
-        $this->postJson('/api/sales-outlets/999999/head-organization', [
-            'head_organization' => 'Новая головная организация',
-            'head_organization_type' => 'ООО',
-        ])->assertNotFound();
+        $this
+            ->withGatewayUser()
+            ->postJson('/api/sales-outlets/999999/head-organization', [
+                'head_organization' => 'Новая головная организация',
+                'head_organization_type' => 'ООО',
+            ])->assertNotFound();
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function newSalesOutletData(): array
+    private function withGatewayUser(): static
     {
-        return [
-            'shop' => 'Москва',
-            'manager' => 'Иванов И. И.',
-            'curator' => 'Петров П. П.',
-            'name' => 'Новая точка',
-            'inn' => '7701234567',
-            'head_organization' => 'ООО Новая точка',
-            'head_organization_type' => HeadOrganizationType::LimitedLiabilityCompany,
-            'organization_name' => 'ООО Новая точка',
-            'status' => SalesOutletStatus::Review,
-            'approved' => 'Частично',
-        ];
+        return $this->withHeader('X-User-Id', (string) $this->gatewayUser->id);
     }
 
     /**

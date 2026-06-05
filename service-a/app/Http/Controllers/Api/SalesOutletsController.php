@@ -2,46 +2,47 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
-use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
-use App\DTO\SalesOutlets\UpdateSalesOutletDto;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
+use App\Contracts\SalesOutlets\SalesOutletServiceInterface;
+use App\Contracts\SalesOutlets\SalesOutletTableMetaProviderInterface;
+use App\Domain\SalesOutlets\SalesOutlet;
 use App\Http\Controllers\Controller;
-use App\Models\SalesOutlet;
-use App\Services\SalesOutlets\SalesOutletServiceInterface;
+use App\Http\Requests\SalesOutlets\IndexSalesOutletsRequest;
+use App\Http\Requests\SalesOutlets\UpdateHeadOrganizationRequest;
+use App\Http\Requests\SalesOutlets\UpdateSalesOutletRequest;
+use App\Http\Responses\SalesOutletIndexResponse;
+use App\Presentation\SalesOutlets\SalesOutletRowPresenter;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class SalesOutletsController extends Controller
 {
     public function __construct(
         private readonly SalesOutletServiceInterface $salesOutletService,
+        private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
+        private readonly SalesOutletTableMetaProviderInterface $tableMetaProvider,
     ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(IndexSalesOutletsRequest $request): JsonResponse
     {
-        $queryDto = SalesOutletIndexQueryDto::fromRequest(
-            request: $request,
-            allowedColumns: $this->salesOutletService->allowedColumnKeys(),
-        );
-
-        return response()->json($this->salesOutletService->index($queryDto));
-    }
-
-    public function update(Request $request, SalesOutlet $salesOutlet): JsonResponse
-    {
-        $dto = UpdateSalesOutletDto::fromRequest($request);
+        $queryDto = $request->toQueryDto($this->metadataRepository);
+        $result = $this->salesOutletService->index($queryDto);
 
         return response()->json(
-            $this->salesOutletService->update($salesOutlet, $dto)->toArray(),
+            SalesOutletIndexResponse::from($result, $this->tableMetaProvider),
         );
     }
 
-    public function updateHeadOrganization(Request $request, SalesOutlet $salesOutlet): JsonResponse
+    public function update(UpdateSalesOutletRequest $request, SalesOutlet $salesOutlet): JsonResponse
     {
-        $dto = UpdateHeadOrganizationDto::fromRequest($request);
-
         return response()->json(
-            $this->salesOutletService->updateHeadOrganization($salesOutlet, $dto)->toArray(),
+            SalesOutletRowPresenter::fromDomain($this->salesOutletService->update($salesOutlet, $request->toDto()))->toArray(),
+        );
+    }
+
+    public function updateHeadOrganization(UpdateHeadOrganizationRequest $request, SalesOutlet $salesOutlet): JsonResponse
+    {
+        return response()->json(
+            SalesOutletRowPresenter::fromDomain($this->salesOutletService->updateHeadOrganization($salesOutlet, $request->toDto()))->toArray(),
         );
     }
 

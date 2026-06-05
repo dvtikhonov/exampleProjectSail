@@ -2,29 +2,36 @@
 
 namespace App\Repositories\SalesOutlets;
 
+use App\Contracts\Auth\GatewayUserContextInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletRepositoryInterface;
+use App\Domain\SalesOutlets\SalesOutlet;
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\DTO\SalesOutlets\UpdateSalesOutletDto;
-use App\Models\SalesOutlet;
+use App\Models\SalesOutlet as SalesOutletModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
-// todo временно отключили Shared
 use Shared\SalesOutletsDomain\Query\SalesOutletQueryFilter;
-
-// use App\QueryDebug\SalesOutletQueryFilter;
 
 class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
 {
     public function __construct(
-        private readonly SalesOutletQueryFilter $queryFilter = new SalesOutletQueryFilter,
+        private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
+        private readonly SalesOutletQueryFilter $queryFilter,
+        private readonly GatewayUserContextInterface $gatewayUserContext,
     ) {}
 
-    /**
-     * @param  array<int, string>  $allowedColumnKeys
-     */
-    public function paginate(SalesOutletIndexQueryDto $queryDto, array $allowedColumnKeys): LengthAwarePaginator
+    public function findById(int $id): ?SalesOutlet
     {
-        $query = SalesOutlet::query();
+        $model = SalesOutletModel::query()->find($id);
+
+        return $model !== null ? SalesOutletModelMapper::toDomain($model) : null;
+    }
+
+    public function paginate(SalesOutletIndexQueryDto $queryDto): LengthAwarePaginator
+    {
+        $query = SalesOutletModel::query();
 
         $this->queryFilter->apply(
             query: $query,
@@ -35,7 +42,7 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
                 sort: $queryDto->sort,
                 direction: $queryDto->direction,
             ),
-            allowedColumnKeys: $allowedColumnKeys,
+            allowedColumnKeys: $this->metadataRepository->allowedColumnKeys(),
         );
 
         return $query->paginate(
@@ -43,22 +50,20 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
             columns: ['*'],
             pageName: 'page',
             page: $queryDto->page,
-        );
+        )->through(fn (SalesOutletModel $model): SalesOutlet => SalesOutletModelMapper::toDomain($model));
     }
 
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet
     {
-        $salesOutlet->forceFill([
+        return $this->persist($salesOutlet, [
             'head_organization' => $dto->headOrganization,
             'head_organization_type' => $dto->headOrganizationType,
-        ])->save();
-
-        return $salesOutlet->refresh();
+        ]);
     }
 
     public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutlet
     {
-        $salesOutlet->forceFill([
+        return $this->persist($salesOutlet, [
             'shop' => $dto->shop,
             'manager' => $dto->manager,
             'curator' => $dto->curator,
@@ -68,13 +73,49 @@ class EloquentSalesOutletRepository implements SalesOutletRepositoryInterface
             'head_organization_type' => $dto->headOrganizationType,
             'organization_name' => $dto->organizationName,
             'status' => $dto->status,
-        ])->save();
-
-        return $salesOutlet->refresh();
+        ]);
     }
 
     public function delete(SalesOutlet $salesOutlet): void
     {
-        $salesOutlet->delete();
+        $model = $this->resolveModel($salesOutlet);
+        $userId = $this->gatewayUserContext->currentUserId();
+
+        if ($userId !== null) {
+            $model->forceFill(['user_id' => $userId])->saveQuietly();
+        }
+
+        $model->delete();
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function persist(SalesOutlet $salesOutlet, array $attributes): SalesOutlet
+    {
+        $model = $this->resolveModel($salesOutlet);
+        $model->forceFill($attributes);
+        $this->applyGatewayUserId($model);
+        $model->save();
+
+        return SalesOutletModelMapper::toDomain($model->refresh());
+    }
+
+    private function resolveModel(SalesOutlet $salesOutlet): SalesOutletModel
+    {
+        return SalesOutletModel::query()->findOrFail($salesOutlet->id);
+    }
+
+    private function applyGatewayUserId(SalesOutletModel $salesOutlet): void
+    {
+        $userId = $this->gatewayUserContext->currentUserId();
+
+        if ($userId === null) {
+            return;
+        }
+
+        $salesOutlet->forceFill([
+            'user_id' => $userId,
+        ]);
     }
 }

@@ -5,6 +5,7 @@ namespace Shared\SalesOutletsDomain\Query;
 use Illuminate\Database\Eloquent\Builder;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
 use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
+use Shared\SalesOutletsDomain\Metadata\SalesOutletColumns;
 use Shared\SalesOutletsDomain\Query\SalesOutletFilterQuery\FilterQuerySalesOutletComposite;
 
 final class SalesOutletQueryFilter
@@ -15,41 +16,6 @@ final class SalesOutletQueryFilter
     {
         $this->filterQuerySalesOutletComposite = app(FilterQuerySalesOutletComposite::class, []);
     }
-
-    /**
-     * @var array<int, string>
-     */
-    private const SEARCH_COLUMNS = [
-        'id',
-        'shop',
-        'manager',
-        'curator',
-        'name',
-        'inn',
-        'head_organization',
-        'head_organization_type',
-        'organization_name',
-        'approved',
-        'user_id',
-    ];
-
-    /**
-     * @var array<string, string>
-     */
-    private const SORT_COLUMNS = [
-        'id' => 'id',
-        'shop' => 'shop',
-        'manager' => 'manager',
-        'curator' => 'curator',
-        'name' => 'name',
-        'inn' => 'inn',
-        'head_organization' => 'head_organization',
-        'head_organization_type' => 'head_organization_type',
-        'organization_name' => 'organization_name',
-        'status_label' => 'status',
-        'approved' => 'approved',
-        'user_id' => 'user_id',
-    ];
 
     /**
      * @param  array<int, string>  $allowedColumnKeys
@@ -90,8 +56,10 @@ final class SalesOutletQueryFilter
             return;
         }
 
-        $query->where(function (Builder $query) use ($search): void {
-            foreach (self::SEARCH_COLUMNS as $column) {
+        $searchColumns = SalesOutletColumns::searchableDbColumns();
+
+        $query->where(function (Builder $query) use ($search, $searchColumns): void {
+            foreach ($searchColumns as $column) {
                 $query->orWhere($column, 'like', '%'.$search.'%');
             }
         });
@@ -99,34 +67,8 @@ final class SalesOutletQueryFilter
 
     private function applySort(Builder $query, string $sort, string $direction): void
     {
-        $query->orderBy(self::SORT_COLUMNS[$sort] ?? 'id', $direction);
-    }
+        $sortColumns = SalesOutletColumns::sortColumnMap();
 
-    private function whereLike(Builder $query, string $column, string $value): void
-    {
-        if ($column === 'status_label') {
-            $query->whereIn('status', $this->statusesByLabel($value));
-
-            return;
-        }
-
-        $query->where($column, 'like', '%'.$value.'%');
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function statusesByLabel(string $value): array
-    {
-        return array_values(array_map(
-            fn (SalesOutletStatus $status): string => $status->value,
-            array_filter(
-                SalesOutletStatus::cases(),
-                fn (SalesOutletStatus $status): bool => str_contains(
-                    mb_strtolower($status->label()),
-                    mb_strtolower($value),
-                ),
-            ),
-        ));
+        $query->orderBy($sortColumns[$sort] ?? 'id', $direction);
     }
 }
