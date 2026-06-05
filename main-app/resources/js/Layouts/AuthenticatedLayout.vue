@@ -5,7 +5,7 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { getApiToken } from '@/Services/apiToken';
+import { clearApiToken, getApiToken } from '@/Services/apiToken';
 import { Link } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
@@ -16,6 +16,10 @@ const fetchApiToken = async () => {
     } catch (error) {
         console.error('Error fetching token:', error);
     }
+};
+
+const logout = () => {
+    clearApiToken();
 };
 
 fetchApiToken();
@@ -110,6 +114,7 @@ fetchApiToken();
                                             :href="route('logout')"
                                             method="post"
                                             as="button"
+                                            @click="logout"
                                         >
                                             Log Out
                                         </DropdownLink>
@@ -213,6 +218,7 @@ fetchApiToken();
                                 :href="route('logout')"
                                 method="post"
                                 as="button"
+                                @click="logout"
                             >
                                 Log Out
                             </ResponsiveNavLink>

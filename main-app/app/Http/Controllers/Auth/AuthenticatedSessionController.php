@@ -36,7 +36,8 @@ class AuthenticatedSessionController extends Controller
         // 3. Получаем аутентифицированного пользователя
         $user = $request->user();
 
-        // 4. Создаём Passport-токен и сохраняем в сессию
+        // 4. Создаём свежий Passport-токен и сохраняем в сессию
+        $user->tokens()->delete();
         $token = $user->createTokenForSession();
         session(['passport_token' => $token]);
 
