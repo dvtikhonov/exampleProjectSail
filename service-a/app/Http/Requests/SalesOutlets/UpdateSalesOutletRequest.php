@@ -26,9 +26,9 @@ class UpdateSalesOutletRequest extends FormRequest
             'manager' => ['required', 'string', 'max:255'],
             'curator' => ['required', 'string', 'max:255'],
             'name' => ['required', 'string', 'max:255'],
-            'inn' => ['required', 'string', new ValidRussianInn()],
+            'inn' => ['required', 'string', new ValidRussianInn],
             'head_organization' => ['required', 'string', 'max:255'],
-            'head_organization_type' => ['required', 'string', new ValidHeadOrganizationType()],
+            'head_organization_type' => ['required', 'string', new ValidHeadOrganizationType],
             'organization_name' => ['required', 'string', 'max:255'],
             'status' => [
                 'required',

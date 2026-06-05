@@ -20,7 +20,7 @@ class UpdateHeadOrganizationRequest extends FormRequest
     {
         return [
             'head_organization' => ['required', 'string', 'max:255'],
-            'head_organization_type' => ['required', 'string', new ValidHeadOrganizationType()],
+            'head_organization_type' => ['required', 'string', new ValidHeadOrganizationType],
         ];
     }
 

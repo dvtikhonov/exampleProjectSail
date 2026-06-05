@@ -3,8 +3,8 @@
 namespace App\Http\Responses;
 
 use App\Contracts\SalesOutlets\SalesOutletTableMetaProviderInterface;
-use App\DTO\SalesOutlets\SalesOutletIndexResultDto;
 use App\Domain\SalesOutlets\SalesOutlet;
+use App\DTO\SalesOutlets\SalesOutletIndexResultDto;
 use App\Presentation\SalesOutlets\SalesOutletRowPresenter;
 
 final class SalesOutletIndexResponse

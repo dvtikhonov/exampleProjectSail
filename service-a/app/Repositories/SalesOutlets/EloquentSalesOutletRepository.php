@@ -3,8 +3,8 @@
 namespace App\Repositories\SalesOutlets;
 
 use App\Contracts\Auth\GatewayUserContextInterface;
-use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletRepositoryInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Domain\SalesOutlets\SalesOutlet;
 use App\DTO\SalesOutlets\SalesOutletIndexQueryDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;

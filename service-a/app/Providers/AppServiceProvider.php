@@ -5,8 +5,8 @@ namespace App\Providers;
 use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserContextInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
-use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\Repositories\SalesOutlets\SalesOutletRepositoryInterface;
+use App\Contracts\Repositories\SalesOutlets\SalesOutletsMetadataRepositoryInterface;
 use App\Contracts\SalesOutlets\SalesOutletServiceInterface;
 use App\Contracts\SalesOutlets\SalesOutletTableMetaProviderInterface;
 use App\Models\SalesOutlet as SalesOutletModel;
@@ -47,7 +47,7 @@ class AppServiceProvider extends ServiceProvider
         Route::bind('salesOutlet', function (string $value) {
             $outlet = app(SalesOutletRepositoryInterface::class)->findById((int) $value);
 
-            return $outlet ?? throw (new ModelNotFoundException())->setModel(SalesOutletModel::class, [$value]);
+            return $outlet ?? throw (new ModelNotFoundException)->setModel(SalesOutletModel::class, [$value]);
         });
     }
 }
