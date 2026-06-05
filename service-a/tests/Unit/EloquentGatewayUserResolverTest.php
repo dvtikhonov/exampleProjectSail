@@ -44,10 +44,25 @@ class EloquentGatewayUserResolverTest extends TestCase
         $this->assertNull($dto);
     }
 
-    public function test_returns_null_when_user_not_found(): void
+    public function test_provisions_user_when_gateway_header_has_unknown_id(): void
     {
         $request = Request::create('/');
-        $request->headers->set('X-User-Id', '999999');
+        $request->headers->set('X-User-Id', '4242');
+
+        $dto = (new EloquentGatewayUserResolver)->resolveFromRequest($request);
+
+        $this->assertInstanceOf(GatewayUserDto::class, $dto);
+        $this->assertSame(4242, $dto->user->id);
+        $this->assertDatabaseHas('users', [
+            'id' => 4242,
+            'email' => 'gateway-user-4242@gateway.local',
+        ]);
+    }
+
+    public function test_returns_null_when_header_is_not_numeric(): void
+    {
+        $request = Request::create('/');
+        $request->headers->set('X-User-Id', 'abc');
 
         $dto = (new EloquentGatewayUserResolver)->resolveFromRequest($request);
 
