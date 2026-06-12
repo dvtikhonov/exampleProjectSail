@@ -2,12 +2,14 @@
 
 namespace Tests\Unit;
 
-use App\DTO\Max\MaxMessageDto;
-use App\Exceptions\Max\MaxMessengerAuthException;
-use App\Exceptions\Max\MaxMessengerRateLimitException;
-use App\Exceptions\Max\MaxMessengerRequestException;
-use App\Exceptions\Max\MaxMessengerUnavailableException;
-use App\Services\Max\HttpMaxMessengerClient;
+use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
+use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
+use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
+use Shared\MaxMessenger\DTO\MaxMessageDto;
+use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
+use Shared\MaxMessenger\Exceptions\MaxMessengerRateLimitException;
+use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
+use Shared\MaxMessenger\Exceptions\MaxMessengerUnavailableException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -216,6 +218,146 @@ class HttpMaxMessengerClientTest extends TestCase
         Http::assertSent(function ($request): bool {
             return str_contains($request->url(), 'fu.test.example/upload')
                 && str_contains((string) $request->body(), 'Курск');
+        });
+    }
+
+    public function test_send_inline_keyboard_message_includes_open_app_button(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+        $client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
+            text: 'Откройте mini-app:',
+            buttonRows: [[
+                new MaxInlineKeyboardButtonDto(
+                    text: 'Заказ еды',
+                    type: 'open_app',
+                    webApp: 'https://example.test/max-app',
+                ),
+            ]],
+            chatId: 321,
+        ));
+
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request): bool {
+            $buttons = $request['attachments'][0]['payload']['buttons'] ?? [];
+
+            return str_contains($request->url(), 'chat_id=321')
+                && ($buttons[0][0]['type'] ?? null) === 'open_app'
+                && ($buttons[0][0]['text'] ?? null) === 'Заказ еды'
+                && ($buttons[0][0]['web_app'] ?? null) === 'https://example.test/max-app'
+                && ! array_key_exists('payload', $buttons[0][0]);
+        });
+    }
+
+    public function test_send_inline_keyboard_message_includes_open_app_contact_id(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+        $client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
+            text: 'Откройте mini-app:',
+            buttonRows: [[
+                new MaxInlineKeyboardButtonDto(
+                    text: 'Заказ еды',
+                    type: 'open_app',
+                    webApp: 'https://example.test/max-app',
+                    contactId: 421816864057,
+                ),
+            ]],
+            chatId: 321,
+        ));
+
+        Http::assertSent(function ($request): bool {
+            $buttons = $request['attachments'][0]['payload']['buttons'] ?? [];
+
+            return ($buttons[0][0]['contact_id'] ?? null) === 421816864057;
+        });
+    }
+
+    public function test_send_inline_keyboard_message_includes_callback_buttons(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+        $client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
+            text: 'Привет! Выберите ответ:',
+            buttonRows: [[
+                new MaxInlineKeyboardButtonDto(text: 'да', payload: 'yes'),
+                new MaxInlineKeyboardButtonDto(text: 'нет', payload: 'no'),
+            ]],
+            chatId: 123,
+        ));
+
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request): bool {
+            $attachments = $request['attachments'] ?? [];
+            $buttons = $attachments[0]['payload']['buttons'] ?? [];
+
+            return str_contains($request->url(), 'chat_id=123')
+                && $request->hasHeader('Authorization', self::TOKEN)
+                && $request['text'] === 'Привет! Выберите ответ:'
+                && ($attachments[0]['type'] ?? null) === 'inline_keyboard'
+                && ($buttons[0][0]['type'] ?? null) === 'callback'
+                && ($buttons[0][0]['text'] ?? null) === 'да'
+                && ($buttons[0][0]['payload'] ?? null) === 'yes'
+                && ($buttons[0][1]['text'] ?? null) === 'нет'
+                && ($buttons[0][1]['payload'] ?? null) === 'no';
+        });
+    }
+
+    public function test_answer_callback_posts_to_answers_endpoint(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response([], 200),
+        ]);
+
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+        $client->answerCallback('cb-123', notification: 'Спасибо!');
+
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), '/answers')
+                && str_contains($request->url(), 'callback_id=cb-123')
+                && $request->hasHeader('Authorization', self::TOKEN)
+                && ($request['notification'] ?? null) === 'Спасибо!';
+        });
+    }
+
+    public function test_answer_callback_with_message_text_updates_chat_message(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response([], 200),
+        ]);
+
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+        $client->answerCallback('cb-789', messageText: 'Вы нажали кнопку: да');
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'callback_id=cb-789')
+                && ($request['message']['text'] ?? null) === 'Вы нажали кнопку: да'
+                && ! isset($request['notification']);
+        });
+    }
+
+    public function test_answer_callback_without_notification_sends_empty_body(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response([], 200),
+        ]);
+
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+        $client->answerCallback('cb-456');
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'callback_id=cb-456')
+                && $request->data() === [];
         });
     }
 }

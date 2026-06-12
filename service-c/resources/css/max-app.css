@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+@source '../**/*.blade.php';
+@source '../js/max-app/**/*.vue';
+@source '../js/max-app/**/*.js';
+
+@theme {
+    --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --color-max-primary: #2688eb;
+    --color-max-primary-hover: #1a6fc9;
+    --color-max-surface: #f5f6f8;
+    --color-max-card: #ffffff;
+    --color-max-text: #1a1a1a;
+    --color-max-muted: #6b7280;
+}
+
+body.max-app-body {
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+}
+
+.safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+}
+
+.safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}

@@ -706,10 +706,79 @@ Content-Type: application/json
 ### Что не проверяется вручную в v1
 
 - Реальный burst **429** при 30+ rps (нагрузка).
-- Webhook / Long Polling входящих событий MAX.
 - HTML-таблица в теле MAX-сообщения (только intro + CSV).
 - Отдельная Artisan-команда проверки токена (`max:ping` не реализована).
 - Дополнительные форматы вложений (XLS) через MAX Upload API.
+
+## Стенд UI MAX (приветствие + кнопки + messMax)
+
+Отдельный модуль для проверки **входящих** событий MAX: inline-клавиатура «да»/«нет», webhook `message_callback` / `bot_started`, лог канала `messMax`. **Не связан** с отчётами `max_message` (Strategy sales outlets).
+
+| Отличие | `max_message` (отчёты) | Стенд UI MAX |
+|---|---|---|
+| Направление | Исходящее: CSV + intro | Входящее: webhook + ответ на кнопки |
+| Лог | default-канал (HTTP debug) | **только** `Log::channel('messMax')` → `storage/logs/messMax.log` |
+| Получатели | `MAX_REPORT_CHAT_IDS` / `MAX_REPORT_USER_IDS` | Те же env (reuse) |
+| Токен бота | `MAX_BOT_ACCESS_TOKEN` | Тот же |
+| Gateway | Через `nginx-gateway` (`/api/b/...`) | **Напрямую** на `service-b:8082` (`POST /api/webhooks/max`) |
+
+Конфиг: `config/max_ui_stand.php`. Ключевые env: `MAX_UI_STAND_GREETING`, `MAX_WEBHOOK_URL`, `MAX_WEBHOOK_SECRET` (минимум 5 символов).
+
+MAX требует **HTTPS:443** для webhook — в dev нужен публичный HTTPS-туннель на порт `SERVICE_B_PORT` (по умолчанию **8082**).
+
+В РФ **ngrok**, **VK Tunnel** (закрыт с 10.2025) и **cloudflared Quick Tunnel** (`trycloudflare.com`) часто недоступны. Рекомендуется **fxTunnel**:
+
+```bash
+curl -fsSL https://fxtun.ru/install.sh | sh
+export FXTUN_TOKEN=sk_...   # https://fxtun.ru → личный кабинет
+./scripts/fxtun-tunnel.sh
+# MAX_WEBHOOK_URL=https://<субдомен>.fxtun.ru/api/webhooks/max
+```
+
+Запасной вариант — **cloudflared** (если `api.trycloudflare.com` открывается, или через VPN):
+
+```bash
+./scripts/cloudflared-tunnel.sh install
+./scripts/cloudflared-tunnel.sh
+```
+
+### Чеклист QA (ручная проверка)
+
+| Шаг | Действие | Ожидаемый результат |
+|---|---|---|
+| 1 | `./scripts/fxtun-tunnel.sh` (или cloudflared/VPN) | Публичный HTTPS URL |
+| 2 | В `service-b/.env`: `MAX_WEBHOOK_URL=https://<host>/api/webhooks/max`, `MAX_WEBHOOK_SECRET=...` (≥5 символов), `MAX_BOT_ACCESS_TOKEN`, `MAX_REPORT_CHAT_IDS` и/или `MAX_REPORT_USER_IDS` | Конфиг загружен |
+| 3 | `docker compose exec -T service-b php artisan max:webhook:subscribe` | Подписка на `message_callback`, `bot_started` |
+| 4 | `docker compose exec -T service-b php artisan max:ui-stand:send` | В MAX: приветствие + кнопки «да» / «нет» |
+| 5 | Нажать кнопку в MAX | В `messMax.log`: `MAX button clicked`, `answer`: «да» или «нет» |
+| 6 | `docker compose exec -T service-b tail -f storage/logs/messMax.log` | События стенда без токена бота |
+
+Пример команд:
+
+```bash
+# 0. Установка cloudflared (один раз, из корня репозитория)
+./scripts/cloudflared-tunnel.sh install
+# Скрипт качает .deb с pkg.cloudflare.com (GitHub в РФ часто недоступен).
+# Вручную:
+# curl -L -o /tmp/cloudflared.deb \
+#   https://pkg.cloudflare.com/cloudflared/pool/main/c/cloudflared/cloudflared_2025.4.2_amd64.deb
+# mkdir -p /tmp/cf && dpkg-deb -x /tmp/cloudflared.deb /tmp/cf
+# cp /tmp/cf/usr/bin/cloudflared ~/.local/bin/cloudflared && chmod +x ~/.local/bin/cloudflared
+
+# 1. Туннель (в отдельном терминале; service-b должен быть запущен)
+./scripts/cloudflared-tunnel.sh
+# альтернатива через Docker:
+# CLOUDFLARED_USE_DOCKER=1 ./scripts/cloudflared-tunnel.sh
+
+# 2. Подписка и отправка приветствия (скопируйте HTTPS URL из вывода туннеля)
+docker compose exec -T service-b php artisan max:webhook:subscribe
+docker compose exec -T service-b php artisan max:ui-stand:send
+
+# 3. Просмотр лога стенда
+docker compose exec -T service-b tail -f storage/logs/messMax.log
+```
+
+Автотесты CI используют `Http::fake` и перехват `Log::channel('messMax')` — **без** реальных вызовов MAX API и без cloudflared.
 
 ## Тесты
 
@@ -733,5 +802,6 @@ docker compose exec -T service-b php artisan test
 | MAX config keys | `tests/Unit/SalesOutletsReportsConfigKeysTest.php` |
 | Listeners broadcast / log | `tests/Unit/BroadcastReportJobStatsOnJobMutationTest.php`, `LogSalesOutletReportJobMutationTest.php` |
 | Gateway auth | `tests/Unit/TrustGatewayAuthTest.php` |
+| Стенд UI MAX (inline keyboard, webhook, messMax) | `tests/Unit/MaxUiStandGreetingSenderTest.php`, `MaxCallbackHandlerTest.php`, `VerifyMaxWebhookSecretTest.php`, `tests/Feature/MaxWebhookControllerTest.php` |
 
 Запуск в Docker (PHP 8.4+ в образе; локальный WSL PHP 8.3 для `artisan` не подходит — см. [REFACTORING-CHECKLIST](./REFACTORING-CHECKLIST.md)).
