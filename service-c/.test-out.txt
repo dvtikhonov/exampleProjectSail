@@ -1,0 +1,638 @@
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Unit\AuthenticateMaxMiniAppTest[39m
+  [32;1m✓[39;22m[90m [39m[90mreturns unauthorized without bearer token[39m[90m                           [39m [90m0.29s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mpasses request with valid max miniapp token[39m[90m                         [39m [90m0.05s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mreturns unauthorized for expired token[39m[90m                              [39m [90m0.03s[39m  
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Unit\CartServiceTest[39m
+  [31;1m⨯[39;22m[90m [39m[90mget draft cart returns null when missing[39m[90m                            [39m [90m0.04s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item throws when dish not found[39m[90m                                 [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item creates cart with expected total[39m[90m                           [39m [90m0.03s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\EloquentGatewayUserResolverTest[39m
+  [32;1m✓[39;22m[90m [39m[90mreturns dto when user exists[39m[90m                                        [39m [90m0.06s[39m  
+  [32;1m✓[39;22m[90m [39m[90mreturns null when header missing[39m[90m                                    [39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mreturns null when header empty[39m[90m                                      [39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mprovisions user when not found[39m[90m                                      [39m [90m0.04s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\ExampleTest[39m
+  [32;1m✓[39;22m[90m [39m[90mthat true is true[39m[90m                                                   [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxAppRequestContextTest[39m
+  [32;1m✓[39;22m[90m [39m[90mis public tunnel request on fxtun subdomain[39m[90m                         [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mis not public tunnel request on localhost[39m[90m                           [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxCallbackHandlerTest[39m
+  [32;1m✓[39;22m[90m [39m[90myes payload logs da and answers callback[39m[90m                            [39m [90m0.05s[39m  
+  [32;1m✓[39;22m[90m [39m[90mno payload logs net and answers callback[39m[90m                            [39m [90m0.02s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxCallbackUpdateDtoTest[39m
+  [32;1m✓[39;22m[90m [39m[90mcallback update requires exactly one recipient[39m[90m                      [39m [90m0.02s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxMiniAppAccessLoggerTest[39m
+  [32;1m✓[39;22m[90m [39m[90mlog page request writes to mess max channel[39m[90m                         [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mlog auth request writes status without init data[39m[90m                    [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxOpenAppTargetResolverTest[39m
+  [32;1m✓[39;22m[90m [39m[90mresolve web app prefers explicit mini app url[39m[90m                       [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mresolve web app derives from webhook url[39m[90m                            [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mresolve contact id returns null when not configured[39m[90m                 [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxUiStandGreetingSenderTest[39m
+  [32;1m✓[39;22m[90m [39m[90msend posts inline keyboard payload for each recipient[39m[90m               [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90msend throws when no recipients configured[39m[90m                           [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90msend continues when one recipient fails[39m[90m                             [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90msend prefers mini app url over bot username[39m[90m                         [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90msend uses webhook origin when mini app url is not set[39m[90m               [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90msend uses max ru link when only bot username is set[39m[90m                 [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90msend to user posts only for given user id[39m[90m                           [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxUiStandSendCommandTest[39m
+  [32;1m✓[39;22m[90m [39m[90mcommand sends greeting via sender[39m[90m                                   [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mcommand returns failure when sender throws[39m[90m                          [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxWebAppInitDataValidatorTest[39m
+  [32;1m✓[39;22m[90m [39m[90mvalidates fixed fixture when auth date check is disabled for fixtur[39m[90m…[39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mvalidates fresh init data[39m[90m                                           [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mrejects tampered hash[39m[90m                                               [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mrejects expired auth date[39m[90m                                           [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mrejects duplicate parameter keys[39m[90m                                    [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mrejects missing user payload[39m[90m                                        [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mrejects when bot token is not configured[39m[90m                            [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mparses optional chat parameter[39m[90m                                      [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxWebhookSubscribeCommandTest[39m
+  [32;1m✓[39;22m[90m [39m[90mcommand registers subscription via subscriber[39m[90m                       [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mcommand returns failure when subscriber throws[39m[90m                      [39m [90m0.03s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxWebhookSubscriberTest[39m
+  [32;1m✓[39;22m[90m [39m[90msubscribe posts subscription payload to max api[39m[90m                     [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90msubscribe fails when webhook url is missing[39m[90m                         [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90msubscribe fails when webhook secret is too short[39m[90m                    [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90msubscribe fails when webhook url is not https[39m[90m                       [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90msubscribe fails when webhook secret has invalid characters[39m[90m          [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90msubscribe throws auth exception on 401[39m[90m                              [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90msubscribe throws request exception on 400[39m[90m                           [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90munsubscribe stale dev tunnels removes only trycloudflare urls[39m[90m       [39m [90m0.02s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\MaxWebhookUpdateRouterTest[39m
+  [32;1m✓[39;22m[90m [39m[90mbot started sends greeting only to event user[39m[90m                       [39m [90m0.03s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\TrustGatewayAuthTest[39m
+  [32;1m✓[39;22m[90m [39m[90mlogs in when resolver returns dto[39m[90m                                   [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mreturns unauthorized when resolver returns null[39m[90m                     [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Unit\VerifyMaxWebhookSecretTest[39m
+  [32;1m✓[39;22m[90m [39m[90mreturns unauthorized when secret header is wrong[39m[90m                    [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mreturns unauthorized when secret header is missing[39m[90m                  [39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mreturns unauthorized when configured secret is empty[39m[90m                [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mpasses request when secret matches[39m[90m                                  [39m [90m0.02s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\ExampleTest[39m
+  [32;1m✓[39;22m[90m [39m[90mgateway authenticated data endpoint returns user[39m[90m                    [39m [90m0.07s[39m  
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\FoodCartApiTest[39m
+  [31;1m⨯[39;22m[90m [39m[90mcart show returns null when no draft cart[39m[90m                           [39m [90m0.04s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item creates draft cart[39m[90m                                         [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item validates payload[39m[90m                                          [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item rejects unavailable dish[39m[90m                                   [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item rejects dish from another restaurant when cart exists[39m[90m      [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mupdate cart item quantity[39m[90m                                           [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mdelete cart item returns null cart when last item removed[39m[90m           [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mcart item operations reject foreign cart item[39m[90m                       [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90madd item increments existing dish quantity[39m[90m                          [39m [90m0.03s[39m  
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\FoodOrderApiTest[39m
+  [32;1m✓[39;22m[90m [39m[90msubmit order requires authentication[39m[90m                                [39m [90m0.04s[39m  
+  [31;1m⨯[39;22m[90m [39m[90msubmit order rejects empty cart[39m[90m                                     [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90msubmit order creates submitted order and marks cart submitted[39m[90m       [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mcart is empty after order submission[39m[90m                                [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90muser can place new order after previous submission[39m[90m                  [39m [90m0.03s[39m  
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\FoodRestaurantApiTest[39m
+  [32;1m✓[39;22m[90m [39m[90mrestaurants endpoint requires authentication[39m[90m                        [39m [90m0.04s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mrestaurants endpoint returns only active restaurants[39m[90m                [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mmenu endpoint returns categories and dishes[39m[90m                         [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mmenu endpoint returns not found for inactive restaurant[39m[90m             [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mmenu endpoint returns not found for unknown restaurant[39m[90m              [39m [90m0.03s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mmenu endpoint sorts categories by sort order[39m[90m                        [39m [90m0.03s[39m  
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\MaxAppRouteTest[39m
+  [31;1m⨯[39;22m[90m [39m[90mmax app returns html content type on fxtun host[39m[90m                     [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mmax app keeps html content type on localhost[39m[90m                        [39m [90m0.02s[39m  
+
+  [39;41;1m FAIL [39;49;22m[39m Tests\Feature\MaxAuthControllerTest[39m
+  [31;1m⨯[39;22m[90m [39m[90mstore returns bearer token for valid init data[39m[90m                      [39m [90m0.07s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mstore returns unauthorized for invalid init data[39m[90m                    [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mstore validates required init data field[39m[90m                            [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mprotected route accepts issued token[39m[90m                                [39m [90m0.07s[39m  
+  [31;1m⨯[39;22m[90m [39m[90mre issues token and updates existing max user[39m[90m                       [39m [90m0.04s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\MaxWebhookControllerTest[39m
+  [32;1m✓[39;22m[90m [39m[90mmessage callback writes to mess max log and returns ok[39m[90m              [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mreturns unauthorized without valid secret[39m[90m                           [39m [90m0.01s[39m  
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Unit\AuthenticateMaxMin[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '12345' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (12345, Max, 2026-06-12 01:02:58, 2026-06-12 01:02:58))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Unit/AuthenticateMaxMiniAppTest.php[39;22m:[39;1m30[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Unit\AuthenticateMaxMin[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '54321' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (54321, Expired, 2026-06-12 01:02:58, 2026-06-12 01:02:58))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Unit/AuthenticateMaxMiniAppTest.php[39;22m:[39;1m53[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Unit\CartServiceTest[22m [90m>[39m…  [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '11001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (11001, Cart, 2026-06-12 01:02:58, 2026-06-12 01:02:58))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Unit/CartServiceTest.php[39;22m:[39;1m21[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Unit\CartServiceTest[22m [90m>[39m…  [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '11002' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (11002, Cart, 2026-06-12 01:02:58, 2026-06-12 01:02:58))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Unit/CartServiceTest.php[39;22m:[39;1m33[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Unit\CartServiceTest[22m [90m>[39m…  [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '11003' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (11003, Cart, 2026-06-12 01:02:58, 2026-06-12 01:02:58))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Unit/CartServiceTest.php[39;22m:[39;1m46[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m23[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m32[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m59[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m67[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m81[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m100[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m120[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m142[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodCartApiTest[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:02:59, 2026-06-12 01:02:59))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodCartApiTest.php[39;22m:[39;1m174[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodOrderApiTes[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodOrderApiTest.php[39;22m:[39;1m28[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodOrderApiTes[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodOrderApiTest.php[39;22m:[39;1m37[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodOrderApiTes[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodOrderApiTest.php[39;22m:[39;1m73[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodOrderApiTes[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodOrderApiTest.php[39;22m:[39;1m90[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodRestaurantA[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodRestaurantApiTest.php[39;22m:[39;1m27[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodRestaurantA[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodRestaurantApiTest.php[39;22m:[39;1m43[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodRestaurantA[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodRestaurantApiTest.php[39;22m:[39;1m64[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodRestaurantA[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodRestaurantApiTest.php[39;22m:[39;1m74[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\FoodRestaurantA[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Support/AuthenticatesMaxMiniAppUser.php[39;22m:[39;1m13[39;22m
+  [33m15  [39m[39;1mtests/Feature/FoodRestaurantApiTest.php[39;22m:[39;1m82[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\MaxAppRouteTest[22m [90m>[39m max app returns html content type…   
+[39;1m  Failed asserting that actual size 2 matches expected size 1.[39;22m
+
+  at [32mtests/Feature/MaxAppRouteTest.php[39m:[32m33[39m
+     29▕ 
+     30▕         $response->assertOk();
+     31▕         $this->assertStringContainsString('text/html', (string) $response->headers->get('Content-Type'));
+     32▕ 
+  ➜  33▕         $this->assertCount(1, $captured);
+     34▕         $this->assertSame('MAX mini-app page requested', $captured[0]->message);
+     35▕         $this->assertTrue($captured[0]->context['is_tunnel']);
+     36▕     }
+     37▕
+
+  [33m1   [39m[39;1mtests/Feature/MaxAppRouteTest.php[39;22m:[39;1m33[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\MaxAuthControllerTest[22m [90m>[39m store returns bearer token…    
+[39;1m  Failed asserting that actual size 2 matches expected size 1.[39;22m
+
+  at [32mtests/Feature/MaxAuthControllerTest.php[39m:[32m66[39m
+     62▕             'max_user_id' => 67_890,
+     63▕             'first_name' => 'Max',
+     64▕         ]);
+     65▕ 
+  ➜  66▕         $this->assertCount(1, $captured);
+     67▕         $this->assertSame('MAX mini-app auth requested', $captured[0]->message);
+     68▕         $this->assertSame(200, $captured[0]->context['status']);
+     69▕         $this->assertSame(67_890, $captured[0]->context['max_user_id']);
+     70▕         $this->assertArrayNotHasKey('init_data', $captured[0]->context);
+
+  [33m1   [39m[39;1mtests/Feature/MaxAuthControllerTest.php[39;22m:[39;1m66[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\MaxAuthControllerTest[22m [90m>[39m store returns unauthorized…    
+[39;1m  Failed asserting that actual size 2 matches expected size 1.[39;22m
+
+  at [32mtests/Feature/MaxAuthControllerTest.php[39m:[32m89[39m
+     85▕         $response
+     86▕             ->assertUnauthorized()
+     87▕             ->assertJsonPath('message', 'Invalid MAX initData.');
+     88▕ 
+  ➜  89▕         $this->assertCount(1, $captured);
+     90▕         $this->assertSame(401, $captured[0]->context['status']);
+     91▕         $this->assertNull($captured[0]->context['max_user_id']);
+     92▕     }
+     93▕
+
+  [33m1   [39m[39;1mtests/Feature/MaxAuthControllerTest.php[39;22m:[39;1m89[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\MaxAuthControll[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '67890' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (67890, OldName, 2026-06-12 01:03:00, 2026-06-12 01:03:00))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Feature/MaxAuthControllerTest.php[39;22m:[39;1m122[39;22m
+
+
+  [90mTests:[39m    [31;1m27 failed[39;22m[90m,[39m[39m [39m[32;1m58 passed[39;22m[90m (160 assertions)[39m
+  [90mDuration:[39m [39m2.70s[39m
+
