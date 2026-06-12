@@ -7,7 +7,7 @@
 | Каталог / файл | Назначение |
 |---|---|
 | `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, Laravel Reverb (Echo), веб-авторизация и проверка токенов для gateway |
-| `service-a` | Laravel API: торговые точки (`/api/sales-outlets`), ping-эндпоинты |
+| `service-a` | Laravel API: торговые точки (`/api/sales-outlets`) |
 | `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
@@ -237,8 +237,6 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 
 | Метод | Путь | Auth |
 |---|---|---|
-| `GET` | `/pingS` | — |
-| `POST` | `/ping` | — |
 | `GET` | `/sales-outlets` | `trust.gateway` |
 | `PATCH` | `/sales-outlets/{salesOutlet}` | `trust.gateway` |
 | `POST` | `/sales-outlets/{salesOutlet}/head-organization` | `trust.gateway` |

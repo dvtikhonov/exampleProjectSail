@@ -7,44 +7,32 @@ use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Contracts\Filter;
 use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Filters\WhereInFilter;
 use Shared\SalesOutletsDomain\AbstractFilter\QueryFilters\Filters\WhereLikePrefixFilter;
 use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
+use Shared\SalesOutletsDomain\Metadata\SalesOutletColumns;
 
 final class SalesOutletFilterFactory
 {
     /**
-     * @var array<int, string>
-     */
-    private const LIKE_PREFIX_COLUMNS = [
-        'id',
-        'shop',
-        'manager',
-        'curator',
-        'name',
-        'inn',
-        'head_organization',
-        'head_organization_type',
-        'organization_name',
-        'approved',
-//        'user_id',
-    ];
-
-    /**
-     * @param array<string, string> $filterData
+     * @param  array<string, string>  $filterData
      */
     public function fromArrayData(array $filterData): Filter
     {
         $filters = [];
 
-        foreach (self::LIKE_PREFIX_COLUMNS as $column) {
+        foreach (SalesOutletColumns::likePrefixFilterColumnMap() as $columnKey => $dbColumn) {
             $filters[] = new WhereLikePrefixFilter(
-                column: $column,
-                prefix: $filterData[$column] ?? '',
+                column: $dbColumn,
+                prefix: $filterData[$columnKey] ?? '',
             );
         }
 
-        $filters[] = new WhereInFilter(
-            column: 'status',
-            values: $this->statusesByLabel($filterData['status_label'] ?? ''),
-        );
+        $filterTypes = SalesOutletColumns::columnFilterTypeMap();
+
+        if (($filterTypes['status_label'] ?? null) === SalesOutletColumns::FILTER_STATUS_LABEL) {
+            $filters[] = new WhereInFilter(
+                column: 'status',
+                values: $this->statusesByLabel($filterData['status_label'] ?? ''),
+            );
+        }
 
         return new CompositeFilter($filters);
     }
@@ -72,4 +60,3 @@ final class SalesOutletFilterFactory
         ));
     }
 }
-

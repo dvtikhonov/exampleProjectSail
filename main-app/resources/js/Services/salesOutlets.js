@@ -14,7 +14,9 @@ export const updateHeadOrganization = async ({ rowId, head_organization, head_or
     if (! response.ok) {
         const message = response.status === 422
             ? 'Проверьте заполнение полей'
-            : 'Не удалось сохранить головную организацию';
+            : response.status === 401
+                ? 'Сессия истекла. Обновите страницу и войдите снова.'
+                : 'Не удалось сохранить головную организацию';
 
         throw new Error(message);
     }
@@ -50,6 +52,10 @@ export const updateSalesOutlet = async (rowId, payload) => {
                 data.message ?? 'Проверьте заполнение полей',
                 data.errors ?? {},
             );
+        }
+
+        if (response.status === 401) {
+            throw new Error('Сессия истекла. Обновите страницу и войдите снова.');
         }
 
         throw new Error(data.message ?? 'Не удалось сохранить объект продаж');

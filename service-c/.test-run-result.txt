@@ -1,0 +1,30 @@
+  ➜  89▕         $this->assertCount(1, $captured);
+     90▕         $this->assertSame(401, $captured[0]->context['status']);
+     91▕         $this->assertNull($captured[0]->context['max_user_id']);
+     92▕     }
+     93▕
+
+  [33m1   [39m[39;1mtests/Feature/MaxAuthControllerTest.php[39;22m:[39;1m89[39;22m
+
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\MaxAuthControll[22m… [41;1m UniqueConstraintViolationException [49;22m  
+[39;1m  SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '67890' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (67890, OldName, 2026-06-12 01:02:51, 2026-06-12 01:02:51))[39;22m
+
+  at [32mvendor/laravel/framework/src/Illuminate/Database/Connection.php[39m:[32m841[39m
+    837▕             $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+    838▕                 ? UniqueConstraintViolationException::class
+    839▕                 : QueryException::class;
+    840▕ 
+  ➜ 841▕             $exception = new $exceptionType(
+    842▕                 $this->getNameWithReadWriteType(),
+    843▕                 $query,
+    844▕                 $this->prepareBindings($bindings),
+    845▕                 $e,
+
+      [2m+13 vendor frames [22m
+  [33m14  [39m[39;1mtests/Feature/MaxAuthControllerTest.php[39;22m:[39;1m122[39;22m
+
+
+  [90mTests:[39m    [31;1m21 failed[39;22m[90m,[39m[39m [39m[32;1m64 passed[39;22m[90m (171 assertions)[39m
+  [90mDuration:[39m [39m3.75s[39m
+

@@ -5,16 +5,11 @@ export const clearApiToken = () => {
 };
 
 export const getApiToken = async () => {
-    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-
-    if (storedToken) {
-        return storedToken;
-    }
-
     const response = await fetch('/get-api-token', {
         headers: {
             Accept: 'application/json',
         },
+        credentials: 'same-origin',
     });
 
     if (! response.ok) {
@@ -31,21 +26,28 @@ export const getApiToken = async () => {
     return data.token;
 };
 
-export const authorizedJsonRequest = async (url, options = {}) => {
-    const token = await getApiToken();
+const authorizedJsonRequestWithToken = async (url, options, token) => fetch(url, {
+    ...options,
+    headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(options.headers ?? {}),
+        Authorization: `Bearer ${token}`,
+    },
+});
 
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            ...(options.headers ?? {}),
-            Authorization: `Bearer ${token}`,
-        },
-    });
+export const authorizedJsonRequest = async (url, options = {}) => {
+    let token = await getApiToken();
+    let response = await authorizedJsonRequestWithToken(url, options, token);
 
     if ([401, 403].includes(response.status)) {
         clearApiToken();
+        token = await getApiToken();
+        response = await authorizedJsonRequestWithToken(url, options, token);
+
+        if ([401, 403].includes(response.status)) {
+            clearApiToken();
+        }
     }
 
     return response;
