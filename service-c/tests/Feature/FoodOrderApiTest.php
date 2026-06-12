@@ -10,12 +10,21 @@ use App\Models\FoodOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
+use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 class FoodOrderApiTest extends TestCase
 {
     use AuthenticatesMaxMiniAppUser;
     use RefreshDatabase;
+    use ResetsFoodDomainTables;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->resetFoodDomainTables();
+    }
 
     public function test_submit_order_requires_authentication(): void
     {

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
+use Tests\Support\MessMaxLogTestHelper;
 use Tests\TestCase;
 
 class MaxAppRouteTest extends TestCase
@@ -30,9 +31,8 @@ class MaxAppRouteTest extends TestCase
         $response->assertOk();
         $this->assertStringContainsString('text/html', (string) $response->headers->get('Content-Type'));
 
-        $this->assertCount(1, $captured);
-        $this->assertSame('MAX mini-app page requested', $captured[0]->message);
-        $this->assertTrue($captured[0]->context['is_tunnel']);
+        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX mini-app page requested');
+        $this->assertTrue($log->context['is_tunnel']);
     }
 
     public function test_max_app_keeps_html_content_type_on_localhost(): void

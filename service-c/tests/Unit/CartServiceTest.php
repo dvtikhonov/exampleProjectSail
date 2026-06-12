@@ -10,11 +10,20 @@ use App\Models\MaxUser;
 use App\Services\Food\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
+use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 class CartServiceTest extends TestCase
 {
     use RefreshDatabase;
+    use ResetsFoodDomainTables;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->resetFoodDomainTables();
+    }
 
     public function test_get_draft_cart_returns_null_when_missing(): void
     {

@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
 use Tests\Support\MaxInitDataFixtureBuilder;
+use Tests\Support\MessMaxLogTestHelper;
 use Tests\TestCase;
 
 class MaxAuthControllerTest extends TestCase
@@ -63,11 +64,10 @@ class MaxAuthControllerTest extends TestCase
             'first_name' => 'Max',
         ]);
 
-        $this->assertCount(1, $captured);
-        $this->assertSame('MAX mini-app auth requested', $captured[0]->message);
-        $this->assertSame(200, $captured[0]->context['status']);
-        $this->assertSame(67_890, $captured[0]->context['max_user_id']);
-        $this->assertArrayNotHasKey('init_data', $captured[0]->context);
+        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX mini-app auth requested');
+        $this->assertSame(200, $log->context['status']);
+        $this->assertSame(67_890, $log->context['max_user_id']);
+        $this->assertArrayNotHasKey('init_data', $log->context);
     }
 
     public function test_store_returns_unauthorized_for_invalid_init_data(): void
@@ -86,9 +86,9 @@ class MaxAuthControllerTest extends TestCase
             ->assertUnauthorized()
             ->assertJsonPath('message', 'Invalid MAX initData.');
 
-        $this->assertCount(1, $captured);
-        $this->assertSame(401, $captured[0]->context['status']);
-        $this->assertNull($captured[0]->context['max_user_id']);
+        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX mini-app auth requested');
+        $this->assertSame(401, $log->context['status']);
+        $this->assertNull($log->context['max_user_id']);
     }
 
     public function test_store_validates_required_init_data_field(): void

@@ -11,6 +11,8 @@ class MaxWebhookSubscribeCommandTest extends TestCase
 {
     public function test_command_registers_subscription_via_subscriber(): void
     {
+        config(['max.webhook.url' => '']);
+
         $subscriber = $this->createMock(MaxWebhookSubscriber::class);
         $subscriber->expects($this->once())->method('subscribe');
         $subscriber->method('probeWebhookUrl')->willReturn([
@@ -33,6 +35,8 @@ class MaxWebhookSubscribeCommandTest extends TestCase
 
     public function test_command_returns_failure_when_subscriber_throws(): void
     {
+        config(['max.webhook.url' => '']);
+
         $subscriber = $this->createMock(MaxWebhookSubscriber::class);
         $subscriber->expects($this->once())
             ->method('subscribe')

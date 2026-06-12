@@ -11,12 +11,21 @@ use App\Models\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
+use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 class FoodCartApiTest extends TestCase
 {
     use AuthenticatesMaxMiniAppUser;
     use RefreshDatabase;
+    use ResetsFoodDomainTables;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->resetFoodDomainTables();
+    }
 
     public function test_cart_show_returns_null_when_no_draft_cart(): void
     {
