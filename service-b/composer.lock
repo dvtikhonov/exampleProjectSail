@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0b220148499814e3f7cc4967b215b05b",
+    "content-hash": "3f441bd6849a0999acf7d735de4f8f2d",
     "packages": [
         {
             "name": "brick/math",
@@ -684,6 +684,34 @@
                 "source": "https://github.com/igorw/evenement/tree/v3.0.2"
             },
             "time": "2023-08-08T05:53:35+00:00"
+        },
+        {
+            "name": "example/max-messenger",
+            "version": "1.0.0",
+            "dist": {
+                "type": "path",
+                "url": "../shared/max-messenger",
+                "reference": "006463fecd918caf11142f962b948ef48f32623c"
+            },
+            "require": {
+                "illuminate/http": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^8.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Shared\\MaxMessenger\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Shared MAX messenger HTTP client and DTOs.",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "example/sales-outlets-domain",

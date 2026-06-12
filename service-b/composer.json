@@ -12,10 +12,18 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "../shared/max-messenger",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "require": {
         "php": "^8.3",
+        "example/max-messenger": "*",
         "example/sales-outlets-domain": "*",
         "laravel/framework": "^13.0",
         "laravel/reverb": "^1.0",

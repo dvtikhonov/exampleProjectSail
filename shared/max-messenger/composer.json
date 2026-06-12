@@ -1,0 +1,19 @@
+{
+    "name": "example/max-messenger",
+    "description": "Shared MAX messenger HTTP client and DTOs.",
+    "type": "library",
+    "version": "1.0.0",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "illuminate/http": "^13.0",
+        "illuminate/support": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Shared\\MaxMessenger\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

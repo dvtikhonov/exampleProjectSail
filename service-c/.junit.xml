@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="/var/www/html/phpunit.xml" tests="85" assertions="160" errors="24" failures="3" skipped="0" time="2.514904">
+    <testsuite name="Unit" tests="55" assertions="120" errors="5" failures="0" skipped="0" time="1.484817">
+      <testsuite name="Tests\Unit\AuthenticateMaxMiniAppTest" file="/var/www/html/tests/Unit/AuthenticateMaxMiniAppTest.php" tests="3" assertions="1" errors="2" failures="0" skipped="0" time="0.417197">
+        <testcase name="test_returns_unauthorized_without_bearer_token" file="/var/www/html/tests/Unit/AuthenticateMaxMiniAppTest.php" line="18" class="Tests\Unit\AuthenticateMaxMiniAppTest" classname="Tests.Unit.AuthenticateMaxMiniAppTest" assertions="1" time="0.334906"/>
+        <testcase name="test_passes_request_with_valid_max_miniapp_token" file="/var/www/html/tests/Unit/AuthenticateMaxMiniAppTest.php" line="28" class="Tests\Unit\AuthenticateMaxMiniAppTest" classname="Tests.Unit.AuthenticateMaxMiniAppTest" assertions="0" time="0.050278">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Unit\AuthenticateMaxMiniAppTest::test_passes_request_with_valid_max_miniapp_token
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '12345' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (12345, Max, 2026-06-12 01:03:21, 2026-06-12 01:03:21))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Unit/AuthenticateMaxMiniAppTest.php:30</error>
+        </testcase>
+        <testcase name="test_returns_unauthorized_for_expired_token" file="/var/www/html/tests/Unit/AuthenticateMaxMiniAppTest.php" line="51" class="Tests\Unit\AuthenticateMaxMiniAppTest" classname="Tests.Unit.AuthenticateMaxMiniAppTest" assertions="0" time="0.032013">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Unit\AuthenticateMaxMiniAppTest::test_returns_unauthorized_for_expired_token
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '54321' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (54321, Expired, 2026-06-12 01:03:21, 2026-06-12 01:03:21))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Unit/AuthenticateMaxMiniAppTest.php:53</error>
+        </testcase>
+      </testsuite>
+      <testsuite name="Tests\Unit\CartServiceTest" file="/var/www/html/tests/Unit/CartServiceTest.php" tests="3" assertions="0" errors="3" failures="0" skipped="0" time="0.110455">
+        <testcase name="test_get_draft_cart_returns_null_when_missing" file="/var/www/html/tests/Unit/CartServiceTest.php" line="19" class="Tests\Unit\CartServiceTest" classname="Tests.Unit.CartServiceTest" assertions="0" time="0.043807">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Unit\CartServiceTest::test_get_draft_cart_returns_null_when_missing
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '11001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (11001, Cart, 2026-06-12 01:03:21, 2026-06-12 01:03:21))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Unit/CartServiceTest.php:21</error>
+        </testcase>
+        <testcase name="test_add_item_throws_when_dish_not_found" file="/var/www/html/tests/Unit/CartServiceTest.php" line="31" class="Tests\Unit\CartServiceTest" classname="Tests.Unit.CartServiceTest" assertions="0" time="0.032488">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Unit\CartServiceTest::test_add_item_throws_when_dish_not_found
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '11002' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (11002, Cart, 2026-06-12 01:03:21, 2026-06-12 01:03:21))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Unit/CartServiceTest.php:33</error>
+        </testcase>
+        <testcase name="test_add_item_creates_cart_with_expected_total" file="/var/www/html/tests/Unit/CartServiceTest.php" line="44" class="Tests\Unit\CartServiceTest" classname="Tests.Unit.CartServiceTest" assertions="0" time="0.034160">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Unit\CartServiceTest::test_add_item_creates_cart_with_expected_total
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '11003' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (11003, Cart, 2026-06-12 01:03:21, 2026-06-12 01:03:21))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Unit/CartServiceTest.php:46</error>
+        </testcase>
+      </testsuite>
+      <testsuite name="Tests\Unit\EloquentGatewayUserResolverTest" file="/var/www/html/tests/Unit/EloquentGatewayUserResolverTest.php" tests="4" assertions="7" errors="0" failures="0" skipped="0" time="0.162731">
+        <testcase name="test_returns_dto_when_user_exists" file="/var/www/html/tests/Unit/EloquentGatewayUserResolverTest.php" line="16" class="Tests\Unit\EloquentGatewayUserResolverTest" classname="Tests.Unit.EloquentGatewayUserResolverTest" assertions="2" time="0.064788"/>
+        <testcase name="test_returns_null_when_header_missing" file="/var/www/html/tests/Unit/EloquentGatewayUserResolverTest.php" line="28" class="Tests\Unit\EloquentGatewayUserResolverTest" classname="Tests.Unit.EloquentGatewayUserResolverTest" assertions="1" time="0.030761"/>
+        <testcase name="test_returns_null_when_header_empty" file="/var/www/html/tests/Unit/EloquentGatewayUserResolverTest.php" line="37" class="Tests\Unit\EloquentGatewayUserResolverTest" classname="Tests.Unit.EloquentGatewayUserResolverTest" assertions="1" time="0.029955"/>
+        <testcase name="test_provisions_user_when_not_found" file="/var/www/html/tests/Unit/EloquentGatewayUserResolverTest.php" line="47" class="Tests\Unit\EloquentGatewayUserResolverTest" classname="Tests.Unit.EloquentGatewayUserResolverTest" assertions="3" time="0.037227"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\ExampleTest" file="/var/www/html/tests/Unit/ExampleTest.php" tests="1" assertions="1" errors="0" failures="0" skipped="0" time="0.006959">
+        <testcase name="test_that_true_is_true" file="/var/www/html/tests/Unit/ExampleTest.php" line="12" class="Tests\Unit\ExampleTest" classname="Tests.Unit.ExampleTest" assertions="1" time="0.006959"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxAppRequestContextTest" file="/var/www/html/tests/Unit/MaxAppRequestContextTest.php" tests="2" assertions="2" errors="0" failures="0" skipped="0" time="0.027261">
+        <testcase name="test_is_public_tunnel_request_on_fxtun_subdomain" file="/var/www/html/tests/Unit/MaxAppRequestContextTest.php" line="13" class="Tests\Unit\MaxAppRequestContextTest" classname="Tests.Unit.MaxAppRequestContextTest" assertions="1" time="0.014522"/>
+        <testcase name="test_is_not_public_tunnel_request_on_localhost" file="/var/www/html/tests/Unit/MaxAppRequestContextTest.php" line="28" class="Tests\Unit\MaxAppRequestContextTest" classname="Tests.Unit.MaxAppRequestContextTest" assertions="1" time="0.012739"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxCallbackHandlerTest" file="/var/www/html/tests/Unit/MaxCallbackHandlerTest.php" tests="2" assertions="14" errors="0" failures="0" skipped="0" time="0.063761">
+        <testcase name="test_yes_payload_logs_da_and_answers_callback" file="/var/www/html/tests/Unit/MaxCallbackHandlerTest.php" line="30" class="Tests\Unit\MaxCallbackHandlerTest" classname="Tests.Unit.MaxCallbackHandlerTest" assertions="8" time="0.048902"/>
+        <testcase name="test_no_payload_logs_net_and_answers_callback" file="/var/www/html/tests/Unit/MaxCallbackHandlerTest.php" line="65" class="Tests\Unit\MaxCallbackHandlerTest" classname="Tests.Unit.MaxCallbackHandlerTest" assertions="6" time="0.014859"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxCallbackUpdateDtoTest" file="/var/www/html/tests/Unit/MaxCallbackUpdateDtoTest.php" tests="1" assertions="1" errors="0" failures="0" skipped="0" time="0.016977">
+        <testcase name="test_callback_update_requires_exactly_one_recipient" file="/var/www/html/tests/Unit/MaxCallbackUpdateDtoTest.php" line="11" class="Tests\Unit\MaxCallbackUpdateDtoTest" classname="Tests.Unit.MaxCallbackUpdateDtoTest" assertions="1" time="0.016977"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxMiniAppAccessLoggerTest" file="/var/www/html/tests/Unit/MaxMiniAppAccessLoggerTest.php" tests="2" assertions="13" errors="0" failures="0" skipped="0" time="0.044514">
+        <testcase name="test_log_page_request_writes_to_mess_max_channel" file="/var/www/html/tests/Unit/MaxMiniAppAccessLoggerTest.php" line="15" class="Tests\Unit\MaxMiniAppAccessLoggerTest" classname="Tests.Unit.MaxMiniAppAccessLoggerTest" assertions="7" time="0.020930"/>
+        <testcase name="test_log_auth_request_writes_status_without_init_data" file="/var/www/html/tests/Unit/MaxMiniAppAccessLoggerTest.php" line="39" class="Tests\Unit\MaxMiniAppAccessLoggerTest" classname="Tests.Unit.MaxMiniAppAccessLoggerTest" assertions="6" time="0.023584"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxOpenAppTargetResolverTest" file="/var/www/html/tests/Unit/MaxOpenAppTargetResolverTest.php" tests="3" assertions="3" errors="0" failures="0" skipped="0" time="0.044324">
+        <testcase name="test_resolve_web_app_prefers_explicit_mini_app_url" file="/var/www/html/tests/Unit/MaxOpenAppTargetResolverTest.php" line="12" class="Tests\Unit\MaxOpenAppTargetResolverTest" classname="Tests.Unit.MaxOpenAppTargetResolverTest" assertions="1" time="0.016894"/>
+        <testcase name="test_resolve_web_app_derives_from_webhook_url" file="/var/www/html/tests/Unit/MaxOpenAppTargetResolverTest.php" line="24" class="Tests\Unit\MaxOpenAppTargetResolverTest" classname="Tests.Unit.MaxOpenAppTargetResolverTest" assertions="1" time="0.013526"/>
+        <testcase name="test_resolve_contact_id_returns_null_when_not_configured" file="/var/www/html/tests/Unit/MaxOpenAppTargetResolverTest.php" line="39" class="Tests\Unit\MaxOpenAppTargetResolverTest" classname="Tests.Unit.MaxOpenAppTargetResolverTest" assertions="1" time="0.013904"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxUiStandGreetingSenderTest" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" tests="7" assertions="11" errors="0" failures="0" skipped="0" time="0.153571">
+        <testcase name="test_send_posts_inline_keyboard_payload_for_each_recipient" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="32" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="3" time="0.032417"/>
+        <testcase name="test_send_throws_when_no_recipients_configured" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="67" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="2" time="0.016510"/>
+        <testcase name="test_send_continues_when_one_recipient_fails" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="84" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="1" time="0.020373"/>
+        <testcase name="test_send_prefers_mini_app_url_over_bot_username" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="96" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="1" time="0.037513"/>
+        <testcase name="test_send_uses_webhook_origin_when_mini_app_url_is_not_set" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="116" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="1" time="0.017028"/>
+        <testcase name="test_send_uses_max_ru_link_when_only_bot_username_is_set" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="137" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="1" time="0.016416"/>
+        <testcase name="test_send_to_user_posts_only_for_given_user_id" file="/var/www/html/tests/Unit/MaxUiStandGreetingSenderTest.php" line="160" class="Tests\Unit\MaxUiStandGreetingSenderTest" classname="Tests.Unit.MaxUiStandGreetingSenderTest" assertions="2" time="0.013314"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxUiStandSendCommandTest" file="/var/www/html/tests/Unit/MaxUiStandSendCommandTest.php" tests="2" assertions="6" errors="0" failures="0" skipped="0" time="0.041674">
+        <testcase name="test_command_sends_greeting_via_sender" file="/var/www/html/tests/Unit/MaxUiStandSendCommandTest.php" line="12" class="Tests\Unit\MaxUiStandSendCommandTest" classname="Tests.Unit.MaxUiStandSendCommandTest" assertions="3" time="0.025806"/>
+        <testcase name="test_command_returns_failure_when_sender_throws" file="/var/www/html/tests/Unit/MaxUiStandSendCommandTest.php" line="28" class="Tests\Unit\MaxUiStandSendCommandTest" classname="Tests.Unit.MaxUiStandSendCommandTest" assertions="3" time="0.015867"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxWebAppInitDataValidatorTest" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" tests="8" assertions="23" errors="0" failures="0" skipped="0" time="0.106223">
+        <testcase name="test_validates_fixed_fixture_when_auth_date_check_is_disabled_for_fixture" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="31" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="9" time="0.015984"/>
+        <testcase name="test_validates_fresh_init_data" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="52" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.012519"/>
+        <testcase name="test_rejects_tampered_hash" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="62" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.013707"/>
+        <testcase name="test_rejects_expired_auth_date" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="73" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.013784"/>
+        <testcase name="test_rejects_duplicate_parameter_keys" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="85" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.012692"/>
+        <testcase name="test_rejects_missing_user_payload" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="95" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.013195"/>
+        <testcase name="test_rejects_when_bot_token_is_not_configured" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="107" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.012236"/>
+        <testcase name="test_parses_optional_chat_parameter" file="/var/www/html/tests/Unit/MaxWebAppInitDataValidatorTest.php" line="119" class="Tests\Unit\MaxWebAppInitDataValidatorTest" classname="Tests.Unit.MaxWebAppInitDataValidatorTest" assertions="2" time="0.012106"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxWebhookSubscribeCommandTest" file="/var/www/html/tests/Unit/MaxWebhookSubscribeCommandTest.php" tests="2" assertions="6" errors="0" failures="0" skipped="0" time="0.047179">
+        <testcase name="test_command_registers_subscription_via_subscriber" file="/var/www/html/tests/Unit/MaxWebhookSubscribeCommandTest.php" line="12" class="Tests\Unit\MaxWebhookSubscribeCommandTest" classname="Tests.Unit.MaxWebhookSubscribeCommandTest" assertions="3" time="0.031037"/>
+        <testcase name="test_command_returns_failure_when_subscriber_throws" file="/var/www/html/tests/Unit/MaxWebhookSubscribeCommandTest.php" line="36" class="Tests\Unit\MaxWebhookSubscribeCommandTest" classname="Tests.Unit.MaxWebhookSubscribeCommandTest" assertions="3" time="0.016142"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxWebhookSubscriberTest" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" tests="8" assertions="16" errors="0" failures="0" skipped="0" time="0.127218">
+        <testcase name="test_subscribe_posts_subscription_payload_to_max_api" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="34" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="2" time="0.019637"/>
+        <testcase name="test_subscribe_fails_when_webhook_url_is_missing" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="52" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="2" time="0.013432"/>
+        <testcase name="test_subscribe_fails_when_webhook_secret_is_too_short" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="62" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="2" time="0.014786"/>
+        <testcase name="test_subscribe_fails_when_webhook_url_is_not_https" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="72" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="2" time="0.015503"/>
+        <testcase name="test_subscribe_fails_when_webhook_secret_has_invalid_characters" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="82" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="2" time="0.015835"/>
+        <testcase name="test_subscribe_throws_auth_exception_on_401" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="92" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="1" time="0.016531"/>
+        <testcase name="test_subscribe_throws_request_exception_on_400" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="103" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="1" time="0.014994"/>
+        <testcase name="test_unsubscribe_stale_dev_tunnels_removes_only_trycloudflare_urls" file="/var/www/html/tests/Unit/MaxWebhookSubscriberTest.php" line="117" class="Tests\Unit\MaxWebhookSubscriberTest" classname="Tests.Unit.MaxWebhookSubscriberTest" assertions="4" time="0.016500"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\MaxWebhookUpdateRouterTest" file="/var/www/html/tests/Unit/MaxWebhookUpdateRouterTest.php" tests="1" assertions="4" errors="0" failures="0" skipped="0" time="0.025574">
+        <testcase name="test_bot_started_sends_greeting_only_to_event_user" file="/var/www/html/tests/Unit/MaxWebhookUpdateRouterTest.php" line="30" class="Tests\Unit\MaxWebhookUpdateRouterTest" classname="Tests.Unit.MaxWebhookUpdateRouterTest" assertions="4" time="0.025574"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\TrustGatewayAuthTest" file="/var/www/html/tests/Unit/TrustGatewayAuthTest.php" tests="2" assertions="6" errors="0" failures="0" skipped="0" time="0.030436">
+        <testcase name="test_logs_in_when_resolver_returns_dto" file="/var/www/html/tests/Unit/TrustGatewayAuthTest.php" line="17" class="Tests\Unit\TrustGatewayAuthTest" classname="Tests.Unit.TrustGatewayAuthTest" assertions="3" time="0.017894"/>
+        <testcase name="test_returns_unauthorized_when_resolver_returns_null" file="/var/www/html/tests/Unit/TrustGatewayAuthTest.php" line="39" class="Tests\Unit\TrustGatewayAuthTest" classname="Tests.Unit.TrustGatewayAuthTest" assertions="3" time="0.012542"/>
+      </testsuite>
+      <testsuite name="Tests\Unit\VerifyMaxWebhookSecretTest" file="/var/www/html/tests/Unit/VerifyMaxWebhookSecretTest.php" tests="4" assertions="6" errors="0" failures="0" skipped="0" time="0.058762">
+        <testcase name="test_returns_unauthorized_when_secret_header_is_wrong" file="/var/www/html/tests/Unit/VerifyMaxWebhookSecretTest.php" line="21" class="Tests\Unit\VerifyMaxWebhookSecretTest" classname="Tests.Unit.VerifyMaxWebhookSecretTest" assertions="2" time="0.017451"/>
+        <testcase name="test_returns_unauthorized_when_secret_header_is_missing" file="/var/www/html/tests/Unit/VerifyMaxWebhookSecretTest.php" line="33" class="Tests\Unit\VerifyMaxWebhookSecretTest" classname="Tests.Unit.VerifyMaxWebhookSecretTest" assertions="1" time="0.014682"/>
+        <testcase name="test_returns_unauthorized_when_configured_secret_is_empty" file="/var/www/html/tests/Unit/VerifyMaxWebhookSecretTest.php" line="43" class="Tests\Unit\VerifyMaxWebhookSecretTest" classname="Tests.Unit.VerifyMaxWebhookSecretTest" assertions="1" time="0.013958"/>
+        <testcase name="test_passes_request_when_secret_matches" file="/var/www/html/tests/Unit/VerifyMaxWebhookSecretTest.php" line="56" class="Tests\Unit\VerifyMaxWebhookSecretTest" classname="Tests.Unit.VerifyMaxWebhookSecretTest" assertions="2" time="0.012671"/>
+      </testsuite>
+    </testsuite>
+    <testsuite name="Feature" tests="30" assertions="40" errors="19" failures="3" skipped="0" time="1.030087">
+      <testsuite name="Tests\Feature\ExampleTest" file="/var/www/html/tests/Feature/ExampleTest.php" tests="1" assertions="2" errors="0" failures="0" skipped="0" time="0.070166">
+        <testcase name="test_gateway_authenticated_data_endpoint_returns_user" file="/var/www/html/tests/Feature/ExampleTest.php" line="13" class="Tests\Feature\ExampleTest" classname="Tests.Feature.ExampleTest" assertions="2" time="0.070166"/>
+      </testsuite>
+      <testsuite name="Tests\Feature\FoodCartApiTest" file="/var/www/html/tests/Feature/FoodCartApiTest.php" tests="9" assertions="0" errors="9" failures="0" skipped="0" time="0.291111">
+        <testcase name="test_cart_show_returns_null_when_no_draft_cart" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="21" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.035216">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_cart_show_returns_null_when_no_draft_cart
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:23</error>
+        </testcase>
+        <testcase name="test_add_item_creates_draft_cart" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="30" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.036212">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_add_item_creates_draft_cart
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:32</error>
+        </testcase>
+        <testcase name="test_add_item_validates_payload" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="57" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.032209">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_add_item_validates_payload
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:59</error>
+        </testcase>
+        <testcase name="test_add_item_rejects_unavailable_dish" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="65" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.032667">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_add_item_rejects_unavailable_dish
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:67</error>
+        </testcase>
+        <testcase name="test_add_item_rejects_dish_from_another_restaurant_when_cart_exists" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="79" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.031121">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_add_item_rejects_dish_from_another_restaurant_when_cart_exists
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:81</error>
+        </testcase>
+        <testcase name="test_update_cart_item_quantity" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="98" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.030537">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_update_cart_item_quantity
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:100</error>
+        </testcase>
+        <testcase name="test_delete_cart_item_returns_null_cart_when_last_item_removed" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="118" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.030342">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_delete_cart_item_returns_null_cart_when_last_item_removed
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:120</error>
+        </testcase>
+        <testcase name="test_cart_item_operations_reject_foreign_cart_item" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="140" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.031921">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_cart_item_operations_reject_foreign_cart_item
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:142</error>
+        </testcase>
+        <testcase name="test_add_item_increments_existing_dish_quantity" file="/var/www/html/tests/Feature/FoodCartApiTest.php" line="172" class="Tests\Feature\FoodCartApiTest" classname="Tests.Feature.FoodCartApiTest" assertions="0" time="0.030885">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodCartApiTest::test_add_item_increments_existing_dish_quantity
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodCartApiTest.php:174</error>
+        </testcase>
+      </testsuite>
+      <testsuite name="Tests\Feature\FoodOrderApiTest" file="/var/www/html/tests/Feature/FoodOrderApiTest.php" tests="5" assertions="1" errors="4" failures="0" skipped="0" time="0.165819">
+        <testcase name="test_submit_order_requires_authentication" file="/var/www/html/tests/Feature/FoodOrderApiTest.php" line="20" class="Tests\Feature\FoodOrderApiTest" classname="Tests.Feature.FoodOrderApiTest" assertions="1" time="0.037450"/>
+        <testcase name="test_submit_order_rejects_empty_cart" file="/var/www/html/tests/Feature/FoodOrderApiTest.php" line="26" class="Tests\Feature\FoodOrderApiTest" classname="Tests.Feature.FoodOrderApiTest" assertions="0" time="0.032407">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodOrderApiTest::test_submit_order_rejects_empty_cart
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodOrderApiTest.php:28</error>
+        </testcase>
+        <testcase name="test_submit_order_creates_submitted_order_and_marks_cart_submitted" file="/var/www/html/tests/Feature/FoodOrderApiTest.php" line="35" class="Tests\Feature\FoodOrderApiTest" classname="Tests.Feature.FoodOrderApiTest" assertions="0" time="0.030895">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodOrderApiTest::test_submit_order_creates_submitted_order_and_marks_cart_submitted
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodOrderApiTest.php:37</error>
+        </testcase>
+        <testcase name="test_cart_is_empty_after_order_submission" file="/var/www/html/tests/Feature/FoodOrderApiTest.php" line="71" class="Tests\Feature\FoodOrderApiTest" classname="Tests.Feature.FoodOrderApiTest" assertions="0" time="0.031323">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodOrderApiTest::test_cart_is_empty_after_order_submission
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodOrderApiTest.php:73</error>
+        </testcase>
+        <testcase name="test_user_can_place_new_order_after_previous_submission" file="/var/www/html/tests/Feature/FoodOrderApiTest.php" line="88" class="Tests\Feature\FoodOrderApiTest" classname="Tests.Feature.FoodOrderApiTest" assertions="0" time="0.033744">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodOrderApiTest::test_user_can_place_new_order_after_previous_submission
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:22, 2026-06-12 01:03:22))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodOrderApiTest.php:90</error>
+        </testcase>
+      </testsuite>
+      <testsuite name="Tests\Feature\FoodRestaurantApiTest" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" tests="6" assertions="1" errors="5" failures="0" skipped="0" time="0.196662">
+        <testcase name="test_restaurants_endpoint_requires_authentication" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" line="19" class="Tests\Feature\FoodRestaurantApiTest" classname="Tests.Feature.FoodRestaurantApiTest" assertions="1" time="0.036468"/>
+        <testcase name="test_restaurants_endpoint_returns_only_active_restaurants" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" line="25" class="Tests\Feature\FoodRestaurantApiTest" classname="Tests.Feature.FoodRestaurantApiTest" assertions="0" time="0.031845">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodRestaurantApiTest::test_restaurants_endpoint_returns_only_active_restaurants
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:23, 2026-06-12 01:03:23))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodRestaurantApiTest.php:27</error>
+        </testcase>
+        <testcase name="test_menu_endpoint_returns_categories_and_dishes" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" line="41" class="Tests\Feature\FoodRestaurantApiTest" classname="Tests.Feature.FoodRestaurantApiTest" assertions="0" time="0.033148">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodRestaurantApiTest::test_menu_endpoint_returns_categories_and_dishes
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:23, 2026-06-12 01:03:23))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodRestaurantApiTest.php:43</error>
+        </testcase>
+        <testcase name="test_menu_endpoint_returns_not_found_for_inactive_restaurant" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" line="62" class="Tests\Feature\FoodRestaurantApiTest" classname="Tests.Feature.FoodRestaurantApiTest" assertions="0" time="0.031647">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodRestaurantApiTest::test_menu_endpoint_returns_not_found_for_inactive_restaurant
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:23, 2026-06-12 01:03:23))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodRestaurantApiTest.php:64</error>
+        </testcase>
+        <testcase name="test_menu_endpoint_returns_not_found_for_unknown_restaurant" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" line="72" class="Tests\Feature\FoodRestaurantApiTest" classname="Tests.Feature.FoodRestaurantApiTest" assertions="0" time="0.032111">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodRestaurantApiTest::test_menu_endpoint_returns_not_found_for_unknown_restaurant
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:23, 2026-06-12 01:03:23))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodRestaurantApiTest.php:74</error>
+        </testcase>
+        <testcase name="test_menu_endpoint_sorts_categories_by_sort_order" file="/var/www/html/tests/Feature/FoodRestaurantApiTest.php" line="80" class="Tests\Feature\FoodRestaurantApiTest" classname="Tests.Feature.FoodRestaurantApiTest" assertions="0" time="0.031444">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\FoodRestaurantApiTest::test_menu_endpoint_sorts_categories_by_sort_order
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '99001' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (99001, FoodTester, 2026-06-12 01:03:23, 2026-06-12 01:03:23))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Support/AuthenticatesMaxMiniAppUser.php:13
+/var/www/html/tests/Feature/FoodRestaurantApiTest.php:82</error>
+        </testcase>
+      </testsuite>
+      <testsuite name="Tests\Feature\MaxAppRouteTest" file="/var/www/html/tests/Feature/MaxAppRouteTest.php" tests="2" assertions="5" errors="0" failures="1" skipped="0" time="0.053796">
+        <testcase name="test_max_app_returns_html_content_type_on_fxtun_host" file="/var/www/html/tests/Feature/MaxAppRouteTest.php" line="13" class="Tests\Feature\MaxAppRouteTest" classname="Tests.Feature.MaxAppRouteTest" assertions="3" time="0.038769">
+          <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\MaxAppRouteTest::test_max_app_returns_html_content_type_on_fxtun_host
+Failed asserting that actual size 2 matches expected size 1.
+
+/var/www/html/tests/Feature/MaxAppRouteTest.php:33</failure>
+        </testcase>
+        <testcase name="test_max_app_keeps_html_content_type_on_localhost" file="/var/www/html/tests/Feature/MaxAppRouteTest.php" line="38" class="Tests\Feature\MaxAppRouteTest" classname="Tests.Feature.MaxAppRouteTest" assertions="2" time="0.015027"/>
+      </testsuite>
+      <testsuite name="Tests\Feature\MaxAuthControllerTest" file="/var/www/html/tests/Feature/MaxAuthControllerTest.php" tests="5" assertions="19" errors="1" failures="2" skipped="0" time="0.216126">
+        <testcase name="test_store_returns_bearer_token_for_valid_init_data" file="/var/www/html/tests/Feature/MaxAuthControllerTest.php" line="31" class="Tests\Feature\MaxAuthControllerTest" classname="Tests.Feature.MaxAuthControllerTest" assertions="13" time="0.056177">
+          <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\MaxAuthControllerTest::test_store_returns_bearer_token_for_valid_init_data
+Failed asserting that actual size 2 matches expected size 1.
+
+/var/www/html/tests/Feature/MaxAuthControllerTest.php:66</failure>
+        </testcase>
+        <testcase name="test_store_returns_unauthorized_for_invalid_init_data" file="/var/www/html/tests/Feature/MaxAuthControllerTest.php" line="73" class="Tests\Feature\MaxAuthControllerTest" classname="Tests.Feature.MaxAuthControllerTest" assertions="3" time="0.032362">
+          <failure type="PHPUnit\Framework\ExpectationFailedException">Tests\Feature\MaxAuthControllerTest::test_store_returns_unauthorized_for_invalid_init_data
+Failed asserting that actual size 2 matches expected size 1.
+
+/var/www/html/tests/Feature/MaxAuthControllerTest.php:89</failure>
+        </testcase>
+        <testcase name="test_store_validates_required_init_data_field" file="/var/www/html/tests/Feature/MaxAuthControllerTest.php" line="94" class="Tests\Feature\MaxAuthControllerTest" classname="Tests.Feature.MaxAuthControllerTest" assertions="1" time="0.032348"/>
+        <testcase name="test_protected_route_accepts_issued_token" file="/var/www/html/tests/Feature/MaxAuthControllerTest.php" line="101" class="Tests\Feature\MaxAuthControllerTest" classname="Tests.Feature.MaxAuthControllerTest" assertions="2" time="0.055460"/>
+        <testcase name="test_re_issues_token_and_updates_existing_max_user" file="/var/www/html/tests/Feature/MaxAuthControllerTest.php" line="120" class="Tests\Feature\MaxAuthControllerTest" classname="Tests.Feature.MaxAuthControllerTest" assertions="0" time="0.039779">
+          <error type="Illuminate\Database\UniqueConstraintViolationException">Tests\Feature\MaxAuthControllerTest::test_re_issues_token_and_updates_existing_max_user
+Illuminate\Database\UniqueConstraintViolationException: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '67890' for key 'PRIMARY' (Connection: mysql, Host: host.docker.internal, Port: 3306, Database: sail_db_testing, SQL: insert into `max_users` (`max_user_id`, `first_name`, `updated_at`, `created_at`) values (67890, OldName, 2026-06-12 01:03:23, 2026-06-12 01:03:23))
+
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:841
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Connection.php:797
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/MySqlConnection.php:42
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Query/Builder.php:4158
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:2271
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1587
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php:1380
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1225
+/var/www/html/vendor/laravel/framework/src/Illuminate/Support/helpers.php:393
+/var/www/html/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Builder.php:1224
+/var/www/html/tests/Feature/MaxAuthControllerTest.php:122</error>
+        </testcase>
+      </testsuite>
+      <testsuite name="Tests\Feature\MaxWebhookControllerTest" file="/var/www/html/tests/Feature/MaxWebhookControllerTest.php" tests="2" assertions="12" errors="0" failures="0" skipped="0" time="0.036406">
+        <testcase name="test_message_callback_writes_to_mess_max_log_and_returns_ok" file="/var/www/html/tests/Feature/MaxWebhookControllerTest.php" line="31" class="Tests\Feature\MaxWebhookControllerTest" classname="Tests.Feature.MaxWebhookControllerTest" assertions="10" time="0.023385"/>
+        <testcase name="test_returns_unauthorized_without_valid_secret" file="/var/www/html/tests/Feature/MaxWebhookControllerTest.php" line="77" class="Tests\Feature\MaxWebhookControllerTest" classname="Tests.Feature.MaxWebhookControllerTest" assertions="2" time="0.013021"/>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

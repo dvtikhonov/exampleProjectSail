@@ -2,13 +2,13 @@
 
 namespace Tests\Unit;
 
-use App\Contracts\Max\MaxMessengerClientInterface;
 use App\Contracts\Max\MaxReportConfigProviderInterface;
-use App\DTO\Max\MaxMessageDto;
 use App\DTO\Max\MaxReportConfig;
-use App\Exceptions\Max\MaxMessengerAuthException;
 use App\Services\Max\LaravelReportMaxMessageSender;
 use InvalidArgumentException;
+use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
+use Shared\MaxMessenger\DTO\MaxMessageDto;
+use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
 use Tests\TestCase;
 
 class LaravelReportMaxMessageSenderTest extends TestCase

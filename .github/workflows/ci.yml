@@ -22,6 +22,7 @@ jobs:
           - main-app
           - service-a
           - service-b
+          - service-c
 
     steps:
       - name: Checkout
@@ -100,6 +101,11 @@ jobs:
       SERVICE_B_DB_DATABASE: sail_db_testing
       SERVICE_B_DB_USERNAME: root
       SERVICE_B_DB_PASSWORD: 12345678
+      SERVICE_C_DB_HOST: mysql
+      SERVICE_C_DB_PORT: "3306"
+      SERVICE_C_DB_DATABASE: sail_db_testing
+      SERVICE_C_DB_USERNAME: root
+      SERVICE_C_DB_PASSWORD: 12345678
 
     steps:
       - name: Checkout
@@ -107,21 +113,22 @@ jobs:
 
       - name: Prepare environment files for Docker bind mounts
         run: |
-          for service in main-app service-a service-b; do
+          for service in main-app service-a service-b service-c; do
             cp "$service/.env.testing" "$service/.env"
             sed -i 's/DB_HOST=host.docker.internal/DB_HOST=mysql/' "$service/.env"
           done
 
       - name: Build Docker images
-        run: docker compose build main-app service-a service-b
+        run: docker compose build main-app service-a service-b service-c
 
       - name: Install mounted service dependencies
         run: |
           docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
           docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
+          docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
 
       - name: Start services
-        run: docker compose up -d mysql redis main-app service-a service-b
+        run: docker compose up -d mysql redis main-app service-a service-b service-c
 
       - name: Wait for MySQL readiness
         run: |

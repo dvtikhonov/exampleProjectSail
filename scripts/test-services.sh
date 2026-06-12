@@ -38,6 +38,7 @@ Usage:
   ./scripts/test-services.sh main-app [--no-prepare]
   ./scripts/test-services.sh service-a [--no-prepare]
   ./scripts/test-services.sh service-b [--no-prepare]
+  ./scripts/test-services.sh service-c [--no-prepare]
 
 Environment overrides:
   TEST_DATABASE=sail_db_testing
@@ -107,7 +108,7 @@ artisan() {
 
 ensure_supported_mode() {
     case "$MODE" in
-        prepare|all|main-app|service-a|service-b)
+        prepare|all|main-app|service-a|service-b|service-c)
             ;;
         *)
             echo "Unknown mode: $MODE" >&2
@@ -136,6 +137,9 @@ prepare_database() {
 
     echo "Running service-b migrations..."
     artisan service-b migrate --database=mysql --path=database/migrations --env=testing --force
+
+    echo "Running service-c migrations..."
+    artisan service-c migrate --database=mysql --path=database/migrations --env=testing --force
 }
 
 run_tests_for() {
@@ -160,15 +164,15 @@ fi
 
 case "$MODE" in
     all)
-        for service in main-app service-a service-b; do
-            if [[ "$SKIP_PREPARE" == false ]]; then
-                prepare_database
-            fi
+        if [[ "$SKIP_PREPARE" == false ]]; then
+            prepare_database
+        fi
 
+        for service in main-app service-a service-b service-c; do
             run_tests_for "$service"
         done
         ;;
-    main-app|service-a|service-b)
+    main-app|service-a|service-b|service-c)
         run_tests_for "$MODE"
         ;;
 esac

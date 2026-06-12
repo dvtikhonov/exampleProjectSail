@@ -24,5 +24,9 @@ RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/fra
 
 RUN composer run-script post-autoload-dump
 
+COPY service-b/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 8000
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
