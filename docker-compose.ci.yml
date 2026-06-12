@@ -52,6 +52,16 @@ services:
       reverb:
         condition: service_started
 
+  service-c:
+    build:
+      context: .
+      dockerfile: service-c/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   reverb:
     depends_on:
       redis:

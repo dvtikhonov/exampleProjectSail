@@ -164,11 +164,11 @@ fi
 
 case "$MODE" in
     all)
-        for service in main-app service-a service-b service-c; do
-            if [[ "$SKIP_PREPARE" == false ]]; then
-                prepare_database
-            fi
+        if [[ "$SKIP_PREPARE" == false ]]; then
+            prepare_database
+        fi
 
+        for service in main-app service-a service-b service-c; do
             run_tests_for "$service"
         done
         ;;
