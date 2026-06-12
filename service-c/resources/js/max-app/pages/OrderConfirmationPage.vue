@@ -1,4 +1,6 @@
 <script setup>
+import DishImage from '../components/DishImage.vue';
+
 defineProps({
     order: {
         type: Object,
@@ -28,10 +30,11 @@ const emit = defineEmits(['back-to-restaurants']);
                 <li
                     v-for="(item, index) in order.items_snapshot"
                     :key="index"
-                    class="flex items-center justify-between text-sm"
+                    class="flex items-center gap-3 text-sm"
                 >
-                    <span class="text-gray-700">{{ item.dish_name }} × {{ item.quantity }}</span>
-                    <span class="font-medium text-gray-900">{{ item.line_total }} ₽</span>
+                    <DishImage :image-url="item.image_url" :alt="item.dish_name" size="sm" />
+                    <span class="min-w-0 flex-1 text-gray-700">{{ item.dish_name }} × {{ item.quantity }}</span>
+                    <span class="shrink-0 font-medium text-gray-900">{{ item.line_total }} ₽</span>
                 </li>
             </ul>
         </div>

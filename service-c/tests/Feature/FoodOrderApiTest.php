@@ -60,7 +60,8 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('order.restaurant_name', 'Order Place')
             ->assertJsonPath('order.total', '1400.00')
             ->assertJsonPath('order.items_snapshot.0.dish_name', 'Steak')
-            ->assertJsonPath('order.items_snapshot.0.quantity', 2);
+            ->assertJsonPath('order.items_snapshot.0.quantity', 2)
+            ->assertJsonPath('order.items_snapshot.0.image_url', $fixture['dish']->image_url);
 
         $this->assertDatabaseHas('max_food_orders', [
             'max_user_id' => $auth['user']->max_user_id,

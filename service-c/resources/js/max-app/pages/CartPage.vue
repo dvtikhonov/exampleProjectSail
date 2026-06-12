@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import DishImage from '../components/DishImage.vue';
 
 const props = defineProps({
     cart: {
@@ -67,7 +68,8 @@ const isEmpty = computed(() => !props.cart || props.cart.items.length === 0);
                     :key="item.id"
                     class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
                 >
-                    <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
+                        <DishImage :image-url="item.image_url" :alt="item.dish_name" />
                         <div class="min-w-0 flex-1">
                             <p class="font-medium text-gray-900">{{ item.dish_name }}</p>
                             <p class="mt-0.5 text-sm text-max-muted">{{ item.unit_price }} ₽ × {{ item.quantity }}</p>

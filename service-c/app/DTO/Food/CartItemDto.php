@@ -13,10 +13,11 @@ readonly class CartItemDto
         public string $unitPrice,
         public int $quantity,
         public string $lineTotal,
+        public ?string $imageUrl = null,
     ) {}
 
     /**
-     * @return array<string, int|string>
+     * @return array<string, int|string|null>
      */
     public function toArray(): array
     {
@@ -27,6 +28,7 @@ readonly class CartItemDto
             'unit_price' => $this->unitPrice,
             'quantity' => $this->quantity,
             'line_total' => $this->lineTotal,
+            'image_url' => $this->imageUrl,
         ];
     }
 }

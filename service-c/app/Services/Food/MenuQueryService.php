@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\DTO\Food\DishDto;
 use App\DTO\Food\MenuCategoryDto;
 use App\DTO\Food\MenuDto;
@@ -15,6 +16,7 @@ class MenuQueryService
 {
     public function __construct(
         private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly DishImageUrlResolverInterface $imageUrlResolver,
     ) {}
 
     /**
@@ -58,7 +60,7 @@ class MenuQueryService
                     name: $dish->name,
                     price: $this->moneyFormatter->format($dish->price),
                     isAvailable: $dish->is_available,
-                    imageUrl: $dish->image_url,
+                    imageUrl: $this->imageUrlResolver->resolve($dish->image_url),
                 );
             }
 
