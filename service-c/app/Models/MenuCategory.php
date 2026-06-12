@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\MenuCategoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,8 +20,9 @@ class MenuCategory extends Model
 {
     protected $table = 'max_menu_categories';
 
-    /** @use HasFactory<\Database\Factories\MenuCategoryFactory> */
+    /** @use HasFactory<MenuCategoryFactory> */
     use HasFactory;
+
     /**
      * @return BelongsTo<Restaurant, $this>
      */

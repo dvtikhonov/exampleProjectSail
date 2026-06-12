@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\RestaurantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,8 +19,9 @@ class Restaurant extends Model
 {
     protected $table = 'max_restaurants';
 
-    /** @use HasFactory<\Database\Factories\RestaurantFactory> */
+    /** @use HasFactory<RestaurantFactory> */
     use HasFactory;
+
     /**
      * @return array<string, string>
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\DishFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,8 +22,9 @@ class Dish extends Model
 {
     protected $table = 'max_dishes';
 
-    /** @use HasFactory<\Database\Factories\DishFactory> */
+    /** @use HasFactory<DishFactory> */
     use HasFactory;
+
     /**
      * @return array<string, string>
      */
