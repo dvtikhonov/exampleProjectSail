@@ -20,4 +20,4 @@ if [[ -z "${FXTUN_SERVER:-}" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-exec "${ROOT_DIR}/scripts/fxtun-tunnel.sh" service-c "${1:-run}"
+exec bash "${ROOT_DIR}/scripts/fxtun-tunnel.sh" service-c "${1:-run}"
