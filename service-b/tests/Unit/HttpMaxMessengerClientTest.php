@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
@@ -10,8 +12,6 @@ use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerRateLimitException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerUnavailableException;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class HttpMaxMessengerClientTest extends TestCase

@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
+use InvalidArgumentException;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
-use InvalidArgumentException;
 use Tests\TestCase;
 
 class MaxInlineKeyboardMessageDtoTest extends TestCase
@@ -29,5 +29,4 @@ class MaxInlineKeyboardMessageDtoTest extends TestCase
             chatId: 1,
         );
     }
-
 }

@@ -4,9 +4,9 @@ namespace App\Services\Max;
 
 use App\Contracts\Max\MaxReportConfigProviderInterface;
 use App\Contracts\Max\ReportMaxMessageSenderInterface;
+use InvalidArgumentException;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
-use InvalidArgumentException;
 
 class LaravelReportMaxMessageSender implements ReportMaxMessageSenderInterface
 {
