@@ -15,9 +15,18 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Устанавливаем расширение pdo_mysql
 RUN docker-php-ext-install pdo_mysql
 
-# Устанавливаем Xdebug для локальной отладки в PHPStorm.
-RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug
+# Устанавливаем Xdebug из исходников (pecl install ненадёжен в CI).
+RUN apt-get update && apt-get install -y --no-install-recommends $PHPIZE_DEPS git \
+    && git clone --branch 3.5.0 --depth 1 https://github.com/xdebug/xdebug.git /tmp/xdebug \
+    && cd /tmp/xdebug \
+    && phpize \
+    && ./configure \
+    && make -j"$(nproc)" \
+    && make install \
+    && docker-php-ext-enable xdebug \
+    && rm -rf /tmp/xdebug \
+    && apt-get purge -y --auto-remove $PHPIZE_DEPS \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Рабочая директория внутри контейнера
 WORKDIR /var/www/html
