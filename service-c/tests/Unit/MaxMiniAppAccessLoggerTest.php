@@ -21,6 +21,10 @@ class MaxMiniAppAccessLoggerTest extends TestCase
             $captured[] = $event;
         });
 
+        config([
+            'max.webhook.url' => 'https://exampleprojectsail.fxtun.dev/api/webhooks/max',
+        ]);
+
         $request = Request::create('/max-app', 'GET', server: [
             'HTTP_HOST' => 'exampleprojectsail.fxtun.dev',
             'HTTP_USER_AGENT' => 'MAX-Desktop/1.0',

@@ -20,11 +20,11 @@ class MaxAppRouteTest extends TestCase
         });
 
         config([
+            'app.url' => 'https://exampleprojectsail.fxtun.dev',
             'max.webhook.url' => 'https://exampleprojectsail.fxtun.dev/api/webhooks/max',
         ]);
 
-        $response = $this->get('/max-app', [
-            'HTTP_HOST' => 'exampleprojectsail.fxtun.dev',
+        $response = $this->get('https://exampleprojectsail.fxtun.dev/max-app', [
             'HTTP_X_FORWARDED_PROTO' => 'https',
         ]);
 
