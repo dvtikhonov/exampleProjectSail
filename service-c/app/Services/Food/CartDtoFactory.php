@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\DTO\Food\CartDto;
 use App\DTO\Food\CartItemDto;
 use App\Models\Cart;
@@ -12,6 +13,7 @@ class CartDtoFactory
 {
     public function __construct(
         private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly DishImageUrlResolverInterface $imageUrlResolver,
     ) {}
 
     public function fromModel(Cart $cart): CartDto
@@ -33,6 +35,7 @@ class CartDtoFactory
                 unitPrice: $this->moneyFormatter->format($unitPrice),
                 quantity: $item->quantity,
                 lineTotal: $this->moneyFormatter->format($lineTotal),
+                imageUrl: $this->imageUrlResolver->resolve($item->dish->image_url),
             );
         }
 

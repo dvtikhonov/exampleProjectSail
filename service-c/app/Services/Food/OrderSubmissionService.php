@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
 use App\Enums\Food\OrderStatus;
@@ -17,6 +18,7 @@ class OrderSubmissionService
 {
     public function __construct(
         private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly DishImageUrlResolverInterface $imageUrlResolver,
     ) {}
 
     public function submit(MaxUser $maxUser): OrderDto
@@ -47,6 +49,7 @@ class OrderSubmissionService
                     'unit_price' => $this->moneyFormatter->format($unitPrice),
                     'quantity' => $item->quantity,
                     'line_total' => $this->moneyFormatter->format($lineTotal),
+                    'image_url' => $this->imageUrlResolver->resolve($item->dish->image_url),
                 ];
             }
 

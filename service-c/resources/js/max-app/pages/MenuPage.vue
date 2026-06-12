@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+import DishImage from '../components/DishImage.vue';
 
 const props = defineProps({
     menu: {
@@ -31,15 +32,6 @@ const props = defineProps({
 const emit = defineEmits(['add-to-cart', 'open-cart']);
 
 const hasCart = computed(() => props.cartItemCount > 0);
-const brokenImageIds = ref(new Set());
-
-function markImageBroken(dishId) {
-    brokenImageIds.value = new Set([...brokenImageIds.value, dishId]);
-}
-
-function showDishImage(dish) {
-    return Boolean(dish.image_url) && !brokenImageIds.value.has(dish.id);
-}
 </script>
 
 <template>
@@ -72,20 +64,7 @@ function showDishImage(dish) {
                             :key="dish.id"
                             class="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm"
                         >
-                            <div
-                                class="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-gray-100"
-                                :class="{ 'flex items-center justify-center text-2xl': !showDishImage(dish) }"
-                            >
-                                <img
-                                    v-if="showDishImage(dish)"
-                                    :src="dish.image_url"
-                                    :alt="dish.name"
-                                    class="h-full w-full object-cover"
-                                    loading="lazy"
-                                    @error="markImageBroken(dish.id)"
-                                >
-                                <span v-else aria-hidden="true">🍽️</span>
-                            </div>
+                            <DishImage :image-url="dish.image_url" :alt="dish.name" />
                             <div class="min-w-0 flex-1">
                                 <p class="font-medium text-gray-900">{{ dish.name }}</p>
                                 <p class="mt-0.5 text-sm font-semibold text-max-primary">{{ dish.price }} ₽</p>
