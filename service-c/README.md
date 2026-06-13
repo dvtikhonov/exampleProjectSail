@@ -240,11 +240,12 @@ location = /api/c/webhooks/max {
 |---|---|---|
 | `GET` | `/api/food/restaurants` | Список активных ресторанов |
 | `GET` | `/api/food/restaurants/{id}/menu` | Категории и блюда (с `image_url`) |
-| `GET` | `/api/food/cart` | Текущая корзина (`draft`) |
+| `GET` | `/api/food/cart` | Текущая корзина (`draft`); поля `items_total`, `delivery_applicable`, `delivery_cost`, `total`, `delivery_address`, `customer_category` |
+| `PATCH` | `/api/food/cart` | Сохранить адрес доставки `{ delivery_address }` (string, max 1000) |
 | `POST` | `/api/food/cart/items` | Добавить позицию `{ dish_id, quantity }` |
 | `PATCH` | `/api/food/cart/items/{id}` | Изменить количество `{ quantity }` |
 | `DELETE` | `/api/food/cart/items/{id}` | Удалить позицию |
-| `POST` | `/api/food/orders/submit` | Оформить заявку (`draft` → `submitted`) |
+| `POST` | `/api/food/orders/submit` | Оформить заявку (`draft` → `submitted`); адрес обязателен, иначе 422 |
 
 Через gateway: префикс `/api/c`, например `GET /api/c/food/restaurants` (требует gateway auth; для mini-app используйте прямой `:8083` или туннель).
 

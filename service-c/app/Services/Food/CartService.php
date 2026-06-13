@@ -11,12 +11,14 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Dish;
 use App\Models\MaxUser;
+use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
 
 class CartService
 {
     public function __construct(
         private readonly CartDtoFactory $cartDtoFactory,
+        private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
     ) {}
 
     public function getDraftCart(MaxUser $maxUser): ?CartDto
@@ -27,7 +29,7 @@ class CartService
             return null;
         }
 
-        return $this->cartDtoFactory->fromModel($cart);
+        return $this->cartDtoFactory->fromModel($cart, $maxUser);
     }
 
     public function addItem(MaxUser $maxUser, int $dishId, int $quantity): CartDto
@@ -58,6 +60,7 @@ class CartService
                     'max_user_id' => $maxUser->max_user_id,
                     'restaurant_id' => $restaurant->id,
                     'status' => CartStatus::Draft,
+                    'delivery_address' => $this->maxUserDeliveryAddressService->defaultFor($maxUser),
                 ]);
             } elseif ($cart->restaurant_id !== $restaurant->id) {
                 throw new FoodDomainException(
@@ -80,7 +83,10 @@ class CartService
                 $cartItem->increment('quantity', $quantity);
             }
 
-            return $this->cartDtoFactory->fromModel($cart->fresh(['restaurant', 'items.dish']));
+            return $this->cartDtoFactory->fromModel(
+                $cart->fresh(['restaurant', 'items.dish']),
+                $maxUser,
+            );
         });
     }
 
@@ -93,6 +99,7 @@ class CartService
 
             return $this->cartDtoFactory->fromModel(
                 $cartItem->cart->fresh(['restaurant', 'items.dish']),
+                $maxUser,
             );
         });
     }
@@ -112,7 +119,7 @@ class CartService
                 return null;
             }
 
-            return $this->cartDtoFactory->fromModel($cart);
+            return $this->cartDtoFactory->fromModel($cart, $maxUser);
         });
     }
 

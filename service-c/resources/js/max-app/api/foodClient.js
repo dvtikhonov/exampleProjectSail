@@ -94,6 +94,17 @@ export async function removeCartItem(itemId) {
     return data.cart;
 }
 
+/**
+ * @param {string} address
+ */
+export async function updateCartDeliveryAddress(address) {
+    const { data } = await client.patch('/food/cart', {
+        delivery_address: address,
+    });
+
+    return data.cart;
+}
+
 export async function submitOrder() {
     const { data } = await client.post('/food/orders/submit');
 

@@ -305,32 +305,38 @@ const downloadExport = (uuid) => {
 };
 
 const pollExportStatus = async (uuid) => {
-    const response = await fetch(routeWithUuid(resolveSalesOutletsRoute(props.routes, 'exportStatus'), uuid), {
-        headers: {
-            Accept: 'application/json',
-        },
-    });
+    try {
+        const response = await fetch(routeWithUuid(resolveSalesOutletsRoute(props.routes, 'exportStatus'), uuid), {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
 
-    if (!response.ok) {
-        throw new Error('Не удалось получить статус экспорта.');
-    }
+        if (!response.ok) {
+            throw new Error('Не удалось получить статус экспорта.');
+        }
 
-    const data = await response.json();
-    exportStatus.value = data.status;
+        const data = await response.json();
+        exportStatus.value = data.status;
 
-    if (data.status === 'completed') {
+        if (data.status === 'completed') {
+            stopExportPolling();
+            downloadExport(uuid);
+            return;
+        }
+
+        if (data.status === 'failed') {
+            stopExportPolling();
+            exportError.value = data.error_message || 'Не удалось собрать CSV-файл.';
+            return;
+        }
+
+        exportPollTimer.value = window.setTimeout(() => pollExportStatus(uuid), 2000);
+    } catch (error) {
         stopExportPolling();
-        downloadExport(uuid);
-        return;
+        exportStatus.value = 'failed';
+        exportError.value = error.message || 'Не удалось получить статус экспорта.';
     }
-
-    if (data.status === 'failed') {
-        stopExportPolling();
-        exportError.value = data.error_message || 'Не удалось собрать CSV-файл.';
-        return;
-    }
-
-    exportPollTimer.value = window.setTimeout(() => pollExportStatus(uuid), 2000);
 };
 
 const saveToFile = async () => {

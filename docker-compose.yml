@@ -167,7 +167,9 @@ services:
       dockerfile: service-b/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: php artisan queue:work --timeout=900 --tries=1
+    restart: unless-stopped
+    entrypoint: ["php", "artisan"]
+    command: ["queue:work", "--timeout=900", "--tries=1"]
     environment:
       - APP_ENV=local
       - APP_URL=http://service-b

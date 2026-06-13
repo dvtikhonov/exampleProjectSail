@@ -25,6 +25,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
         Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
 
         Route::get('/cart', [CartController::class, 'show']);
+        Route::patch('/cart', [CartController::class, 'updateDeliveryAddress']);
         Route::post('/cart/items', [CartController::class, 'store']);
         Route::patch('/cart/items/{item}', [CartController::class, 'update']);
         Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);

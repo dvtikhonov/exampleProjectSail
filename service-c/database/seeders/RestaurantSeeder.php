@@ -81,12 +81,12 @@ class RestaurantSeeder extends Seeder
                 'sort_order' => $sortOrder,
             ]);
 
-            foreach ($dishes as [$dishName, $price, $imageUrl = null]) {
+            foreach ($dishes as $dish) {
                 Dish::query()->create([
                     'menu_category_id' => $category->id,
-                    'name' => $dishName,
-                    'image_url' => $imageUrl,
-                    'price' => $price,
+                    'name' => $dish[0],
+                    'image_url' => $dish[2] ?? null,
+                    'price' => $dish[1],
                     'is_available' => true,
                 ]);
             }

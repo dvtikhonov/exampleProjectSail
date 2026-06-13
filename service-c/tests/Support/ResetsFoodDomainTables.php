@@ -6,10 +6,14 @@ namespace Tests\Support;
 
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\CustomerCategory;
 use App\Models\Dish;
 use App\Models\FoodOrder;
+use App\Models\MaxUser;
 use App\Models\MenuCategory;
 use App\Models\Restaurant;
+use App\Models\RestaurantCategoryDeliveryTier;
+use Illuminate\Support\Facades\DB;
 
 trait ResetsFoodDomainTables
 {
@@ -20,6 +24,10 @@ trait ResetsFoodDomainTables
         Cart::query()->delete();
         Dish::query()->delete();
         MenuCategory::query()->delete();
+        RestaurantCategoryDeliveryTier::query()->delete();
+        DB::table('personal_access_tokens')->delete();
+        MaxUser::query()->delete();
+        CustomerCategory::query()->delete();
         Restaurant::query()->delete();
     }
 }

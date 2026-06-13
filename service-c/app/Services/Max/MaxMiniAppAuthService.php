@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Max;
 
+use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Models\MaxUser;
 use Illuminate\Contracts\Config\Repository;
@@ -16,6 +17,7 @@ class MaxMiniAppAuthService
 
     public function __construct(
         private readonly Repository $config,
+        private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
     ) {}
 
     /**
@@ -23,16 +25,22 @@ class MaxMiniAppAuthService
      */
     public function issueToken(MaxWebAppInitDataDto $initData): array
     {
-        $maxUser = MaxUser::query()->updateOrCreate(
-            ['max_user_id' => $initData->maxUserId],
-            [
-                'first_name' => $initData->firstName,
-                'last_name' => $initData->lastName,
-                'username' => $initData->username,
-                'language_code' => $initData->languageCode,
-                'photo_url' => $initData->photoUrl,
-            ],
-        );
+        $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $initData->maxUserId]);
+        $isNewUser = ! $maxUser->exists;
+
+        $maxUser->fill([
+            'first_name' => $initData->firstName,
+            'last_name' => $initData->lastName,
+            'username' => $initData->username,
+            'language_code' => $initData->languageCode,
+            'photo_url' => $initData->photoUrl,
+        ]);
+
+        if ($isNewUser) {
+            $maxUser->customer_category_id = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
+        }
+
+        $maxUser->save();
 
         $maxUser->tokens()->where('name', self::TOKEN_NAME)->delete();
 

@@ -15,11 +15,16 @@ readonly class CartDto
         public string $restaurantName,
         public string $status,
         public array $items,
+        public string $itemsTotal,
+        public ?string $deliveryCost,
         public string $total,
+        public ?string $deliveryAddress,
+        public ?CustomerCategoryDto $customerCategory,
+        public bool $deliveryApplicable,
     ) {}
 
     /**
-     * @return array<string, int|string|list<array<string, int|string>>>
+     * @return array<string, bool|int|string|null|list<array<string, int|string>>|array<string, int|string>>
      */
     public function toArray(): array
     {
@@ -32,7 +37,12 @@ readonly class CartDto
                 static fn (CartItemDto $item): array => $item->toArray(),
                 $this->items,
             ),
+            'items_total' => $this->itemsTotal,
+            'delivery_cost' => $this->deliveryCost,
             'total' => $this->total,
+            'delivery_address' => $this->deliveryAddress,
+            'customer_category' => $this->customerCategory?->toArray(),
+            'delivery_applicable' => $this->deliveryApplicable,
         ];
     }
 }

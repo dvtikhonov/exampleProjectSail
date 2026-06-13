@@ -9,6 +9,7 @@ import {
     fetchRestaurants,
     removeCartItem,
     submitOrder,
+    updateCartDeliveryAddress,
     updateCartItem,
 } from './api/foodClient';
 import {
@@ -49,10 +50,12 @@ const cartLoading = ref(false);
 const cartError = ref('');
 const updatingItemId = ref(null);
 const submitting = ref(false);
+const savingAddress = ref(false);
 
 const submittedOrder = ref(null);
 
 let unbindBackButton = () => {};
+let addressDebounceTimer = null;
 
 const cartItemCount = computed(() => {
     if (!cart.value?.items) {
@@ -161,11 +164,50 @@ async function handleRemoveItem(item) {
     }
 }
 
-async function handleSubmitOrder() {
+async function saveDeliveryAddress(address) {
+    savingAddress.value = true;
+    cartError.value = '';
+
+    try {
+        cart.value = await updateCartDeliveryAddress(address);
+    } catch (error) {
+        cartError.value = extractErrorMessage(error);
+    } finally {
+        savingAddress.value = false;
+    }
+}
+
+function handleDeliveryAddressInput(address) {
+    if (addressDebounceTimer !== null) {
+        clearTimeout(addressDebounceTimer);
+    }
+
+    addressDebounceTimer = setTimeout(() => {
+        addressDebounceTimer = null;
+        saveDeliveryAddress(address);
+    }, 500);
+}
+
+function handleDeliveryAddressBlur(address) {
+    if (addressDebounceTimer !== null) {
+        clearTimeout(addressDebounceTimer);
+        addressDebounceTimer = null;
+    }
+
+    saveDeliveryAddress(address);
+}
+
+async function handleSubmitOrder(deliveryAddress) {
+    if (addressDebounceTimer !== null) {
+        clearTimeout(addressDebounceTimer);
+        addressDebounceTimer = null;
+    }
+
     submitting.value = true;
     cartError.value = '';
 
     try {
+        cart.value = await updateCartDeliveryAddress(deliveryAddress);
         submittedOrder.value = await submitOrder();
         cart.value = null;
         currentView.value = VIEWS.confirmation;
@@ -238,6 +280,10 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    if (addressDebounceTimer !== null) {
+        clearTimeout(addressDebounceTimer);
+    }
+
     unbindBackButton();
 });
 </script>
@@ -293,10 +339,13 @@ onUnmounted(() => {
                 :error="cartError"
                 :submitting="submitting"
                 :updating-item-id="updatingItemId"
+                :saving-address="savingAddress"
                 @update-quantity="handleUpdateQuantity"
                 @remove-item="handleRemoveItem"
                 @submit-order="handleSubmitOrder"
                 @go-to-restaurants="goToRestaurants"
+                @delivery-address-input="handleDeliveryAddressInput"
+                @delivery-address-blur="handleDeliveryAddressBlur"
             />
 
             <OrderConfirmationPage
