@@ -79,6 +79,7 @@ jobs:
              git checkout '$DEPLOY_REF'
              git pull --ff-only origin '$DEPLOY_REF'
              docker compose build
+             docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
              docker compose up -d --remove-orphans"
 
   run-migrations:
