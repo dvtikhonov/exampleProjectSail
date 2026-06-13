@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
@@ -16,6 +17,8 @@ use Laravel\Sanctum\HasApiTokens;
     'username',
     'language_code',
     'photo_url',
+    'customer_category_id',
+    'delivery_address',
 ])]
 class MaxUser extends Authenticatable
 {
@@ -34,7 +37,16 @@ class MaxUser extends Authenticatable
     {
         return [
             'max_user_id' => 'integer',
+            'customer_category_id' => 'integer',
         ];
+    }
+
+    /**
+     * @return BelongsTo<CustomerCategory, $this>
+     */
+    public function customerCategory(): BelongsTo
+    {
+        return $this->belongsTo(CustomerCategory::class, 'customer_category_id');
     }
 
     /**

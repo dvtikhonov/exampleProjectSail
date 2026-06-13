@@ -55,7 +55,11 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.items.0.unit_price', '199.50')
             ->assertJsonPath('cart.items.0.line_total', '399.00')
             ->assertJsonPath('cart.items.0.image_url', $fixture['dish']->image_url)
-            ->assertJsonPath('cart.total', '399.00');
+            ->assertJsonPath('cart.items_total', '399.00')
+            ->assertJsonPath('cart.delivery_cost', null)
+            ->assertJsonPath('cart.total', '399.00')
+            ->assertJsonPath('cart.delivery_applicable', false)
+            ->assertJsonPath('cart.customer_category', null);
 
         $this->assertDatabaseHas('max_carts', [
             'max_user_id' => $auth['user']->max_user_id,
@@ -122,6 +126,8 @@ class FoodCartApiTest extends TestCase
         ], $auth['headers'])
             ->assertOk()
             ->assertJsonPath('cart.items.0.quantity', 3)
+            ->assertJsonPath('cart.items_total', '300.00')
+            ->assertJsonPath('cart.delivery_cost', null)
             ->assertJsonPath('cart.total', '300.00');
     }
 
@@ -195,6 +201,171 @@ class FoodCartApiTest extends TestCase
         ], $auth['headers'])
             ->assertOk()
             ->assertJsonPath('cart.items.0.quantity', 3)
+            ->assertJsonPath('cart.items_total', '150.00')
+            ->assertJsonPath('cart.delivery_cost', null)
             ->assertJsonPath('cart.total', '150.00');
+    }
+
+    public function test_cart_includes_delivery_cost_for_user_with_category(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            price: 199.50,
+            tiers: [
+                ['min_items_total' => 1000.00, 'delivery_cost' => 0.00],
+                ['min_items_total' => 0.00, 'delivery_cost' => 150.00],
+            ],
+        );
+
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 2,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.items_total', '399.00')
+            ->assertJsonPath('cart.delivery_cost', '150.00')
+            ->assertJsonPath('cart.total', '549.00')
+            ->assertJsonPath('cart.delivery_applicable', true)
+            ->assertJsonPath('cart.customer_category.id', $fixture['customer_category']->id)
+            ->assertJsonPath('cart.customer_category.name', 'Standard');
+    }
+
+    public function test_cart_applies_delivery_tier_at_999_items_total(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            price: 999.00,
+        );
+
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.items_total', '999.00')
+            ->assertJsonPath('cart.delivery_cost', '200.00')
+            ->assertJsonPath('cart.total', '1199.00')
+            ->assertJsonPath('cart.delivery_applicable', true);
+    }
+
+    public function test_cart_applies_free_delivery_tier_at_1000_items_total(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            price: 500.00,
+        );
+
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 2,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.items_total', '1000.00')
+            ->assertJsonPath('cart.delivery_cost', '0.00')
+            ->assertJsonPath('cart.total', '1000.00')
+            ->assertJsonPath('cart.delivery_applicable', true);
+    }
+
+    public function test_cart_without_category_excludes_delivery_from_total(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(price: 250.00);
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.items_total', '250.00')
+            ->assertJsonPath('cart.delivery_applicable', false)
+            ->assertJsonPath('cart.delivery_cost', null)
+            ->assertJsonPath('cart.total', '250.00')
+            ->assertJsonPath('cart.customer_category', null);
+    }
+
+    public function test_patch_cart_delivery_address(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+        ], $auth['headers'])->assertOk();
+
+        $address = 'ул. Примерная, 1';
+
+        $this->patchJson('/api/food/cart', [
+            'delivery_address' => $address,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.delivery_address', $address);
+
+        $this->assertDatabaseHas('max_carts', [
+            'max_user_id' => $auth['user']->max_user_id,
+            'status' => CartStatus::Draft->value,
+            'delivery_address' => $address,
+        ]);
+
+        $this->assertDatabaseHas('max_users', [
+            'max_user_id' => $auth['user']->max_user_id,
+            'delivery_address' => $address,
+        ]);
+    }
+
+    public function test_new_cart_prefills_delivery_address_from_max_user(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+        $address = 'ул. Сохранённая, 5';
+
+        $auth['user']->update(['delivery_address' => $address]);
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.delivery_address', $address);
+
+        $this->assertDatabaseHas('max_carts', [
+            'max_user_id' => $auth['user']->max_user_id,
+            'status' => CartStatus::Draft->value,
+            'delivery_address' => $address,
+        ]);
+    }
+
+    public function test_patch_cart_delivery_address_validates_payload(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+        ], $auth['headers'])->assertOk();
+
+        $this->patchJson('/api/food/cart', [], $auth['headers'])
+            ->assertUnprocessable();
+    }
+
+    public function test_patch_cart_delivery_address_requires_draft_cart(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->patchJson('/api/food/cart', [
+            'delivery_address' => 'ул. Примерная, 1',
+        ], $auth['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Cart is empty.');
     }
 }

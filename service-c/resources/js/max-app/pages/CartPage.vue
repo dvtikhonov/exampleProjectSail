@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import DishImage from '../components/DishImage.vue';
 
 const props = defineProps({
@@ -23,15 +23,52 @@ const props = defineProps({
         type: Number,
         default: null,
     },
+    savingAddress: {
+        type: Boolean,
+        default: false,
+    },
 });
 
-const emit = defineEmits(['update-quantity', 'remove-item', 'submit-order', 'go-to-restaurants']);
+const emit = defineEmits([
+    'update-quantity',
+    'remove-item',
+    'submit-order',
+    'go-to-restaurants',
+    'delivery-address-input',
+    'delivery-address-blur',
+]);
+
+const localAddress = ref('');
+
+watch(
+    () => props.cart?.delivery_address,
+    (value) => {
+        localAddress.value = value ?? '';
+    },
+    { immediate: true },
+);
 
 const isEmpty = computed(() => !props.cart || props.cart.items.length === 0);
+
+const deliveryApplicable = computed(() => props.cart?.delivery_applicable === true);
+
+const hasAddress = computed(() => localAddress.value.trim().length > 0);
+
+const canSubmit = computed(
+    () => hasAddress.value && !props.submitting && !props.savingAddress,
+);
+
+function handleAddressInput() {
+    emit('delivery-address-input', localAddress.value);
+}
+
+function handleAddressBlur() {
+    emit('delivery-address-blur', localAddress.value);
+}
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col pb-28">
+    <div class="flex min-h-dvh flex-col pb-52">
         <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3">
             <h1 class="text-lg font-semibold text-gray-900">Корзина</h1>
             <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
@@ -62,64 +99,104 @@ const isEmpty = computed(() => !props.cart || props.cart.items.length === 0);
                 </button>
             </div>
 
-            <ul v-else class="space-y-3">
-                <li
-                    v-for="item in cart.items"
-                    :key="item.id"
-                    class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
-                >
-                    <div class="flex items-start gap-3">
-                        <DishImage :image-url="item.image_url" :alt="item.dish_name" />
-                        <div class="min-w-0 flex-1">
-                            <p class="font-medium text-gray-900">{{ item.dish_name }}</p>
-                            <p class="mt-0.5 text-sm text-max-muted">{{ item.unit_price }} ₽ × {{ item.quantity }}</p>
-                            <p class="mt-1 text-sm font-semibold text-gray-900">{{ item.line_total }} ₽</p>
+            <template v-else>
+                <ul class="space-y-3">
+                    <li
+                        v-for="item in cart.items"
+                        :key="item.id"
+                        class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+                    >
+                        <div class="flex items-start gap-3">
+                            <DishImage :image-url="item.image_url" :alt="item.dish_name" />
+                            <div class="min-w-0 flex-1">
+                                <p class="font-medium text-gray-900">{{ item.dish_name }}</p>
+                                <p class="mt-0.5 text-sm text-max-muted">{{ item.unit_price }} ₽ × {{ item.quantity }}</p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900">{{ item.line_total }} ₽</p>
+                            </div>
+                            <button
+                                type="button"
+                                class="text-sm text-red-500 transition hover:text-red-700"
+                                :disabled="updatingItemId === item.id"
+                                @click="emit('remove-item', item)"
+                            >
+                                Удалить
+                            </button>
                         </div>
-                        <button
-                            type="button"
-                            class="text-sm text-red-500 transition hover:text-red-700"
-                            :disabled="updatingItemId === item.id"
-                            @click="emit('remove-item', item)"
-                        >
-                            Удалить
-                        </button>
-                    </div>
-                    <div class="mt-3 flex items-center gap-3">
-                        <button
-                            type="button"
-                            class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
-                            :disabled="item.quantity <= 1 || updatingItemId === item.id"
-                            @click="emit('update-quantity', item, item.quantity - 1)"
-                        >
-                            −
-                        </button>
-                        <span class="min-w-6 text-center font-medium">{{ item.quantity }}</span>
-                        <button
-                            type="button"
-                            class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
-                            :disabled="item.quantity >= 99 || updatingItemId === item.id"
-                            @click="emit('update-quantity', item, item.quantity + 1)"
-                        >
-                            +
-                        </button>
-                    </div>
-                </li>
-            </ul>
+                        <div class="mt-3 flex items-center gap-3">
+                            <button
+                                type="button"
+                                class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
+                                :disabled="item.quantity <= 1 || updatingItemId === item.id"
+                                @click="emit('update-quantity', item, item.quantity - 1)"
+                            >
+                                −
+                            </button>
+                            <span class="min-w-6 text-center font-medium">{{ item.quantity }}</span>
+                            <button
+                                type="button"
+                                class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
+                                :disabled="item.quantity >= 99 || updatingItemId === item.id"
+                                @click="emit('update-quantity', item, item.quantity + 1)"
+                            >
+                                +
+                            </button>
+                        </div>
+                    </li>
+                </ul>
+
+                <section class="mt-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label for="delivery-address" class="block text-sm font-medium text-gray-900">
+                        Адрес доставки
+                    </label>
+                    <textarea
+                        id="delivery-address"
+                        v-model="localAddress"
+                        rows="3"
+                        maxlength="1000"
+                        placeholder="Укажите адрес доставки"
+                        class="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-60"
+                        :disabled="savingAddress"
+                        @input="handleAddressInput"
+                        @blur="handleAddressBlur"
+                    />
+                    <p v-if="savingAddress" class="mt-1.5 text-xs text-max-muted">Сохранение адреса…</p>
+                    <p v-else-if="!hasAddress" class="mt-1.5 text-xs text-amber-600">
+                        Укажите адрес, чтобы оформить заявку
+                    </p>
+                </section>
+
+            </template>
         </main>
 
         <div
             v-if="!isEmpty && !loading"
             class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom"
         >
-            <div class="mb-3 flex items-center justify-between text-base">
-                <span class="text-max-muted">Итого</span>
-                <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
+            <div class="mb-2 space-y-1.5 text-sm">
+                <template v-if="deliveryApplicable">
+                    <div class="flex items-center justify-between">
+                        <span class="text-max-muted">Сумма блюд</span>
+                        <span class="font-medium text-gray-900">{{ cart.items_total }} ₽</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-max-muted">Доставка</span>
+                        <span class="font-medium text-gray-900">{{ cart.delivery_cost }} ₽</span>
+                    </div>
+                    <div class="flex items-center justify-between border-t border-gray-100 pt-2 text-base">
+                        <span class="font-medium text-gray-900">Итого</span>
+                        <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
+                    </div>
+                </template>
+                <div v-else class="flex items-center justify-between text-base">
+                    <span class="font-medium text-gray-900">Итого</span>
+                    <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
+                </div>
             </div>
             <button
                 type="button"
                 class="flex w-full items-center justify-center rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-                :disabled="submitting"
-                @click="emit('submit-order')"
+                :disabled="!canSubmit"
+                @click="emit('submit-order', localAddress)"
             >
                 <span v-if="submitting" class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 Оформить заявку

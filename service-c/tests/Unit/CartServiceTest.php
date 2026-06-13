@@ -65,4 +65,20 @@ class CartServiceTest extends TestCase
         $this->assertSame('250.50', $cart->total);
         $this->assertCount(1, $cart->items);
     }
+
+    public function test_add_item_prefills_cart_delivery_address_from_max_user(): void
+    {
+        $address = 'ул. Домашняя, 3';
+        $maxUser = MaxUser::query()->create([
+            'max_user_id' => 11_004,
+            'first_name' => 'Cart',
+            'delivery_address' => $address,
+        ]);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+
+        $cart = app(CartService::class)->addItem($maxUser, $fixture['dish']->id, 1);
+
+        $this->assertSame($address, $cart->deliveryAddress);
+    }
 }

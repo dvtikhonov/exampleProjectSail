@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\Food\CustomerCategoryName;
+use App\Models\CustomerCategory;
 use App\Models\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
@@ -62,6 +64,9 @@ class MaxAuthControllerTest extends TestCase
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 67_890,
             'first_name' => 'Max',
+            'customer_category_id' => CustomerCategory::query()
+                ->where('name', CustomerCategoryName::Standard->value)
+                ->value('id'),
         ]);
 
         $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX mini-app auth requested');
@@ -135,8 +140,36 @@ class MaxAuthControllerTest extends TestCase
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 67_890,
             'first_name' => 'Max',
+            'customer_category_id' => null,
         ]);
 
         $this->assertSame(1, MaxUser::query()->whereKey(67_890)->first()?->tokens()->count());
+    }
+
+    public function test_re_auth_does_not_overwrite_existing_customer_category(): void
+    {
+        $vipCategory = CustomerCategory::query()->create([
+            'name' => 'VIP',
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+
+        MaxUser::query()->create([
+            'max_user_id' => 67_890,
+            'first_name' => 'OldName',
+            'customer_category_id' => $vipCategory->id,
+        ]);
+
+        $initData = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN);
+
+        $this->postJson('/api/max/auth', [
+            'init_data' => $initData,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('max_users', [
+            'max_user_id' => 67_890,
+            'first_name' => 'Max',
+            'customer_category_id' => $vipCategory->id,
+        ]);
     }
 }

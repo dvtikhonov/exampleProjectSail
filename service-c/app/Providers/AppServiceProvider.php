@@ -5,12 +5,16 @@ namespace App\Providers;
 use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserContextInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
+use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
+use App\Repositories\Food\EloquentCustomerCategoryRepository;
+use App\Repositories\Food\EloquentDeliveryTierRepository;
 use App\Services\Food\DishImageUrlResolver;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\EnvMaxBotTokenProvider;
@@ -31,6 +35,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(GatewayUserResolverInterface::class, EloquentGatewayUserResolver::class);
         $this->app->bind(GatewayAuthSessionInterface::class, LaravelGatewayAuthSession::class);
         $this->app->bind(DishImageUrlResolverInterface::class, DishImageUrlResolver::class);
+        $this->app->bind(
+            DeliveryTierRepositoryInterface::class,
+            EloquentDeliveryTierRepository::class,
+        );
+        $this->app->bind(
+            CustomerCategoryRepositoryInterface::class,
+            EloquentCustomerCategoryRepository::class,
+        );
 
         $this->app->bind(MaxBotTokenProviderInterface::class, EnvMaxBotTokenProvider::class);
         $this->app->bind(MaxMessengerClientInterface::class, function ($app): HttpMaxMessengerClient {

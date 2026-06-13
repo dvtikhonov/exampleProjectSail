@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Api\Food;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\AddCartItemRequest;
+use App\Http\Requests\Food\UpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\UpdateCartItemRequest;
 use App\Models\MaxUser;
+use App\Services\Food\CartDeliveryAddressService;
 use App\Services\Food\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,7 @@ class CartController extends Controller
 {
     public function __construct(
         private readonly CartService $cartService,
+        private readonly CartDeliveryAddressService $cartDeliveryAddressService,
     ) {}
 
     public function show(Request $request): JsonResponse
@@ -25,6 +28,24 @@ class CartController extends Controller
 
         return response()->json([
             'cart' => $cart?->toArray(),
+        ]);
+    }
+
+    public function updateDeliveryAddress(UpdateCartDeliveryAddressRequest $request): JsonResponse
+    {
+        try {
+            $cart = $this->cartDeliveryAddressService->update(
+                $this->maxUser($request),
+                $request->deliveryAddress(),
+            );
+        } catch (FoodDomainException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $exception->statusCode());
+        }
+
+        return response()->json([
+            'cart' => $cart->toArray(),
         ]);
     }
 

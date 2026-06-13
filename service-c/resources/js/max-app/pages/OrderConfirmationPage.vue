@@ -22,10 +22,11 @@ const emit = defineEmits(['back-to-restaurants']);
         </p>
 
         <div class="mt-8 w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm">
-            <div class="flex items-center justify-between border-b border-gray-100 pb-3">
-                <span class="text-sm text-max-muted">Сумма</span>
-                <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
+            <div class="border-b border-gray-100 pb-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
+                <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address }}</p>
             </div>
+
             <ul class="mt-3 space-y-2">
                 <li
                     v-for="(item, index) in order.items_snapshot"
@@ -37,6 +38,29 @@ const emit = defineEmits(['back-to-restaurants']);
                     <span class="shrink-0 font-medium text-gray-900">{{ item.line_total }} ₽</span>
                 </li>
             </ul>
+
+            <div class="mt-4 border-t border-gray-100 pt-3 text-sm">
+                <template v-if="order.delivery_applicable">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-max-muted">Сумма блюд</span>
+                            <span class="font-medium text-gray-900">{{ order.items_total }} ₽</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-max-muted">Доставка</span>
+                            <span class="font-medium text-gray-900">{{ order.delivery_cost }} ₽</span>
+                        </div>
+                        <div class="flex items-center justify-between border-t border-gray-100 pt-2">
+                            <span class="font-medium text-gray-900">Итого</span>
+                            <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
+                        </div>
+                    </div>
+                </template>
+                <div v-else class="flex items-center justify-between">
+                    <span class="font-medium text-gray-900">Итого</span>
+                    <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
+                </div>
+            </div>
         </div>
 
         <button

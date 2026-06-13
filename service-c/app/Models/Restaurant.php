@@ -55,4 +55,12 @@ class Restaurant extends Model
     {
         return $this->hasMany(FoodOrder::class);
     }
+
+    /**
+     * @return HasMany<RestaurantCategoryDeliveryTier, $this>
+     */
+    public function deliveryTiers(): HasMany
+    {
+        return $this->hasMany(RestaurantCategoryDeliveryTier::class);
+    }
 }

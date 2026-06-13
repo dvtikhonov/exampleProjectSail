@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'max_user_id',
     'restaurant_id',
     'status',
+    'delivery_address',
 ])]
 class Cart extends Model
 {

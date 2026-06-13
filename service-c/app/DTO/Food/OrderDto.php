@@ -14,13 +14,17 @@ readonly class OrderDto
         public string $status,
         public int $restaurantId,
         public string $restaurantName,
+        public string $itemsTotal,
+        public bool $deliveryApplicable,
+        public ?string $deliveryCost,
         public string $total,
+        public ?string $deliveryAddress,
         public array $itemsSnapshot,
         public string $createdAt,
     ) {}
 
     /**
-     * @return array<string, int|string|list<array<string, mixed>>>
+     * @return array<string, bool|int|string|null|list<array<string, mixed>>>
      */
     public function toArray(): array
     {
@@ -29,7 +33,11 @@ readonly class OrderDto
             'status' => $this->status,
             'restaurant_id' => $this->restaurantId,
             'restaurant_name' => $this->restaurantName,
+            'items_total' => $this->itemsTotal,
+            'delivery_applicable' => $this->deliveryApplicable,
+            'delivery_cost' => $this->deliveryCost,
             'total' => $this->total,
+            'delivery_address' => $this->deliveryAddress,
             'items_snapshot' => $this->itemsSnapshot,
             'created_at' => $this->createdAt,
         ];

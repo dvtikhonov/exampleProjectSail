@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'restaurant_id',
     'status',
     'total',
+    'delivery_address',
+    'delivery_cost',
+    'items_total',
     'items_snapshot',
 ])]
 class FoodOrder extends Model
@@ -30,6 +33,8 @@ class FoodOrder extends Model
             'max_user_id' => 'integer',
             'status' => OrderStatus::class,
             'total' => 'decimal:2',
+            'delivery_cost' => 'decimal:2',
+            'items_total' => 'decimal:2',
             'items_snapshot' => 'array',
         ];
     }
