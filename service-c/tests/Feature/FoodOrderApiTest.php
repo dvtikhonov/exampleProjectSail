@@ -9,6 +9,7 @@ use App\Enums\Food\OrderStatus;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -239,7 +240,7 @@ class FoodOrderApiTest extends TestCase
     /**
      * @param  array{headers: array<string, string>, user: MaxUser}  $auth
      */
-    private function addItemToCart(array $auth, int $dishId, int $quantity): \Illuminate\Testing\TestResponse
+    private function addItemToCart(array $auth, int $dishId, int $quantity): TestResponse
     {
         return $this->postJson('/api/food/cart/items', [
             'dish_id' => $dishId,

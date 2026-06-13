@@ -23,7 +23,7 @@ class EloquentCustomerCategoryRepositoryTest extends TestCase
 
     public function test_find_or_create_default_category_id_creates_standard_category(): void
     {
-        $repository = new EloquentCustomerCategoryRepository();
+        $repository = new EloquentCustomerCategoryRepository;
 
         $categoryId = $repository->findOrCreateDefaultCategoryId();
 
@@ -37,7 +37,7 @@ class EloquentCustomerCategoryRepositoryTest extends TestCase
 
     public function test_find_or_create_default_category_id_returns_existing_standard_category(): void
     {
-        $repository = new EloquentCustomerCategoryRepository();
+        $repository = new EloquentCustomerCategoryRepository;
 
         $firstCategoryId = $repository->findOrCreateDefaultCategoryId();
         $categoryCountAfterFirstCall = CustomerCategory::query()->count();
