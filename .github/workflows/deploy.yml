@@ -119,5 +119,5 @@ jobs:
              export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
              docker compose exec -T main-app php artisan migrate --force
              docker compose exec -T service-a php artisan migrate --force
-             docker compose exec -T service-b php artisan migrate --force"
+             docker compose exec -T service-b php artisan migrate --force
              docker compose exec -T service-c php artisan migrate --force"
