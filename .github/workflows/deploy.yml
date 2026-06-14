@@ -68,6 +68,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -euo pipefail
              cd '$DEPLOY_PATH'
+             export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
              previous_ref=\$(git rev-parse HEAD)
              rollback() {
                echo 'Deployment failed. Rolling back to previous commit.'
@@ -115,6 +116,8 @@ jobs:
           ssh -i ~/.ssh/deploy_key -p "$port" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -euo pipefail
              cd '$DEPLOY_PATH'
+             export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
              docker compose exec -T main-app php artisan migrate --force
              docker compose exec -T service-a php artisan migrate --force
              docker compose exec -T service-b php artisan migrate --force"
+             docker compose exec -T service-c php artisan migrate --force"

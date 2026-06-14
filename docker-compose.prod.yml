@@ -1,0 +1,181 @@
+# Overlay для production поверх docker-compose.yml
+#
+# Запуск:
+#   export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#   docker compose build
+#   docker compose up -d
+#
+# HTTPS: порты 80/443 на VPS занимает системный nginx (Let's Encrypt).
+# Gateway слушает только 127.0.0.1:8080 — см. scripts/vps-nginx-ssl.sh
+#
+# Переменные на VPS (корневой .env или export):
+#   MYSQL_ROOT_PASSWORD, SERVICE_B_DB_PASSWORD, SERVICE_C_DB_PASSWORD
+#   PASSPORT_CLIENT_SECRET, MAIL_HOST, MAIL_FROM_ADDRESS, REVERB_ALLOWED_ORIGINS
+#   GATEWAY_HTTP_PORT (по умолчанию 8080 — upstream для host nginx)
+
+services:
+  mysql-host:
+    image: mysql:8.0
+    command: ["sleep", "infinity"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "host.docker.internal",
+          "-uroot",
+          "-p${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - internal
+    restart: unless-stopped
+    mem_limit: 64m
+
+  main-app:
+    # Доступ снаружи только через gateway (host nginx → 127.0.0.1:8080).
+    ports: !override []
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - XDEBUG_MODE=off
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+    volumes: !override
+      - ./main-app/app:/var/www/html/app
+      - ./main-app/routes:/var/www/html/routes
+      - ./main-app/config:/var/www/html/config
+      - ./main-app/database:/var/www/html/database
+      - ./main-app/resources:/var/www/html/resources
+      - ./main-app/tests:/var/www/html/tests
+      - ./main-app/public:/var/www/html/public
+      - ./main-app/vite.config.js:/var/www/html/vite.config.js:ro
+      - ./main-app/phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./main-app/.env:/var/www/html/.env:ro
+      - ./main-app/storage:/var/www/html/storage
+      - ./main-app/bootstrap/app.php:/var/www/html/bootstrap/app.php:ro
+      - ./main-app/bootstrap:/var/www/html/bootstrap/cache
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 768m
+
+  service-a:
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - XDEBUG_MODE=off
+    volumes: !override
+      - ./service-a:/var/www/html
+      - ./shared:/var/www/shared
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 384m
+
+  service-b:
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS=0
+      - SALES_OUTLETS_MAIL_FAKE_DELAY_SECONDS=0
+      - MAIL_MAILER=${MAIL_MAILER:-smtp}
+      - MAIL_HOST=${MAIL_HOST:?set MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:?set MAIL_FROM_ADDRESS}
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:?set SERVICE_B_DB_PASSWORD}
+    depends_on: !override
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      reverb:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 512m
+
+  service-b-queue:
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - SALES_OUTLETS_EXPORT_FAKE_DELAY_SECONDS=0
+      - SALES_OUTLETS_MAIL_FAKE_DELAY_SECONDS=0
+      - MAIL_MAILER=${MAIL_MAILER:-smtp}
+      - MAIL_HOST=${MAIL_HOST:?set MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:?set MAIL_FROM_ADDRESS}
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${SERVICE_B_DB_PASSWORD:?set SERVICE_B_DB_PASSWORD}
+    depends_on: !override
+      mysql-host:
+        condition: service_healthy
+      service-b:
+        condition: service_started
+      redis:
+        condition: service_started
+      reverb:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 512m
+
+  service-c:
+    ports: !override
+      - "127.0.0.1:${SERVICE_C_PORT:-8083}:8000"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${SERVICE_C_DB_PASSWORD:?set SERVICE_C_DB_PASSWORD}
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 768m
+
+  reverb:
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - REVERB_ALLOWED_ORIGINS=${REVERB_ALLOWED_ORIGINS:?set REVERB_ALLOWED_ORIGINS}
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 256m
+
+  redis:
+    ports: !reset []
+    restart: unless-stopped
+    mem_limit: 128m
+
+  mailhog:
+    profiles: ["dev"]
+
+  gateway:
+    # TLS на host nginx; gateway только HTTP на localhost.
+    ports: !override
+      - "127.0.0.1:${GATEWAY_HTTP_PORT:-8080}:80"
+    restart: unless-stopped
+    mem_limit: 256m

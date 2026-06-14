@@ -513,8 +513,10 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 
 Этапы:
 
-1. **`deploy-via-ssh`** (окружение GitHub `production`) — `git checkout`, `docker compose build`, `docker compose up -d --remove-orphans`. При ошибке выполняется откат к предыдущему коммиту.
+1. **`deploy-via-ssh`** (окружение GitHub `production`) — `git checkout`, `docker compose build`, `docker compose up -d --remove-orphans` с overlay `docker-compose.prod.yml`. При ошибке выполняется откат к предыдущему коммиту.
 2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех трёх сервисах через SSH.
+
+На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` (см. `docker-compose.prod.yml`).
 
 ### Обязательные GitHub Secrets
 
