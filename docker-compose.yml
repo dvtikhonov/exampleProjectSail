@@ -61,7 +61,8 @@ services:
       # bind mount вместо томов
       - ./main-app/storage:/var/www/html/storage
       - ./main-app/bootstrap/app.php:/var/www/html/bootstrap/app.php:ro
-      - ./main-app/bootstrap:/var/www/html/bootstrap/cache
+      - ./main-app/bootstrap/providers.php:/var/www/html/bootstrap/providers.php:ro
+      - ./main-app/bootstrap/cache:/var/www/html/bootstrap/cache
 #    entrypoint: ""
 #    command: ["php", "-S", "0.0.0.0:8000", "-t", "public"]
     networks:

@@ -61,7 +61,8 @@ services:
       - ./main-app/.env:/var/www/html/.env:ro
       - ./main-app/storage:/var/www/html/storage
       - ./main-app/bootstrap/app.php:/var/www/html/bootstrap/app.php:ro
-      - ./main-app/bootstrap:/var/www/html/bootstrap/cache
+      - ./main-app/bootstrap/providers.php:/var/www/html/bootstrap/providers.php:ro
+      - ./main-app/bootstrap/cache:/var/www/html/bootstrap/cache
     depends_on:
       mysql-host:
         condition: service_healthy
