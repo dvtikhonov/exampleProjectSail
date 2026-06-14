@@ -27,6 +27,8 @@ usage() {
 
 Команды:
   check         — порты 80/443, nginx, gateway upstream
+  repair        — диагностика + cert (если нет) + apply-nginx
+  fix-apt       — починить GPG Docker repo (NO_PUBKEY) и apt update
   install       — apt: nginx, certbot, python3-certbot-nginx
   nginx-config  — вывести конфиг для /etc/nginx/sites-available/
   apply-nginx   — записать конфиг и reload nginx (нужен sudo)
@@ -87,6 +89,46 @@ compose() {
     )
 }
 
+detect_sslip_domain() {
+    local ip hyphenated
+    ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+    [[ -n "${ip}" ]] || return 1
+    hyphenated="${ip//./-}"
+    echo "${hyphenated}.sslip.io"
+}
+
+ensure_domain() {
+    if [[ -z "${VPS_DOMAIN}" ]]; then
+        VPS_DOMAIN="$(detect_sslip_domain || true)"
+        if [[ -n "${VPS_DOMAIN}" ]]; then
+            echo "VPS_DOMAIN не задан — использую ${VPS_DOMAIN}"
+        fi
+    fi
+    require_domain
+}
+
+ports_80_443_listeners() {
+    ss -tlnp 2>/dev/null | grep -E ':(80|443) ' || true
+}
+
+ports_80_443_busy() {
+    ss -tlnp 2>/dev/null | grep -qE ':(80|443) '
+}
+
+cert_path() {
+    echo "/etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem"
+}
+
+cert_exists() {
+    local domain="${1:-${VPS_DOMAIN}}"
+    [[ -n "${domain}" ]] || return 1
+    if [[ "${EUID}" -eq 0 ]]; then
+        [[ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]]
+    else
+        sudo test -f "/etc/letsencrypt/live/${domain}/fullchain.pem"
+    fi
+}
+
 print_nginx_config() {
     require_domain
     cat <<EOF
@@ -133,16 +175,35 @@ EOF
 }
 
 cmd_check() {
+    ensure_domain 2>/dev/null || true
+
     echo "=== Порты 80/443 ==="
-    ss -tlnp 2>/dev/null | grep -E ':80 |:443 ' || echo "(ничего не слушает 80/443 — ок для первого certbot standalone)"
+    local listeners
+    listeners="$(ports_80_443_listeners)"
+    if [[ -z "${listeners}" ]]; then
+        echo "НИКТО не слушает 80/443 → curl: Connection refused"
+        echo "  Нужно: sudo ./scripts/vps-nginx-ssl.sh repair"
+    else
+        echo "${listeners}"
+    fi
 
     echo
     echo "=== Gateway upstream :${GATEWAY_HTTP_PORT} ==="
-    ss -tlnp 2>/dev/null | grep ":${GATEWAY_HTTP_PORT} " || echo "WARNING: gateway не слушает 127.0.0.1:${GATEWAY_HTTP_PORT}"
+    if ss -tlnp 2>/dev/null | grep -q ":${GATEWAY_HTTP_PORT} "; then
+        ss -tlnp 2>/dev/null | grep ":${GATEWAY_HTTP_PORT} "
+    else
+        echo "WARNING: gateway не слушает 127.0.0.1:${GATEWAY_HTTP_PORT}"
+        echo "  export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml"
+        echo "  docker compose up -d gateway"
+    fi
 
     echo
     echo "=== system nginx ==="
-    systemctl is-active nginx 2>/dev/null || echo "inactive"
+    if systemctl is-active nginx >/dev/null 2>&1; then
+        systemctl status nginx --no-pager -l | head -5
+    else
+        echo "inactive (dead) — HTTPS не работает"
+    fi
 
     echo
     echo "=== Docker (COMPOSE_FILE=${COMPOSE_FILE}) ==="
@@ -150,33 +211,83 @@ cmd_check() {
 
     if [[ -n "${VPS_DOMAIN}" ]]; then
         echo
-        echo "=== Сертификат ==="
-        if [[ -f "/etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem" ]]; then
+        echo "=== Сертификат (${VPS_DOMAIN}) ==="
+        if cert_exists; then
             echo "OK: /etc/letsencrypt/live/${VPS_DOMAIN}/"
         else
-            echo "Нет сертификата для ${VPS_DOMAIN}"
+            echo "Нет сертификата — нужен: ./scripts/vps-nginx-ssl.sh issue-cert"
         fi
+
+        echo
+        echo "=== Локальная проверка ==="
+        curl -s -o /dev/null -w "HTTP :443 → %{http_code}\n" --connect-timeout 2 "https://${VPS_DOMAIN}/" 2>/dev/null \
+            || echo "HTTPS недоступен (connection refused / cert / nginx)"
     fi
 }
 
 cmd_install() {
     require_sudo
     echo "Установка nginx и certbot..."
-    run_root apt-get update
-    run_root DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        nginx certbot python3-certbot-nginx
+
+    if ! apt_get_update_safe; then
+        echo "WARNING: apt-get update не удался — пробую установить из локального кэша apt..." >&2
+    fi
+
+    if ! run_root DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        nginx certbot python3-certbot-nginx; then
+        echo "Повтор install после fix-apt..." >&2
+        cmd_fix_apt
+        run_root DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            nginx certbot python3-certbot-nginx
+    fi
+
     run_root mkdir -p /var/www/certbot
     run_root systemctl enable nginx
     echo "Готово."
+}
+
+fix_docker_apt_gpg() {
+    echo "Импорт GPG-ключа Docker (7EA0A9C3F273FCD8)..."
+    run_root apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7EA0A9C3F273FCD8 2>/dev/null \
+        || run_root apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8
+}
+
+apt_get_update_safe() {
+    if run_root apt-get update; then
+        return 0
+    fi
+
+    echo "WARNING: apt-get update failed — типичная причина: NO_PUBKEY Docker repo." >&2
+    if [[ -f /etc/apt/sources.list.d/docker.list ]] \
+        || [[ -f /etc/apt/sources.list.d/docker-ce.list ]]; then
+        fix_docker_apt_gpg || true
+        run_root apt-get update && return 0
+    fi
+
+    return 1
+}
+
+cmd_fix_apt() {
+    require_sudo
+
+    if [[ -f /etc/apt/sources.list.d/docker.list ]] \
+        || [[ -f /etc/apt/sources.list.d/docker-ce.list ]]; then
+        fix_docker_apt_gpg
+    else
+        echo "Docker apt repo не найден — проверьте /etc/apt/sources.list.d/" >&2
+    fi
+
+    run_root apt-get update
+    echo "apt update OK."
 }
 
 stop_docker_public_ports() {
     echo "Останавливаем контейнеры, занимающие 80/443 (main-app, gateway)..."
     compose stop main-app gateway 2>/dev/null || true
     sleep 1
-    if ss -tlnp 2>/dev/null | grep -qE '0\.0\.0\.0:(80|443) '; then
+    if ports_80_443_busy; then
         echo "WARNING: порты 80/443 всё ещё заняты:" >&2
-        ss -tlnp | grep -E ':80 |:443 ' || true
+        ports_80_443_listeners >&2
         echo "Остановите процессы вручную перед issue-cert." >&2
         return 1
     fi
@@ -195,7 +306,7 @@ cmd_issue_cert() {
     stop_docker_public_ports
 
     echo "Получение сертификата (standalone) для ${VPS_DOMAIN}..."
-    if [[ -f "/etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem" ]]; then
+    if cert_exists; then
         echo "Сертификат уже существует, пропуск certonly."
     else
         run_root certbot certonly --standalone \
@@ -211,11 +322,22 @@ cmd_issue_cert() {
 
 cmd_apply_nginx() {
     require_sudo
-    require_domain
+    ensure_domain
 
-    if [[ ! -f "/etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem" ]]; then
+    if ! cert_exists; then
         echo "Сначала выполните: $(basename "$0") issue-cert" >&2
+        echo "(файл $(cert_path) недоступен без sudo или cert ещё не выпущен)" >&2
         exit 1
+    fi
+
+    if ! ss -tlnp 2>/dev/null | grep -q ":${GATEWAY_HTTP_PORT} "; then
+        echo "Gateway не слушает 127.0.0.1:${GATEWAY_HTTP_PORT} — поднимаю Docker..." >&2
+        start_docker_prod
+        sleep 2
+        if ! ss -tlnp 2>/dev/null | grep -q ":${GATEWAY_HTTP_PORT} "; then
+            echo "ERROR: gateway всё ещё недоступен на :${GATEWAY_HTTP_PORT}" >&2
+            exit 1
+        fi
     fi
 
     run_root mkdir -p /var/www/certbot
@@ -226,10 +348,38 @@ cmd_apply_nginx() {
     run_root nginx -t
     run_root systemctl enable nginx
     run_root systemctl restart nginx
+
+    if ! systemctl is-active nginx >/dev/null 2>&1; then
+        echo "ERROR: nginx не запустился. Лог:" >&2
+        run_root journalctl -u nginx --no-pager -n 20 >&2
+        exit 1
+    fi
+
     echo "Nginx настроен: https://${VPS_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT}"
     echo
     echo "Обновите APP_URL в main-app/.env:"
     echo "  APP_URL=https://${VPS_DOMAIN}"
+}
+
+cmd_repair() {
+    ensure_domain
+    cmd_check
+    echo
+    echo "=== Repair ==="
+
+    if ! command -v nginx >/dev/null 2>&1; then
+        cmd_install
+    fi
+
+    if ! cert_exists; then
+        require_email
+        cmd_issue_cert
+    else
+        start_docker_prod
+    fi
+
+    cmd_apply_nginx
+    cmd_check
 }
 
 cmd_all() {
@@ -249,11 +399,17 @@ main() {
         install)
             cmd_install
             ;;
+        fix-apt)
+            cmd_fix_apt
+            ;;
         nginx-config)
             print_nginx_config
             ;;
         apply-nginx)
             cmd_apply_nginx
+            ;;
+        repair)
+            cmd_repair
             ;;
         issue-cert)
             cmd_issue_cert
