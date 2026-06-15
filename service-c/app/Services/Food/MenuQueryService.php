@@ -60,7 +60,7 @@ class MenuQueryService
                     name: $dish->name,
                     price: $this->moneyFormatter->format($dish->price),
                     isAvailable: $dish->is_available,
-                    imageUrl: $this->imageUrlResolver->resolve($dish->image_url),
+                    imageUrl: $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->image_url),
                 );
             }
 

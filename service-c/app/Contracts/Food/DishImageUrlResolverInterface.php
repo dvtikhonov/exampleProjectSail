@@ -7,7 +7,7 @@ namespace App\Contracts\Food;
 interface DishImageUrlResolverInterface
 {
     /**
-     * Преобразует значение image_url из БД в публичный URL для клиента.
+     * Same-origin URL для <img>: mobile WebView MAX не грузит внешние CDN напрямую.
      */
-    public function resolve(?string $imageUrl): ?string;
+    public function resolvePublicUrl(int $dishId, ?string $imageUrl): ?string;
 }

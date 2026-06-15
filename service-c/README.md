@@ -80,7 +80,13 @@ docker compose up -d service-c
 ```bash
 docker compose exec -T service-c php artisan migrate
 docker compose exec -T service-c php artisan db:seed   # демо-рестораны «Пицца Макс», «Суши Бар»
+# Если рестораны уже были до колонки image_url — только backfill (идемпотентно):
+docker compose exec -T service-c php artisan db:seed --class=DishImageUrlBackfillSeeder
 ```
+
+> **VPS:** deploy с `run_migrations=true` автоматически запускает `DishImageUrlBackfillSeeder`. Если миграции уже были, а картинок нет — выполните backfill вручную (см. выше). В `service-c/.env` на VPS: `APP_URL=https://<VPS_DOMAIN>`.
+
+> **Android/iOS MAX:** WebView не загружает внешние CDN (`images.unsplash.com`) напрямую. API отдаёт `image_url` вида `/api/food/dishes/{id}/image`; сервер проксирует upstream. MAX PC может грузить Unsplash напрямую — прокси работает и там.
 
 > Миграции затрагивают только схему service-c. Перед выполнением в shared-окружении согласуйте с командой (в проекте три сервиса с отдельными migration paths).
 
@@ -242,6 +248,7 @@ location = /api/c/webhooks/max {
 |---|---|---|
 | `GET` | `/api/food/restaurants` | Список активных ресторанов |
 | `GET` | `/api/food/restaurants/{id}/menu` | Категории и блюда (с `image_url`) |
+| `GET` | `/api/food/dishes/{id}/image` | Изображение блюда (same-origin прокси; **без** Bearer — для `<img>` в WebView MAX) |
 | `GET` | `/api/food/cart` | Текущая корзина (`draft`); поля `items_total`, `delivery_applicable`, `delivery_cost`, `total`, `delivery_address`, `customer_category` |
 | `PATCH` | `/api/food/cart` | Сохранить адрес доставки `{ delivery_address }` (string, max 1000) |
 | `POST` | `/api/food/cart/items` | Добавить позицию `{ dish_id, quantity }` |

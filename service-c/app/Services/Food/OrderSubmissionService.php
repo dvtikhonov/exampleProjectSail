@@ -56,7 +56,7 @@ class OrderSubmissionService
                     'unit_price' => $this->moneyFormatter->format($unitPrice),
                     'quantity' => $item->quantity,
                     'line_total' => $this->moneyFormatter->format($lineTotal),
-                    'image_url' => $this->imageUrlResolver->resolve($item->dish->image_url),
+                    'image_url' => $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
                 ];
             }
 

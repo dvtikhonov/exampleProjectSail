@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Food\CartController;
+use App\Http\Controllers\Api\Food\DishImageController;
 use App\Http\Controllers\Api\Food\OrderController;
 use App\Http\Controllers\Api\Food\RestaurantController;
 use App\Http\Controllers\Api\MaxAuthController;
@@ -12,6 +13,9 @@ Route::post('/webhooks/max', MaxWebhookController::class)
     ->middleware('max.webhook.secret');
 
 Route::post('/max/auth', [MaxAuthController::class, 'store']);
+
+// Публичный same-origin URL для <img> (без Bearer — WebView MAX не шлёт Authorization на картинки).
+Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show']);
 
 Route::middleware('max.miniapp.auth')->group(function () {
     if (app()->environment(['local', 'testing'])) {

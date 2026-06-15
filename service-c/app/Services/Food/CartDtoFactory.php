@@ -37,7 +37,7 @@ class CartDtoFactory
                 unitPrice: $this->moneyFormatter->format($unitPrice),
                 quantity: $item->quantity,
                 lineTotal: $this->moneyFormatter->format($lineTotal),
-                imageUrl: $this->imageUrlResolver->resolve($item->dish->image_url),
+                imageUrl: $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
             );
         }
 

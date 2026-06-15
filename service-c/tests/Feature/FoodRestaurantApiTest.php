@@ -65,7 +65,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonPath('menu.categories.0.dishes.0.id', $fixture['dish']->id)
             ->assertJsonPath('menu.categories.0.dishes.0.name', 'Test Pasta')
             ->assertJsonPath('menu.categories.0.dishes.0.price', '250.00')
-            ->assertJsonPath('menu.categories.0.dishes.0.image_url', $fixture['dish']->image_url);
+            ->assertJsonPath('menu.categories.0.dishes.0.image_url', '/api/food/dishes/'.$fixture['dish']->id.'/image');
     }
 
     public function test_menu_endpoint_returns_not_found_for_inactive_restaurant(): void

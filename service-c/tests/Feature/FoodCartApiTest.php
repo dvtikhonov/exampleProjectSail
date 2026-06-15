@@ -54,7 +54,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.items.0.quantity', 2)
             ->assertJsonPath('cart.items.0.unit_price', '199.50')
             ->assertJsonPath('cart.items.0.line_total', '399.00')
-            ->assertJsonPath('cart.items.0.image_url', $fixture['dish']->image_url)
+            ->assertJsonPath('cart.items.0.image_url', '/api/food/dishes/'.$fixture['dish']->id.'/image')
             ->assertJsonPath('cart.items_total', '399.00')
             ->assertJsonPath('cart.delivery_cost', null)
             ->assertJsonPath('cart.total', '399.00')
