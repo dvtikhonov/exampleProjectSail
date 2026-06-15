@@ -10,6 +10,8 @@ export default defineConfig({
                 app: 'resources/js/app.js',
                 'max-app': 'resources/js/max-app/app.js',
             },
+            // Отдельный каталог от main-app (/build), если оба сервиса на одном домене (VPS sslip.io).
+            buildDirectory: 'max-build',
             refresh: true,
         }),
         vue(),

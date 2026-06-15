@@ -12,7 +12,7 @@ chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 # Mini-app в MAX (web/desktop/mobile) через туннель: только production build.
 # Vite dev (public/hot → localhost:5174) снаружи недоступен.
 rm -f public/hot 2>/dev/null || true
-if [ ! -f public/build/manifest.json ]; then
+if [ ! -f public/max-build/manifest.json ]; then
     echo "Building Vite assets for max-app (required for MAX via tunnel)..."
     npm run build
 fi

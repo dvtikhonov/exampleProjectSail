@@ -104,14 +104,14 @@ class MaxMiniAppVerifyCommand extends Command
 
         $this->info('HTML max-app получен через туннель.');
 
-        if (preg_match('#https?://[^"\']+/build/assets/[^"\']+\.js#', $body, $matches) !== 1) {
-            if (preg_match('#/max-app/build/assets/[^"\']+\.js#', $body)) {
-                $this->error('Ассеты по пути /max-app/build/ — исправьте APP_URL (уберите /max-app).');
+        if (preg_match('#https?://[^"\']+/(?:max-build|build)/assets/[^"\']+\.js#', $body, $matches) !== 1) {
+            if (preg_match('#/max-app/(?:max-build|build)/assets/[^"\']+\.js#', $body)) {
+                $this->error('Ассеты по пути /max-app/.../build/ — исправьте APP_URL (уберите /max-app).');
 
                 return self::FAILURE;
             }
 
-            $this->warn('В HTML нет /build/assets/*.js — выполните: docker compose exec service-c npm run build');
+            $this->warn('В HTML нет /max-build/assets/*.js — выполните: docker compose exec service-c npm run build');
 
             return self::FAILURE;
         }
@@ -193,8 +193,8 @@ class MaxMiniAppVerifyCommand extends Command
             return;
         }
 
-        if (str_contains($localBody, '/max-app/build/assets/')) {
-            $this->error('Локальный HTML ссылается на /max-app/build/assets/ — неверный APP_URL.');
+        if (str_contains($localBody, '/max-app/max-build/assets/') || str_contains($localBody, '/max-app/build/assets/')) {
+            $this->error('Локальный HTML ссылается на /max-app/.../assets/ — неверный APP_URL.');
         } elseif (str_contains($localBody, 'id="max-app"')) {
             $this->info('Локально Laravel отдаёт корректный max-app.');
         }

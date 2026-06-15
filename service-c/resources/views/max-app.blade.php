@@ -130,11 +130,11 @@
             })();
         </script>
         @php
-            $maxAppAssetsReady = file_exists(public_path('build/manifest.json'))
+            $maxAppAssetsReady = file_exists(public_path('max-build/manifest.json'))
                 || file_exists(public_path('hot'));
         @endphp
         @if ($maxAppAssetsReady)
-            @vite(['resources/js/max-app/app.js'])
+            @vite(['resources/js/max-app/app.js'], 'max-build')
         @else
             <style>
                 body { font-family: system-ui, sans-serif; margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center; background: #f5f5f5; color: #333; }
