@@ -20,13 +20,13 @@ class HandleAuthPassport
         $token = $request->bearerToken() ?? $request->session()->get('passport_token');
 
         if (! $token) {
-            return redirect('http://localhost/login');
+            return redirect()->route('login');
         }
 
         $userId = $this->tokenVerifier->resolveUserId($token);
 
         if ($userId === null) {
-            return redirect('http://localhost/login');
+            return redirect()->route('login');
         }
 
         $request->attributes->set('auth_user_id', $userId);

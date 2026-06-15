@@ -306,29 +306,25 @@ EloquentSalesOutletsReportJobRepository (create / updateStatus)
 
 ## Авторизация через gateway
 
-`nginx-gateway` использует `auth_request /auth-internal` и проверяет Bearer-токен через endpoint `main-app`:
+`nginx-gateway` использует `auth_request /auth-internal` и проверяет Bearer-токен через endpoint `main-app` **только для микросервисов** (`/api/a/`, `/api/b/`, `/api/c/`):
 
 ```text
 /api/auth/verify
 ```
 
+Веб-страницы `main-app` (`/`, `/login`, `/dashboard`, `/objects-sales-outlets-2`, …) проксируются **без** `auth_request`: доступ контролирует Laravel (сессия + middleware `auth` / `auth.passport`). Это совпадает с локальной разработкой, где UI открывается на `:80`, а gateway (`:8080`) используется для API.
+
 `main-app` разбирает JWT Passport-токен, ищет его по `jti` в таблице Passport-токенов и возвращает заголовок `X-User-Id` при успешной проверке. Gateway передаёт этот заголовок дальше в сервисы.
 
 Результаты успешной проверки кэшируются в nginx на 60 секунд (`proxy_cache auth_cache`). Заголовок ответа `X-Auth-Cache` показывает статус кэша (`HIT`, `MISS`, `BYPASS`).
 
-Открытые маршруты gateway (без `auth_request`):
+Маршруты gateway с `auth_request` (требуют `Authorization: Bearer <token>`):
 
-- `/` — главная (Welcome)
-- `/build/...` — статика Vite (JS/CSS)
-- `/login`, `/register`, `/forgot-password`, `/reset-password/...`
-- `/oauth/token`
-- `/favicon.ico`, `/robots.txt`, `/up`, `/sanctum/csrf-cookie`
+- `/api/a/...`
+- `/api/b/...`
+- `/api/c/...` (кроме webhook MAX)
 
-Остальные маршруты через gateway, включая `/`, `/api/a/...` и `/api/b/...`, требуют:
-
-```http
-Authorization: Bearer <token>
-```
+Остальные пути через gateway идут в `main-app` без проверки Bearer на уровне nginx.
 
 В `main-app` после web-login создаётся Passport-токен и сохраняется в сессии. Текущий токен:
 
