@@ -318,9 +318,10 @@ EloquentSalesOutletsReportJobRepository (create / updateStatus)
 
 Открытые маршруты gateway (без `auth_request`):
 
-- `/login`
-- `/register`
+- `/build/...` — статика Vite (JS/CSS)
+- `/login`, `/register`, `/forgot-password`, `/reset-password/...`
 - `/oauth/token`
+- `/favicon.ico`, `/robots.txt`, `/up`, `/sanctum/csrf-cookie`
 
 Остальные маршруты через gateway, включая `/`, `/api/a/...` и `/api/b/...`, требуют:
 
