@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\User;
 use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class AuthController extends Controller
      */
     public function user(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         return response()->json([
@@ -69,7 +70,7 @@ class AuthController extends Controller
     /**
      * @return array{id: int, name: string, email: string}
      */
-    private function serializeUser(\App\Models\User $user): array
+    private function serializeUser(User $user): array
     {
         return [
             'id' => $user->id,
