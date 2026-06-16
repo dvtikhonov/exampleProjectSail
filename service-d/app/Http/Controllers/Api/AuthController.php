@@ -43,7 +43,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Выход из сессии.
+     * Выход из сессии (идемпотентно: работает и без активной auth:sanctum).
      */
     public function logout(Request $request): JsonResponse
     {

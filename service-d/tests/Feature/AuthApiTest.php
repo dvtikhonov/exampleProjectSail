@@ -106,4 +106,14 @@ class AuthApiTest extends TestCase
                 'message' => 'Logged out.',
             ]);
     }
+
+    public function test_guest_can_logout_idempotently(): void
+    {
+        $response = $this->postStatefulJson('/api/logout');
+
+        $response->assertOk()
+            ->assertJson([
+                'message' => 'Logged out.',
+            ]);
+    }
 }

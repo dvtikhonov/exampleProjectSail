@@ -31,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
             'sanctum.stateful' => app(SanctumStatefulDomainsResolver::class)->resolve($request),
         ]);
 
+        if (env('SESSION_DOMAIN') === null && $request->getHost() !== '') {
+            config(['session.domain' => $request->getHost()]);
+        }
+
         $appUrl = rtrim((string) config('app.url'), '/');
         $isHttpsRequest = $request->isSecure()
             || $request->header('X-Forwarded-Proto') === 'https';
