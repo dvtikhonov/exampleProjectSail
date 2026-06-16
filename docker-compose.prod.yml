@@ -11,6 +11,7 @@
 # Переменные на VPS (корневой .env или export):
 #   MYSQL_ROOT_PASSWORD, SERVICE_B_DB_PASSWORD, SERVICE_C_DB_PASSWORD, SERVICE_D_DB_PASSWORD
 #   PASSPORT_CLIENT_SECRET, MAIL_HOST, MAIL_FROM_ADDRESS, REVERB_ALLOWED_ORIGINS
+#   REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io
 #   GATEWAY_HTTP_PORT (по умолчанию 8080 — upstream для host nginx)
 
 services:

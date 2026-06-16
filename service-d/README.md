@@ -14,7 +14,7 @@ Laravel 13 (PHP 8.4) и Vue 3 SPA с авторизацией через **Larav
 |---|---|
 | `http://localhost:8084/` | Vue SPA (прямой доступ к контейнеру) |
 | `http://yandexmaps.localhost:8080/` | Через nginx-gateway (host-based routing) |
-| `https://yandexmaps.<VPS_DOMAIN>/` | Production (host nginx → gateway → service-d) |
+| `https://yandexmaps.94-228-117-27.sslip.io/` | Production (host nginx → gateway → service-d) |
 | `POST /api/register`, `POST /api/login` | Публичная регистрация и вход |
 | `POST /api/logout`, `GET /api/user` | `auth:sanctum` |
 
@@ -88,12 +88,12 @@ SANCTUM_STATEFUL_DOMAINS=localhost:8084,localhost,yandexmaps.localhost,yandexmap
 
 Через gateway локально нужен порт в домене (`yandexmaps.localhost:8080`) — Origin браузера включает `:8080`. Плейсхолдер `__SANCTUM_CURRENT_REQUEST_HOST__` подставляет `Host` запроса динамически.
 
-**Production** (после `scripts/vps-nginx-ssl.sh`):
+**Production** (после `scripts/vps-nginx-ssl.sh`; основной домен VPS — `94-228-117-27.sslip.io`):
 
 ```env
-APP_URL=https://yandexmaps.<VPS_DOMAIN>
-SANCTUM_STATEFUL_DOMAINS=yandexmaps.<VPS_DOMAIN>
-SESSION_DOMAIN=yandexmaps.<VPS_DOMAIN>
+APP_URL=https://yandexmaps.94-228-117-27.sslip.io
+SANCTUM_STATEFUL_DOMAINS=yandexmaps.94-228-117-27.sslip.io
+SESSION_DOMAIN=yandexmaps.94-228-117-27.sslip.io
 ```
 
 `SESSION_DOMAIN` нужен, чтобы cookie сессии работала на субдомене.
@@ -125,13 +125,13 @@ docker compose exec service-d npm run build
 
 ## Production: SSL и субдомен
 
-1. **DNS:** A-запись `yandexmaps.<VPS_DOMAIN>` → IP VPS (тот же, что у основного домена).
+1. **DNS:** для sslip.io A-запись не нужна; субдомен `yandexmaps.94-228-117-27.sslip.io` резолвится на тот же IP, что и `94-228-117-27.sslip.io`.
 2. На VPS из корня репозитория:
 
 ```bash
 export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
-export VPS_DOMAIN=example.com
-export CERTBOT_EMAIL=admin@example.com
+export VPS_DOMAIN=94-228-117-27.sslip.io
+export CERTBOT_EMAIL=you@example.com
 docker compose up -d
 ./scripts/vps-nginx-ssl.sh all
 ```

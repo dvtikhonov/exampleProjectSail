@@ -3,7 +3,7 @@
 # Без interstitial-страницы fxTunnel. Локальный service-c остаётся на машине разработчика.
 #
 # Схема:
-#   MAX → https://max-dev.example.com → nginx (VPS) → 127.0.0.1:REMOTE_BIND_PORT → SSH -R → localhost:8083
+#   MAX → https://max-dev.94-228-117-27.sslip.io → nginx (VPS) → 127.0.0.1:REMOTE_BIND_PORT → SSH -R → localhost:8083
 
 set -euo pipefail
 

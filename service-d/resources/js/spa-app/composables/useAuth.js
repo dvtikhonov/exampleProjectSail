@@ -98,15 +98,26 @@ export function useAuth() {
         isLoading.value = true;
 
         try {
+            await ensureCsrfCookie();
             await api.post('/logout');
-            user.value = null;
-            return true;
         } catch (err) {
-            error.value = extractErrorMessage(err, 'Не удалось выйти из системы.');
-            return false;
+            const status = err?.response?.status;
+
+            if (status !== 401 && status !== 419) {
+                error.value = extractErrorMessage(err, 'Не удалось связаться с сервером при выходе.');
+            }
         } finally {
+            user.value = null;
             isLoading.value = false;
         }
+
+        return true;
+    }
+
+    function clearAuthState() {
+        user.value = null;
+        hasCheckedSession.value = false;
+        resetError();
     }
 
     return {
@@ -119,5 +130,6 @@ export function useAuth() {
         login,
         register,
         logout,
+        clearAuthState,
     };
 }

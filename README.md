@@ -532,7 +532,18 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 1. **`deploy-via-ssh`** (окружение GitHub `production`) — `git checkout`, `docker compose build`, `docker compose up -d --remove-orphans` с overlay `docker-compose.prod.yml`. При ошибке выполняется откат к предыдущему коммиту.
 2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех сервисах (`main-app`, `service-a`, `service-b`, `service-c`, `service-d`) через SSH.
 
-На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` — сертификат на основной домен и субдомен `yandexmaps.<VPS_DOMAIN>` для service-d (см. [service-d/README.md](service-d/README.md)). Overlay: `docker-compose.prod.yml`.
+На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` — сертификат на основной домен и субдомен `yandexmaps.*` для service-d (см. [service-d/README.md](service-d/README.md)). Overlay: `docker-compose.prod.yml`.
+
+**Production-домен VPS:** `94-228-117-27.sslip.io` (sslip.io — отдельная A-запись не нужна, домен привязан к IP `94.228.117.27`).
+
+| Сервис | Production URL |
+|---|---|
+| `main-app` | `https://94-228-117-27.sslip.io/` |
+| `service-c` (MAX mini-app) | `https://94-228-117-27.sslip.io/max-app` |
+| `service-c` (webhook) | `https://94-228-117-27.sslip.io/api/webhooks/max` |
+| `service-d` | `https://yandexmaps.94-228-117-27.sslip.io/` |
+
+В `.env` на VPS: `main-app` → `APP_URL=https://94-228-117-27.sslip.io`; `REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io` (см. `docker-compose.prod.yml`).
 
 ### Отладка MAX mini-app (гибрид)
 
