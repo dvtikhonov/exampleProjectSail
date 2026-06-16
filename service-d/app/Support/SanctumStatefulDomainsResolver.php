@@ -38,7 +38,11 @@ final class SanctumStatefulDomainsResolver
                 continue;
             }
 
-            $domains[] = $entry;
+            $normalized = HostNormalizer::normalize($entry);
+
+            if ($normalized !== null) {
+                $domains[] = $normalized;
+            }
         }
 
         return array_values(array_unique(array_merge(

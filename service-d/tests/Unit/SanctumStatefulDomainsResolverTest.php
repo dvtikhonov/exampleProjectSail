@@ -42,4 +42,23 @@ class SanctumStatefulDomainsResolverTest extends TestCase
         $this->assertContains('maps.example.test', $domains);
         $this->assertContains('yandexmaps.94-228-117-27.sslip.io', $domains);
     }
+
+    public function test_strips_scheme_from_env_domains(): void
+    {
+        $request = Request::create(
+            'https://yandexmaps.94-228-117-27.sslip.io/',
+            'GET',
+            server: ['HTTP_HOST' => 'yandexmaps.94-228-117-27.sslip.io'],
+        );
+
+        $resolver = new SanctumStatefulDomainsResolver;
+
+        $domains = $resolver->resolve(
+            $request,
+            'https://yandexmaps.94-228-117-27.sslip.io,__SANCTUM_CURRENT_REQUEST_HOST__',
+        );
+
+        $this->assertContains('yandexmaps.94-228-117-27.sslip.io', $domains);
+        $this->assertNotContains('https://yandexmaps.94-228-117-27.sslip.io', $domains);
+    }
 }

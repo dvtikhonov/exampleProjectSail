@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\HostNormalizer;
 use App\Support\SanctumStatefulDomainsResolver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -31,8 +32,14 @@ class AppServiceProvider extends ServiceProvider
             'sanctum.stateful' => app(SanctumStatefulDomainsResolver::class)->resolve($request),
         ]);
 
-        if (env('SESSION_DOMAIN') === null && $request->getHost() !== '') {
-            config(['session.domain' => $request->getHost()]);
+        $sessionDomain = HostNormalizer::normalize(env('SESSION_DOMAIN'));
+
+        if ($sessionDomain === null && $request->getHost() !== '') {
+            $sessionDomain = $request->getHost();
+        }
+
+        if ($sessionDomain !== null) {
+            config(['session.domain' => $sessionDomain]);
         }
 
         $appUrl = rtrim((string) config('app.url'), '/');

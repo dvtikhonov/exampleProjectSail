@@ -96,7 +96,9 @@ SANCTUM_STATEFUL_DOMAINS=yandexmaps.94-228-117-27.sslip.io
 SESSION_DOMAIN=yandexmaps.94-228-117-27.sslip.io
 ```
 
-`SESSION_DOMAIN` нужен, чтобы cookie сессии работала на субдомене.
+`APP_URL` — с `https://`. **`SESSION_DOMAIN` и `SANCTUM_STATEFUL_DOMAINS` — только hostname, без схемы** (не `https://...`, иначе cookie сессии не сохранится).
+
+`SESSION_DOMAIN` можно не задавать — подставится из Host запроса.
 
 ## Frontend
 
