@@ -83,6 +83,7 @@ jobs:
              docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
              docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
              docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
+             docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
              docker compose up -d --remove-orphans"
 
   run-migrations:
@@ -121,4 +122,5 @@ jobs:
              docker compose exec -T service-a php artisan migrate --force
              docker compose exec -T service-b php artisan migrate --force
              docker compose exec -T service-c php artisan migrate --force
-             docker compose exec -T service-c php artisan db:seed --class=DishImageUrlBackfillSeeder --force"
+             docker compose exec -T service-c php artisan db:seed --class=DishImageUrlBackfillSeeder --force
+             docker compose exec -T service-d php artisan migrate --force"

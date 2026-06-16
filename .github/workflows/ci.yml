@@ -23,6 +23,7 @@ jobs:
           - service-a
           - service-b
           - service-c
+          - service-d
 
     steps:
       - name: Checkout
@@ -54,8 +55,14 @@ jobs:
         run: vendor/bin/pint --test
 
   frontend-build:
-    name: Frontend build (main-app)
+    name: Frontend build (${{ matrix.service }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - main-app
+          - service-d
 
     steps:
       - name: Checkout
@@ -70,17 +77,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: npm-${{ runner.os }}-main-app-${{ hashFiles('main-app/package.json', 'main-app/package-lock.json') }}
+          key: npm-${{ runner.os }}-${{ matrix.service }}-${{ hashFiles(format('{0}/package.json', matrix.service), format('{0}/package-lock.json', matrix.service)) }}
           restore-keys: |
-            npm-${{ runner.os }}-main-app-
+            npm-${{ runner.os }}-${{ matrix.service }}-
             npm-${{ runner.os }}-
 
       - name: Install frontend dependencies
-        working-directory: main-app
+        working-directory: ${{ matrix.service }}
         run: npm ci
 
       - name: Build frontend assets
-        working-directory: main-app
+        working-directory: ${{ matrix.service }}
         run: npm run build
 
   backend-tests:
@@ -92,6 +99,7 @@ jobs:
     env:
       COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
       TEST_DATABASE: sail_db_testing
+      SERVICE_D_TEST_DATABASE: service_d_db_testing
       TEST_DB_HOST: mysql
       TEST_DB_PORT: "3306"
       TEST_DB_USERNAME: root
@@ -106,6 +114,11 @@ jobs:
       SERVICE_C_DB_DATABASE: sail_db_testing
       SERVICE_C_DB_USERNAME: root
       SERVICE_C_DB_PASSWORD: 12345678
+      SERVICE_D_DB_HOST: mysql
+      SERVICE_D_DB_PORT: "3306"
+      SERVICE_D_DB_DATABASE: service_d_db_testing
+      SERVICE_D_DB_USERNAME: root
+      SERVICE_D_DB_PASSWORD: 12345678
 
     steps:
       - name: Checkout
@@ -113,22 +126,23 @@ jobs:
 
       - name: Prepare environment files for Docker bind mounts
         run: |
-          for service in main-app service-a service-b service-c; do
+          for service in main-app service-a service-b service-c service-d; do
             cp "$service/.env.testing" "$service/.env"
             sed -i 's/DB_HOST=host.docker.internal/DB_HOST=mysql/' "$service/.env"
           done
 
       - name: Build Docker images
-        run: docker compose build main-app service-a service-b service-c
+        run: docker compose build main-app service-a service-b service-c service-d
 
       - name: Install mounted service dependencies
         run: |
           docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
           docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
           docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
+          docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
 
       - name: Start services
-        run: docker compose up -d mysql redis main-app service-a service-b service-c
+        run: docker compose up -d mysql redis main-app service-a service-b service-c service-d
 
       - name: Wait for MySQL readiness
         run: |

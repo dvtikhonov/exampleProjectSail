@@ -14,6 +14,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VPS_DOMAIN="${VPS_DOMAIN:-}"
+YANDEXMAPS_SUBDOMAIN="${YANDEXMAPS_SUBDOMAIN:-yandexmaps}"
+YANDEXMAPS_DOMAIN="${YANDEXMAPS_DOMAIN:-}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
 GATEWAY_HTTP_PORT="${GATEWAY_HTTP_PORT:-8080}"
 NGINX_SITE_NAME="${NGINX_SITE_NAME:-exampleprojectsail}"
@@ -33,14 +35,20 @@ usage() {
   nginx-config  — вывести конфиг для /etc/nginx/sites-available/
   apply-nginx   — записать конфиг и reload nginx (нужен sudo)
   issue-cert    — certbot certonly --standalone (освобождает 80/443)
+  issue-cert-maps — расширить существующий сертификат для субдомена yandexmaps.*
   all           — install → issue-cert → apply-nginx → check
 
 Переменные:
   VPS_DOMAIN          публичный домен (обязательно для cert/nginx)
+  YANDEXMAPS_SUBDOMAIN  префикс субдомена service-d (по умолчанию: yandexmaps)
+  YANDEXMAPS_DOMAIN   полный субдомен (по умолчанию: \${YANDEXMAPS_SUBDOMAIN}.\${VPS_DOMAIN})
   CERTBOT_EMAIL       email для Let's Encrypt (обязательно для issue-cert/all)
   GATEWAY_HTTP_PORT   upstream Docker gateway (по умолчанию: 8080)
   NGINX_SITE_NAME     имя файла в sites-available (по умолчанию: exampleprojectsail)
   COMPOSE_FILE        overlay compose (по умолчанию: docker-compose.yml:docker-compose.prod.yml)
+
+Перед выпуском сертификата добавьте DNS A-запись для субдомена:
+  \${YANDEXMAPS_SUBDOMAIN}.\${VPS_DOMAIN} → IP VPS (тот же, что и у \${VPS_DOMAIN})
 
 Пример:
   cd ~/apps/exampleProjectSail
@@ -105,6 +113,13 @@ ensure_domain() {
         fi
     fi
     require_domain
+    resolve_yandexmaps_domain
+}
+
+resolve_yandexmaps_domain() {
+    if [[ -z "${YANDEXMAPS_DOMAIN}" ]]; then
+        YANDEXMAPS_DOMAIN="${YANDEXMAPS_SUBDOMAIN}.${VPS_DOMAIN}"
+    fi
 }
 
 ports_80_443_listeners() {
@@ -131,13 +146,15 @@ cert_exists() {
 
 print_nginx_config() {
     require_domain
+    resolve_yandexmaps_domain
     cat <<EOF
 # ${NGINX_AVAILABLE}
 # Host nginx: TLS + proxy → Docker gateway
+# Основной домен → main-app; ${YANDEXMAPS_DOMAIN} → service-d (Host-based routing в nginx-gateway)
 
 server {
     listen 80;
-    server_name ${VPS_DOMAIN};
+    server_name ${VPS_DOMAIN} ${YANDEXMAPS_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -150,7 +167,7 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name ${VPS_DOMAIN};
+    server_name ${VPS_DOMAIN} ${YANDEXMAPS_DOMAIN};
 
     ssl_certificate     /etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${VPS_DOMAIN}/privkey.pem;
@@ -218,9 +235,19 @@ cmd_check() {
             echo "Нет сертификата — нужен: ./scripts/vps-nginx-ssl.sh issue-cert"
         fi
 
+        resolve_yandexmaps_domain 2>/dev/null || true
+
+        echo
+        echo "=== Субдомен service-d (${YANDEXMAPS_DOMAIN:-—}) ==="
+        if [[ -n "${YANDEXMAPS_DOMAIN:-}" ]]; then
+            echo "DNS: A-запись ${YANDEXMAPS_DOMAIN} → IP VPS (тот же, что ${VPS_DOMAIN})"
+            curl -s -o /dev/null -w "HTTPS ${YANDEXMAPS_DOMAIN} → %{http_code}\n" --connect-timeout 2 "https://${YANDEXMAPS_DOMAIN}/" 2>/dev/null \
+                || echo "HTTPS субдомена недоступен (DNS / cert / nginx-gateway Host routing)"
+        fi
+
         echo
         echo "=== Локальная проверка ==="
-        curl -s -o /dev/null -w "HTTP :443 → %{http_code}\n" --connect-timeout 2 "https://${VPS_DOMAIN}/" 2>/dev/null \
+        curl -s -o /dev/null -w "HTTPS ${VPS_DOMAIN} → %{http_code}\n" --connect-timeout 2 "https://${VPS_DOMAIN}/" 2>/dev/null \
             || echo "HTTPS недоступен (connection refused / cert / nginx)"
     fi
 }
@@ -298,26 +325,65 @@ start_docker_prod() {
     compose up -d --remove-orphans
 }
 
+run_certbot_standalone() {
+    local expand_flag=()
+    if cert_exists; then
+        expand_flag=(--expand)
+        echo "Расширение существующего сертификата для ${YANDEXMAPS_DOMAIN}..."
+    else
+        echo "Получение сертификата (standalone) для ${VPS_DOMAIN} и ${YANDEXMAPS_DOMAIN}..."
+    fi
+
+    run_root certbot certonly --standalone \
+        "${expand_flag[@]}" \
+        -d "${VPS_DOMAIN}" \
+        -d "${YANDEXMAPS_DOMAIN}" \
+        --non-interactive \
+        --agree-tos \
+        -m "${CERTBOT_EMAIL}"
+}
+
 cmd_issue_cert() {
     require_sudo
     require_domain
+    resolve_yandexmaps_domain
     require_email
 
     stop_docker_public_ports
 
-    echo "Получение сертификата (standalone) для ${VPS_DOMAIN}..."
+    echo "DNS: перед certbot убедитесь, что A-записи указывают на этот VPS:"
+    echo "  ${VPS_DOMAIN}"
+    echo "  ${YANDEXMAPS_DOMAIN}"
+
     if cert_exists; then
-        echo "Сертификат уже существует, пропуск certonly."
+        echo "Сертификат для ${VPS_DOMAIN} уже существует."
+        echo "Чтобы добавить ${YANDEXMAPS_DOMAIN}: $(basename "$0") issue-cert-maps"
     else
-        run_root certbot certonly --standalone \
-            -d "${VPS_DOMAIN}" \
-            --non-interactive \
-            --agree-tos \
-            -m "${CERTBOT_EMAIL}"
+        run_certbot_standalone
     fi
 
     start_docker_prod
     echo "Сертификат получен. Дальше: $(basename "$0") apply-nginx"
+}
+
+cmd_issue_cert_maps() {
+    require_sudo
+    require_domain
+    resolve_yandexmaps_domain
+    require_email
+
+    if ! cert_exists; then
+        echo "Сертификат для ${VPS_DOMAIN} не найден — сначала: $(basename "$0") issue-cert" >&2
+        exit 1
+    fi
+
+    stop_docker_public_ports
+
+    echo "DNS: A-запись ${YANDEXMAPS_DOMAIN} → IP VPS"
+    run_certbot_standalone
+
+    start_docker_prod
+    echo "Сертификат расширен. Дальше: $(basename "$0") apply-nginx"
 }
 
 cmd_apply_nginx() {
@@ -355,10 +421,19 @@ cmd_apply_nginx() {
         exit 1
     fi
 
-    echo "Nginx настроен: https://${VPS_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT}"
+    resolve_yandexmaps_domain
+
+    echo "Nginx настроен:"
+    echo "  https://${VPS_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT} (main-app)"
+    echo "  https://${YANDEXMAPS_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT} (service-d, Host routing в gateway)"
     echo
-    echo "Обновите APP_URL в main-app/.env:"
+    echo "Обновите main-app/.env:"
     echo "  APP_URL=https://${VPS_DOMAIN}"
+    echo
+    echo "Обновите service-d/.env (production):"
+    echo "  APP_URL=https://${YANDEXMAPS_DOMAIN}"
+    echo "  SANCTUM_STATEFUL_DOMAINS=${YANDEXMAPS_DOMAIN}"
+    echo "  SESSION_DOMAIN=${YANDEXMAPS_DOMAIN}"
 }
 
 cmd_repair() {
@@ -413,6 +488,9 @@ main() {
             ;;
         issue-cert)
             cmd_issue_cert
+            ;;
+        issue-cert-maps)
+            cmd_issue_cert_maps
             ;;
         all)
             cmd_all

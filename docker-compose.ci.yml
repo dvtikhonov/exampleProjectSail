@@ -62,6 +62,16 @@ services:
       redis:
         condition: service_started
 
+  service-d:
+    build:
+      context: .
+      dockerfile: service-d/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   reverb:
     depends_on:
       redis:

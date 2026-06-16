@@ -8,6 +8,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TUNNEL_ENV_FILE="${ROOT_DIR}/scripts/vps-tunnel.env"
+
+if [[ -f "${TUNNEL_ENV_FILE}" ]]; then
+    # shellcheck disable=SC1090
+    set -a
+    source "${TUNNEL_ENV_FILE}"
+    set +a
+fi
+
 TUNNEL_SERVICE="${TUNNEL_SERVICE:-service-c}"
 PORT="${SERVICE_C_PORT:-8083}"
 DOCKER_SERVICE="service-c"
@@ -23,59 +32,95 @@ SSH_OPTS="${SSH_OPTS:--o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o Exit
 
 usage() {
     cat <<EOF
-Использование: $(basename "$0") [check|run|nginx-config|print-env|install-autossh]
+Использование: $(basename "$0") [команда]
 
-  check         — проверить локальный service-c и SSH до VPS
-  run           — запустить SSH reverse tunnel (держите терминал открытым)
-  nginx-config  — вывести конфиг nginx + команды certbot для VPS
-  print-env     — строки для service-c/.env и команда max:webhook:subscribe
-  install-autossh — установить autossh в WSL (для автопереподключения)
+Команды:
+  check               — локальный service-c и SSH до VPS
+  run                 — SSH reverse tunnel (держите терминал открытым)
+  verify              — curl локального и публичного /max-app
+  nginx-config        — конфиг nginx + certbot для VPS
+  apply-nginx-remote  — записать nginx site на VPS по SSH (sudo)
+  print-env           — строки для service-c/.env
+  ssh-server-hint     — фрагмент sshd_config для reverse tunnel
+  print-ssh-key-setup — как настроить SSH-ключ (без пароля при watch)
+  install-autossh     — установить autossh в WSL
 
-Переменные (обязательные для run/check):
-  VPS_HOST          IP или хост VPS
-  VPS_USER          SSH-пользователь
-  VPS_DOMAIN        публичный домен, напр. max-dev.example.com
+Переменные (обязательные для run/check/verify):
+  VPS_HOST, VPS_USER, VPS_DOMAIN
 
-Опционально:
-  VPS_PORT          SSH-порт (по умолчанию: 22)
-  VPS_SSH_KEY       путь к приватному ключу
-  REMOTE_BIND_PORT  порт на VPS для проброса (по умолчанию: 18083)
-  SERVICE_C_PORT    локальный порт service-c (по умолчанию: 8083)
-  SSH_OPTS          доп. опции ssh
+Опционально (или scripts/vps-tunnel.env):
+  VPS_PORT, VPS_SSH_KEY, REMOTE_BIND_PORT, SERVICE_C_PORT, SSH_OPTS
 
-Пример (полный цикл):
-
-  export VPS_HOST=203.0.113.10
-  export VPS_USER=deploy
-  export VPS_DOMAIN=max-dev.example.com
-  export VPS_SSH_KEY=~/.ssh/id_ed25519
+Пример:
+  cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
+  # заполните VPS_HOST, VPS_USER, VPS_DOMAIN
 
   docker compose up -d service-c
-  ./scripts/vps-tunnel.sh check
-  ./scripts/vps-tunnel.sh nginx-config | ssh deploy@203.0.113.10 'sudo tee /etc/nginx/sites-available/max-dev'
-  # на VPS: sudo ln -s ... && sudo certbot --nginx -d max-dev.example.com && sudo nginx -t && sudo systemctl reload nginx
-
-  ./scripts/vps-tunnel.sh run
-  # в другом терминале:
-  ./scripts/vps-tunnel.sh print-env
+  ./scripts/setup-max-vps.sh
+  ./scripts/vps-tunnel.sh apply-nginx-remote
+  ./scripts/vps-tunnel-watch.sh
 EOF
 }
 
 ssh_base_args() {
     local -a args=(-p "${VPS_PORT}")
-    if [[ -n "${VPS_SSH_KEY}" ]]; then
-        args+=(-i "${VPS_SSH_KEY}")
+    local key_path
+    key_path="$(resolve_ssh_key_path || true)"
+    if [[ -n "${key_path}" ]]; then
+        args+=(-i "${key_path}")
     fi
     # shellcheck disable=SC2206
     args+=(${SSH_OPTS})
     printf '%s\n' "${args[@]}"
 }
 
+resolve_ssh_key_path() {
+    local key="${VPS_SSH_KEY:-}"
+    if [[ -z "${key}" ]]; then
+        return 0
+    fi
+    key="${key/#\~/$HOME}"
+    if [[ -f "${key}" ]]; then
+        echo "${key}"
+        return 0
+    fi
+    echo "WARNING: VPS_SSH_KEY не найден: ${key} — SSH запросит пароль (для watch лучше настроить ключ)." >&2
+    echo "  ./scripts/vps-tunnel.sh print-ssh-key-setup" >&2
+    return 1
+}
+
+scp_base_args() {
+    local -a args=(-P "${VPS_PORT}")
+    local key_path
+    key_path="$(resolve_ssh_key_path || true)"
+    if [[ -n "${key_path}" ]]; then
+        args+=(-i "${key_path}")
+    fi
+    printf '%s\n' "${args[@]}"
+}
+
+print_ssh_key_setup() {
+    require_vps_vars
+    cat <<EOF
+# Вход на VPS без пароля (один раз, локально в WSL):
+
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
+
+ssh-copy-id -i ~/.ssh/id_ed25519.pub -p ${VPS_PORT} ${VPS_USER}@${VPS_HOST}
+
+# Проверка:
+ssh -p ${VPS_PORT} -i ~/.ssh/id_ed25519 ${VPS_USER}@${VPS_HOST} 'echo ok'
+
+# В scripts/vps-tunnel.env:
+VPS_SSH_KEY=~/.ssh/id_ed25519
+EOF
+}
+
 require_vps_vars() {
     local missing=0
     for name in VPS_HOST VPS_USER VPS_DOMAIN; do
         if [[ -z "${!name}" ]]; then
-            echo "Нужна переменная ${name}" >&2
+            echo "Нужна переменная ${name} (export или scripts/vps-tunnel.env)" >&2
             missing=1
         fi
     done
@@ -111,22 +156,34 @@ public_base_url() {
     echo "https://${VPS_DOMAIN}"
 }
 
+public_mini_app_url() {
+    echo "$(public_base_url)/max-app"
+}
+
+grep_html_signals() {
+    local file="$1"
+    grep -oE 'Tunnel Warning|id="max-app"|max-build/assets|5174|не собран|Фронтенд не собран' "${file}" 2>/dev/null | head -10 || true
+}
+
 print_env_block() {
     require_vps_vars
-    local base
+    local base mini
     base="$(public_base_url)"
+    mini="$(public_mini_app_url)"
     cat <<EOF
 
-# --- service-c/.env (MAX через VPS) ---
+# --- service-c/.env (MAX через VPS hybrid) ---
 APP_URL=${base}
 MAX_WEBHOOK_URL=${base}/api/webhooks/max
-MAX_MINI_APP_URL=${base}/max-app
+# MAX_MINI_APP_URL можно не задавать — выводится из MAX_WEBHOOK_URL:
+# MAX_MINI_APP_URL=${mini}
 
 # После правки .env:
 docker compose exec -T service-c php artisan config:clear
 docker compose exec -T service-c php artisan max:webhook:subscribe
 
-# В кабинете MAX укажите тот же MAX_MINI_APP_URL.
+# Кабинет MAX → URL мини-приложения: ${mini}
+# Рекомендуется отдельный тестовый бот MAX для dev-домена (не prod).
 EOF
 }
 
@@ -134,21 +191,16 @@ print_nginx_config() {
     require_vps_vars
     cat <<EOF
 # /etc/nginx/sites-available/${VPS_DOMAIN}
-# Прокси на SSH reverse tunnel (слушает только 127.0.0.1:${REMOTE_BIND_PORT} на VPS).
+# Прокси на SSH reverse tunnel (127.0.0.1:${REMOTE_BIND_PORT} на VPS).
+# Сначала HTTP:80, затем: sudo certbot --nginx -d ${VPS_DOMAIN}
 
 server {
     listen 80;
     server_name ${VPS_DOMAIN};
-    return 301 https://\$host\$request_uri;
-}
 
-server {
-    listen 443 ssl http2;
-    server_name ${VPS_DOMAIN};
-
-    # certbot заполнит пути после: sudo certbot --nginx -d ${VPS_DOMAIN}
-    ssl_certificate     /etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${VPS_DOMAIN}/privkey.pem;
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:${REMOTE_BIND_PORT};
@@ -165,13 +217,115 @@ server {
 
 # На VPS (один раз):
 #   sudo apt install -y nginx certbot python3-certbot-nginx
-#   sudo tee /etc/nginx/sites-available/${VPS_DOMAIN} < config-from-this-script
-#   sudo ln -sf /etc/nginx/sites-available/${VPS_DOMAIN} /etc/nginx/sites-enabled/
-#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo mkdir -p /var/www/certbot
+#   bash scripts/vps-tunnel.sh apply-nginx-remote
+#   ssh -t ${VPS_USER}@${VPS_HOST}
 #   sudo certbot --nginx -d ${VPS_DOMAIN}
-#
-# DNS: A-запись ${VPS_DOMAIN} → ${VPS_HOST}
 EOF
+}
+
+print_ssh_server_hint() {
+    cat <<'EOF'
+# На VPS в /etc/ssh/sshd_config (для SSH reverse tunnel -R 127.0.0.1:PORT:...):
+
+AllowTcpForwarding yes
+GatewayPorts clientspecified
+
+# После правки:
+sudo systemctl reload sshd
+# или: sudo systemctl reload ssh
+EOF
+}
+
+verify_tunnel() {
+    require_vps_vars
+    local mini_url tmp code
+    mini_url="$(public_mini_app_url)"
+    tmp="$(mktemp)"
+
+    echo "=== Локальный ${LOCAL_URL}/max-app ==="
+    if curl -sS --connect-timeout 5 "${LOCAL_URL}/max-app" -o "${tmp}" 2>/dev/null; then
+        grep_html_signals "${tmp}"
+        if grep -q 'id="max-app"' "${tmp}"; then
+            echo "[OK] локальный HTML содержит id=\"max-app\""
+        else
+            echo "[!!] локальный /max-app без id=\"max-app\" — npm run build?"
+        fi
+    else
+        echo "[!!] ${LOCAL_URL}/max-app недоступен"
+    fi
+
+    echo ""
+    echo "=== Публичный ${mini_url} ==="
+    code="$(curl -s -o "${tmp}" -w '%{http_code}' --connect-timeout 12 --max-time 20 \
+        -H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' \
+        "${mini_url}" 2>/dev/null || echo 000)"
+    echo "HTTP ${code}"
+    if [[ "${code}" =~ ^(200|301|302)$ ]]; then
+        grep_html_signals "${tmp}"
+        if grep -q 'id="max-app"' "${tmp}"; then
+            echo "[OK] публичный mini-app отвечает"
+        elif grep -qE '502|Bad Gateway|nginx' "${tmp}"; then
+            echo "[!!] nginx без туннеля — запустите: ./scripts/vps-tunnel-watch.sh"
+        else
+            echo "[!!] неожиданный HTML — проверьте APP_URL и npm run build"
+        fi
+    else
+        echo "[!!] публичный URL недоступен (туннель выключен или nginx/cert не настроен)"
+        echo "     ./scripts/vps-tunnel.sh check"
+    fi
+
+    rm -f "${tmp}"
+}
+
+apply_nginx_remote() {
+    require_vps_vars
+    check_ssh
+
+    local site_path="/etc/nginx/sites-available/${VPS_DOMAIN}"
+    local enabled_path="/etc/nginx/sites-enabled/${VPS_DOMAIN}"
+    local remote_tmp="/tmp/nginx-site-${VPS_DOMAIN}.conf"
+    local local_tmp
+    local_tmp="$(mktemp)"
+
+    print_nginx_config > "${local_tmp}"
+
+    local -a scp_args ssh_args
+    mapfile -t scp_args < <(scp_base_args)
+    mapfile -t ssh_args < <(ssh_base_args)
+
+    echo "Записываю nginx site на ${VPS_USER}@${VPS_HOST}:${site_path}"
+    echo "Понадобятся пароль SSH и sudo на VPS (интерактивно)."
+    echo ""
+
+    if ! scp "${scp_args[@]}" "${local_tmp}" "${VPS_USER}@${VPS_HOST}:${remote_tmp}"; then
+        rm -f "${local_tmp}"
+        echo "Не удалось загрузить конфиг (scp)." >&2
+        exit 1
+    fi
+    rm -f "${local_tmp}"
+
+    # Команда в аргументе ssh (не heredoc): stdin остаётся терминалом, иначе -t не
+    # выделяет PTY и sudo падает с «no tty present».
+    ssh -t "${ssh_args[@]}" "${VPS_USER}@${VPS_HOST}" "
+set -euo pipefail
+sudo cp $(printf '%q' "${remote_tmp}") $(printf '%q' "${site_path}")
+sudo rm -f $(printf '%q' "${remote_tmp}")
+sudo mkdir -p /var/www/certbot
+sudo ln -sf $(printf '%q' "${site_path}") $(printf '%q' "${enabled_path}")
+if [[ -f /etc/nginx/sites-enabled/default ]]; then
+    sudo rm -f /etc/nginx/sites-enabled/default
+fi
+sudo nginx -t
+sudo systemctl reload nginx
+echo 'Nginx reload OK: ${site_path}'
+"
+
+    echo ""
+    echo "Если сертификата ещё нет, на VPS (ssh -t ${VPS_USER}@${VPS_HOST}):"
+    echo "  sudo certbot --nginx -d ${VPS_DOMAIN}"
+    echo ""
+    echo "Затем: bash scripts/vps-tunnel-watch.sh"
 }
 
 run_tunnel() {
@@ -205,9 +359,7 @@ install_autossh() {
     echo "Устанавливаю autossh ..."
     sudo apt-get update
     sudo apt-get install -y autossh
-    echo "Готово. Запуск с автопереподключением:"
-    echo "  AUTOSSH_GATETIME=0 autossh -M 0 -f -N \\"
-    echo "    -R 127.0.0.1:${REMOTE_BIND_PORT}:127.0.0.1:${PORT} ${VPS_USER}@${VPS_HOST}"
+    echo "Готово. Используйте: ./scripts/vps-tunnel-watch.sh"
 }
 
 check_all() {
@@ -216,8 +368,17 @@ check_all() {
     check_ssh
     echo
     echo "Домен: $(public_base_url)"
+    echo "Mini-app: $(public_mini_app_url)"
     echo "Убедитесь, что A-запись ${VPS_DOMAIN} указывает на ${VPS_HOST}"
     echo "и nginx на VPS проксирует на 127.0.0.1:${REMOTE_BIND_PORT}"
+
+    local code
+    code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 "$(public_mini_app_url)" 2>/dev/null || echo 000)"
+    if [[ "${code}" =~ ^(200|301|302)$ ]]; then
+        echo "[OK] Публичный /max-app отвечает (HTTP ${code}) — туннель, вероятно, активен"
+    else
+        echo "[--] Публичный /max-app: HTTP ${code} (нормально, если туннель ещё не запущен)"
+    fi
 }
 
 main() {
@@ -230,11 +391,23 @@ main() {
         run)
             run_tunnel
             ;;
+        verify)
+            verify_tunnel
+            ;;
         nginx-config)
             print_nginx_config
             ;;
+        apply-nginx-remote)
+            apply_nginx_remote
+            ;;
         print-env)
             print_env_block
+            ;;
+        ssh-server-hint)
+            print_ssh_server_hint
+            ;;
+        print-ssh-key-setup)
+            print_ssh_key_setup
             ;;
         install-autossh)
             install_autossh

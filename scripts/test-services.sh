@@ -25,6 +25,7 @@ TEST_DB_HOST="${TEST_DB_HOST%$'\r'}"
 TEST_DB_PORT="${TEST_DB_PORT%$'\r'}"
 
 TEST_DATABASE="${TEST_DATABASE:-sail_db_testing}"
+SERVICE_D_TEST_DATABASE="${SERVICE_D_TEST_DATABASE:-service_d_db_testing}"
 MYSQL_USER="${TEST_DB_USERNAME:-root}"
 MYSQL_PASSWORD="${TEST_DB_PASSWORD:?Set TEST_DB_PASSWORD in .env.testing.local or environment}"
 MYSQL_HOST="${TEST_DB_HOST:-host.docker.internal}"
@@ -39,9 +40,11 @@ Usage:
   ./scripts/test-services.sh service-a [--no-prepare]
   ./scripts/test-services.sh service-b [--no-prepare]
   ./scripts/test-services.sh service-c [--no-prepare]
+  ./scripts/test-services.sh service-d [--no-prepare]
 
 Environment overrides:
   TEST_DATABASE=sail_db_testing
+  SERVICE_D_TEST_DATABASE=service_d_db_testing
   TEST_DB_HOST=host.docker.internal
   TEST_DB_PORT=3306
   TEST_DB_USERNAME=root
@@ -91,24 +94,37 @@ compose_exec() {
 
 artisan() {
     local service="$1"
+    local database="$2"
 
-    shift
+    shift 2
 
     compose_exec \
         -e APP_ENV=testing \
         -e DB_CONNECTION=mysql \
         -e DB_HOST="$MYSQL_HOST" \
         -e DB_PORT="$MYSQL_PORT" \
-        -e DB_DATABASE="$TEST_DATABASE" \
-        -e DB_TEST_DATABASE="$TEST_DATABASE" \
+        -e DB_DATABASE="$database" \
+        -e DB_TEST_DATABASE="$database" \
         -e DB_USERNAME="$MYSQL_USER" \
         -e DB_PASSWORD="$MYSQL_PASSWORD" \
         "$service" php artisan "$@"
 }
 
+prepare_mysql_database() {
+    local database="$1"
+
+    compose_exec \
+        -e TEST_DATABASE="$database" \
+        -e TEST_DB_HOST="$MYSQL_HOST" \
+        -e TEST_DB_PORT="$MYSQL_PORT" \
+        -e TEST_DB_USERNAME="$MYSQL_USER" \
+        -e TEST_DB_PASSWORD="$MYSQL_PASSWORD" \
+        main-app php -r '$pdo = new PDO("mysql:host=" . getenv("TEST_DB_HOST") . ";port=" . getenv("TEST_DB_PORT"), getenv("TEST_DB_USERNAME"), getenv("TEST_DB_PASSWORD"), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]); $database = str_replace("`", "``", getenv("TEST_DATABASE")); $pdo->exec("DROP DATABASE IF EXISTS `" . $database . "`"); $pdo->exec("CREATE DATABASE `" . $database . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
+}
+
 ensure_supported_mode() {
     case "$MODE" in
-        prepare|all|main-app|service-a|service-b|service-c)
+        prepare|all|main-app|service-a|service-b|service-c|service-d)
             ;;
         *)
             echo "Unknown mode: $MODE" >&2
@@ -121,32 +137,45 @@ ensure_supported_mode() {
 prepare_database() {
     echo "Preparing clean ${TEST_DATABASE} database..."
 
-    compose_exec \
-        -e TEST_DATABASE="$TEST_DATABASE" \
-        -e TEST_DB_HOST="$MYSQL_HOST" \
-        -e TEST_DB_PORT="$MYSQL_PORT" \
-        -e TEST_DB_USERNAME="$MYSQL_USER" \
-        -e TEST_DB_PASSWORD="$MYSQL_PASSWORD" \
-        main-app php -r '$pdo = new PDO("mysql:host=" . getenv("TEST_DB_HOST") . ";port=" . getenv("TEST_DB_PORT"), getenv("TEST_DB_USERNAME"), getenv("TEST_DB_PASSWORD"), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]); $database = str_replace("`", "``", getenv("TEST_DATABASE")); $pdo->exec("DROP DATABASE IF EXISTS `" . $database . "`"); $pdo->exec("CREATE DATABASE `" . $database . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");'
+    prepare_mysql_database "$TEST_DATABASE"
 
     echo "Running main-app migrations..."
-    artisan main-app migrate --database=mysql --path=database/migrations --env=testing --force
+    artisan main-app "$TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
 
     echo "Running service-a migrations..."
-    artisan service-a migrate --database=mysql --path=database/migrations --env=testing --force
+    artisan service-a "$TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
 
     echo "Running service-b migrations..."
-    artisan service-b migrate --database=mysql --path=database/migrations --env=testing --force
+    artisan service-b "$TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
 
     echo "Running service-c migrations..."
-    artisan service-c migrate --database=mysql --path=database/migrations --env=testing --force
+    artisan service-c "$TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
+}
+
+prepare_service_d_database() {
+    echo "Preparing clean ${SERVICE_D_TEST_DATABASE} database..."
+
+    prepare_mysql_database "$SERVICE_D_TEST_DATABASE"
+
+    echo "Running service-d migrations..."
+    artisan service-d "$SERVICE_D_TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
+}
+
+prepare_all_databases() {
+    prepare_database
+    prepare_service_d_database
 }
 
 run_tests_for() {
     local service="$1"
+    local database="$TEST_DATABASE"
+
+    if [[ "$service" == "service-d" ]]; then
+        database="$SERVICE_D_TEST_DATABASE"
+    fi
 
     echo "Running tests for ${service}..."
-    artisan "$service" test --env=testing
+    artisan "$service" "$database" test --env=testing
 }
 
 ensure_supported_mode
@@ -154,25 +183,29 @@ ensure_supported_mode
 cd "$ROOT_DIR"
 
 if [[ "$MODE" == "prepare" ]]; then
-    prepare_database
+    prepare_all_databases
     exit 0
 fi
 
 if [[ "$SKIP_PREPARE" == false && "$MODE" != "all" ]]; then
-    prepare_database
+    if [[ "$MODE" == "service-d" ]]; then
+        prepare_service_d_database
+    else
+        prepare_database
+    fi
 fi
 
 case "$MODE" in
     all)
         if [[ "$SKIP_PREPARE" == false ]]; then
-            prepare_database
+            prepare_all_databases
         fi
 
-        for service in main-app service-a service-b service-c; do
+        for service in main-app service-a service-b service-c service-d; do
             run_tests_for "$service"
         done
         ;;
-    main-app|service-a|service-b|service-c)
+    main-app|service-a|service-b|service-c|service-d)
         run_tests_for "$MODE"
         ;;
 esac

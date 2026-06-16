@@ -10,6 +10,8 @@
 | `service-a` | Laravel API: торговые точки (`/api/sales-outlets`) |
 | `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
+| `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды», webhook MAX, UI Stand |
+| `service-d` | Laravel + Vue 3 SPA: Sanctum-авторизация на субдомене `yandexmaps.*` (задел под карту торговых точек) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/` и `/api/b/` |
@@ -75,6 +77,16 @@ SERVICE_B_DB_USERNAME=root
 SERVICE_B_DB_PASSWORD=<your-local-password>
 ```
 
+Для `service-d` — отдельная база (не `sail_db`):
+
+```env
+SERVICE_D_DB_HOST=host.docker.internal
+SERVICE_D_DB_DATABASE=service_d_db
+SERVICE_D_DB_PASSWORD=<your-local-password>
+```
+
+Создайте `service_d_db` и `service_d_db_testing` во внешнем MySQL (см. [service-d/README.md](service-d/README.md)).
+
 Для `service-a` задайте `DB_*` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
 
 Стандартные `.env.example` у сервисов по умолчанию настроены на SQLite — для Docker-запуска через корневой compose их нужно перевести на MySQL.
@@ -85,7 +97,7 @@ SERVICE_B_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `service-d`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
@@ -96,6 +108,7 @@ docker compose up -d --build
 ```bash
 docker compose exec service-a php artisan key:generate
 docker compose exec service-b php artisan key:generate
+docker compose exec service-d php artisan key:generate
 ```
 
 ### 4. Миграции
@@ -106,6 +119,7 @@ docker compose exec service-b php artisan key:generate
 docker compose exec main-app php artisan migrate
 docker compose exec service-a php artisan migrate
 docker compose exec service-b php artisan migrate
+docker compose exec service-d php artisan migrate
 ```
 
 Для отчётов `service-b` нужны worker и Reverb (в compose уже описаны):
@@ -163,8 +177,11 @@ docker compose up -d main-app
 | `main-app` напрямую | `http://localhost` (порт `MAIN_APP_PORT`, по умолчанию `80`) |
 | `service-a` напрямую | `http://localhost:8081` |
 | `service-b` напрямую | `http://localhost:8082` |
+| `service-c` напрямую | `http://localhost:8083` |
+| `service-d` напрямую | `http://localhost:8084` |
+| `service-d` через gateway (субдомен) | `http://yandexmaps.localhost:8080` (нужна запись в `/etc/hosts`) |
 | Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
-| Vite dev server | `http://localhost:5173` |
+| Vite dev server | `http://localhost:5173` (`main-app`), `5174` (`service-c`), `5175` (`service-d`) |
 | MailHog | `http://localhost:8025` |
 | Redis | `localhost:6379` |
 
@@ -479,9 +496,9 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 
 | Job | Что проверяет |
 |---|---|
-| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b` (PHP 8.4) |
-| `frontend-build` | `npm ci` + `npm run build` в `main-app` (Node 22) |
-| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в `service-a`/`service-b`, затем `./scripts/test-services.sh all` |
+| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d` (PHP 8.4) |
+| `frontend-build` | `npm ci` + `npm run build` в `main-app` и `service-d` (Node 22) |
+| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` |
 
 Локально воспроизвести CI-контур тестов:
 
@@ -493,10 +510,11 @@ export SERVICE_B_DB_HOST=mysql
 export SERVICE_B_DB_DATABASE=sail_db_testing
 export SERVICE_B_DB_PASSWORD=12345678
 
-docker compose build main-app service-a service-b
+docker compose build main-app service-a service-b service-c service-d
 docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
-docker compose up -d mysql redis main-app service-a service-b
+docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
+docker compose up -d mysql redis main-app service-a service-b service-c service-d
 ./scripts/test-services.sh all
 ```
 
@@ -512,9 +530,21 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 Этапы:
 
 1. **`deploy-via-ssh`** (окружение GitHub `production`) — `git checkout`, `docker compose build`, `docker compose up -d --remove-orphans` с overlay `docker-compose.prod.yml`. При ошибке выполняется откат к предыдущему коммиту.
-2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех трёх сервисах через SSH.
+2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех сервисах (`main-app`, `service-a`, `service-b`, `service-c`, `service-d`) через SSH.
 
-На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` (см. `docker-compose.prod.yml`).
+На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` — сертификат на основной домен и субдомен `yandexmaps.<VPS_DOMAIN>` для service-d (см. [service-d/README.md](service-d/README.md)). Overlay: `docker-compose.prod.yml`.
+
+### Отладка MAX mini-app (гибрид)
+
+Для разработки mini-app на **локальной машине** с публичным HTTPS используйте SSH reverse tunnel на VPS (отдельный dev-домен, не prod):
+
+```bash
+cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
+./scripts/setup-max-vps.sh
+./scripts/vps-tunnel-watch.sh   # отдельный терминал
+```
+
+Подробности: [service-c/README.md](service-c/README.md) → «VPS hybrid».
 
 ### Обязательные GitHub Secrets
 
@@ -551,6 +581,8 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 ./scripts/test-services.sh main-app
 ./scripts/test-services.sh service-a
 ./scripts/test-services.sh service-b
+./scripts/test-services.sh service-c
+./scripts/test-services.sh service-d
 ```
 
 Быстрый повторный запуск без пересоздания БД:
@@ -593,6 +625,8 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `main-app` — Nginx + PHP-FPM 8.4 Alpine + Supervisor, внутренний порт `8000`; для hot-reload смонтированы `app`, `routes`, `config`, `database`, `resources`, `tests`, `public`, `storage`.
 - `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса и `shared`.
 - `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; live-stats идут через domain event `SalesOutletReportJobMutated` и listeners; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`.
+- `service-c` — MAX mini-app, webhook, Vite entry `max-app`, сборка в `public/max-build/`; см. [service-c/README.md](service-c/README.md).
+- `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; host-based routing в gateway без `auth_request`; отдельная БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.
