@@ -434,7 +434,6 @@ cmd_apply_nginx() {
     echo "  APP_URL=https://${YANDEXMAPS_DOMAIN}"
     echo "  SANCTUM_STATEFUL_DOMAINS=${YANDEXMAPS_DOMAIN}"
     echo "  SESSION_DOMAIN=${YANDEXMAPS_DOMAIN}"
-    echo "  (без https:// в SANCTUM_STATEFUL_DOMAINS и SESSION_DOMAIN)"
 }
 
 cmd_repair() {

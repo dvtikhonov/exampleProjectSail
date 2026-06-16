@@ -2,8 +2,6 @@
 
 namespace App\Providers;
 
-use App\Support\HostNormalizer;
-use App\Support\SanctumStatefulDomainsResolver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -26,36 +24,18 @@ class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        $request = request();
-
-        config([
-            'sanctum.stateful' => app(SanctumStatefulDomainsResolver::class)->resolve($request),
-        ]);
-
-        $sessionDomain = HostNormalizer::normalize(env('SESSION_DOMAIN'));
-
-        if ($sessionDomain === null && $request->getHost() !== '') {
-            $sessionDomain = $request->getHost();
-        }
-
-        if ($sessionDomain !== null) {
-            config(['session.domain' => $sessionDomain]);
-        }
-
         $appUrl = rtrim((string) config('app.url'), '/');
-        $isHttpsRequest = $request->isSecure()
-            || $request->header('X-Forwarded-Proto') === 'https';
 
         if (str_starts_with($appUrl, 'https://')) {
             URL::forceScheme('https');
             URL::forceRootUrl($appUrl);
-        } elseif ($isHttpsRequest) {
-            URL::forceScheme('https');
-            URL::forceRootUrl('https://'.$request->getHost());
+
+            return;
         }
 
-        if ($isHttpsRequest && env('SESSION_SECURE_COOKIE') === null) {
-            config(['session.secure' => true]);
+        if (request()->header('X-Forwarded-Proto') === 'https') {
+            URL::forceScheme('https');
+            URL::forceRootUrl('https://'.request()->getHost());
         }
     }
 }

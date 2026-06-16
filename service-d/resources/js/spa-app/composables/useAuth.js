@@ -65,15 +65,8 @@ export function useAuth() {
 
         try {
             await ensureCsrfCookie();
-            await api.post('/login', credentials);
-            hasCheckedSession.value = false;
-            await fetchUser();
-
-            if (!user.value) {
-                error.value = 'Вход выполнен, но сессия не сохранилась. Очистите cookies и попробуйте снова.';
-                return false;
-            }
-
+            const { data } = await api.post('/login', credentials);
+            user.value = data.user ?? null;
             return true;
         } catch (err) {
             error.value = extractErrorMessage(err, 'Неверный email или пароль.');
@@ -89,15 +82,8 @@ export function useAuth() {
 
         try {
             await ensureCsrfCookie();
-            await api.post('/register', payload);
-            hasCheckedSession.value = false;
-            await fetchUser();
-
-            if (!user.value) {
-                error.value = 'Регистрация выполнена, но сессия не сохранилась. Очистите cookies и попробуйте снова.';
-                return false;
-            }
-
+            const { data } = await api.post('/register', payload);
+            user.value = data.user ?? null;
             return true;
         } catch (err) {
             error.value = extractErrorMessage(err, 'Не удалось зарегистрироваться.');
@@ -112,27 +98,15 @@ export function useAuth() {
         isLoading.value = true;
 
         try {
-            await ensureCsrfCookie();
             await api.post('/logout');
-        } catch (err) {
-            const status = err?.response?.status;
-
-            if (status !== 401 && status !== 419) {
-                error.value = extractErrorMessage(err, 'Не удалось связаться с сервером при выходе.');
-            }
-        } finally {
             user.value = null;
-            hasCheckedSession.value = false;
+            return true;
+        } catch (err) {
+            error.value = extractErrorMessage(err, 'Не удалось выйти из системы.');
+            return false;
+        } finally {
             isLoading.value = false;
         }
-
-        return true;
-    }
-
-    function clearAuthState() {
-        user.value = null;
-        hasCheckedSession.value = false;
-        resetError();
     }
 
     return {
@@ -145,6 +119,5 @@ export function useAuth() {
         login,
         register,
         logout,
-        clearAuthState,
     };
 }

@@ -18,8 +18,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
     const { user, fetchUser, hasCheckedSession } = useAuth();
 
-    // На /login всегда перепроверяем сессию — иначе устаревший user блокирует вход.
-    if (!hasCheckedSession.value || to.name === 'login') {
+    if (!hasCheckedSession.value) {
         await fetchUser();
     }
 

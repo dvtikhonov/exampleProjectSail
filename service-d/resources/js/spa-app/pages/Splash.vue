@@ -4,12 +4,14 @@ import AuthErrorAlert from '../components/AuthErrorAlert.vue';
 import { useAuth } from '../composables/useAuth';
 
 const router = useRouter();
-const { user, logout, clearAuthState, isLoading, error } = useAuth();
+const { user, logout, isLoading, error } = useAuth();
 
 async function onLogout() {
-    await logout();
-    clearAuthState();
-    await router.push({ name: 'login' });
+    const ok = await logout();
+
+    if (ok) {
+        await router.push({ name: 'login' });
+    }
 }
 </script>
 
