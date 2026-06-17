@@ -71,6 +71,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      yandex-parser:
+        condition: service_started
+
+  service-d-queue:
+    build:
+      context: .
+      dockerfile: service-d/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      yandex-parser:
+        condition: service_started
+
+  yandex-parser:
+    build:
+      context: ./yandex-parser
+      dockerfile: Dockerfile
 
   reverb:
     depends_on:

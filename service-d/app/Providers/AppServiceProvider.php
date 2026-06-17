@@ -2,6 +2,12 @@
 
 namespace App\Providers;
 
+use App\Clients\PlaywrightYandexMapsClient;
+use App\Contracts\OrganizationRepositoryInterface;
+use App\Contracts\OrganizationReviewRepositoryInterface;
+use App\Contracts\YandexMapsClientInterface;
+use App\Repositories\Organization\EloquentOrganizationRepository;
+use App\Repositories\Organization\EloquentOrganizationReviewRepository;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,7 +18,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(OrganizationRepositoryInterface::class, EloquentOrganizationRepository::class);
+        $this->app->bind(OrganizationReviewRepositoryInterface::class, EloquentOrganizationReviewRepository::class);
+
+        $this->app->bind(YandexMapsClientInterface::class, function (): PlaywrightYandexMapsClient {
+            return new PlaywrightYandexMapsClient(
+                baseUrl: (string) config('services.yandex_parser.url'),
+            );
+        });
     }
 
     /**

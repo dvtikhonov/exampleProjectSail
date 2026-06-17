@@ -1,0 +1,27 @@
+{
+    "org": {
+        "org_id": "1248139252",
+        "name": "Кафе X",
+        "address": "Москва, ул. Тестовая, 1",
+        "average_rating": 4.8,
+        "reviews_count": 2,
+        "ratings_count": 1200,
+        "canonical_url": "https://yandex.ru/maps/org/test-cafe/1248139252/"
+    },
+    "reviews": [
+        {
+            "external_id": "rev-001",
+            "author_name": "Иван Петров",
+            "published_at": "2024-06-15T10:30:00+03:00",
+            "text": "Отличное место, рекомендую.",
+            "rating": 5
+        },
+        {
+            "external_id": "rev-002",
+            "author_name": "Мария Сидорова",
+            "published_at": "2024-05-01T14:00:00+03:00",
+            "text": null,
+            "rating": 4
+        }
+    ]
+}

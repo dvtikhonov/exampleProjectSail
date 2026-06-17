@@ -18,6 +18,10 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    'yandex_parser' => [
+        'url' => env('YANDEX_PARSER_URL', 'http://yandex-parser:3000'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

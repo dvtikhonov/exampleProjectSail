@@ -1,0 +1,23 @@
+{
+    "resolved_url": "https://yandex.ru/maps/moscow/search/cafe",
+    "candidates": [
+        {
+            "org_id": "1111111111",
+            "name": "Кафе A",
+            "address": "Москва, ул. Первая, 1",
+            "average_rating": 4.5,
+            "reviews_count": 120,
+            "ratings_count": 300,
+            "canonical_url": "https://yandex.ru/maps/org/cafe-a/1111111111/"
+        },
+        {
+            "org_id": "2222222222",
+            "name": "Кафе B",
+            "address": "Москва, ул. Вторая, 2",
+            "average_rating": 4.2,
+            "reviews_count": 85,
+            "ratings_count": 200,
+            "canonical_url": "https://yandex.ru/maps/org/cafe-b/2222222222/"
+        }
+    ]
+}
