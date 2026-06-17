@@ -1,4 +1,5 @@
 *.log
+yandex-parser/debug-dumps/
 .DS_Store
 .env
 .env.backup

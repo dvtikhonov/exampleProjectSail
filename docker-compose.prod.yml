@@ -162,13 +162,39 @@ services:
       - APP_DEBUG=false
       - DB_HOST=host.docker.internal
       - DB_PASSWORD=${SERVICE_D_DB_PASSWORD:?set SERVICE_D_DB_PASSWORD}
+      - YANDEX_PARSER_URL=http://yandex-parser:3000
     depends_on:
       mysql-host:
         condition: service_healthy
       redis:
         condition: service_started
+      yandex-parser:
+        condition: service_started
     restart: unless-stopped
     mem_limit: 512m
+
+  service-d-queue:
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${SERVICE_D_DB_PASSWORD:?set SERVICE_D_DB_PASSWORD}
+      - YANDEX_PARSER_URL=http://yandex-parser:3000
+    depends_on: !override
+      mysql-host:
+        condition: service_healthy
+      service-d:
+        condition: service_started
+      redis:
+        condition: service_started
+      yandex-parser:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 512m
+
+  yandex-parser:
+    restart: unless-stopped
+    mem_limit: 1536m
 
   reverb:
     environment:

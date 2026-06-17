@@ -30,7 +30,7 @@ async function onSubmit() {
         });
 
     if (ok) {
-        await router.push({ name: 'splash' });
+        await router.push({ name: 'home' });
     }
 }
 

@@ -266,6 +266,30 @@ services:
     depends_on:
       - redis
 
+  yandex-parser:
+    build:
+      context: ./yandex-parser
+      dockerfile: Dockerfile
+    shm_size: '1gb'
+    environment:
+      - PORT=3000
+      - MOUSE_JIGGLE_MIN_PX=${MOUSE_JIGGLE_MIN_PX:-10}
+      - MOUSE_JIGGLE_MAX_PX=${MOUSE_JIGGLE_MAX_PX:-80}
+      - HEADLESS=true
+      - RESOLVE_CANDIDATE_LIMIT=${RESOLVE_CANDIDATE_LIMIT:-30}
+      - SYNC_MAX_IDLE_ITERATIONS=${SYNC_MAX_IDLE_ITERATIONS:-15}
+      - SYNC_SCROLL_DELAY_MS=${SYNC_SCROLL_DELAY_MS:-800}
+      - NAVIGATION_TIMEOUT_MS=${NAVIGATION_TIMEOUT_MS:-60000}
+      - DEBUG_ORG_IDS=${DEBUG_ORG_IDS:-115272305870}
+      - PARSER_DEBUG_DUMP_DIR=/app/debug-dumps
+      - DEBUG_LOG_PATH=/workspace/debug-029acb.log
+    volumes:
+      - ./yandex-parser/debug-dumps:/app/debug-dumps
+      - .:/workspace
+    networks:
+      - internal
+    restart: unless-stopped
+
   service-d:
     build:
       context: .
@@ -286,6 +310,7 @@ services:
       - DB_PASSWORD=${SERVICE_D_DB_PASSWORD:-12345678AS}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - YANDEX_PARSER_URL=http://yandex-parser:3000
     volumes:
       - ./service-d/app:/var/www/html/app
       - ./service-d/routes:/var/www/html/routes
@@ -310,7 +335,50 @@ services:
       - internal
     depends_on:
       - redis
+      - yandex-parser
 
+  service-d-queue:
+    build:
+      context: .
+      dockerfile: service-d/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    entrypoint: ["php", "artisan"]
+    command: ["queue:work", "--queue=default", "--timeout=900", "--tries=1"]
+    environment:
+      - APP_ENV=local
+      - CACHE_STORE=file
+      - DB_CONNECTION=mysql
+      - DB_HOST=${SERVICE_D_DB_HOST:-host.docker.internal}
+      - DB_PORT=${SERVICE_D_DB_PORT:-3306}
+      - DB_DATABASE=${SERVICE_D_DB_DATABASE:-service_d_db}
+      - DB_USERNAME=${SERVICE_D_DB_USERNAME:-root}
+      - DB_PASSWORD=${SERVICE_D_DB_PASSWORD:-12345678AS}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - YANDEX_PARSER_URL=http://yandex-parser:3000
+    volumes:
+      - ./service-d/app:/var/www/html/app
+      - ./service-d/routes:/var/www/html/routes
+      - ./service-d/config:/var/www/html/config
+      - ./service-d/database:/var/www/html/database
+      - ./service-d/resources:/var/www/html/resources
+      - ./service-d/tests:/var/www/html/tests
+      - ./service-d/bootstrap:/var/www/html/bootstrap
+      - ./service-d/storage:/var/www/html/storage
+      - ./service-d/vendor:/var/www/html/vendor
+      - ./service-d/composer.json:/var/www/html/composer.json:ro
+      - ./service-d/composer.lock:/var/www/html/composer.lock:ro
+      - ./service-d/.env:/var/www/html/.env:ro
+      - ./service-d/.env.testing:/var/www/html/.env.testing:ro
+      - ./shared:/var/www/shared
+    networks:
+      - internal
+    depends_on:
+      - service-d
+      - redis
+      - yandex-parser
 
   reverb:
     build:

@@ -1,0 +1,14 @@
+{
+    "resolved_url": "https://yandex.ru/maps/org/test-cafe/1248139252/",
+    "candidates": [
+        {
+            "org_id": "1248139252",
+            "name": "Кафе X",
+            "address": "Москва, ул. Тестовая, 1",
+            "average_rating": 4.8,
+            "reviews_count": 587,
+            "ratings_count": 1200,
+            "canonical_url": "https://yandex.ru/maps/org/test-cafe/1248139252/"
+        }
+    ]
+}

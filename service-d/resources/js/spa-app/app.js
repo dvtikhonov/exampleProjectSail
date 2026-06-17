@@ -2,16 +2,20 @@ import '../../css/app.css';
 import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import App from './App.vue';
+import HomeRedirect from './pages/HomeRedirect.vue';
 import Login from './pages/Login.vue';
-import Splash from './pages/Splash.vue';
+import Reviews from './pages/Reviews.vue';
+import Settings from './pages/Settings.vue';
 import { useAuth } from './composables/useAuth';
 
 const router = createRouter({
     history: createWebHistory(),
     routes: [
         { path: '/login', name: 'login', component: Login, meta: { guest: true } },
-        { path: '/', name: 'splash', component: Splash, meta: { requiresAuth: true } },
-        { path: '/:pathMatch(.*)*', redirect: '/' },
+        { path: '/', name: 'home', component: HomeRedirect, meta: { requiresAuth: true } },
+        { path: '/settings', name: 'settings', component: Settings, meta: { requiresAuth: true } },
+        { path: '/reviews', name: 'reviews', component: Reviews, meta: { requiresAuth: true } },
+        { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
     ],
 });
 
@@ -27,7 +31,7 @@ router.beforeEach(async (to) => {
     }
 
     if (to.meta.guest && user.value) {
-        return { name: 'splash' };
+        return { name: 'home' };
     }
 
     return true;
