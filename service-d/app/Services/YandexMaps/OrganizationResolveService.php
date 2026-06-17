@@ -8,6 +8,7 @@ use App\Contracts\YandexMapsClientInterface;
 use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\ResolveOrganizationDto;
 use App\DTO\YandexMaps\ResolveOrganizationResultDto;
+use App\Exceptions\Organization\OrganizationResolveSessionExpiredException;
 use App\Exceptions\YandexMaps\YandexMapsParserException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -168,7 +169,7 @@ class OrganizationResolveService
         $session = Cache::get(self::CACHE_PREFIX.$sessionId);
 
         if ($session === null) {
-            throw new \App\Exceptions\Organization\OrganizationResolveSessionExpiredException;
+            throw new OrganizationResolveSessionExpiredException;
         }
 
         $candidates = [];

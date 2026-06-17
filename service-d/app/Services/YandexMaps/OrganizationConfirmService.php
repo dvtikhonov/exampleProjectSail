@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\YandexMaps;
 
 use App\Contracts\OrganizationRepositoryInterface;
-use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\ConfirmOrganizationDto;
+use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\Exceptions\Organization\InvalidOrganizationCandidateException;
 use App\Jobs\SyncYandexOrganizationReviewsJob;
 use App\Models\Organization;
