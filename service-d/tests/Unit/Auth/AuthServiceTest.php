@@ -12,7 +12,6 @@ use App\Services\Auth\AuthService;
 use App\Services\Auth\LoginRateLimiter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Mockery;
 use Mockery\MockInterface;

@@ -9,6 +9,7 @@ use App\DTO\YandexMaps\ParsedOrganizationMetaDto;
 use App\DTO\YandexMaps\ParsedReviewDto;
 use App\DTO\YandexMaps\ParserCollectResultDto;
 use App\Exceptions\YandexMaps\YandexMapsParserException;
+use App\Services\YandexMaps\OrganizationResolveService;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -32,7 +33,7 @@ class PlaywrightYandexMapsClient implements YandexMapsClientInterface
      * Запрашивает сырой collect страницы Яндекс.Карт по URL.
      *
      * Вызывает `POST /resolve` — навигация, перехват JSON и dom_harvest без готовых кандидатов.
-     * Дальнейшая сборка кандидатов выполняется в {@see \App\Services\YandexMaps\OrganizationResolveService}.
+     * Дальнейшая сборка кандидатов выполняется в {@see OrganizationResolveService}.
      *
      * @throws YandexMapsParserException при HTTP-ошибке или недоступности парсера
      */
