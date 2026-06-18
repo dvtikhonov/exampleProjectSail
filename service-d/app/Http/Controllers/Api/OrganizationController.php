@@ -13,25 +13,35 @@ use App\Http\Requests\Organization\ConfirmOrganizationRequest;
 use App\Http\Requests\Organization\OrganizationIdRequest;
 use App\Http\Requests\Organization\ResolveOrganizationRequest;
 use App\Http\Requests\Organization\ShowOrganizationRequest;
-use App\Models\Organization;
-use App\Models\OrganizationReview;
+use App\Http\Resources\OrganizationMetaResource;
+use App\Http\Resources\OrganizationResource;
+use App\Http\Resources\OrganizationReviewCollection;
 use App\Models\User;
 use App\Services\YandexMaps\OrganizationConfirmService;
 use App\Services\YandexMaps\OrganizationResolveService;
 use App\Services\YandexMaps\OrganizationResyncService;
 use App\Services\YandexMaps\OrganizationReviewQueryService;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Services\YandexMaps\ResolveOrganizationInputFactory;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * API организаций Яндекс.Карт: разрешение по URL, подтверждение кандидата,
+ * статус синхронизации и выдача отзывов.
+ */
 class OrganizationController extends Controller
 {
     public function __construct(
         private readonly OrganizationResolveService $resolveService,
+        private readonly ResolveOrganizationInputFactory $resolveInputFactory,
         private readonly OrganizationConfirmService $confirmService,
         private readonly OrganizationResyncService $resyncService,
         private readonly OrganizationReviewQueryService $reviewQueryService,
     ) {}
 
+    /**
+     * Карточка организации текущего пользователя.
+     * Если organization_id не передан или организация не найдена — organization: null.
+     */
     public function show(ShowOrganizationRequest $request): JsonResponse
     {
         /** @var User $user */
@@ -47,14 +57,20 @@ class OrganizationController extends Controller
         }
 
         return response()->json([
-            'organization' => $this->serializeOrganization($organization),
+            'organization' => OrganizationResource::make($organization),
         ]);
     }
 
+    /**
+     * Разрешает ссылку или поисковый запрос в список кандидатов через yandex-parser.
+     * Промежуточный результат сохраняется в resolve-сессии (кеш).
+     */
     public function resolve(ResolveOrganizationRequest $request): JsonResponse
     {
         try {
-            $result = $this->resolveService->resolve($request->toDto());
+            $result = $this->resolveService->resolve(
+                $this->resolveInputFactory->fromUrl((string) $request->validated('url')),
+            );
         } catch (YandexMapsParserException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -64,6 +80,9 @@ class OrganizationController extends Controller
         return response()->json($result->toArray());
     }
 
+    /**
+     * Подтверждает выбранного кандидата из resolve-сессии и запускает синхронизацию.
+     */
     public function confirm(ConfirmOrganizationRequest $request): JsonResponse
     {
         /** @var User $user */
@@ -78,10 +97,13 @@ class OrganizationController extends Controller
         }
 
         return response()->json([
-            'organization' => $this->serializeOrganization($organization),
+            'organization' => OrganizationResource::make($organization),
         ], 202);
     }
 
+    /**
+     * Возвращает текущий статус фоновой синхронизации организации.
+     */
     public function syncStatus(OrganizationIdRequest $request): JsonResponse
     {
         $organization = $this->reviewQueryService->findOrganizationById($request->organizationId());
@@ -93,6 +115,9 @@ class OrganizationController extends Controller
         ]);
     }
 
+    /**
+     * Повторно ставит организацию в очередь на синхронизацию с Яндекс.Картами.
+     */
     public function resync(OrganizationIdRequest $request): JsonResponse
     {
         try {
@@ -104,10 +129,13 @@ class OrganizationController extends Controller
         }
 
         return response()->json([
-            'organization' => $this->serializeOrganization($organization),
+            'organization' => OrganizationResource::make($organization),
         ], 202);
     }
 
+    /**
+     * Пагинированный список отзывов организации с метаданными и флагом обновления кеша.
+     */
     public function reviews(OrganizationIdRequest $request): JsonResponse
     {
         $organization = $this->reviewQueryService->findOrganizationById($request->organizationId());
@@ -115,72 +143,10 @@ class OrganizationController extends Controller
         $isRefreshing = $this->reviewQueryService->isRefreshingCachedReviews($organization);
 
         return response()->json([
-            'organization' => $this->serializeOrganizationMeta($organization),
-            'reviews' => $this->serializeReviewsPaginator($reviews),
+            'organization' => OrganizationMetaResource::make($organization),
+            'reviews' => new OrganizationReviewCollection($reviews),
             'is_refreshing' => $isRefreshing,
             'warning' => $isRefreshing ? OrganizationReviewQueryService::REFRESHING_WARNING : null,
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serializeOrganization(Organization $organization): array
-    {
-        return [
-            'id' => $organization->id,
-            'source_url' => $organization->source_url,
-            'canonical_url' => $organization->canonical_url,
-            'yandex_org_id' => $organization->yandex_org_id,
-            'name' => $organization->name,
-            'address' => $organization->address,
-            'average_rating' => $organization->average_rating !== null ? (float) $organization->average_rating : null,
-            'ratings_count' => $organization->ratings_count,
-            'reviews_count' => $organization->reviews_count,
-            'sync_status' => $organization->sync_status->value,
-            'sync_error' => $organization->sync_error,
-            'last_synced_at' => $organization->last_synced_at?->toIso8601String(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serializeOrganizationMeta(Organization $organization): array
-    {
-        return [
-            'name' => $organization->name,
-            'address' => $organization->address,
-            'average_rating' => $organization->average_rating !== null ? (float) $organization->average_rating : null,
-            'ratings_count' => $organization->ratings_count,
-            'reviews_count' => $organization->reviews_count,
-            'sync_status' => $organization->sync_status->value,
-        ];
-    }
-
-    /**
-     * @param  LengthAwarePaginator<int, OrganizationReview>  $paginator
-     * @return array<string, mixed>
-     */
-    private function serializeReviewsPaginator(LengthAwarePaginator $paginator): array
-    {
-        return [
-            'data' => $paginator->getCollection()
-                ->map(fn (OrganizationReview $review): array => [
-                    'id' => $review->id,
-                    'author_name' => $review->author_name,
-                    'published_at' => $review->published_at->toIso8601String(),
-                    'text' => $review->text,
-                    'rating' => $review->rating,
-                ])
-                ->values()
-                ->all(),
-            'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-            ],
-        ];
     }
 }

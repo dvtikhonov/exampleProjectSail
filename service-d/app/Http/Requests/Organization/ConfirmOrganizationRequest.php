@@ -8,6 +8,9 @@ use App\DTO\YandexMaps\ConfirmOrganizationDto;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Запрос на подтверждение кандидата из resolve-сессии.
+ */
 class ConfirmOrganizationRequest extends FormRequest
 {
     public function authorize(): bool
@@ -26,6 +29,9 @@ class ConfirmOrganizationRequest extends FormRequest
         ];
     }
 
+    /**
+     * Собирает DTO из провалидированных полей запроса.
+     */
     public function toDto(): ConfirmOrganizationDto
     {
         return new ConfirmOrganizationDto(

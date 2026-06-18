@@ -1,3 +1,9 @@
+/**
+ * Точка входа SPA service-d: Vue 3 + Vue Router.
+ *
+ * Маршруты защищены cookie-сессией Sanctum (см. useAuth, api/client).
+ * meta.requiresAuth — только для авторизованных; meta.guest — только для гостей.
+ */
 import '../../css/app.css';
 import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
@@ -24,6 +30,7 @@ const router = createRouter({
     ],
 });
 
+// Guard: один раз проверяем GET /api/user, затем пускаем или редиректим.
 router.beforeEach(async (to) => {
     const { user, fetchUser, hasCheckedSession } = useAuth();
 

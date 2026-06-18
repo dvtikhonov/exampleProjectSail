@@ -1,3 +1,9 @@
+/**
+ * Axios-клиент для Laravel API (Sanctum SPA authentication).
+ *
+ * withCredentials — отправка session cookie; CSRF берётся из meta-тега Blade.
+ * Для /sanctum/csrf-cookie вызывающий код переопределяет baseURL на ''.
+ */
 import axios from 'axios';
 
 const api = axios.create({

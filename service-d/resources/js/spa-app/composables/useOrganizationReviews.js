@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import api from '../api/client';
 
+/** Состояние списка отзывов — singleton refs между вызовами composable. */
 const reviews = ref([]);
 const pagination = ref(null);
 const organizationMeta = ref(null);
@@ -21,6 +22,8 @@ function extractErrorMessage(err, fallback = 'Не удалось загрузи
 
 /**
  * Composable для постраничной загрузки отзывов организации.
+ *
+ * Ответ API: reviews.data + reviews.meta, флаги is_refreshing и warning.
  */
 export function useOrganizationReviews() {
     async function fetchReviews(organizationId, page = 1) {

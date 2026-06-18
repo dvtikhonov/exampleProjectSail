@@ -9,7 +9,13 @@ use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\PageMetaDto;
 
 /**
- * Maps DOM harvest rows and page metadata to organization candidates.
+ * Преобразует сырые DOM-данные Яндекс.Карт в кандидатов организации.
+ *
+ * Два источника:
+ * - строки карточек поиска ({@see mapHarvest}) — href, текст ссылки, meta и card;
+ * - метаданные страницы организации ({@see mapPageMeta}) — title, header, address.
+ *
+ * Невалидные или неполные записи отбрасываются (возвращается null).
  */
 class DomHarvestMapper
 {
@@ -18,6 +24,11 @@ class DomHarvestMapper
         private readonly OrganizationRecordMapper $recordMapper,
     ) {}
 
+    /**
+     * Собирает кандидата из одной DOM-строки (карточка в выдаче поиска).
+     *
+     * @param  string  $origin  Базовый origin страницы (например, https://yandex.ru) для canonical URL.
+     */
     public function mapHarvest(DomOrgHarvestDto $harvest, string $origin): ?OrganizationCandidateDto
     {
         $orgId = $this->urlHelper->extractOrgIdFromHref($harvest->href)
@@ -27,6 +38,7 @@ class DomHarvestMapper
             return null;
         }
 
+        // Отсекаем подстраницы организации (/reviews, /gallery и т.п.) — нужна только карточка org.
         if (preg_match('/\/org\/[^\/]+\/\d+(\/[^\/\?#]+)/i', $harvest->href, $matches) === 1) {
             $extraPath = $matches[1];
 
@@ -44,6 +56,7 @@ class DomHarvestMapper
         $slug = $this->extractSlugFromHref($harvest->href);
         $address = trim($harvest->metaText);
 
+        // meta_text часто пустой или дублирует название — тогда адрес берём из card_text.
         if ($address === '' || $address === $name) {
             $address = $this->extractAddressFromCardText($harvest->cardText, $name);
         }
@@ -59,6 +72,14 @@ class DomHarvestMapper
         );
     }
 
+    /**
+     * Собирает кандидата из метаданных страницы конкретной организации (прямой переход по URL).
+     *
+     * Используется вместе с API/DOM-кандидатами и мержится через {@see OrganizationCandidateMerger}.
+     *
+     * @param  string  $resolvedUrl  Финальный URL после редиректов (для slug и origin).
+     * @param  string  $orgId  Идентификатор организации, уже извлечённый из URL или payload.
+     */
     public function mapPageMeta(PageMetaDto $pageMeta, string $resolvedUrl, string $orgId): ?OrganizationCandidateDto
     {
         $name = $this->extractNameFromTitle($pageMeta->title);
@@ -81,6 +102,9 @@ class DomHarvestMapper
         );
     }
 
+    /**
+     * Человекочитаемый slug из пути /maps/org/{slug}/{id}/.
+     */
     private function extractSlugFromHref(string $href): string
     {
         if (preg_match('/\/org\/([^\/]+)\/\d+/i', $href, $matches) === 1) {
@@ -90,6 +114,9 @@ class DomHarvestMapper
         return 'organization';
     }
 
+    /**
+     * Убирает суффикс «— Яндекс Карты» из document.title.
+     */
     private function extractNameFromTitle(string $title): string
     {
         $name = preg_replace('/\s*—\s*Яндекс\.?\s*Карты.*/iu', '', trim($title)) ?? trim($title);
@@ -97,6 +124,12 @@ class DomHarvestMapper
         return trim($name);
     }
 
+    /**
+     * Запасной адрес из card_text, если meta_text не дал результата.
+     *
+     * card_text — весь текст карточки; отдельного поля адреса в DOM нет,
+     * поэтому возвращаем строку целиком, если она не пустая и не совпадает с названием.
+     */
     private function extractAddressFromCardText(string $cardText, string $name): string
     {
         $trimmed = trim($cardText);
@@ -108,6 +141,9 @@ class DomHarvestMapper
         return $trimmed;
     }
 
+    /**
+     * Первая десятичная цифра в произвольном тексте (header страницы организации).
+     */
     private function parseRatingFromText(string $text): ?float
     {
         $normalized = str_replace(',', '.', $text);
@@ -119,6 +155,9 @@ class DomHarvestMapper
         return $this->urlHelper->parseRating($matches[1]);
     }
 
+    /**
+     * Число отзывов по шаблону «N отзыв(ов)» в тексте карточки или header.
+     */
     private function parseReviewsCount(string $text): ?int
     {
         if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*отзыв/iu', $text, $matches) !== 1) {
@@ -128,6 +167,9 @@ class DomHarvestMapper
         return $this->urlHelper->parseCount($matches[1]);
     }
 
+    /**
+     * Число оценок по шаблону «N оцен(ок)» — отдельно от отзывов в разметке Яндекса.
+     */
     private function parseRatingsCount(string $text): ?int
     {
         if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*оцен/iu', $text, $matches) !== 1) {

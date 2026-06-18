@@ -8,6 +8,9 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
+/**
+ * Валидация запроса регистрации и преобразование в RegisterUserDto.
+ */
 class RegisterRequest extends FormRequest
 {
     public function authorize(): bool
@@ -27,6 +30,9 @@ class RegisterRequest extends FormRequest
         ];
     }
 
+    /**
+     * Собирает DTO из провалидированных полей запроса.
+     */
     public function toDto(): RegisterUserDto
     {
         return new RegisterUserDto(

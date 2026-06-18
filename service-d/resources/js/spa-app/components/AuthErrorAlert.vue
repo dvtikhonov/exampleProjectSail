@@ -1,4 +1,5 @@
 <script setup>
+/** Блок ошибки API/аутентификации; скрыт, если message пустой. */
 defineProps({
     message: {
         type: [String, null],

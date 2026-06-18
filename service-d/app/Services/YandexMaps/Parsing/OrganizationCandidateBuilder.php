@@ -9,7 +9,10 @@ use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\ParserCollectResultDto;
 
 /**
- * Builds organization candidates from raw parser collect payloads.
+ * Собирает кандидатов организации из сырого ответа yandex-parser (collect).
+ *
+ * Два режима: прямая страница /maps/org/... и выдача поиска.
+ * Источники данных: JSON network payloads, DOM harvest, page meta — мержатся через {@see OrganizationCandidateMerger}.
  */
 class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterface
 {
@@ -34,6 +37,8 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
     }
 
     /**
+     * Одна организация: мерж API + DOM + page meta; fallback — минимальный кандидат по URL.
+     *
      * @return OrganizationCandidateDto[]
      */
     private function buildDirectOrgCandidates(ParserCollectResultDto $collect): array
@@ -70,6 +75,8 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
     }
 
     /**
+     * Выдача поиска: DOM + network, дедуп по orgId, обрезка по лимиту конфига.
+     *
      * @return OrganizationCandidateDto[]
      */
     private function buildSearchCandidates(ParserCollectResultDto $collect): array
@@ -84,6 +91,8 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
     }
 
     /**
+     * Обходит все JSON-деревья из network payloads и мапит записи в кандидатов.
+     *
      * @param  array<int, mixed>  $payloads
      * @return OrganizationCandidateDto[]
      */
@@ -105,6 +114,8 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
     }
 
     /**
+     * Карточки из DOM harvest ({@see DomHarvestMapper}).
+     *
      * @return OrganizationCandidateDto[]
      */
     private function mapDomHarvest(ParserCollectResultDto $collect, string $origin): array
@@ -123,6 +134,8 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
     }
 
     /**
+     * Сначала DOM как база, затем network; для счётчиков рейтинга предпочитаем DOM.
+     *
      * @param  OrganizationCandidateDto[]  $fromDom
      * @param  OrganizationCandidateDto[]  $fromNetwork
      * @return OrganizationCandidateDto[]
@@ -179,6 +192,7 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
         return null;
     }
 
+    /** Последний fallback для direct org, когда API/DOM/page meta не дали полного кандидата. */
     private function buildFallbackDirectCandidate(ParserCollectResultDto $collect, string $orgId): OrganizationCandidateDto
     {
         $pageMetaCandidate = $this->domHarvestMapper->mapPageMeta(

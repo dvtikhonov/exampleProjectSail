@@ -10,6 +10,9 @@ use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * API аутентификации для SPA (Sanctum: cookie + session).
+ */
 class AuthController extends Controller
 {
     public function __construct(
@@ -33,8 +36,6 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $request->ensureIsNotRateLimited();
-
         $user = $this->authService->login($request->toDto(), $request);
 
         return response()->json([
@@ -68,6 +69,8 @@ class AuthController extends Controller
     }
 
     /**
+     * Сериализует пользователя для JSON-ответа (без чувствительных полей).
+     *
      * @return array{id: int, name: string, email: string}
      */
     private function serializeUser(User $user): array
