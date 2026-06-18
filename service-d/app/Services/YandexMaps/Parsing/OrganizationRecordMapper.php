@@ -7,14 +7,14 @@ namespace App\Services\YandexMaps\Parsing;
 use App\DTO\YandexMaps\OrganizationCandidateDto;
 
 /**
- * Maps Yandex Maps JSON business records to organization candidates.
+ * Маппинг JSON-записей бизнес-объектов Яндекс.Карт в {@see OrganizationCandidateDto}.
  */
 class OrganizationRecordMapper
 {
-    /** @var string[] */
+    /** @var string[] Ключи полей, где может лежать ссылка на /org/{slug}/{id}. */
     private const HREF_KEYS = ['uri', 'url', 'link', 'permalink', 'canonicalUrl'];
 
-    /** @var string[] */
+    /** @var string[] Ключи полей с названием организации (порядок приоритета). */
     private const ORG_NAME_KEYS = ['shortName', 'name', 'title', 'caption', 'fullName'];
 
     public function __construct(
@@ -23,7 +23,7 @@ class OrganizationRecordMapper
     ) {}
 
     /**
-     * Reject tab-navigation text accidentally scraped as an organization name.
+     * Отсекает текст вкладок карточки («Обзор», «Отзывы» и т.п.), ошибочно попавший в name.
      */
     public function isPlausibleOrgName(string $name): bool
     {
@@ -48,7 +48,7 @@ class OrganizationRecordMapper
     }
 
     /**
-     * Extract organization id only from /org/.../{id} paths in href-like fields.
+     * Извлекает org id только из путей /org/.../{id} в href-подобных полях записи.
      *
      * @param  array<string, mixed>  $record
      */
@@ -73,7 +73,7 @@ class OrganizationRecordMapper
     }
 
     /**
-     * Check whether a JSON record belongs to the requested organization.
+     * Проверяет, что JSON-запись относится к запрошенной организации (href или id + признаки карточки).
      *
      * @param  array<string, mixed>  $record
      */
@@ -98,7 +98,7 @@ class OrganizationRecordMapper
     }
 
     /**
-     * Build a candidate from a Yandex Maps JSON business record.
+     * Строит кандидата из одной business-записи в JSON payload.
      *
      * @param  array<string, mixed>  $record
      */
@@ -132,6 +132,8 @@ class OrganizationRecordMapper
     }
 
     /**
+     * Рейтинг и счётчики отзывов/оценок из плоских и вложенных полей записи.
+     *
      * @param  array<string, mixed>  $record
      * @return array{average_rating: ?float, reviews_count: ?int, ratings_count: ?int}
      */

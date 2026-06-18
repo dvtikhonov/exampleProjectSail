@@ -7,7 +7,7 @@ namespace App\Services\YandexMaps\Parsing;
 use App\DTO\YandexMaps\OrganizationCandidateDto;
 
 /**
- * Merges and deduplicates organization candidates from multiple sources.
+ * Объединение и дедупликация кандидатов из нескольких источников (API, DOM, page meta).
  */
 class OrganizationCandidateMerger
 {
@@ -16,7 +16,8 @@ class OrganizationCandidateMerger
     ) {}
 
     /**
-     * Prefer API/network fields over DOM fallbacks.
+     * primary перекрывает fallback; пустые поля дополняются из fallback.
+     * При переданном orgId принудительно выравнивает id кандидата.
      */
     public function merge(
         ?OrganizationCandidateDto $primary,
@@ -53,7 +54,7 @@ class OrganizationCandidateMerger
     }
 
     /**
-     * Search snippets show branch-specific rating counts in DOM; network payloads may be inflated.
+     * В выдаче поиска DOM показывает локальные счётчики филиала; network payload может быть завышен.
      */
     public function preferDomRatingCounts(
         OrganizationCandidateDto $merged,
@@ -79,6 +80,8 @@ class OrganizationCandidateMerger
     }
 
     /**
+     * Дедуп по orgId с merge записей с одинаковым id.
+     *
      * @param  OrganizationCandidateDto[]  $candidates
      * @return OrganizationCandidateDto[]
      */

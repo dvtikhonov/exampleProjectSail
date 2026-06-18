@@ -106,4 +106,27 @@ class AuthApiTest extends TestCase
                 'message' => 'Logged out.',
             ]);
     }
+
+    public function test_login_is_throttled_after_five_failed_attempts(): void
+    {
+        $user = User::factory()->create();
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->postStatefulJson('/api/login', [
+                'email' => $user->email,
+                'password' => 'wrong-password',
+            ])->assertUnprocessable()
+                ->assertJsonValidationErrors(['email']);
+        }
+
+        $response = $this->postStatefulJson('/api/login', [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['email']);
+
+        $this->assertGuest();
+    }
 }

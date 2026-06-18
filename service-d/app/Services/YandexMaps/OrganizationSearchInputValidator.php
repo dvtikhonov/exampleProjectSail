@@ -8,6 +8,13 @@ use App\DTO\YandexMaps\OrganizationSearchInputDto;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
+/**
+ * Валидация и разбор пользовательского ввода для поиска организации.
+ *
+ * Поддерживает:
+ * - прямую ссылку на Яндекс.Карты (с опциональным уточнением через пробел);
+ * - произвольную ссылку на сайт + уточнение (город, филиал и т.д.).
+ */
 class OrganizationSearchInputValidator
 {
     private const YANDEX_MAPS_PATTERN = '#^https?://yandex\.(ru|com|kz|com\.tr)/maps/#i';
@@ -19,6 +26,9 @@ class OrganizationSearchInputValidator
         return $this->parse($input) !== null;
     }
 
+    /**
+     * Разбирает строку на linkPart и clarification; null — невалидный ввод.
+     */
     public function parse(string $input): ?OrganizationSearchInputDto
     {
         $rawInput = trim($input);
@@ -71,6 +81,8 @@ class OrganizationSearchInputValidator
     }
 
     /**
+     * Правила Laravel Validation для поля ввода организации.
+     *
      * @return array<int, ValidationRule|string>
      */
     public function validationRules(): array

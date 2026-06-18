@@ -11,6 +11,11 @@ use App\Enums\OrganizationSyncStatus;
 use App\Exceptions\YandexMaps\YandexMapsParserException;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Синхронизация метаданных организации и отзывов с yandex-parser (вызывается из Job).
+ *
+ * При повторном sync использует stopAnchors, чтобы не тянуть уже известные отзывы целиком.
+ */
 class OrganizationSyncService
 {
     public function __construct(
@@ -19,6 +24,7 @@ class OrganizationSyncService
         private readonly YandexMapsClientInterface $yandexMapsClient,
     ) {}
 
+    /** Тихо завершается, если организация удалена; при ошибке ставит sync_status = Failed. */
     public function sync(int $organizationId): void
     {
         $organization = $this->organizationRepository->findById($organizationId);

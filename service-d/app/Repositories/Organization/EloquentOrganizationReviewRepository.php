@@ -10,8 +10,21 @@ use App\Models\OrganizationReview;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
+/**
+ * Eloquent-реализация доступа к отзывам организаций.
+ *
+ * Поддерживает полную замену набора отзывов и инкрементальное слияние с сохранением «сирот»
+ * (отзывов, которых больше нет в свежей выдаче Яндекса).
+ */
 class EloquentOrganizationReviewRepository implements OrganizationReviewRepositoryInterface
 {
+    /**
+     * Полностью заменяет отзывы организации: удаляет старые и вставляет новые пачками по 500.
+     *
+     * Записи без externalId пропускаются; рейтинг ограничивается диапазоном 0–5.
+     *
+     * @param  ParsedReviewDto[]  $reviews
+     */
     public function replaceForOrganization(int $organizationId, array $reviews): void
     {
         OrganizationReview::query()
@@ -47,6 +60,14 @@ class EloquentOrganizationReviewRepository implements OrganizationReviewReposito
         }
     }
 
+    /**
+     * Обновляет или создаёт отзывы из свежей выдачи и сдвигает «сирот» в конец sort_order.
+     *
+     * Отзывы, чьих external_review_id нет в новом списке, не удаляются — им назначается
+     * sort_order после последнего индекса из Яндекса.
+     *
+     * @param  ParsedReviewDto[]  $reviews
+     */
     public function mergeAndReorderForOrganization(int $organizationId, array $reviews): void
     {
         $yandexExternalIds = [];
@@ -98,6 +119,8 @@ class EloquentOrganizationReviewRepository implements OrganizationReviewReposito
     }
 
     /**
+     * Возвращает external_review_id первых N отзывов по sort_order — якоря для stop-sync.
+     *
      * @return string[]
      */
     public function findSyncStopAnchors(int $organizationId, int $limit = 3): array
@@ -110,6 +133,9 @@ class EloquentOrganizationReviewRepository implements OrganizationReviewReposito
             ->all();
     }
 
+    /**
+     * @return LengthAwarePaginator<int, OrganizationReview>
+     */
     public function paginateByOrganization(int $organizationId, int $perPage = 50): LengthAwarePaginator
     {
         return OrganizationReview::query()

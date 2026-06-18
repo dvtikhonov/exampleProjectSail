@@ -1,4 +1,5 @@
 <script setup>
+/** Центрированный спиннер с подписью (загрузка данных, редиректы). */
 defineProps({
     label: {
         type: String,

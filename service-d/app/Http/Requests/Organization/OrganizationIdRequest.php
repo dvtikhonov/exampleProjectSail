@@ -7,6 +7,9 @@ namespace App\Http\Requests\Organization;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Общая валидация organization_id для эндпоинтов организации.
+ */
 class OrganizationIdRequest extends FormRequest
 {
     public function authorize(): bool
@@ -24,6 +27,9 @@ class OrganizationIdRequest extends FormRequest
         ];
     }
 
+    /**
+     * Идентификатор организации из провалидированного запроса.
+     */
     public function organizationId(): int
     {
         return (int) $this->validated('organization_id');

@@ -7,6 +7,7 @@ Laravel 13 (PHP 8.4) и Vue 3 SPA с авторизацией через **Larav
 | [корневой README](../README.md) | Docker, gateway, CI/CD, общая инфраструктура |
 | [yandex-parser/README.md](../yandex-parser/README.md) | Playwright-сервис: `/resolve`, `/sync-reviews`, контракт collect |
 
+
 Порт по умолчанию: **8084** (`SERVICE_D_PORT` в `docker-compose.yml`). Vite dev: **5175** (`SERVICE_D_VITE_PORT`).
 
 ## Разделение ответственности: service-d ↔ yandex-parser
@@ -21,7 +22,7 @@ Laravel 13 (PHP 8.4) и Vue 3 SPA с авторизацией через **Larav
 | Очередь и статусы sync | ✅ `service-d-queue`, `sync_status`, `sync_error` | ❌ |
 | Ввод пользователя | ✅ свободный текст, сайт + город → `resolverUrl` | ❌ принимает только готовый URL Яндекс.Карт |
 | Сессия resolve (кандидаты) | ✅ `session_id` в cache, confirm, auto-select | ❌ |
-| Фильтр по уточнению города | ✅ `filterCandidatesByClarification` | ❌ |
+| Фильтр по уточнению города | ✅ `ClarificationCandidateFilter` | ❌ |
 | Браузер / антибот | ❌ | ✅ Chromium, `humanMouseJiggle`, таймауты |
 | Навигация и скролл страницы | ❌ | ✅ goto, скролл выдачи / отзывов |
 | Перехват XHR/fetch JSON | ❌ | ✅ `NetworkJsonCollector` |
@@ -77,7 +78,7 @@ sync
 | Извлечение отзывов со страницы org | `yandex-parser` → `sync/`, `reviewExtract` | `yandex-parser/tests/reviewExtract.test.ts` |
 | API confirm, resync, пагинация | `service-d` | `tests/Feature/OrganizationApiTest.php` + `FakesYandexParser` |
 
-Подробности HTTP-контракта парсера: [`yandex-parser/README.md`](../yandex-parser/README.md#разделение-ответственности-service-d--yandex-parser).
+Подробности HTTP-контракта парсера: [`yandex-parser/README.md`](../yandex-parser/README.md#разделение-ответственности-service-d--yandex-parser). Сквозные потоки HTTP → Service → Repository: раздел [**Архитектура запросов**](#архитектура-запросов).
 
 ## Маршрутизация
 
@@ -89,7 +90,7 @@ sync
 | `http://localhost:8084/up` | Health check Laravel | Публичный |
 | `POST /api/register`, `POST /api/login` | Регистрация и вход | Публичный |
 | `POST /api/logout`, `GET /api/user` | Сессия пользователя | `auth:sanctum` |
-| `GET/POST /api/organization/*` | Организация и отзывы | `auth:sanctum` |
+| `GET/POST /api/organization/*` | Организация и отзывы (`organization_id` для read/sync) | `auth:sanctum` |
 
 **Важно:** service-d обслуживается **целиком на субдомене** `yandexmaps.*` — без префикса `/api/d/` и без `auth_request` gateway. Gateway маршрутизирует по заголовку `Host` (см. `nginx-gateway/nginx.conf`).
 
@@ -97,16 +98,181 @@ sync
 
 | Путь | Компонент | Описание |
 |---|---|---|
-| `/login` | `Login.vue` | Вход / регистрация |
-| `/` | `HomeRedirect.vue` | Редирект: `/reviews` если организация есть, иначе `/settings` |
-| `/settings` | `Settings.vue` | Поиск и подтверждение организации, статус синхронизации, пересинхронизация |
-| `/reviews` | `Reviews.vue` | Список отзывов с пагинацией, опрос `sync-status` пока идёт синхронизация |
+| `/login` | `Login.vue` | Вход / регистрация (`meta.guest`) |
+| `/` | `HomeRedirect.vue` | Редирект на `/settings` |
+| `/settings/:organizationId?` | `Settings.vue` | Поиск и подтверждение организации, сводка, пересинхронизация |
+| `/reviews/:organizationId` | `Reviews.vue` | Список отзывов с пагинацией, опрос `sync-status`, предупреждение при фоновом обновлении |
+
+Guard в `app.js`: перед навигацией вызывается `GET /api/user`; `meta.requiresAuth` — только для авторизованных, `meta.guest` — только для гостей.
+
+## Архитектура запросов
+
+Слои приложения следуют единому шаблону: **HTTP → FormRequest → Controller → Service → Repository / Client → Resource / DTO → JSON**. Зависимости сервисов — через контракты (`app/Contracts/*`), биндинги в `AppServiceProvider`.
+
+```mermaid
+flowchart TB
+    subgraph client [Клиент]
+        SPA[Vue SPA + axios]
+    end
+
+    subgraph http [HTTP-слой]
+        R[routes/api.php]
+        FR[FormRequest]
+        C[Controller]
+        RES[JsonResource]
+    end
+
+    subgraph app [Application]
+        SVC[Service layer]
+        DTO[DTO / Enum]
+    end
+
+    subgraph infra [Инфраструктура]
+        REPO[Eloquent Repository]
+        CACHE[CacheResolveSessionStore]
+        QUEUE[QueueOrganizationSyncDispatcher]
+        PARSER[PlaywrightYandexMapsClient]
+    end
+
+    subgraph external [Внешние системы]
+        DB[(MySQL service_d_db)]
+        YP[yandex-parser]
+        WORKER[service-d-queue]
+    end
+
+    SPA -->|cookie + CSRF| R
+    R --> FR --> C --> SVC
+    SVC --> DTO
+    SVC --> REPO --> DB
+    SVC --> CACHE
+    SVC --> PARSER --> YP
+    SVC --> QUEUE --> WORKER
+    C --> RES --> SPA
+```
+
+### Слои и ответственность
+
+| Слой | Каталог | Роль |
+|---|---|---|
+| Маршруты | `routes/api.php`, `routes/web.php` | Префикс `/api`, middleware `auth:sanctum`; SPA — catch-all `spa.blade.php` |
+| Валидация | `app/Http/Requests/` | Правила входа, `toDto()` / `organizationId()` |
+| Контроллеры | `app/Http/Controllers/Api/` | Тонкий оркестратор: DTO → Service → Resource, маппинг исключений в HTTP-коды |
+| Сериализация | `app/Http/Resources/` | Стабильный JSON-контракт для клиента |
+| Сервисы | `app/Services/Auth/`, `app/Services/YandexMaps/` | Бизнес-логика, оркестрация |
+| DTO / Enum | `app/DTO/`, `app/Enums/` | Типизированные данные между слоями |
+| Контракты | `app/Contracts/` | Интерфейсы для DI (репозитории, клиент парсера, сессия resolve, диспетчер sync) |
+| Репозитории | `app/Repositories/` | Eloquent, без HTTP-зависимостей |
+| Клиент | `app/Clients/PlaywrightYandexMapsClient` | HTTP к `yandex-parser` |
+| Jobs | `app/Jobs/SyncYandexOrganizationReviewsJob` | Асинхронная синхронизация отзывов |
+| SPA | `resources/js/spa-app/` | Composables вызывают `/api/*` через `api/client.js` |
+
+### DI-биндинги (`AppServiceProvider`)
+
+| Контракт | Реализация |
+|---|---|
+| `UserRepositoryInterface` | `Repositories\User\EloquentUserRepository` |
+| `OrganizationRepositoryInterface` | `Repositories\Organization\EloquentOrganizationRepository` |
+| `OrganizationReviewRepositoryInterface` | `Repositories\Organization\EloquentOrganizationReviewRepository` |
+| `YandexMapsClientInterface` | `Clients\PlaywrightYandexMapsClient` (factory из `config/services.php`) |
+| `OrganizationCandidateBuilderInterface` | `Services\YandexMaps\Parsing\OrganizationCandidateBuilder` |
+| `ResolveSessionStoreInterface` | `Services\YandexMaps\CacheResolveSessionStore` |
+| `OrganizationSyncDispatcherInterface` | `Services\YandexMaps\QueueOrganizationSyncDispatcher` |
+
+### Потоки по эндпоинтам
+
+#### Auth
+
+```text
+POST /api/register | /api/login
+  → RegisterRequest / LoginRequest (валидация, toDto)
+  → AuthController
+  → AuthService (UserRepository, LoginRateLimiter)
+  → сессия Sanctum + JSON { user }
+
+POST /api/logout | GET /api/user
+  → auth:sanctum
+  → AuthController → AuthService
+```
+
+#### Resolve (поиск кандидатов)
+
+```text
+POST /api/organization/resolve  { url }
+  → ResolveOrganizationRequest
+  → OrganizationController::resolve
+  → ResolveOrganizationInputFactory::fromUrl()  → ResolveOrganizationDto
+  → OrganizationResolveService
+      → PlaywrightYandexMapsClient::collect()  →  POST yandex-parser/resolve
+      → OrganizationCandidateBuilder (Parsing/*)
+      → ClarificationCandidateFilter
+      → CacheResolveSessionStore::put()
+  → ResolveOrganizationResultDto::toArray()
+```
+
+#### Confirm (привязка + постановка sync в очередь)
+
+```text
+POST /api/organization/confirm  { session_id, org_id }
+  → ConfirmOrganizationRequest → ConfirmOrganizationDto
+  → OrganizationConfirmService
+      → CacheResolveSessionStore::get()
+      → OrganizationRepository::upsertForUser()
+      → QueueOrganizationSyncDispatcher::dispatch()
+  → OrganizationResource, 202
+```
+
+#### Sync (фоновый воркер)
+
+```text
+SyncYandexOrganizationReviewsJob (service-d-queue)
+  → OrganizationSyncService::sync()
+      → PlaywrightYandexMapsClient::syncReviews()  →  POST yandex-parser/sync-reviews
+      → OrganizationRepository (метаданные org)
+      → OrganizationReviewRepository::replaceForOrganization()
+```
+
+#### Read (организация, статус, отзывы)
+
+```text
+GET /api/organization?organization_id=
+  → ShowOrganizationRequest (organization_id опционален)
+  → OrganizationReviewQueryService::findOrganizationForUser()
+  → OrganizationResource | { organization: null }
+
+GET /api/organization/sync-status?organization_id=
+POST /api/organization/resync  { organization_id }
+GET /api/organization/reviews?organization_id=&page=
+  → OrganizationIdRequest (organization_id обязателен)
+  → OrganizationReviewQueryService / OrganizationResyncService
+  → OrganizationMetaResource + OrganizationReviewCollection
+```
+
+### Обработка ошибок в контроллерах
+
+| Исключение | HTTP | Эндпоинт |
+|---|---|---|
+| `YandexMapsParserException` | `502` | resolve |
+| `OrganizationResolveSessionExpiredException`, `InvalidOrganizationCandidateException` | `422` | confirm |
+| `OrganizationNotFoundException` | `404` или `{ organization: null }` | show / resync |
+| Ошибки валидации FormRequest | `422` | все |
+
+### SPA → API (composables)
+
+| Composable | API-вызовы |
+|---|---|
+| `useAuth` | `GET /sanctum/csrf-cookie`, `POST /api/register`, `/login`, `/logout`, `GET /api/user` |
+| `useOrganization` | `GET /organization`, `POST /resolve`, `/confirm`, `/resync`, `GET /sync-status` |
+| `useOrganizationReviews` | `GET /organization/reviews?page=` |
+| `useReviewsPage` | оркестрация страницы отзывов: метрики, пагинация, polling `sync-status` |
+
+Axios (`api/client.js`): `baseURL: '/api'`, `withCredentials: true`, CSRF из `<meta name="csrf-token">`.
 
 ## Домен организации (кратко)
 
-- **Один пользователь — одна организация** (`organizations.user_id` unique). Повторное подтверждение заменяет предыдущую запись.
+- **Пользователь может иметь несколько организаций** (`organizations.user_id` — индекс, не unique). **`yandex_org_id` уникален глобально** — одну карточку Яндекса нельзя привязать дважды.
+- Без `organization_id` в запросе `GET /api/organization` возвращает **первую** организацию пользователя (`findByUserId`). Для конкретной записи передавайте `?organization_id=` или используйте маршруты SPA `/settings/:id`, `/reviews/:id`.
 - **Resolve** — `POST /api/organization/resolve` с полем `url`: ссылка Яндекс.Карт, сайт или текст вида `invitro новокузнецк`. Ответ: `session_id`, `candidates[]`, `match_count`, `auto_selected`.
-- **Confirm** — `POST /api/organization/confirm` с `session_id` + `org_id` из списка кандидатов. Ставит `SyncYandexOrganizationReviewsJob` в очередь.
+- **Confirm** — `POST /api/organization/confirm` с `session_id` + `org_id` из списка кандидатов. Ставит `SyncYandexOrganizationReviewsJob` в очередь через `QueueOrganizationSyncDispatcher`.
 - **Синхронизация отзывов** — фоновый воркер `service-d-queue` вызывает `yandex-parser` `/sync-reviews` и сохраняет записи в `organization_reviews`.
 - **Статусы** (`OrganizationSyncStatus`): `pending` → `syncing` → `completed` | `failed` (поле `sync_error`).
 
@@ -115,34 +281,111 @@ sync
 ```
 service-d/
 ├── app/
-│   ├── Clients/                    # PlaywrightYandexMapsClient
-│   ├── Contracts/                  # YandexMapsClient, Organization*, CandidateBuilder
-│   ├── DTO/YandexMaps/             # Resolve, Confirm, ParsedReview, ParserCollectResult, …
-│   ├── Enums/                      # OrganizationSyncStatus
-│   ├── Exceptions/                 # Organization*, YandexMapsParserException
-│   ├── Http/Controllers/Api/       # AuthController, OrganizationController
-│   ├── Http/Requests/              # Auth, Organization (валидация входа)
-│   ├── Jobs/                       # SyncYandexOrganizationReviewsJob
-│   ├── Models/                     # User, Organization, OrganizationReview
-│   ├── Repositories/Organization/  # EloquentOrganization*, review repository
+│   ├── Clients/
+│   │   └── PlaywrightYandexMapsClient.php
+│   ├── Contracts/
+│   │   ├── OrganizationCandidateBuilderInterface.php
+│   │   ├── OrganizationRepositoryInterface.php
+│   │   ├── OrganizationReviewRepositoryInterface.php
+│   │   ├── OrganizationSyncDispatcherInterface.php
+│   │   ├── ResolveSessionStoreInterface.php
+│   │   ├── UserRepositoryInterface.php
+│   │   └── YandexMapsClientInterface.php
+│   ├── DTO/
+│   │   ├── Auth/                         # LoginUserDto, RegisterUserDto
+│   │   └── YandexMaps/                 # Resolve, Confirm, ParsedReview, ParserCollectResult, …
+│   ├── Enums/
+│   │   └── OrganizationSyncStatus.php
+│   ├── Exceptions/
+│   │   ├── Organization/               # InvalidOrganizationCandidate, NotFound, SessionExpired
+│   │   └── YandexMaps/                 # YandexMapsParserException
+│   ├── Http/
+│   │   ├── Controllers/Api/            # AuthController, OrganizationController
+│   │   ├── Requests/
+│   │   │   ├── Auth/                   # LoginRequest, RegisterRequest
+│   │   │   └── Organization/         # Resolve, Confirm, Show, OrganizationId
+│   │   └── Resources/                  # OrganizationResource, OrganizationMetaResource,
+│   │                                   # OrganizationReviewResource, OrganizationReviewCollection
+│   ├── Jobs/
+│   │   └── SyncYandexOrganizationReviewsJob.php
+│   ├── Models/                         # User, Organization, OrganizationReview
+│   ├── Repositories/
+│   │   ├── Organization/               # EloquentOrganization*, review repository
+│   │   └── User/                       # EloquentUserRepository
 │   └── Services/
-│       ├── Auth/                   # AuthService
-│       └── YandexMaps/             # Resolve, Confirm, Sync, Resync, ReviewQuery
-│           └── Parsing/            # CandidateBuilder, DomHarvestMapper, JsonTreeWalker, …
-├── database/migrations/            # users, sessions, organizations, organization_reviews, jobs
-├── resources/js/spa-app/           # Vue 3 SPA
-│   ├── api/client.js               # axios + withCredentials
-│   ├── composables/                # useAuth, useOrganization, useOrganizationReviews
-│   ├── components/                 # AuthErrorAlert, LoadingSpinner
-│   └── pages/                      # Login, HomeRedirect, Settings, Reviews
-├── routes/api.php, web.php
+│       ├── Auth/                       # AuthService, LoginRateLimiter
+│       └── YandexMaps/
+│           ├── CacheResolveSessionStore.php
+│           ├── ClarificationCandidateFilter.php
+│           ├── OrganizationConfirmService.php
+│           ├── OrganizationResolveService.php
+│           ├── OrganizationResyncService.php
+│           ├── OrganizationReviewQueryService.php
+│           ├── OrganizationSearchInputValidator.php
+│           ├── OrganizationSyncService.php
+│           ├── QueueOrganizationSyncDispatcher.php
+│           ├── ResolveOrganizationInputFactory.php
+│           └── Parsing/                # CandidateBuilder, DomHarvestMapper, JsonTreeWalker,
+│                                       # OrganizationCandidateMerger, OrganizationRecordMapper,
+│                                       # YandexUrlHelper
+├── bootstrap/app.php                   # statefulApi(), health /up
+├── config/                             # sanctum.php, services.php (yandex_parser), …
+├── database/
+│   ├── factories/                      # User, Organization, OrganizationReview
+│   ├── migrations/                     # users, sessions, cache, jobs, personal_access_tokens,
+│   │                                   # organizations, organization_reviews, nullable counts,
+│   │                                   # unique yandex_org_id
+│   └── seeders/
+├── resources/
+│   ├── js/spa-app/                     # Vue 3 SPA
+│   │   ├── App.vue
+│   │   ├── app.js                      # Vue Router + auth guard
+│   │   ├── api/client.js               # axios + withCredentials + CSRF
+│   │   ├── utils/
+│   │   │   ├── formatters.js
+│   │   │   └── syncStatus.js
+│   │   ├── composables/
+│   │   │   ├── useAuth.js
+│   │   │   ├── useOrganization.js
+│   │   │   ├── useOrganizationReviews.js
+│   │   │   └── useReviewsPage.js
+│   │   ├── components/
+│   │   │   ├── AuthErrorAlert.vue, LoadingSpinner.vue
+│   │   │   ├── auth/AuthForm.vue
+│   │   │   ├── layout/PageShell.vue, PageHeader.vue
+│   │   │   ├── ui/PrimaryButton.vue, MetricCard.vue
+│   │   │   ├── reviews/ReviewsMetrics, SyncStatusBanner, ReviewsTable,
+│   │   │   │         ReviewsPagination, ReviewsEmptyState, ReviewsRefreshWarning
+│   │   │   ├── settings/OrganizationSummary, OrganizationSearchForm, OrganizationCandidates
+│   │   │   └── splash/SplashCard.vue   # legacy, не в роутере
+│   │   └── pages/
+│   │       ├── Login.vue, HomeRedirect.vue, Settings.vue, Reviews.vue
+│   │       └── Splash.vue              # не подключена к Vue Router
+│   └── views/spa.blade.php
+├── routes/api.php, web.php, console.php
 ├── tests/
-│   ├── Feature/                    # AuthApiTest, OrganizationApiTest
-│   ├── Unit/YandexMaps/            # парсинг на фикстурах collect
-│   ├── Fixtures/yandex/            # сырые ответы yandex-parser
-│   └── Support/                    # FakesYandexParser, MakesStatefulApiRequests
-├── docker-entrypoint.sh            # auto `npm run build` при отсутствии manifest
-└── Dockerfile
+│   ├── Feature/
+│   │   ├── AuthApiTest.php
+│   │   ├── OrganizationApiTest.php
+│   │   ├── AddressOverwriteTest.php
+│   │   └── ExampleTest.php
+│   ├── Unit/
+│   │   ├── Auth/                       # AuthServiceTest, LoginRateLimiterTest
+│   │   ├── Repositories/               # EloquentOrganizationReviewRepositoryTest
+│   │   ├── YandexMaps/                 # парсинг, session store, sync, resolve factory, …
+│   │   ├── OrganizationSearchInputValidatorTest.php
+│   │   └── YandexMapsDtoMappingTest.php
+│   ├── Fixtures/yandex/
+│   │   ├── collect/                    # сырые ответы yandex-parser для unit-тестов
+│   │   └── *.json                      # resolve/sync фикстуры для Feature
+│   └── Support/
+│       ├── CreatesYandexMapsParsingServices.php
+│       ├── FakesYandexParser.php
+│       ├── MakesStatefulApiRequests.php
+│       └── YandexParserFixtures.php
+├── docker-entrypoint.sh
+├── Dockerfile
+└── REFACTORING-PLAN.md                 # аудит SOLID-рефакторинга (внутренний)
 ```
 
 Связанные Docker-сервисы: **`service-d`** (HTTP), **`service-d-queue`** (`php artisan queue:work`), **`yandex-parser`** (Playwright).
@@ -163,7 +406,7 @@ docker compose up -d service-d service-d-queue yandex-parser gateway
 127.0.0.1 yandexmaps.localhost
 ```
 
-Откройте `http://yandexmaps.localhost:8080/` — форма входа; после login — `/settings` (если организация не настроена) или `/reviews`.
+Откройте `http://yandexmaps.localhost:8080/` — форма входа; после login — редирект на `/settings` (привязка или сводка организации), отзывы — `/reviews/:organizationId`.
 
 При первом запуске контейнер соберёт фронтенд, если нет `public/spa-build/manifest.json` (см. `docker-entrypoint.sh`).
 
@@ -269,12 +512,12 @@ docker compose exec service-d npm run build
 
 | Метод | Путь | Тело / query | Коды |
 |---|---|---|---|
-| `GET` | `/api/organization` | — | `200` (`organization: null` если не настроена) |
+| `GET` | `/api/organization` | `?organization_id=` (опционально) | `200` (`organization: null` если не найдена) |
 | `POST` | `/api/organization/resolve` | `{ "url": "…" }` | `200`, `422` (валидация), `502` (парсер) |
 | `POST` | `/api/organization/confirm` | `{ "session_id": "uuid", "org_id": "123" }` | `202`, `422` (сессия/кандидат) |
-| `GET` | `/api/organization/sync-status` | — | `200`, `404` |
-| `POST` | `/api/organization/resync` | — | `202`, `404` |
-| `GET` | `/api/organization/reviews` | `?page=1` | `200` + пагинация, `404` |
+| `GET` | `/api/organization/sync-status` | `?organization_id=` (**обязателен**) | `200`, `422`, `404` |
+| `POST` | `/api/organization/resync` | `{ "organization_id": 1 }` (**обязателен**) | `202`, `404`, `422` |
+| `GET` | `/api/organization/reviews` | `?organization_id=` (**обязателен**), `?page=1` | `200`, `404`, `422` |
 
 **Валидация `url` (resolve):** обязательная строка до 2048 символов. Допустимые форматы:
 
@@ -309,10 +552,12 @@ docker compose exec service-d npm run build
 {
   "organization": {
     "name": "Invitro",
+    "address": "ул. Энтузиастов, 32, Новокузнецк",
     "average_rating": 4.68,
     "ratings_count": 682,
     "reviews_count": 24,
-    "sync_status": "completed"
+    "sync_status": "completed",
+    "last_synced_at": "2025-03-15T12:00:00+00:00"
   },
   "reviews": {
     "data": [
@@ -324,10 +569,14 @@ docker compose exec service-d npm run build
         "rating": 5
       }
     ],
-    "meta": { "current_page": 1, "last_page": 2, "per_page": 20, "total": 24 }
-  }
+    "meta": { "current_page": 1, "last_page": 1, "per_page": 50, "total": 24 }
+  },
+  "is_refreshing": false,
+  "warning": null
 }
 ```
+
+Поле `is_refreshing: true` и `warning` появляются, когда sync ещё идёт (`pending` / `syncing`), но в БД уже есть сохранённые отзывы — UI показывает кэш с предупреждением (`ReviewsRefreshWarning.vue`).
 
 ## Интеграция с yandex-parser
 
@@ -337,23 +586,25 @@ docker compose exec service-d npm run build
 
 ```text
 POST /api/organization/resolve
+  → ResolveOrganizationInputFactory::fromUrl()
   → OrganizationResolveService
   → PlaywrightYandexMapsClient::collect()  →  POST yandex-parser/resolve
   → OrganizationCandidateBuilder (PHP)     ←  network_payloads + dom_harvest
-  → filterCandidatesByClarification
-  → session в cache + JSON ответ
+  → ClarificationCandidateFilter
+  → CacheResolveSessionStore + JSON ответ
 ```
 
 | Слой | Где | Классы |
 |------|-----|--------|
 | Сбор страницы | `yandex-parser` | Playwright, `NetworkJsonCollector`, `domHarvest` |
 | Сборка кандидатов | `service-d` | `OrganizationCandidateBuilder`, `JsonTreeWalker`, `DomHarvestMapper`, `OrganizationRecordMapper`, `OrganizationCandidateMerger` |
-| Оркестрация | `service-d` | `OrganizationResolveService`, `OrganizationConfirmService`, `PlaywrightYandexMapsClient` |
+| Оркестрация | `service-d` | `ResolveOrganizationInputFactory`, `OrganizationResolveService`, `OrganizationConfirmService`, `PlaywrightYandexMapsClient`, `CacheResolveSessionStore` |
 
 ### Поток sync отзывов
 
 ```text
 POST /api/organization/confirm  (или /resync)
+  → QueueOrganizationSyncDispatcher
   → SyncYandexOrganizationReviewsJob (очередь database)
   → service-d-queue: OrganizationSyncService
   → POST yandex-parser/sync-reviews
@@ -407,12 +658,17 @@ docker compose exec -T service-d-queue php artisan queue:restart
 
 | Каталог | Содержание |
 |---|---|
-| `tests/Feature/AuthApiTest.php` | register, login, logout, user |
-| `tests/Feature/OrganizationApiTest.php` | resolve, confirm, sync, reviews (с `FakesYandexParser`) |
-| `tests/Unit/YandexMaps/` | парсинг на фикстурах `tests/Fixtures/yandex/collect/` |
+| `tests/Feature/AuthApiTest.php` | register, login, logout, user (7 тестов) |
+| `tests/Feature/OrganizationApiTest.php` | resolve, confirm, sync, reviews, `organization_id` (27 тестов) |
+| `tests/Feature/AddressOverwriteTest.php` | перезапись адреса при sync |
+| `tests/Unit/Auth/` | `AuthServiceTest`, `LoginRateLimiterTest` |
+| `tests/Unit/YandexMaps/` | парсинг на фикстурах `tests/Fixtures/yandex/collect/`, session store, sync |
+| `tests/Unit/Repositories/` | `EloquentOrganizationReviewRepositoryTest` |
 | `tests/Unit/OrganizationSearchInputValidatorTest.php` | валидация ввода URL/текста |
 
-Feature-тесты API с fake collect: `tests/Support/FakesYandexParser.php`, stateful Sanctum: `tests/Support/MakesStatefulApiRequests.php`.
+**Baseline:** ~99 тестов (`docker compose exec -T service-d php artisan test`).
+
+Feature-тесты API: `tests/Support/FakesYandexParser.php`, stateful Sanctum — `tests/Support/MakesStatefulApiRequests.php`, фикстуры парсера — `tests/Support/YandexParserFixtures.php`.
 
 ## Production: SSL и субдомен
 
@@ -491,7 +747,7 @@ var_export(['match_count' => \$r->matchCount, 'auto_selected' => \$r->autoSelect
 "
 ```
 
-4. Через UI: войти на `http://yandexmaps.localhost:8080/` (или `:8084`), на `/settings` ввести URL/текст поиска, подтвердить кандидата, дождаться синхронизации на `/reviews`.
+4. Через UI: войти на `http://yandexmaps.localhost:8080/` (или `:8084`), на `/settings` ввести URL/текст поиска, подтвердить кандидата, перейти на `/reviews/:organizationId`, дождаться синхронизации.
 
 ## Что не входит в текущий scope
 

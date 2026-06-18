@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Services\YandexMaps\Parsing;
 
 /**
- * Depth-first walk over JSON trees decoded from Yandex Maps network payloads.
+ * Обход JSON-деревьев из network payloads Яндекс.Карт (depth-first).
  */
 class JsonTreeWalker
 {
     /**
+     * Вызывает visitor для каждого ассоциативного узла; списки обходит рекурсивно без visitor.
+     *
      * @param  callable(array<string, mixed>, string[]): void  $visitor
      * @param  string[]  $path
      */
@@ -37,6 +39,8 @@ class JsonTreeWalker
     }
 
     /**
+     * Первое непустое строковое значение по списку ключей.
+     *
      * @param  array<string, mixed>  $record
      * @param  string[]  $keys
      */
@@ -54,6 +58,8 @@ class JsonTreeWalker
     }
 
     /**
+     * Первый вложенный ассоциативный массив по списку ключей.
+     *
      * @param  array<string, mixed>  $record
      * @param  string[]  $keys
      * @return array<string, mixed>|null

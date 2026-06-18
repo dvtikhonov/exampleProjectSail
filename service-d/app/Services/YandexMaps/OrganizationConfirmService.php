@@ -5,38 +5,50 @@ declare(strict_types=1);
 namespace App\Services\YandexMaps;
 
 use App\Contracts\OrganizationRepositoryInterface;
+use App\Contracts\OrganizationSyncDispatcherInterface;
+use App\Contracts\ResolveSessionStoreInterface;
 use App\DTO\YandexMaps\ConfirmOrganizationDto;
 use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\Exceptions\Organization\InvalidOrganizationCandidateException;
-use App\Jobs\SyncYandexOrganizationReviewsJob;
 use App\Models\Organization;
 use App\Models\User;
 
+/**
+ * Подтверждение выбора организации после resolve-сессии.
+ *
+ * Берёт кандидата из кеша сессии, сохраняет/обновляет запись в БД и запускает синхронизацию отзывов.
+ */
 class OrganizationConfirmService
 {
     public function __construct(
-        private readonly OrganizationResolveService $resolveService,
+        private readonly ResolveSessionStoreInterface $sessionStore,
         private readonly OrganizationRepositoryInterface $organizationRepository,
+        private readonly OrganizationSyncDispatcherInterface $syncDispatcher,
     ) {}
 
+    /**
+     * @throws InvalidOrganizationCandidateException если orgId не найден среди кандидатов сессии
+     */
     public function confirm(User $user, ConfirmOrganizationDto $dto): Organization
     {
-        $session = $this->resolveService->getSession($dto->sessionId);
+        $session = $this->sessionStore->get($dto->sessionId);
 
-        $candidate = $this->findCandidate($session['candidates'], $dto->orgId);
+        $candidate = $this->findCandidate($session->candidates, $dto->orgId);
 
         $organization = $this->organizationRepository->upsertForUser(
             userId: $user->id,
-            sourceUrl: $session['input_url'],
+            sourceUrl: $session->inputUrl,
             candidate: $candidate,
         );
 
-        SyncYandexOrganizationReviewsJob::dispatch($organization->id);
+        $this->syncDispatcher->dispatch($organization->id);
 
         return $organization->refresh();
     }
 
     /**
+     * Ищет кандидата по yandex org id в списке, сохранённом в resolve-сессии.
+     *
      * @param  OrganizationCandidateDto[]  $candidates
      */
     private function findCandidate(array $candidates, string $orgId): OrganizationCandidateDto

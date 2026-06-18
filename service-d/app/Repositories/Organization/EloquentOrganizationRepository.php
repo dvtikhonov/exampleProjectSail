@@ -10,8 +10,14 @@ use App\DTO\YandexMaps\ParsedOrganizationMetaDto;
 use App\Enums\OrganizationSyncStatus;
 use App\Models\Organization;
 
+/**
+ * Eloquent-реализация доступа к организациям Яндекс.Карт.
+ *
+ * Отвечает за поиск, upsert при подтверждении кандидата и обновление полей синхронизации.
+ */
 class EloquentOrganizationRepository implements OrganizationRepositoryInterface
 {
+    /** Возвращает организацию, привязанную к пользователю (не более одной на user_id). */
     public function findByUserId(int $userId): ?Organization
     {
         return Organization::query()
@@ -19,6 +25,7 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
             ->first();
     }
 
+    /** Ищет организацию по идентификатору в Яндекс.Картах. */
     public function findByYandexOrgId(string $yandexOrgId): ?Organization
     {
         return Organization::query()
@@ -31,6 +38,11 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
         return Organization::query()->find($organizationId);
     }
 
+    /**
+     * Создаёт или обновляет организацию по yandex_org_id после подтверждения кандидата.
+     *
+     * При upsert сбрасывает статус синхронизации в Pending и очищает ошибки/время последнего sync.
+     */
     public function upsertForUser(
         int $userId,
         string $sourceUrl,
@@ -54,6 +66,7 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
         );
     }
 
+    /** Обновляет статус синхронизации и опциональное сообщение об ошибке. */
     public function updateSyncStatus(
         int $organizationId,
         OrganizationSyncStatus $status,
@@ -67,6 +80,11 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
             ]);
     }
 
+    /**
+     * Обновляет метаданные организации из результата парсинга.
+     *
+     * Адрес перезаписывается только если парсер вернул непустую строку.
+     */
     public function updateFromParsedMeta(int $organizationId, ParsedOrganizationMetaDto $meta): void
     {
         $parsedAddress = trim($meta->address);
@@ -89,6 +107,7 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
             ->update($updates);
     }
 
+    /** Помечает синхронизацию успешной: статус Completed, без ошибки, с текущим last_synced_at. */
     public function markSyncCompleted(int $organizationId): void
     {
         Organization::query()

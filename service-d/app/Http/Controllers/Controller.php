@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-abstract class Controller
-{
-    //
-}
+/**
+ * Базовый контроллер HTTP-слоя service-d.
+ */
+abstract class Controller {}

@@ -6,10 +6,16 @@ use App\Clients\PlaywrightYandexMapsClient;
 use App\Contracts\OrganizationCandidateBuilderInterface;
 use App\Contracts\OrganizationRepositoryInterface;
 use App\Contracts\OrganizationReviewRepositoryInterface;
+use App\Contracts\OrganizationSyncDispatcherInterface;
+use App\Contracts\ResolveSessionStoreInterface;
+use App\Contracts\UserRepositoryInterface;
 use App\Contracts\YandexMapsClientInterface;
 use App\Repositories\Organization\EloquentOrganizationRepository;
 use App\Repositories\Organization\EloquentOrganizationReviewRepository;
+use App\Repositories\User\EloquentUserRepository;
+use App\Services\YandexMaps\CacheResolveSessionStore;
 use App\Services\YandexMaps\Parsing\OrganizationCandidateBuilder;
+use App\Services\YandexMaps\QueueOrganizationSyncDispatcher;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -20,9 +26,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(UserRepositoryInterface::class, EloquentUserRepository::class);
         $this->app->bind(OrganizationRepositoryInterface::class, EloquentOrganizationRepository::class);
         $this->app->bind(OrganizationReviewRepositoryInterface::class, EloquentOrganizationReviewRepository::class);
         $this->app->bind(OrganizationCandidateBuilderInterface::class, OrganizationCandidateBuilder::class);
+        $this->app->bind(ResolveSessionStoreInterface::class, CacheResolveSessionStore::class);
+        $this->app->bind(OrganizationSyncDispatcherInterface::class, QueueOrganizationSyncDispatcher::class);
 
         $this->app->bind(YandexMapsClientInterface::class, function (): PlaywrightYandexMapsClient {
             return new PlaywrightYandexMapsClient(
