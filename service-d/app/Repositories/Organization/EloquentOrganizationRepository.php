@@ -19,6 +19,13 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
             ->first();
     }
 
+    public function findByYandexOrgId(string $yandexOrgId): ?Organization
+    {
+        return Organization::query()
+            ->where('yandex_org_id', $yandexOrgId)
+            ->first();
+    }
+
     public function findById(int $organizationId): ?Organization
     {
         return Organization::query()->find($organizationId);
@@ -30,11 +37,11 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
         OrganizationCandidateDto $candidate,
     ): Organization {
         return Organization::query()->updateOrCreate(
-            ['user_id' => $userId],
+            ['yandex_org_id' => $candidate->orgId],
             [
+                'user_id' => $userId,
                 'source_url' => $sourceUrl,
                 'canonical_url' => $candidate->canonicalUrl,
-                'yandex_org_id' => $candidate->orgId,
                 'name' => $candidate->name,
                 'address' => $candidate->address,
                 'average_rating' => $candidate->averageRating,
@@ -62,17 +69,24 @@ class EloquentOrganizationRepository implements OrganizationRepositoryInterface
 
     public function updateFromParsedMeta(int $organizationId, ParsedOrganizationMetaDto $meta): void
     {
+        $parsedAddress = trim($meta->address);
+
+        $updates = [
+            'canonical_url' => $meta->canonicalUrl,
+            'yandex_org_id' => $meta->orgId,
+            'name' => $meta->name,
+            'average_rating' => $meta->averageRating,
+            'ratings_count' => $meta->ratingsCount,
+            'reviews_count' => $meta->reviewsCount,
+        ];
+
+        if ($parsedAddress !== '') {
+            $updates['address'] = $parsedAddress;
+        }
+
         Organization::query()
             ->whereKey($organizationId)
-            ->update([
-                'canonical_url' => $meta->canonicalUrl,
-                'yandex_org_id' => $meta->orgId,
-                'name' => $meta->name,
-                'address' => $meta->address,
-                'average_rating' => $meta->averageRating,
-                'ratings_count' => $meta->ratingsCount,
-                'reviews_count' => $meta->reviewsCount,
-            ]);
+            ->update($updates);
     }
 
     public function markSyncCompleted(int $organizationId): void

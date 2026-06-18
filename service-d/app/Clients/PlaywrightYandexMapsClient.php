@@ -38,12 +38,18 @@ class PlaywrightYandexMapsClient implements YandexMapsClientInterface
     /**
      * @return array{org: ParsedOrganizationMetaDto, reviews: ParsedReviewDto[]}
      */
-    public function syncReviews(string $orgId, string $canonicalUrl): array
+    public function syncReviews(string $orgId, string $canonicalUrl, array $stopAnchors = []): array
     {
-        $response = $this->httpClient()->post('/sync-reviews', [
+        $requestBody = [
             'org_id' => $orgId,
             'canonical_url' => $canonicalUrl,
-        ]);
+        ];
+
+        if ($stopAnchors !== []) {
+            $requestBody['stop_anchors'] = $stopAnchors;
+        }
+
+        $response = $this->httpClient()->post('/sync-reviews', $requestBody);
 
         if (! $response->successful()) {
             $this->throwParserException($response->status(), $response->json('message', $response->body()));

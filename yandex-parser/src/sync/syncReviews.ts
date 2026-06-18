@@ -14,6 +14,7 @@ import {
 import {
   extractRatingFields,
   isPlausibleOrgName,
+  ORG_PAGE_ADDRESS_SELECTORS,
   ORG_PAGE_NAME_SELECTORS,
   recordMatchesOrgId,
 } from '../utils/orgExtract.js';
@@ -23,17 +24,20 @@ import {
   mapRecordToReview,
   normalizeDomReviews,
 } from '../utils/reviewExtract.js';
+import { shouldStopFetching } from '../utils/reviewStopAnchors.js';
 import type { OrganizationMeta, ParsedReview } from '../types.js';
 
 interface SyncReviewsInput {
   org_id: string;
   canonical_url: string;
+  stop_anchors?: string[];
 }
 
 /**
  * Sync organization metadata and reviews from Yandex Maps reviews page.
  */
 export async function syncReviews(input: SyncReviewsInput): Promise<{ org: OrganizationMeta; reviews: ParsedReview[] }> {
+  const stopAnchors = (input.stop_anchors ?? []).filter((anchor) => anchor.trim() !== '');
   const reviewsUrl = buildReviewsUrl(input.canonical_url);
   const context = await createContext();
   const page = await context.newPage();
@@ -63,8 +67,16 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
     let idleIterations = 0;
     let previousCount = reviews.length;
 
+    if (stopAnchors.length > 0 && shouldStopFetching(reviews, stopAnchors)) {
+      return { org, reviews: dedupeReviewsByContent(reviews) };
+    }
+
     while (idleIterations < config.syncMaxIdleIterations) {
-      if (targetCount > 0 && reviews.length >= targetCount) {
+      if (stopAnchors.length > 0 && shouldStopFetching(reviews, stopAnchors)) {
+        break;
+      }
+
+      if (stopAnchors.length === 0 && targetCount > 0 && reviews.length >= targetCount) {
         break;
       }
 
@@ -95,6 +107,10 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
       const fromDom = normalizeDomReviews(await extractReviewsFromDom(page));
       const fromPageState = extractReviewsFromPageState(await collectEmbeddedPageState(page));
       reviews = dedupeReviews([...reviews, ...fromDom, ...fromPageState, ...fromNetwork]);
+
+      if (stopAnchors.length > 0 && shouldStopFetching(reviews, stopAnchors)) {
+        break;
+      }
 
       if (reviews.length === previousCount) {
         idleIterations += 1;
@@ -145,7 +161,7 @@ async function readOrgMetaFromDom(
     maxPx: config.mouseJiggleMaxPx,
   });
 
-  const data = await page.evaluate((nameSelectors) => {
+  const data = await page.evaluate(({ nameSelectors, addressSelector }) => {
     const isPlausibleName = (value: string): boolean => {
       const trimmed = value.trim();
 
@@ -186,9 +202,7 @@ async function readOrgMetaFromDom(
       }
     }
 
-    const address =
-      document.querySelector('[class*="orgpage-header"] [class*="address"], [class*="business-contacts"] [class*="address"]')
-        ?.textContent?.trim() ?? '';
+    const address = document.querySelector(addressSelector)?.textContent?.trim() ?? '';
 
     const ratingBlock = document.querySelector(
       '[class*="business-rating-badge-view__rating"], [class*="business-summary-rating-badge-view__rating"], [class*="business-rating"], [class*="orgpage-header"] [class*="rating"]',
@@ -200,10 +214,10 @@ async function readOrgMetaFromDom(
         ?.textContent ?? '';
     const pageText =
       document.querySelector('[class*="orgpage"], [class*="business-card-view"]')?.textContent ?? tabsText;
-    const reviewsMatch = pageText.match(/Отзывы\s*(\d[\d\s]*)/i);
+    const reviewsMatch = pageText.match(/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*отзыв/i);
     const ratingsMatch =
       (document.querySelector('[class*="business-rating-amount"], [class*="business-rating-with-text-view"]')?.textContent ?? '')
-        .match(/(\d[\d\s]*)\s*оцен/i) ?? tabsText.match(/(\d[\d\s]*)\s*оцен/i);
+        .match(/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*оцен/i) ?? tabsText.match(/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*оцен/i);
 
     return {
       name,
@@ -212,7 +226,7 @@ async function readOrgMetaFromDom(
       reviews_count: reviewsMatch ? Number.parseInt(reviewsMatch[1].replace(/\s/g, ''), 10) : null,
       ratings_count: ratingsMatch ? Number.parseInt(ratingsMatch[1].replace(/\s/g, ''), 10) : null,
     };
-  }, [...ORG_PAGE_NAME_SELECTORS]);
+  }, { nameSelectors: [...ORG_PAGE_NAME_SELECTORS], addressSelector: ORG_PAGE_ADDRESS_SELECTORS });
 
   return {
     org_id: orgId,
@@ -251,7 +265,7 @@ function extractOrgMetaFromPayloads(
       meta = {
         org_id: orgId,
         name,
-        address: pickString(record, ['address', 'fullAddress', 'formattedAddress']) ?? '',
+        address: pickString(record, ['address', 'fullAddress', 'formattedAddress', 'subtitle']) ?? '',
         ...ratingFields,
         canonical_url: normalizeOrgUrl(canonicalUrl, orgId),
       };

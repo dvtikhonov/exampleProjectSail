@@ -9,6 +9,7 @@ use App\Jobs\SyncYandexOrganizationReviewsJob;
 use App\Models\Organization;
 use App\Models\OrganizationReview;
 use App\Models\User;
+use App\Services\YandexMaps\OrganizationReviewQueryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -57,28 +58,24 @@ class OrganizationApiTest extends TestCase
             ]);
     }
 
-    public function test_sync_status_returns_404_when_organization_not_configured(): void
+    public function test_sync_status_returns_422_when_organization_id_missing(): void
     {
         $user = User::factory()->create();
 
         $this->actingAsStateful($user)
             ->getStatefulJson('/api/organization/sync-status')
-            ->assertNotFound()
-            ->assertJson([
-                'message' => 'Организация не настроена.',
-            ]);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['organization_id']);
     }
 
-    public function test_reviews_returns_404_when_organization_not_configured(): void
+    public function test_reviews_returns_422_when_organization_id_missing(): void
     {
         $user = User::factory()->create();
 
         $this->actingAsStateful($user)
             ->getStatefulJson('/api/organization/reviews')
-            ->assertNotFound()
-            ->assertJson([
-                'message' => 'Организация не настроена.',
-            ]);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['organization_id']);
     }
 
     public function test_resolve_rejects_invalid_url(): void
@@ -360,16 +357,57 @@ class OrganizationApiTest extends TestCase
             ]);
     }
 
-    public function test_sync_status_returns_current_status(): void
+    public function test_show_returns_requested_organization_when_user_has_multiple(): void
     {
         $user = User::factory()->create();
         Organization::factory()->for($user)->create([
+            'yandex_org_id' => fake()->unique()->numerify('##########'),
+            'name' => 'Вкусно — и точка',
+            'sync_status' => OrganizationSyncStatus::Completed,
+        ]);
+        $invitro = Organization::factory()->for($user)->create([
+            'yandex_org_id' => fake()->unique()->numerify('##########'),
+            'name' => 'Invitro',
+            'address' => 'ул. Тореза, 61, Новокузнецк',
+            'sync_status' => OrganizationSyncStatus::Completed,
+        ]);
+
+        $this->actingAsStateful($user)
+            ->getStatefulJson('/api/organization?organization_id='.$invitro->id)
+            ->assertOk()
+            ->assertJson([
+                'organization' => [
+                    'id' => $invitro->id,
+                    'name' => 'Invitro',
+                    'address' => 'ул. Тореза, 61, Новокузнецк',
+                ],
+            ]);
+    }
+
+    public function test_show_returns_null_for_organization_owned_by_another_user(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        $organization = Organization::factory()->for($owner)->create();
+
+        $this->actingAsStateful($otherUser)
+            ->getStatefulJson('/api/organization?organization_id='.$organization->id)
+            ->assertOk()
+            ->assertJson([
+                'organization' => null,
+            ]);
+    }
+
+    public function test_sync_status_returns_current_status(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::factory()->for($user)->create([
             'sync_status' => OrganizationSyncStatus::Completed,
             'sync_error' => null,
         ]);
 
         $this->actingAsStateful($user)
-            ->getStatefulJson('/api/organization/sync-status')
+            ->getStatefulJson('/api/organization/sync-status?organization_id='.$organization->id)
             ->assertOk()
             ->assertJson([
                 'sync_status' => OrganizationSyncStatus::Completed->value,
@@ -388,7 +426,9 @@ class OrganizationApiTest extends TestCase
         ]);
 
         $this->actingAsStateful($user)
-            ->postStatefulJson('/api/organization/resync')
+            ->postStatefulJson('/api/organization/resync', [
+                'organization_id' => $organization->id,
+            ])
             ->assertAccepted()
             ->assertJson([
                 'organization' => [
@@ -405,13 +445,14 @@ class OrganizationApiTest extends TestCase
         Queue::assertPushed(SyncYandexOrganizationReviewsJob::class);
     }
 
-    public function test_resync_returns_404_when_organization_not_configured(): void
+    public function test_resync_returns_422_when_organization_id_missing(): void
     {
         $user = User::factory()->create();
 
         $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resync')
-            ->assertNotFound();
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['organization_id']);
     }
 
     public function test_reviews_returns_paginated_reviews(): void
@@ -436,16 +477,18 @@ class OrganizationApiTest extends TestCase
             ->create();
 
         $response = $this->actingAsStateful($user)
-            ->getStatefulJson('/api/organization/reviews')
+            ->getStatefulJson('/api/organization/reviews?organization_id='.$organization->id)
             ->assertOk()
             ->assertJsonStructure([
-                'organization' => ['name', 'average_rating', 'ratings_count', 'reviews_count', 'sync_status'],
+                'organization' => ['name', 'address', 'average_rating', 'ratings_count', 'reviews_count', 'sync_status'],
                 'reviews' => [
                     'data' => [
                         ['id', 'author_name', 'published_at', 'text', 'rating'],
                     ],
                     'meta' => ['current_page', 'last_page', 'per_page', 'total'],
                 ],
+                'is_refreshing',
+                'warning',
             ])
             ->assertJson([
                 'organization' => [
@@ -462,9 +505,164 @@ class OrganizationApiTest extends TestCase
                         'total' => 3,
                     ],
                 ],
+                'is_refreshing' => false,
+                'warning' => null,
             ]);
 
         $this->assertCount(3, $response->json('reviews.data'));
         $this->assertSame('Автор 1', $response->json('reviews.data.0.author_name'));
+    }
+
+    public function test_user_can_view_reviews_of_another_users_organization(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $organization = Organization::factory()->for($owner)->create([
+            'name' => 'Кафе X',
+            'sync_status' => OrganizationSyncStatus::Completed,
+        ]);
+
+        OrganizationReview::factory()->for($organization)->create([
+            'author_name' => 'Отзыв владельца',
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAsStateful($otherUser)
+            ->getStatefulJson('/api/organization/reviews?organization_id='.$organization->id)
+            ->assertOk()
+            ->assertJson([
+                'organization' => [
+                    'name' => 'Кафе X',
+                ],
+                'reviews' => [
+                    'meta' => [
+                        'total' => 1,
+                    ],
+                ],
+                'is_refreshing' => false,
+                'warning' => null,
+            ])
+            ->assertJsonPath('reviews.data.0.author_name', 'Отзыв владельца');
+    }
+
+    public function test_confirm_reuses_existing_organization_by_yandex_org_id(): void
+    {
+        Queue::fake();
+
+        $firstUser = User::factory()->create();
+        $secondUser = User::factory()->create();
+        $fixture = YandexParserFixtures::loadCollect('single_candidate');
+
+        $this->fakeYandexParserCollect($fixture);
+
+        $firstResolve = $this->actingAsStateful($firstUser)
+            ->postStatefulJson('/api/organization/resolve', [
+                'url' => self::YANDEX_URL,
+            ])
+            ->assertOk();
+
+        $firstConfirm = $this->actingAsStateful($firstUser)
+            ->postStatefulJson('/api/organization/confirm', [
+                'session_id' => $firstResolve->json('session_id'),
+                'org_id' => '1248139252',
+            ])
+            ->assertAccepted();
+
+        $firstOrganizationId = $firstConfirm->json('organization.id');
+
+        $this->fakeYandexParserCollect($fixture);
+
+        $secondResolve = $this->actingAsStateful($secondUser)
+            ->postStatefulJson('/api/organization/resolve', [
+                'url' => self::YANDEX_URL,
+            ])
+            ->assertOk();
+
+        $secondConfirm = $this->actingAsStateful($secondUser)
+            ->postStatefulJson('/api/organization/confirm', [
+                'session_id' => $secondResolve->json('session_id'),
+                'org_id' => '1248139252',
+            ])
+            ->assertAccepted()
+            ->assertJson([
+                'organization' => [
+                    'id' => $firstOrganizationId,
+                    'yandex_org_id' => '1248139252',
+                    'sync_status' => OrganizationSyncStatus::Pending->value,
+                ],
+            ]);
+
+        $this->assertSame($firstOrganizationId, $secondConfirm->json('organization.id'));
+        $this->assertSame(1, Organization::query()->where('yandex_org_id', '1248139252')->count());
+        $this->assertDatabaseHas('organizations', [
+            'id' => $firstOrganizationId,
+            'user_id' => $secondUser->id,
+            'yandex_org_id' => '1248139252',
+        ]);
+    }
+
+    public function test_reviews_returns_warning_when_refreshing_cached_data(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::factory()->for($user)->create([
+            'sync_status' => OrganizationSyncStatus::Pending,
+        ]);
+
+        OrganizationReview::factory()->for($organization)->create([
+            'author_name' => 'Кэшированный отзыв',
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAsStateful($user)
+            ->getStatefulJson('/api/organization/reviews?organization_id='.$organization->id)
+            ->assertOk()
+            ->assertJson([
+                'is_refreshing' => true,
+                'warning' => OrganizationReviewQueryService::REFRESHING_WARNING,
+            ])
+            ->assertJsonPath('reviews.meta.total', 1);
+    }
+
+    public function test_reviews_does_not_warn_when_pending_without_cached_reviews(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::factory()->for($user)->create([
+            'sync_status' => OrganizationSyncStatus::Pending,
+        ]);
+
+        $this->actingAsStateful($user)
+            ->getStatefulJson('/api/organization/reviews?organization_id='.$organization->id)
+            ->assertOk()
+            ->assertJson([
+                'is_refreshing' => false,
+                'warning' => null,
+                'reviews' => [
+                    'meta' => [
+                        'total' => 0,
+                    ],
+                ],
+            ]);
+    }
+
+    public function test_reviews_returns_warning_when_syncing_cached_data(): void
+    {
+        $user = User::factory()->create();
+        $organization = Organization::factory()->for($user)->create([
+            'sync_status' => OrganizationSyncStatus::Syncing,
+        ]);
+
+        OrganizationReview::factory()->for($organization)->create([
+            'author_name' => 'Кэшированный отзыв',
+            'sort_order' => 0,
+        ]);
+
+        $this->actingAsStateful($user)
+            ->getStatefulJson('/api/organization/reviews?organization_id='.$organization->id)
+            ->assertOk()
+            ->assertJson([
+                'is_refreshing' => true,
+                'warning' => OrganizationReviewQueryService::REFRESHING_WARNING,
+            ]);
     }
 }

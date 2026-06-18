@@ -13,8 +13,13 @@ const router = createRouter({
     routes: [
         { path: '/login', name: 'login', component: Login, meta: { guest: true } },
         { path: '/', name: 'home', component: HomeRedirect, meta: { requiresAuth: true } },
-        { path: '/settings', name: 'settings', component: Settings, meta: { requiresAuth: true } },
-        { path: '/reviews', name: 'reviews', component: Reviews, meta: { requiresAuth: true } },
+        { path: '/settings/:organizationId?', name: 'settings', component: Settings, meta: { requiresAuth: true } },
+        {
+            path: '/reviews/:organizationId',
+            name: 'reviews',
+            component: Reviews,
+            meta: { requiresAuth: true },
+        },
         { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
     ],
 });

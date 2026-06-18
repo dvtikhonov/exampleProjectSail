@@ -10,7 +10,9 @@ use App\Exceptions\Organization\OrganizationResolveSessionExpiredException;
 use App\Exceptions\YandexMaps\YandexMapsParserException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Organization\ConfirmOrganizationRequest;
+use App\Http\Requests\Organization\OrganizationIdRequest;
 use App\Http\Requests\Organization\ResolveOrganizationRequest;
+use App\Http\Requests\Organization\ShowOrganizationRequest;
 use App\Models\Organization;
 use App\Models\OrganizationReview;
 use App\Models\User;
@@ -20,7 +22,6 @@ use App\Services\YandexMaps\OrganizationResyncService;
 use App\Services\YandexMaps\OrganizationReviewQueryService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class OrganizationController extends Controller
 {
@@ -31,13 +32,14 @@ class OrganizationController extends Controller
         private readonly OrganizationReviewQueryService $reviewQueryService,
     ) {}
 
-    public function show(Request $request): JsonResponse
+    public function show(ShowOrganizationRequest $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
+        $organizationId = $request->organizationId();
 
         try {
-            $organization = $this->reviewQueryService->findOrganizationForUser($user);
+            $organization = $this->reviewQueryService->findOrganizationForUser($user, $organizationId);
         } catch (OrganizationNotFoundException) {
             return response()->json([
                 'organization' => null,
@@ -80,18 +82,9 @@ class OrganizationController extends Controller
         ], 202);
     }
 
-    public function syncStatus(Request $request): JsonResponse
+    public function syncStatus(OrganizationIdRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-
-        try {
-            $organization = $this->reviewQueryService->findOrganizationForUser($user);
-        } catch (OrganizationNotFoundException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], 404);
-        }
+        $organization = $this->reviewQueryService->findOrganizationById($request->organizationId());
 
         return response()->json([
             'sync_status' => $organization->sync_status->value,
@@ -100,13 +93,10 @@ class OrganizationController extends Controller
         ]);
     }
 
-    public function resync(Request $request): JsonResponse
+    public function resync(OrganizationIdRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-
         try {
-            $organization = $this->resyncService->resync($user);
+            $organization = $this->resyncService->resync($request->organizationId());
         } catch (OrganizationNotFoundException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -118,23 +108,17 @@ class OrganizationController extends Controller
         ], 202);
     }
 
-    public function reviews(Request $request): JsonResponse
+    public function reviews(OrganizationIdRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-
-        try {
-            $organization = $this->reviewQueryService->findOrganizationForUser($user);
-            $reviews = $this->reviewQueryService->paginatedReviews($organization);
-        } catch (OrganizationNotFoundException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], 404);
-        }
+        $organization = $this->reviewQueryService->findOrganizationById($request->organizationId());
+        $reviews = $this->reviewQueryService->paginatedReviews($organization);
+        $isRefreshing = $this->reviewQueryService->isRefreshingCachedReviews($organization);
 
         return response()->json([
             'organization' => $this->serializeOrganizationMeta($organization),
             'reviews' => $this->serializeReviewsPaginator($reviews),
+            'is_refreshing' => $isRefreshing,
+            'warning' => $isRefreshing ? OrganizationReviewQueryService::REFRESHING_WARNING : null,
         ]);
     }
 
@@ -166,6 +150,7 @@ class OrganizationController extends Controller
     {
         return [
             'name' => $organization->name,
+            'address' => $organization->address,
             'average_rating' => $organization->average_rating !== null ? (float) $organization->average_rating : null,
             'ratings_count' => $organization->ratings_count,
             'reviews_count' => $organization->reviews_count,

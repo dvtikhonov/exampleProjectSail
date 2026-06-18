@@ -65,6 +65,7 @@ export type ResolveResponseBody = ResolveCollectResponseBody;
 export interface SyncReviewsRequestBody {
   org_id: string;
   canonical_url: string;
+  stop_anchors?: string[];
 }
 
 export interface SyncReviewsResponseBody {

@@ -34,13 +34,15 @@ function extractErrorMessage(err, fallback = 'Произошла ошибка. �
  * Composable организации пользователя (Яндекс.Карты).
  */
 export function useOrganization() {
-    async function fetchOrganization() {
+    async function fetchOrganization(organizationId = null) {
         resetError();
         isLoading.value = true;
 
         try {
-            const { data } = await api.get('/organization');
+            const params = organizationId ? { organization_id: organizationId } : {};
+            const { data } = await api.get('/organization', { params });
             organization.value = data.organization ?? null;
+
             return organization.value;
         } catch (err) {
             error.value = extractErrorMessage(err, 'Не удалось загрузить организацию.');
@@ -84,12 +86,14 @@ export function useOrganization() {
         }
     }
 
-    async function resyncOrganization() {
+    async function resyncOrganization(organizationId) {
         resetError();
         isLoading.value = true;
 
         try {
-            const { data } = await api.post('/organization/resync');
+            const { data } = await api.post('/organization/resync', {
+                organization_id: organizationId,
+            });
             organization.value = data.organization ?? null;
             return organization.value;
         } catch (err) {
@@ -100,11 +104,13 @@ export function useOrganization() {
         }
     }
 
-    async function fetchSyncStatus() {
+    async function fetchSyncStatus(organizationId) {
         try {
-            const { data } = await api.get('/organization/sync-status');
+            const { data } = await api.get('/organization/sync-status', {
+                params: { organization_id: organizationId },
+            });
 
-            if (organization.value && data) {
+            if (organization.value?.id === organizationId && data) {
                 organization.value = {
                     ...organization.value,
                     sync_status: data.sync_status,

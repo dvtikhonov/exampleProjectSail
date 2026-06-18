@@ -139,7 +139,8 @@ class OrganizationCandidateBuilder implements OrganizationCandidateBuilderInterf
 
         foreach ($fromNetwork as $candidate) {
             $existing = $merged[$candidate->orgId] ?? null;
-            $merged[$candidate->orgId] = $this->candidateMerger->merge($candidate, $existing) ?? $candidate;
+            $mergedCandidate = $this->candidateMerger->merge($candidate, $existing) ?? $candidate;
+            $merged[$candidate->orgId] = $this->candidateMerger->preferDomRatingCounts($mergedCandidate, $existing);
         }
 
         return array_values(array_filter(

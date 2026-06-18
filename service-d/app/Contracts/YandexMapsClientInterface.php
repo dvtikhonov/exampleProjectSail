@@ -13,7 +13,8 @@ interface YandexMapsClientInterface
     public function collect(string $url): ParserCollectResultDto;
 
     /**
+     * @param  string[]  $stopAnchors
      * @return array{org: ParsedOrganizationMetaDto, reviews: ParsedReviewDto[]}
      */
-    public function syncReviews(string $orgId, string $canonicalUrl): array;
+    public function syncReviews(string $orgId, string $canonicalUrl, array $stopAnchors = []): array;
 }
