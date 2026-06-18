@@ -53,6 +53,32 @@ class OrganizationCandidateMerger
     }
 
     /**
+     * Search snippets show branch-specific rating counts in DOM; network payloads may be inflated.
+     */
+    public function preferDomRatingCounts(
+        OrganizationCandidateDto $merged,
+        ?OrganizationCandidateDto $dom,
+    ): OrganizationCandidateDto {
+        if ($dom === null) {
+            return $merged;
+        }
+
+        if ($dom->ratingsCount === null && $dom->reviewsCount === null) {
+            return $merged;
+        }
+
+        return new OrganizationCandidateDto(
+            orgId: $merged->orgId,
+            name: $merged->name,
+            address: $merged->address,
+            averageRating: $merged->averageRating,
+            reviewsCount: $dom->reviewsCount ?? $merged->reviewsCount,
+            ratingsCount: $dom->ratingsCount ?? $merged->ratingsCount,
+            canonicalUrl: $merged->canonicalUrl,
+        );
+    }
+
+    /**
      * @param  OrganizationCandidateDto[]  $candidates
      * @return OrganizationCandidateDto[]
      */

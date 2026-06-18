@@ -109,6 +109,15 @@ export const ORG_PAGE_NAME_SELECTORS = [
   '[class*="orgpage-header"] [class*="title"]',
 ] as const;
 
+/** DOM selectors for organization address on org card and reviews pages. */
+export const ORG_PAGE_ADDRESS_SELECTORS = [
+  '[class*="orgpage-header"] [class*="address"]',
+  '[class*="business-contacts"] [class*="address"]',
+  '[class*="toponym"]',
+  '[class*="business-card-view__address"]',
+  '[class*="search-snippet-view__address"]',
+].join(', ');
+
 /** DOM selectors for organization title in search snippets. */
 export const SEARCH_SNIPPET_NAME_SELECTORS = [
   '[class*="search-business-snippet-view__title"]',

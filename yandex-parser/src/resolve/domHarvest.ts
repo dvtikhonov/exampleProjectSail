@@ -1,6 +1,10 @@
 import type { Page } from 'playwright';
 import type { DomOrgHarvest, PageMeta } from '../types.js';
-import { ORG_PAGE_NAME_SELECTORS, SEARCH_SNIPPET_NAME_SELECTORS } from '../utils/orgExtract.js';
+import {
+  ORG_PAGE_ADDRESS_SELECTORS,
+  ORG_PAGE_NAME_SELECTORS,
+  SEARCH_SNIPPET_NAME_SELECTORS,
+} from '../utils/orgExtract.js';
 
 const SEARCH_CARD_SELECTORS =
   '[class*="search-snippet"], [class*="search-business-snippet"], [class*="snippet-view"], li, article';
@@ -12,9 +16,6 @@ const RATING_SELECTORS =
   '[class*="rating"], [class*="stars"], [aria-label*="рейтинг"], [aria-label*="оцен"]';
 
 const META_SELECTORS = '[class*="meta"], [class*="caption"], [class*="subtitle"]';
-
-const ORG_PAGE_ADDRESS_SELECTORS =
-  '[class*="orgpage-header"] [class*="address"], [class*="business-contacts"] [class*="address"], [class*="toponym"]';
 
 const ORG_PAGE_HEADER_SELECTORS = '[class*="orgpage-header"], [class*="business-card-view"]';
 

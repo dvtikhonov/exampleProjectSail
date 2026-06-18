@@ -9,7 +9,6 @@ use App\Enums\OrganizationSyncStatus;
 use App\Exceptions\Organization\OrganizationNotFoundException;
 use App\Jobs\SyncYandexOrganizationReviewsJob;
 use App\Models\Organization;
-use App\Models\User;
 
 class OrganizationResyncService
 {
@@ -17,9 +16,9 @@ class OrganizationResyncService
         private readonly OrganizationRepositoryInterface $organizationRepository,
     ) {}
 
-    public function resync(User $user): Organization
+    public function resync(int $organizationId): Organization
     {
-        $organization = $this->organizationRepository->findByUserId($user->id);
+        $organization = $this->organizationRepository->findById($organizationId);
 
         if ($organization === null) {
             throw new OrganizationNotFoundException;

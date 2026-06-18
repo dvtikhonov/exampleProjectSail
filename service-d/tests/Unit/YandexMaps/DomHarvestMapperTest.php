@@ -24,6 +24,24 @@ class DomHarvestMapperTest extends TestCase
         $this->domHarvestMapper = $this->createDomHarvestMapper();
     }
 
+    public function test_map_harvest_parses_rating_count_after_decimal_rating(): void
+    {
+        $candidate = $this->domHarvestMapper->mapHarvest(
+            DomOrgHarvestDto::fromParserArray([
+                'href' => '/maps/org/invitro/28272397344/',
+                'link_text' => 'Invitro',
+                'card_text' => 'Invitro 4,6 18 оценок Открыто до 15:00 просп. Запсибовцев, 39/96',
+                'rating_aria_label' => '4,6',
+                'meta_text' => 'просп. Запсибовцев, 39/96, Новокузнецк',
+            ]),
+            'https://yandex.ru',
+        );
+
+        $this->assertNotNull($candidate);
+        $this->assertSame(18, $candidate->ratingsCount);
+        $this->assertSame(4.6, $candidate->averageRating);
+    }
+
     public function test_map_harvest_parses_dom_row_from_fixture(): void
     {
         $fixture = YandexParserFixtures::loadCollect('dom_harvest_invitro');

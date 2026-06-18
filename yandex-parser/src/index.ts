@@ -70,9 +70,14 @@ app.post('/sync-reviews', async (req: Request, res: Response, next: NextFunction
       return;
     }
 
+    const stopAnchors = Array.isArray(body.stop_anchors)
+      ? body.stop_anchors.filter((anchor): anchor is string => typeof anchor === 'string' && anchor.trim() !== '')
+      : [];
+
     const result = await syncReviews({
       org_id: body.org_id,
       canonical_url: body.canonical_url,
+      stop_anchors: stopAnchors,
     });
 
     const response: SyncReviewsResponseBody = {

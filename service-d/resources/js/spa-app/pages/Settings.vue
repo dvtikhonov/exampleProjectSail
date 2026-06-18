@@ -1,10 +1,11 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import AuthErrorAlert from '../components/AuthErrorAlert.vue';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { useOrganization } from '../composables/useOrganization';
 
+const route = useRoute();
 const router = useRouter();
 
 const {
@@ -27,6 +28,18 @@ const resolvedUrl = ref(null);
 const searchText = ref(null);
 const clarification = ref(null);
 const isInitialLoad = ref(true);
+
+const organizationId = computed(() => {
+    const raw = route.params.organizationId;
+
+    if (!raw) {
+        return null;
+    }
+
+    const id = Number(raw);
+
+    return Number.isNaN(id) ? null : id;
+});
 
 const showUrlForm = computed(() => !organization.value || isEditing.value);
 const showCandidates = computed(() => showUrlForm.value && candidates.value.length > 0);
@@ -122,19 +135,33 @@ async function selectCandidate(candidate) {
 
     isEditing.value = false;
     resetResolveState();
-    await router.push({ name: 'reviews' });
+    await router.push({ name: 'reviews', params: { organizationId: saved.id } });
 }
 
 async function onResyncReviews() {
-    const saved = await resyncOrganization();
+    if (!organization.value?.id) {
+        return;
+    }
+
+    const saved = await resyncOrganization(organization.value.id);
 
     if (saved) {
-        await router.push({ name: 'reviews' });
+        await router.push({ name: 'reviews', params: { organizationId: saved.id } });
     }
 }
 
+async function loadSettings() {
+    await fetchOrganization(organizationId.value);
+}
+
+watch(organizationId, async () => {
+    isInitialLoad.value = true;
+    await loadSettings();
+    isInitialLoad.value = false;
+});
+
 onMounted(async () => {
-    await fetchOrganization();
+    await loadSettings();
     isInitialLoad.value = false;
 });
 </script>
@@ -153,7 +180,7 @@ onMounted(async () => {
                 </div>
                 <router-link
                     v-if="organization"
-                    :to="{ name: 'reviews' }"
+                    :to="{ name: 'reviews', params: { organizationId: organization.id } }"
                     class="text-sm font-medium text-sky-700 hover:underline"
                 >
                     К отзывам →
@@ -190,8 +217,7 @@ onMounted(async () => {
                                 <span class="font-medium text-slate-900">{{ formatRating(organization.average_rating) }}</span>
                             </p>
                             <p class="mt-1">
-                                {{ formatCount(organization.ratings_count) }} оценок ·
-                                {{ formatCount(organization.reviews_count) }} отзывов
+                                {{ formatCount(organization.ratings_count) }} оценок
                             </p>
                         </div>
                     </div>
@@ -345,8 +371,7 @@ onMounted(async () => {
                                     </p>
                                     <p class="mt-1 text-sm text-slate-600">
                                         Рейтинг {{ formatRating(candidate.average_rating) }} ·
-                                        {{ formatCount(candidate.ratings_count) }} оценок ·
-                                        {{ formatCount(candidate.reviews_count) }} отзывов
+                                        {{ formatCount(candidate.ratings_count) }} оценок
                                     </p>
                                 </div>
                                 <button

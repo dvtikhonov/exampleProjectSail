@@ -5,6 +5,8 @@ const reviews = ref([]);
 const pagination = ref(null);
 const organizationMeta = ref(null);
 const isLoading = ref(false);
+const isRefreshing = ref(false);
+const warning = ref(null);
 const error = ref(null);
 
 function extractErrorMessage(err, fallback = 'Не удалось загрузить отзывы.') {
@@ -21,18 +23,23 @@ function extractErrorMessage(err, fallback = 'Не удалось загрузи
  * Composable для постраничной загрузки отзывов организации.
  */
 export function useOrganizationReviews() {
-    async function fetchReviews(page = 1) {
+    async function fetchReviews(organizationId, page = 1) {
         error.value = null;
         isLoading.value = true;
 
         try {
             const { data } = await api.get('/organization/reviews', {
-                params: { page },
+                params: {
+                    organization_id: organizationId,
+                    page,
+                },
             });
 
             reviews.value = data.reviews?.data ?? [];
             pagination.value = data.reviews?.meta ?? null;
             organizationMeta.value = data.organization ?? null;
+            isRefreshing.value = Boolean(data.is_refreshing);
+            warning.value = data.warning ?? null;
 
             return data;
         } catch (err) {
@@ -40,6 +47,8 @@ export function useOrganizationReviews() {
             reviews.value = [];
             pagination.value = null;
             organizationMeta.value = null;
+            isRefreshing.value = false;
+            warning.value = null;
 
             return null;
         } finally {
@@ -52,6 +61,8 @@ export function useOrganizationReviews() {
         pagination,
         organizationMeta,
         isLoading,
+        isRefreshing,
+        warning,
         error,
         fetchReviews,
     };

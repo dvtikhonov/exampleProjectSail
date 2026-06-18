@@ -13,6 +13,8 @@ interface OrganizationRepositoryInterface
 {
     public function findByUserId(int $userId): ?Organization;
 
+    public function findByYandexOrgId(string $yandexOrgId): ?Organization;
+
     public function findById(int $organizationId): ?Organization;
 
     public function upsertForUser(

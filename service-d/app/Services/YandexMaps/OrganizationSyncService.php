@@ -27,6 +27,11 @@ class OrganizationSyncService
             return;
         }
 
+        $hasCachedReviews = $this->organizationReviewRepository->countByOrganization($organizationId) > 0;
+        $stopAnchors = $hasCachedReviews
+            ? $this->organizationReviewRepository->findSyncStopAnchors($organizationId)
+            : [];
+
         $this->organizationRepository->updateSyncStatus(
             organizationId: $organizationId,
             status: OrganizationSyncStatus::Syncing,
@@ -37,10 +42,17 @@ class OrganizationSyncService
             $result = $this->yandexMapsClient->syncReviews(
                 orgId: $organization->yandex_org_id,
                 canonicalUrl: $organization->canonical_url,
+                stopAnchors: $stopAnchors,
             );
 
             $this->organizationRepository->updateFromParsedMeta($organizationId, $result['org']);
-            $this->organizationReviewRepository->replaceForOrganization($organizationId, $result['reviews']);
+
+            if ($hasCachedReviews) {
+                $this->organizationReviewRepository->mergeAndReorderForOrganization($organizationId, $result['reviews']);
+            } else {
+                $this->organizationReviewRepository->replaceForOrganization($organizationId, $result['reviews']);
+            }
+
             $this->organizationRepository->markSyncCompleted($organizationId);
         } catch (\Throwable $exception) {
             $message = $exception instanceof YandexMapsParserException

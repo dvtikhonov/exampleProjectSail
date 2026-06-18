@@ -121,7 +121,7 @@ class DomHarvestMapper
 
     private function parseReviewsCount(string $text): ?int
     {
-        if (preg_match('/(\d[\d\s]*)\s*отзыв/iu', $text, $matches) !== 1) {
+        if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*отзыв/iu', $text, $matches) !== 1) {
             return null;
         }
 
@@ -130,7 +130,7 @@ class DomHarvestMapper
 
     private function parseRatingsCount(string $text): ?int
     {
-        if (preg_match('/(\d[\d\s]*)\s*оцен/iu', $text, $matches) !== 1) {
+        if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*оцен/iu', $text, $matches) !== 1) {
             return null;
         }
 
