@@ -52,7 +52,7 @@ sync
        → service-d: БД, sync_status
 ```
 
-Подробнее про публичный API, SPA и очередь: [`service-d/README.md`](../service-d/README.md#разделение-ответственности-service-d--yandex-parser).
+Подробнее про публичный API, SPA, очередь и **подход к парсингу**: [`service-d/README.md`](../service-d/README.md#парсинг).
 
 ## Назначение
 
@@ -63,7 +63,7 @@ sync
 | Поиск организации по URL Яндекс.Карт | `POST /resolve` | `service-d` (сборка кандидатов, фильтр по уточнению) |
 | Загрузка метаданных и отзывов выбранной организации | `POST /sync-reviews` | `yandex-parser` парсит страницу; `service-d` сохраняет в БД |
 
-Playwright открывает страницу, имитирует движение мыши (`humanMouseJiggle`), перехватывает JSON из XHR/fetch и при необходимости скроллит выдачу или список отзывов. Парсинг кандидатов из сырого collect **не входит** в этот сервис — см. `OrganizationCandidateBuilder` в `service-d`.
+Playwright открывает страницу, имитирует движение мыши (`humanMouseJiggle`), перехватывает JSON из XHR/fetch и при необходимости скроллит выдачу или список отзывов. Парсинг кандидатов из сырого collect **не входит** в этот сервис — см. раздел [**Парсинг**](../service-d/README.md#парсинг) в `service-d`.
 
 ## HTTP API
 
