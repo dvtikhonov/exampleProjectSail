@@ -1,0 +1,12 @@
+{
+    "resolved_url": "https://yandex.ru/maps/org/test-cafe/1248139252/",
+    "is_direct_org": true,
+    "direct_org_id": "1248139252",
+    "network_payloads": [],
+    "dom_harvest": [],
+    "page_meta": {
+        "title": "Кафе X — Яндекс Карты",
+        "header_text": "4,8 · 587 отзывов · 1200 оценок",
+        "address_text": "Москва, ул. Тестовая, 1"
+    }
+}

@@ -11,7 +11,7 @@
 | `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды», webhook MAX, UI Stand |
-| `service-d` | Laravel + Vue 3 SPA: Sanctum-авторизация на субдомене `yandexmaps.*` (задел под карту торговых точек) |
+| `service-d` | Laravel + Vue 3 SPA: Sanctum на субдомене `yandexmaps.*`, привязка организации Яндекс.Карт и синхронизация отзывов (`yandex-parser`, `service-d-queue`) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/` и `/api/b/` |
@@ -637,7 +637,7 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса и `shared`.
 - `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; live-stats идут через domain event `SalesOutletReportJobMutated` и listeners; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`.
 - `service-c` — MAX mini-app, webhook, Vite entry `max-app`, сборка в `public/max-build/`; см. [service-c/README.md](service-c/README.md).
-- `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; host-based routing в gateway без `auth_request`; отдельная БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
+- `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; resolve/confirm организации, отзывы, очередь `service-d-queue`; host-based routing без `auth_request`; БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Clients;
 
 use App\Contracts\YandexMapsClientInterface;
-use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\ParsedOrganizationMetaDto;
 use App\DTO\YandexMaps\ParsedReviewDto;
+use App\DTO\YandexMaps\ParserCollectResultDto;
 use App\Exceptions\YandexMaps\YandexMapsParserException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -19,10 +19,7 @@ class PlaywrightYandexMapsClient implements YandexMapsClientInterface
         private readonly string $baseUrl,
     ) {}
 
-    /**
-     * @return array{resolved_url: string, candidates: OrganizationCandidateDto[]}
-     */
-    public function resolve(string $url): array
+    public function collect(string $url): ParserCollectResultDto
     {
         $response = $this->httpClient()->post('/resolve', [
             'url' => $url,
@@ -35,20 +32,7 @@ class PlaywrightYandexMapsClient implements YandexMapsClientInterface
         /** @var array<string, mixed> $body */
         $body = $response->json();
 
-        $candidates = [];
-
-        foreach ((array) ($body['candidates'] ?? []) as $candidate) {
-            if (! is_array($candidate)) {
-                continue;
-            }
-
-            $candidates[] = OrganizationCandidateDto::fromParserArray($candidate);
-        }
-
-        return [
-            'resolved_url' => (string) ($body['resolved_url'] ?? $url),
-            'candidates' => $candidates,
-        ];
+        return ParserCollectResultDto::fromParserArray($body);
     }
 
     /**

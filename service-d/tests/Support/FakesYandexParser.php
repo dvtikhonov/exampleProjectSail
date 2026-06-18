@@ -25,9 +25,9 @@ trait FakesYandexParser
     }
 
     /**
-     * @param  array<string, mixed>  $body
+     * @param  array<string, mixed>  $body  Сырой collect-ответ yandex-parser (POST /resolve).
      */
-    protected function fakeYandexParserResolve(array $body, int $status = 200): void
+    protected function fakeYandexParserCollect(array $body, int $status = 200): void
     {
         Http::fake([
             $this->yandexParserBaseUrl.'/resolve' => Http::response($body, $status),
@@ -45,13 +45,13 @@ trait FakesYandexParser
     }
 
     /**
-     * @param  array<string, mixed>  $resolveBody
+     * @param  array<string, mixed>  $collectBody
      * @param  array<string, mixed>  $syncBody
      */
-    protected function fakeYandexParser(array $resolveBody, array $syncBody): void
+    protected function fakeYandexParser(array $collectBody, array $syncBody): void
     {
         Http::fake([
-            $this->yandexParserBaseUrl.'/resolve' => Http::response($resolveBody, 200),
+            $this->yandexParserBaseUrl.'/resolve' => Http::response($collectBody, 200),
             $this->yandexParserBaseUrl.'/sync-reviews' => Http::response($syncBody, 200),
         ]);
     }

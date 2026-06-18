@@ -1,6 +1,5 @@
 import { pickRecord, pickString } from './jsonExtract.js';
 import { extractOrgIdFromHref, extractOrgIdFromUrl, parseCount, parseRating } from './yandexUrl.js';
-import type { OrganizationCandidate } from '../types.js';
 
 const HREF_KEYS = ['uri', 'url', 'link', 'permalink', 'canonicalUrl'] as const;
 const ORG_NAME_KEYS = ['shortName', 'name', 'title', 'caption', 'fullName'] as const;
@@ -65,25 +64,6 @@ export function recordMatchesOrgId(record: Record<string, unknown>, orgId: strin
   );
 }
 
-/** Extract slug from href or record fields. */
-export function pickOrgSlug(record: Record<string, unknown>, orgId: string): string {
-  for (const key of HREF_KEYS) {
-    const value = pickString(record, [key]);
-
-    if (!value) {
-      continue;
-    }
-
-    const match = value.match(/\/org\/([^/]+)\/\d+/i);
-
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-
-  return pickString(record, ['slug', 'seoSlug']) ?? 'organization';
-}
-
 /** Extract rating counters from a Yandex Maps business record. */
 export function extractRatingFields(record: Record<string, unknown>): {
   average_rating: number | null;
@@ -118,79 +98,6 @@ export function extractRatingFields(record: Record<string, unknown>): {
         ratingRecord?.ratings ??
         ratingRecord?.ratingCount,
     ),
-  };
-}
-
-/** Prefer API/network fields over DOM fallbacks. */
-export function mergeOrganizationCandidate(
-  primary: OrganizationCandidate | null | undefined,
-  fallback: OrganizationCandidate | null | undefined,
-  orgId?: string,
-): OrganizationCandidate | null {
-  if (!primary && !fallback) {
-    return null;
-  }
-
-  if (!primary) {
-    return fallback ?? null;
-  }
-
-  if (!fallback) {
-    return orgId ? { ...primary, org_id: orgId } : primary;
-  }
-
-  const resolvedOrgId = orgId ?? primary.org_id ?? fallback.org_id;
-
-  return {
-    org_id: resolvedOrgId,
-    canonical_url: primary.canonical_url || fallback.canonical_url,
-    name: pickMergedName(primary.name, fallback.name),
-    address: primary.address || fallback.address,
-    average_rating: primary.average_rating ?? fallback.average_rating,
-    reviews_count: primary.reviews_count ?? fallback.reviews_count,
-    ratings_count: primary.ratings_count ?? fallback.ratings_count,
-  };
-}
-
-function pickMergedName(primaryName: string, fallbackName: string): string {
-  if (isPlausibleOrgName(primaryName)) {
-    return primaryName;
-  }
-
-  if (isPlausibleOrgName(fallbackName)) {
-    return fallbackName;
-  }
-
-  return primaryName || fallbackName;
-}
-
-/** Build a candidate from a Yandex Maps JSON business record. */
-export function mapRecordToCandidate(
-  record: Record<string, unknown>,
-  origin: string,
-): OrganizationCandidate | null {
-  const orgId = pickOrgIdFromHref(record);
-
-  if (!orgId) {
-    return null;
-  }
-
-  const name = pickString(record, [...ORG_NAME_KEYS]);
-
-  if (!name || !isPlausibleOrgName(name)) {
-    return null;
-  }
-
-  const slug = pickOrgSlug(record, orgId);
-  const address = pickString(record, ['address', 'fullAddress', 'formattedAddress', 'subtitle']) ?? '';
-  const ratingFields = extractRatingFields(record);
-
-  return {
-    org_id: orgId,
-    name,
-    address,
-    ...ratingFields,
-    canonical_url: `${origin}/maps/org/${slug}/${orgId}/`,
   };
 }
 

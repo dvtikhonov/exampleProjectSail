@@ -20,6 +20,7 @@ return [
 
     'yandex_parser' => [
         'url' => env('YANDEX_PARSER_URL', 'http://yandex-parser:3000'),
+        'resolve_candidate_limit' => (int) env('YANDEX_PARSER_RESOLVE_CANDIDATE_LIMIT', 30),
     ],
 
     'resend' => [
