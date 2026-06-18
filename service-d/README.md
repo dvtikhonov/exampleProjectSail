@@ -5,7 +5,7 @@ Laravel 13 (PHP 8.4) и Vue 3 SPA с авторизацией через **Larav
 | Документ | Назначение |
 |---|---|
 | [корневой README](../README.md) | Docker, gateway, CI/CD, общая инфраструктура |
-| [yandex-parser/README.md](../yandex-parser/README.md) | Playwright-сервис: `/resolve`, `/sync-reviews`, контракт collect |
+| [yandex-parser/README.md](../yandex-parser/README.md) | Playwright-сервис: HTTP API `/resolve`, `/sync-reviews`, переменные окружения |
 
 
 Порт по умолчанию: **8084** (`SERVICE_D_PORT` в `docker-compose.yml`). Vite dev: **5175** (`SERVICE_D_VITE_PORT`).
@@ -78,7 +78,129 @@ sync
 | Извлечение отзывов со страницы org | `yandex-parser` → `sync/`, `reviewExtract` | `yandex-parser/tests/reviewExtract.test.ts` |
 | API confirm, resync, пагинация | `service-d` | `tests/Feature/OrganizationApiTest.php` + `FakesYandexParser` |
 
-Подробности HTTP-контракта парсера: [`yandex-parser/README.md`](../yandex-parser/README.md#разделение-ответственности-service-d--yandex-parser). Сквозные потоки HTTP → Service → Repository: раздел [**Архитектура запросов**](#архитектура-запросов).
+Подробности HTTP-контракта парсера: [`yandex-parser/README.md`](../yandex-parser/README.md). Сквозные потоки HTTP → Service → Repository: раздел [**Архитектура запросов**](#архитектура-запросов).
+
+## Парсинг
+
+Яндекс.Карты не предоставляют публичного API для сторонних интеграций. Данные отдаются через SPA: часть — во встроенном JSON в HTML, часть — через XHR/fetch при скролле. Прямые HTTP-запросы без браузерного контекста быстро блокируются антиботом.
+
+Поэтому сбор страницы выполняет **`yandex-parser`** (Playwright + Chromium), а **интерпретация сырья, бизнес-фильтры и сохранение** — **`service-d`**. Ниже — какие функции где выполняются и какие переменные на них влияют.
+
+### Общая схема источников данных
+
+| Источник | Механизм | `yandex-parser` | `service-d` |
+|----------|----------|-----------------|-------------|
+| Сетевые ответы | перехват JSON из XHR/fetch | `NetworkJsonCollector`, `walkJson` | `JsonTreeWalker`, `OrganizationRecordMapper` (только `/resolve`) |
+| DOM | `page.evaluate()` + CSS-селекторы | `domHarvest`, `orgExtract`, `reviewExtract` | `DomHarvestMapper` (только `/resolve`) |
+| Встроенное состояние | `<script type="application/json">` | `pageStateExtract` | — (получает готовые `org` + `reviews`) |
+
+### `yandex-parser` — функции и переменные
+
+| Функция / модуль | Переменные окружения | Назначение |
+|------------------|----------------------|------------|
+| `browser.ts` → `getBrowser`, `createContext` | `HEADLESS` | Chromium: `--disable-blink-features=AutomationControlled`, locale `ru-RU`, userAgent Chrome 131 |
+| `humanMouseJiggle.ts` | `MOUSE_JIGGLE_MIN_PX`, `MOUSE_JIGGLE_MAX_PX` | Случайное движение мыши перед goto, скроллом, чтением DOM |
+| `browser.ts` → `gotoWithJiggle`, `scrollWithJiggle` | `NAVIGATION_TIMEOUT_MS` | Навигация и скролл с антибот-паузами |
+| `resolve/resolveOrganization.ts` | `RESOLVE_CANDIDATE_LIMIT` | Открытие URL, скролл выдачи `ceil(limit/5)` шагов, collect сырья |
+| `resolve/domHarvest.ts` | — | Сырой `dom_harvest`: `href`, `link_text`, `card_text`, `rating_aria_label`, `meta_text` |
+| `utils/jsonExtract.ts` → `NetworkJsonCollector`, `walkJson` | — | Перехват и обход JSON-деревьев из сети |
+| `sync/syncReviews.ts` | `SYNC_MAX_IDLE_ITERATIONS`, `SYNC_SCROLL_DELAY_MS` | Страница отзывов: скролл панели, merge org/reviews из DOM + JSON |
+| `utils/orgExtract.ts`, `reviewExtract.ts` | — | Извлечение полей org и review со страницы карточки |
+| `utils/pageStateExtract.ts` | — | Парсинг embedded JSON из HTML |
+| `utils/reviewStopAnchors.ts` | — (вход: `stop_anchors[]` в теле запроса) | Остановка скролла при встрече известных `external_id` |
+| `index.ts` | `PORT` | HTTP-сервер Express |
+
+Отладка (опционально): `DEBUG_ORG_IDS`, `PARSER_DEBUG_DUMP_DIR`, `DEBUG_LOG_PATH` — см. [`yandex-parser/README.md`](../yandex-parser/README.md#переменные-окружения).
+
+### `service-d` — функции и переменные
+
+| Функция / класс | Переменные / константы | Назначение |
+|-----------------|------------------------|------------|
+| `OrganizationSearchInputValidator` | — | Разбор ввода «сайт + город», валидация URL Яндекс.Карт |
+| `ResolveOrganizationInputFactory::fromUrl` | — | `inputUrl` → `resolverUrl` + `searchText` + `clarification` |
+| `PlaywrightYandexMapsClient::collect` | `YANDEX_PARSER_URL` | `POST /resolve` → `ParserCollectResultDto` |
+| `OrganizationCandidateBuilder` | `YANDEX_PARSER_RESOLVE_CANDIDATE_LIMIT` | Сборка `candidates[]` из `network_payloads` + `dom_harvest` + `page_meta` |
+| `Parsing/JsonTreeWalker` | — | Обход JSON из collect (аналог `walkJson` в Node) |
+| `Parsing/DomHarvestMapper` | — | Маппинг сырого `dom_harvest` → `OrganizationCandidateDto` |
+| `Parsing/OrganizationRecordMapper` | — | Маппинг JSON-записей → кандидат; `isPlausibleOrgName` |
+| `Parsing/OrganizationCandidateMerger` | — | Merge и dedupe кандидатов по `org_id` |
+| `ClarificationCandidateFilter` | — | Фильтр кандидатов по уточнению (город, улица) |
+| `OrganizationResolveService` | `SESSION_TTL_SECONDS` = 900 | Оркестрация resolve: collect → build → filter → cache |
+| `CacheResolveSessionStore` | cache driver из `.env` | `session_id` + список кандидатов до confirm |
+| `OrganizationConfirmService` | — | Выбор кандидата, upsert org, постановка sync в очередь |
+| `OrganizationSyncService::sync` | — | Формирует `stop_anchors` из БД, вызывает парсер, сохраняет результат |
+| `PlaywrightYandexMapsClient::syncReviews` | `YANDEX_PARSER_URL` | `POST /sync-reviews` с `org_id`, `canonical_url`, `stop_anchors` |
+| `OrganizationReviewRepository` | — | `replaceForOrganization` / `mergeAndReorderForOrganization`, `findSyncStopAnchors` |
+| `OrganizationRepository` | — | `updateFromParsedMeta`, `sync_status`, `sync_error` |
+
+`YANDEX_PARSER_RESOLVE_CANDIDATE_LIMIT` — лимит кандидатов **после** merge/dedupe в PHP. `RESOLVE_CANDIDATE_LIMIT` в `yandex-parser` — только глубина скролла на странице поиска при collect; оба значения обычно совпадают (30), но отвечают за разные этапы.
+
+### Обход защиты Яндекс.Карт
+
+Вся логика антибота — **только в `yandex-parser`**:
+
+- Chromium без признака `navigator.webdriver`, реалистичный user agent, русская локаль.
+- `humanMouseJiggle` перед каждым действием (навигация, ожидание селектора, скролл, чтение DOM).
+- Паузы между скроллами (`SYNC_SCROLL_DELAY_MS`), таймаут навигации (`NAVIGATION_TIMEOUT_MS`).
+- Скролл через `mouse.wheel` и `scroll` event, а не только `scrollTop`.
+
+`service-d` **не открывает браузер** — только HTTP-вызовы с таймаутом 300 с (`PlaywrightYandexMapsClient`).
+
+### Поток `/resolve` — кто что делает
+
+```text
+Пользователь: { url: "invitro новокузнецк" }
+  │
+  ├─ service-d: OrganizationSearchInputValidator → resolverUrl
+  │
+  ├─ yandex-parser: resolveOrganization(resolverUrl)
+  │     gotoWithJiggle → скролл выдачи (RESOLVE_CANDIDATE_LIMIT)
+  │     → network_payloads, dom_harvest, page_meta
+  │
+  ├─ service-d: OrganizationCandidateBuilder.build(collect)
+  │     JsonTreeWalker + DomHarvestMapper + OrganizationCandidateMerger
+  │     → обрезка по YANDEX_PARSER_RESOLVE_CANDIDATE_LIMIT
+  │
+  ├─ service-d: ClarificationCandidateFilter.filter(candidates, clarification)
+  │
+  └─ service-d: CacheResolveSessionStore → session_id + candidates[]
+```
+
+Поле `candidates` **намеренно не возвращается** из `yandex-parser` — это контрактное разделение.
+
+### Поток `/sync-reviews` — кто что делает
+
+```text
+SyncYandexOrganizationReviewsJob
+  │
+  ├─ service-d: OrganizationSyncService
+  │     stop_anchors = findSyncStopAnchors()  (если отзывы уже в БД)
+  │
+  ├─ yandex-parser: syncReviews({ org_id, canonical_url, stop_anchors })
+  │     gotoWithJiggle → страница отзывов
+  │     mergeOrgMeta(DOM, network JSON)
+  │     цикл скролла: DOM + pageState + network → dedupe
+  │     остановка: SYNC_MAX_IDLE_ITERATIONS | reviews_count | stop_anchors
+  │     → готовые org + reviews[]
+  │
+  └─ service-d: updateFromParsedMeta, replace/merge отзывов, sync_status
+```
+
+`stop_anchors` формирует `service-d` (`OrganizationReviewRepository::findSyncStopAnchors`), передаёт в парсер; остановку по якорям проверяет `reviewStopAnchors.ts` в `yandex-parser`.
+
+### Устойчивость к изменениям Яндекса
+
+| Что сломалось | Где править |
+|---------------|-------------|
+| Селекторы DOM на странице поиска / карточки | `yandex-parser`: `domHarvest.ts`, `orgExtract.ts` |
+| Селекторы DOM отзывов | `yandex-parser`: `syncReviews.ts`, `reviewExtract.ts` |
+| Формат embedded JSON / сетевых payload | `yandex-parser`: `jsonExtract.ts`, `pageStateExtract.ts`; для resolve также `service-d`: `OrganizationRecordMapper` |
+| Логика merge кандидатов, фильтр по городу | `service-d`: `Parsing/*`, `ClarificationCandidateFilter` |
+| Маппинг DTO → Eloquent, stop_anchors | `service-d`: `OrganizationSyncService`, репозитории |
+
+JSON-парсинг в обоих сервисах **schema-agnostic**: рекурсивный обход + эвристики по ключам (`name`, `reviewId`, `rating`), без жёсткой привязки к одному API-эндпоинту.
+
+При поломке sync в production: проверить селекторы DOM и сетевые URL в `yandex-parser`; для resolve — unit-тесты `service-d` на фикстурах `tests/Fixtures/yandex/collect/`. Диагностика парсера: `DEBUG_ORG_IDS`, [`scripts/debug-dump-yandex-org.sh`](../scripts/debug-dump-yandex-org.sh).
 
 ## Маршрутизация
 
@@ -580,7 +702,7 @@ docker compose exec service-d npm run build
 
 ## Интеграция с yandex-parser
 
-См. раздел [**Разделение ответственности**](#разделение-ответственности-service-d--yandex-parser) выше. Ниже — краткие схемы вызовов и ссылка на контракт.
+См. разделы [**Разделение ответственности**](#разделение-ответственности-service-d--yandex-parser) и [**Парсинг**](#парсинг). Ниже — краткие схемы вызовов и ссылка на HTTP-контракт.
 
 ### Поток resolve
 
@@ -613,7 +735,7 @@ POST /api/organization/confirm  (или /resync)
 
 **Правило деплоя:** после изменения формата ответа `/resolve` или `/sync-reviews` пересобирайте и перезапускайте `yandex-parser` **вместе с** `service-d` в одном релизе.
 
-HTTP-контракт и переменные парсера: [`yandex-parser/README.md`](../yandex-parser/README.md).
+HTTP-контракт и переменные парсера: [`yandex-parser/README.md`](../yandex-parser/README.md). Подход к парсингу и разделение функций: раздел [**Парсинг**](#парсинг) выше.
 
 ## Синхронизация отзывов (очередь)
 
