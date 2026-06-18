@@ -1,0 +1,33 @@
+{
+    "resolved_url": "https://yandex.ru/maps/moscow/search/cafe",
+    "is_direct_org": false,
+    "direct_org_id": null,
+    "network_payloads": [
+        {
+            "uri": "/maps/org/cafe-a/1111111111/",
+            "shortName": "Кафе A",
+            "address": "Москва, ул. Первая, 1",
+            "ratingData": {
+                "score": 4.5,
+                "ratingsCount": 300,
+                "reviewsCount": 120
+            }
+        },
+        {
+            "uri": "/maps/org/cafe-b/2222222222/",
+            "shortName": "Кафе B",
+            "address": "Москва, ул. Вторая, 2",
+            "ratingData": {
+                "score": 4.2,
+                "ratingsCount": 200,
+                "reviewsCount": 85
+            }
+        }
+    ],
+    "dom_harvest": [],
+    "page_meta": {
+        "title": "",
+        "header_text": "",
+        "address_text": ""
+    }
+}

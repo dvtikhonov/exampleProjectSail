@@ -5,8 +5,8 @@ import { resolveOrganization } from './resolve/resolveOrganization.js';
 import { syncReviews } from './sync/syncReviews.js';
 import type {
   ApiErrorBody,
+  ResolveCollectResponseBody,
   ResolveRequestBody,
-  ResolveResponseBody,
   SyncReviewsRequestBody,
   SyncReviewsResponseBody,
 } from './types.js';
@@ -38,11 +38,7 @@ app.post('/resolve', async (req: Request, res: Response, next: NextFunction) => 
       return;
     }
 
-    const result = await resolveOrganization(body.url);
-    const response: ResolveResponseBody = {
-      resolved_url: result.resolved_url,
-      candidates: result.candidates,
-    };
+    const response: ResolveCollectResponseBody = await resolveOrganization(body.url);
 
     res.json(response);
   } catch (error) {

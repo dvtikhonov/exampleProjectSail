@@ -96,9 +96,9 @@ class OrganizationApiTest extends TestCase
     public function test_resolve_accepts_website_with_clarification(): void
     {
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_multiple_candidates');
+        $fixture = YandexParserFixtures::loadCollect('multiple_candidates');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -113,9 +113,9 @@ class OrganizationApiTest extends TestCase
     public function test_resolve_filters_candidates_by_city_clarification(): void
     {
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_invitro_multi_city');
+        $fixture = YandexParserFixtures::loadCollect('invitro_multi_city');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -133,9 +133,9 @@ class OrganizationApiTest extends TestCase
     public function test_resolve_filters_candidates_by_street_in_clarification(): void
     {
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_invitro_same_city');
+        $fixture = YandexParserFixtures::loadCollect('invitro_same_city');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -153,7 +153,7 @@ class OrganizationApiTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->fakeYandexParserResolve([
+        $this->fakeYandexParserCollect([
             'message' => 'SmartCaptcha',
         ], 503);
 
@@ -170,9 +170,9 @@ class OrganizationApiTest extends TestCase
     public function test_resolve_returns_candidates_with_session(): void
     {
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_multiple_candidates');
+        $fixture = YandexParserFixtures::loadCollect('multiple_candidates');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $response = $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -205,9 +205,9 @@ class OrganizationApiTest extends TestCase
     public function test_resolve_sets_auto_selected_when_single_candidate(): void
     {
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_single_candidate');
+        $fixture = YandexParserFixtures::loadCollect('single_candidate');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -244,9 +244,9 @@ class OrganizationApiTest extends TestCase
     public function test_confirm_returns_422_for_invalid_org_id(): void
     {
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_multiple_candidates');
+        $fixture = YandexParserFixtures::loadCollect('multiple_candidates');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $resolveResponse = $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -270,9 +270,9 @@ class OrganizationApiTest extends TestCase
         Queue::fake();
 
         $user = User::factory()->create();
-        $fixture = YandexParserFixtures::load('resolve_single_candidate');
+        $fixture = YandexParserFixtures::loadCollect('single_candidate');
 
-        $this->fakeYandexParserResolve($fixture);
+        $this->fakeYandexParserCollect($fixture);
 
         $resolveResponse = $this->actingAsStateful($user)
             ->postStatefulJson('/api/organization/resolve', [
@@ -307,7 +307,7 @@ class OrganizationApiTest extends TestCase
     public function test_confirm_triggers_sync_and_persists_reviews(): void
     {
         $user = User::factory()->create();
-        $resolveFixture = YandexParserFixtures::load('resolve_single_candidate');
+        $resolveFixture = YandexParserFixtures::loadCollect('single_candidate');
         $syncFixture = YandexParserFixtures::load('sync_reviews');
 
         $this->fakeYandexParser($resolveFixture, $syncFixture);

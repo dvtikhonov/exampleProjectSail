@@ -2,7 +2,7 @@
   "name": "yandex-parser",
   "version": "1.0.0",
   "private": true,
-  "description": "Playwright-based Yandex Maps organization resolver and reviews parser",
+  "description": "Внутренний Playwright-сервис для service-d: collect организаций и sync отзывов Яндекс.Карт",
   "type": "module",
   "scripts": {
     "build": "tsc",

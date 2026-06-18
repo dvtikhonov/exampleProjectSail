@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
-use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\ParsedOrganizationMetaDto;
 use App\DTO\YandexMaps\ParsedReviewDto;
+use App\DTO\YandexMaps\ParserCollectResultDto;
 
 interface YandexMapsClientInterface
 {
-    /**
-     * @return array{resolved_url: string, candidates: OrganizationCandidateDto[]}
-     */
-    public function resolve(string $url): array;
+    public function collect(string $url): ParserCollectResultDto;
 
     /**
      * @return array{org: ParsedOrganizationMetaDto, reviews: ParsedReviewDto[]}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\YandexMaps;
 
+use App\Contracts\OrganizationCandidateBuilderInterface;
 use App\Contracts\YandexMapsClientInterface;
 use App\DTO\YandexMaps\OrganizationCandidateDto;
 use App\DTO\YandexMaps\ResolveOrganizationDto;
@@ -21,6 +22,7 @@ class OrganizationResolveService
 
     public function __construct(
         private readonly YandexMapsClientInterface $yandexMapsClient,
+        private readonly OrganizationCandidateBuilderInterface $candidateBuilder,
     ) {}
 
     /**
@@ -28,13 +30,14 @@ class OrganizationResolveService
      */
     public function resolve(ResolveOrganizationDto $dto): ResolveOrganizationResultDto
     {
-        $parserResult = $this->yandexMapsClient->resolve($dto->resolverUrl);
-
-        $sessionId = (string) Str::uuid();
+        $collect = $this->yandexMapsClient->collect($dto->resolverUrl);
+        $candidates = $this->candidateBuilder->build($collect);
         $candidates = $this->filterCandidatesByClarification(
-            $parserResult['candidates'],
+            $candidates,
             $dto->clarification,
         );
+
+        $sessionId = (string) Str::uuid();
         $matchCount = count($candidates);
 
         Cache::put(
@@ -42,7 +45,7 @@ class OrganizationResolveService
             [
                 'input_url' => $dto->inputUrl,
                 'search_text' => $dto->searchText,
-                'resolved_url' => $parserResult['resolved_url'],
+                'resolved_url' => $collect->resolvedUrl,
                 'candidates' => array_map(
                     static fn (OrganizationCandidateDto $candidate): array => $candidate->toArray(),
                     $candidates,
@@ -56,7 +59,7 @@ class OrganizationResolveService
             inputUrl: $dto->inputUrl,
             searchText: $dto->searchText,
             clarification: $dto->clarification,
-            resolvedUrl: $parserResult['resolved_url'],
+            resolvedUrl: $collect->resolvedUrl,
             matchCount: $matchCount,
             candidates: $candidates,
             autoSelected: $matchCount === 1,
