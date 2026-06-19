@@ -1,15 +1,24 @@
-/** Runtime configuration from environment variables. */
+/** Конфигурация рантайма из переменных окружения. */
 export interface AppConfig {
+  /** Порт HTTP-сервера (PORT, по умолчанию 3000). */
   port: number;
+  /** Минимальное смещение курсора при «дрожании» (MOUSE_JIGGLE_MIN_PX). */
   mouseJiggleMinPx: number;
+  /** Максимальное смещение курсора при «дрожании» (MOUSE_JIGGLE_MAX_PX). */
   mouseJiggleMaxPx: number;
+  /** Сколько карточек организаций целимся увидеть при resolve (RESOLVE_CANDIDATE_LIMIT). */
   resolveCandidateLimit: number;
+  /** Сколько итераций скролла без новых отзывов до остановки (SYNC_MAX_IDLE_ITERATIONS). */
   syncMaxIdleIterations: number;
+  /** Пауза между скроллами при sync-reviews (SYNC_SCROLL_DELAY_MS). */
   syncScrollDelayMs: number;
+  /** Таймаут навигации Playwright (NAVIGATION_TIMEOUT_MS). */
   navigationTimeoutMs: number;
+  /** Запуск Chromium без UI (HEADLESS). */
   headless: boolean;
 }
 
+/** Прочитать целое из env; при невалидном значении — fallback. */
 function parseIntEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw === '') {
@@ -20,6 +29,7 @@ function parseIntEnv(name: string, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
+/** Прочитать булево из env (1/true/yes/on). */
 function parseBoolEnv(name: string, fallback: boolean): boolean {
   const raw = process.env[name];
   if (raw === undefined || raw === '') {
@@ -29,7 +39,7 @@ function parseBoolEnv(name: string, fallback: boolean): boolean {
   return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
 }
 
-/** Load application configuration from environment. */
+/** Загрузить конфигурацию и нормализовать связанные лимиты (min ≤ max для jiggle). */
 export function loadConfig(): AppConfig {
   const mouseJiggleMinPx = parseIntEnv('MOUSE_JIGGLE_MIN_PX', 10);
   const mouseJiggleMaxPx = parseIntEnv('MOUSE_JIGGLE_MAX_PX', 80);

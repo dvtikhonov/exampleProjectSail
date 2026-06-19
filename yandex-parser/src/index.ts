@@ -1,3 +1,13 @@
+/**
+ * HTTP-сервис парсера Яндекс.Карт.
+ *
+ * Эндпоинты:
+ * - GET  /health       — проверка живости
+ * - POST /resolve      — сбор сырых DOM/сетевых данных для поиска организации
+ * - POST /sync-reviews — синхронизация метаданных и отзывов по org_id
+ *
+ * Playwright запускается лениво; при SIGINT/SIGTERM браузер корректно закрывается.
+ */
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { config } from './config.js';
 import { closeBrowser } from './browser.js';
@@ -15,6 +25,7 @@ import { isYandexMapsUrl } from './utils/yandexUrl.js';
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
+/** Единый формат JSON-ошибки для всех эндпоинтов. */
 function sendError(res: Response, status: number, error: string, message: string): void {
   const body: ApiErrorBody = { error, message };
   res.status(status).json(body);
@@ -24,6 +35,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+/** Собрать кандидатов организации по URL поиска или прямой карточке. */
 app.post('/resolve', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = req.body as ResolveRequestBody;
@@ -46,6 +58,7 @@ app.post('/resolve', async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
+/** Подтянуть отзывы организации; stop_anchors останавливают скролл при совпадении с кэшем. */
 app.post('/sync-reviews', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = req.body as SyncReviewsRequestBody;
@@ -101,6 +114,7 @@ const server = app.listen(config.port, () => {
   console.log(`[yandex-parser] listening on port ${config.port}`);
 });
 
+/** Закрыть HTTP-сервер и общий экземпляр Chromium. */
 async function shutdown(signal: string): Promise<void> {
   console.log(`[yandex-parser] received ${signal}, shutting down...`);
   server.close();

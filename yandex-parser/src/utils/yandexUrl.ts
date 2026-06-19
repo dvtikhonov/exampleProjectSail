@@ -1,8 +1,14 @@
+/**
+ * Парсинг и нормализация URL Яндекс.Карт, рейтингов и дат.
+ */
+/** Допустимые хосты карт. */
 const YANDEX_MAPS_HOST_PATTERN = /^yandex\.(ru|com|kz|com\.tr)$/i;
+/** Прямая карточка: /maps/org/{slug}/{id}. */
 const ORG_URL_PATTERN = /\/maps\/org\/[^/]+\/(\d+)\/?/i;
+/** Ссылка внутри выдачи: /org/{slug}/{id}. */
 const ORG_LINK_PATTERN = /\/org\/[^/]+\/(\d+)/i;
 
-/** Validate that URL belongs to Yandex Maps domains. */
+/** Проверить, что URL относится к доменам Яндекс.Карт. */
 export function isYandexMapsUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -12,13 +18,13 @@ export function isYandexMapsUrl(url: string): boolean {
   }
 }
 
-/** Extract organization id from a Yandex Maps org URL. */
+/** org_id из URL вида /maps/org/{slug}/{id}. */
 export function extractOrgIdFromUrl(url: string): string | null {
   const match = url.match(ORG_URL_PATTERN);
   return match?.[1] ?? null;
 }
 
-/** Normalize org URL to https://yandex.ru/maps/org/{slug}/{id}/ form. */
+/** Канонический URL: https://{host}/maps/org/{slug}/{id}/. */
 export function normalizeOrgUrl(url: string, orgId: string, slug = 'organization'): string {
   try {
     const parsed = new URL(url);
@@ -30,24 +36,24 @@ export function normalizeOrgUrl(url: string, orgId: string, slug = 'organization
   }
 }
 
-/** Build reviews page URL from canonical org URL. */
+/** URL вкладки отзывов: canonical_url + /reviews/. */
 export function buildReviewsUrl(canonicalUrl: string): string {
   const trimmed = canonicalUrl.replace(/\/+$/, '');
   return `${trimmed}/reviews/`;
 }
 
-/** Detect whether URL points directly to an organization card. */
+/** Прямая ссылка на карточку (не поисковая выдача). */
 export function isDirectOrgUrl(url: string): boolean {
   return ORG_URL_PATTERN.test(url);
 }
 
-/** Extract org id from arbitrary href inside search results. */
+/** org_id из произвольного href внутри выдачи (/org/.../id). */
 export function extractOrgIdFromHref(href: string): string | null {
   const match = href.match(ORG_LINK_PATTERN);
   return match?.[1] ?? null;
 }
 
-/** Parse numeric rating from text like "4,8" or "4.8". */
+/** Рейтинг из числа или строки («4,8», «4.8»). */
 export function parseRating(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -62,7 +68,7 @@ export function parseRating(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Parse integer counter from mixed text/number values. */
+/** Целочисленный счётчик из числа или текста с пробелами. */
 export function parseCount(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return Math.trunc(value);
@@ -80,9 +86,10 @@ export function parseCount(value: unknown): number | null {
   return Number.parseInt(digits[0], 10);
 }
 
-/** Parse ISO or unix timestamp to ISO string. */
+/** Дата публикации: ISO-строка или unix (сек/мс) → ISO UTC. */
 export function parsePublishedAt(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
+    // Unix-секунды vs миллисекунды: порог ~2001 год в мс.
     const millis = value > 1_000_000_000_000 ? value : value * 1000;
     return new Date(millis).toISOString();
   }

@@ -1,5 +1,9 @@
+/**
+ * Логика stop_anchors: прекращать скролл, когда верх кэша найден в текущем списке отзывов.
+ */
 import type { ParsedReview } from '../types.js';
 
+/** Проверить, что подряд идущие external_id с offset совпадают со stop_anchors. */
 export function reviewsMatchAtOffset(
   reviews: ParsedReview[],
   stopAnchors: string[],
@@ -18,7 +22,7 @@ export function reviewsMatchAtOffset(
   return true;
 }
 
-/** True when cached top reviews are found in the incoming list — stop scrolling further. */
+/** true, если последовательность stop_anchors встречается в reviews — дальше листать не нужно. */
 export function shouldStopFetching(reviews: ParsedReview[], stopAnchors: string[]): boolean {
   if (stopAnchors.length === 0) {
     return false;

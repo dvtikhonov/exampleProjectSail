@@ -1,8 +1,11 @@
+/**
+ * Встроенный в HTML JSON (script[type=application/json]) — часто содержит отзывы до XHR.
+ */
 import { walkJson } from './jsonExtract.js';
 import { dedupeReviews, mapRecordToReview } from './reviewExtract.js';
 import type { ParsedReview } from '../types.js';
 
-/** Parse embedded JSON blobs from the initial HTML page. */
+/** Прочитать script[type=application/json] из начального HTML. */
 export async function collectEmbeddedPageState(
   page: { evaluate: (fn: () => unknown) => Promise<unknown> },
 ): Promise<unknown[]> {
@@ -23,7 +26,7 @@ export async function collectEmbeddedPageState(
   return Array.isArray(payloads) ? payloads : [];
 }
 
-/** Extract reviews from embedded page state JSON. */
+/** Отзывы из встроенного page state через walkJson + mapRecordToReview. */
 export function extractReviewsFromPageState(payloads: unknown[]): ParsedReview[] {
   const reviews: ParsedReview[] = [];
 

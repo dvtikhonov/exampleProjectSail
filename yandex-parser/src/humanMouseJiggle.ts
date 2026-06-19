@@ -1,21 +1,28 @@
+/**
+ * Имитация движения мыши перед действиями на странице.
+ * Вызывается перед goto, ожиданием селектора, скроллом, кликом и сбором DOM.
+ */
 import type { Page } from 'playwright';
 
+/** Смещение курсора за один шаг jiggle. */
 export interface JiggleDelta {
   dx: number;
   dy: number;
   distance: number;
 }
 
+/** Текущие координаты курсора в viewport (1280×720). */
 export interface MousePosition {
   x: number;
   y: number;
 }
 
+/** Источник случайных чисел [0, 1) — подменяется в тестах. */
 export interface RandomSource {
   next(): number;
 }
 
-/** Default pseudo-random source (0..1). */
+/** Псевдослучайный источник на Math.random(). */
 export class MathRandomSource implements RandomSource {
   next(): number {
     return Math.random();
@@ -23,8 +30,8 @@ export class MathRandomSource implements RandomSource {
 }
 
 /**
- * Compute a random mouse jiggle delta with distance >= minPx and arbitrary direction.
- * Exported for unit testing without Playwright.
+ * Случайный вектор смещения: расстояние ∈ [minPx, maxPx], произвольный угол.
+ * При округлении до целых пикселей дистанция может «схлопнуться» — тогда масштабируем.
  */
 export function calculateJiggleDelta(
   minPx: number,
@@ -45,6 +52,7 @@ export function calculateJiggleDelta(
     return { dx, dy, distance: actualDistance };
   }
 
+  // Округление cos/sin может дать actualDistance < safeMin — дотягиваем по одной оси.
   const scale = safeMin / (actualDistance || 1);
   let scaledDx = Math.round(dx * scale);
   let scaledDy = Math.round(dy * scale);
@@ -70,6 +78,7 @@ export function calculateJiggleDelta(
   };
 }
 
+/** Целое в [min, max] включительно. */
 function randomInt(min: number, max: number, random: RandomSource): number {
   return min + Math.floor(random.next() * (max - min + 1));
 }
@@ -78,6 +87,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Позиция курсора на странице — WeakMap, чтобы не протекала между контекстами. */
 const pageMousePositions = new WeakMap<Page, MousePosition>();
 
 function getMousePosition(page: Page): MousePosition {
@@ -98,13 +108,13 @@ function setMousePosition(page: Page, position: MousePosition): void {
 export interface HumanMouseJiggleOptions {
   minPx?: number;
   maxPx?: number;
+  /** Число промежуточных шагов между началом и концом движения (1–2 по умолчанию). */
   intermediateSteps?: number;
   random?: RandomSource;
 }
 
 /**
- * Simulate human-like mouse movement before each page action.
- * Must be called before goto, selector wait, scroll, click, and DOM collection.
+ * Выполнить 1–2 случайных перемещения курсора с паузами, обновить трекинг позиции.
  */
 export async function humanMouseJiggle(
   page: Page,
@@ -135,12 +145,12 @@ export async function humanMouseJiggle(
   await sleep(randomInt(50, 150, random));
 }
 
-/** Reset tracked mouse position (useful in tests). */
+/** Сбросить отслеживаемую позицию курсора (для тестов). */
 export function resetMousePosition(page: Page, position: MousePosition = { x: 640, y: 360 }): void {
   pageMousePositions.set(page, position);
 }
 
-/** Check whether delta is strictly axis-aligned (horizontal or vertical only). */
+/** true, если смещение строго по одной оси (dx=0 или dy=0). */
 export function isAxisAligned(delta: JiggleDelta): boolean {
   return delta.dx === 0 || delta.dy === 0;
 }

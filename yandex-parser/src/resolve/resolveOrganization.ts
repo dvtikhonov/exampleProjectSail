@@ -1,3 +1,7 @@
+/**
+ * Сценарий resolve: открыть URL Яндекс.Карт и вернуть сырые данные без бизнес-интерпретации.
+ * Разбор кандидатов выполняется на стороне Laravel (service-d).
+ */
 import type { Page } from 'playwright';
 import { humanMouseJiggle } from '../humanMouseJiggle.js';
 import { config } from '../config.js';
@@ -12,12 +16,12 @@ import {
 } from './domHarvest.js';
 
 interface ResolveOptions {
+  /** Сколько карточек из выдачи пытаться подгрузить скроллом. */
   candidateLimit?: number;
 }
 
 /**
- * Navigate Yandex Maps and collect raw network/DOM payloads for organization resolution.
- * Candidate interpretation happens in service-d (Laravel).
+ * Открыть URL Яндекс.Карт и вернуть сырые network/DOM данные для resolve на стороне Laravel.
  */
 export async function resolveOrganization(
   inputUrl: string,
@@ -31,6 +35,7 @@ export async function resolveOrganization(
 
   try {
     await gotoWithJiggle(page, inputUrl);
+    // Дать SPA время отрисовать выдачу или карточку.
     await page.waitForTimeout(1500);
 
     const resolvedUrl = page.url();
@@ -75,7 +80,9 @@ export async function resolveOrganization(
   }
 }
 
+/** Прокрутить выдачу поиска, чтобы подгрузить больше карточек организаций. */
 async function collectSearchResultsFromScroll(page: Page, candidateLimit: number): Promise<void> {
+  // Примерно 5 карточек на экран — считаем число скроллов от лимита кандидатов.
   const maxScrolls = Math.ceil(candidateLimit / 5);
 
   for (let i = 0; i < maxScrolls; i += 1) {
