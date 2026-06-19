@@ -162,7 +162,7 @@ class DomHarvestMapper
     {
         if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s+отзыв(?:ов|а|ы)?(?:[^\p{L}]|$)/u', $text, $matches) === 1) {
             $count = $this->urlHelper->parseCount($matches[1]);
-        } elseif (preg_match('/отзыв(?:ов|а|ы)?\s*(\d{1,3}(?:\s\d{3})*|\d+)/iu', $text, $matches) === 1) {
+        } elseif (preg_match('/отзыв(?:ов|а|ы)?\s*(\d+)/iu', $text, $matches) === 1) {
             $count = $this->urlHelper->parseCount($matches[1]);
         } else {
             $count = null;

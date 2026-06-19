@@ -99,7 +99,8 @@ export function parseReviewsCountFromText(text: string): number | null {
     return parseCount(classicMatch[1]);
   }
 
-  const tabMatch = text.match(/отзыв(?:ов|а|ы)?\s*(\d{1,3}(?:\s\d{3})*|\d+)/iu);
+  // Вкладка «Отзывы1077» без пробела — нужен \d+, иначе \d{1,3} обрежет до «107».
+  const tabMatch = text.match(/отзыв(?:ов|а|ы)?\s*(\d+)/iu);
 
   if (tabMatch) {
     return parseCount(tabMatch[1]);

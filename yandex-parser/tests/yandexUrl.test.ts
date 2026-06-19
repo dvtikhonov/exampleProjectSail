@@ -12,6 +12,11 @@ describe('parseReviewsCountFromText', () => {
     expect(parseReviewsCountFromText('ОбзорТовары и услугиНовости2Фото11Отзывы24Филиалы')).toBe(24);
   });
 
+  it('parses four-digit tab counter "Отзывы1077" without truncating', () => {
+    expect(parseReviewsCountFromText('Фото2Отзывы1077Филиалы')).toBe(1077);
+    expect(parseReviewsCountFromText('ОбзорФото11Отзывы1077')).toBe(1077);
+  });
+
   it('does not confuse photo count with reviews', () => {
     expect(parseReviewsCountFromText('11 фото')).toBeNull();
   });
