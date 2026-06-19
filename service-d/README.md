@@ -262,6 +262,8 @@ flowchart TB
         WORKER[service-d-queue]
     end
 
+    client --> http --> app --> infra --> external
+
     SPA -->|cookie + CSRF| R
     R --> FR --> C --> SVC
     SVC --> DTO

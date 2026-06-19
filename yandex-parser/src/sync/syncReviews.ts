@@ -13,6 +13,7 @@ import {
 import {
   buildReviewsUrl,
   normalizeOrgUrl,
+  parseReviewsCountFromText,
 } from '../utils/yandexUrl.js';
 import {
   extractRatingFields,
@@ -222,7 +223,6 @@ async function readOrgMetaFromDom(
         ?.textContent ?? '';
     const pageText =
       document.querySelector('[class*="orgpage"], [class*="business-card-view"]')?.textContent ?? tabsText;
-    const reviewsMatch = pageText.match(/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*отзыв/i);
     const ratingsMatch =
       (document.querySelector('[class*="business-rating-amount"], [class*="business-rating-with-text-view"]')?.textContent ?? '')
         .match(/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*оцен/i) ?? tabsText.match(/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*оцен/i);
@@ -231,10 +231,12 @@ async function readOrgMetaFromDom(
       name,
       address,
       average_rating: ratingMatch ? Number.parseFloat(ratingMatch[1]) : null,
-      reviews_count: reviewsMatch ? Number.parseInt(reviewsMatch[1].replace(/\s/g, ''), 10) : null,
+      pageText,
       ratings_count: ratingsMatch ? Number.parseInt(ratingsMatch[1].replace(/\s/g, ''), 10) : null,
     };
   }, { nameSelectors: [...ORG_PAGE_NAME_SELECTORS], addressSelector: ORG_PAGE_ADDRESS_SELECTORS });
+
+  const reviewsCount = parseReviewsCountFromText(data.pageText ?? '');
 
   return {
     org_id: orgId,
@@ -244,7 +246,7 @@ async function readOrgMetaFromDom(
       data.average_rating === null
         ? null
         : Math.floor(data.average_rating * 10 + 0.0001) / 10,
-    reviews_count: data.reviews_count,
+    reviews_count: reviewsCount,
     ratings_count: data.ratings_count,
     canonical_url: normalizeOrgUrl(canonicalUrl, orgId),
   };

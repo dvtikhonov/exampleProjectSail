@@ -1,3 +1,6 @@
+/**
+ * Нормализация и дедупликация отзывов из DOM, page state и сетевых JSON.
+ */
 import { pickRecord, pickString } from './jsonExtract.js';
 import { parsePublishedAt, parseRating } from './yandexUrl.js';
 import type { ParsedReview } from '../types.js';
@@ -6,9 +9,10 @@ const AUTHOR_KEYS = ['author', 'user', 'userName', 'authorName'] as const;
 const TEXT_KEYS = ['text', 'comment', 'reviewText', 'body', 'snippet'] as const;
 const REVIEW_ID_KEYS = ['reviewId', 'review_id', 'externalId', 'uuid'] as const;
 
+/** id из API навигации/виджетов — не UGC-отзывы. */
 const NAVIGATION_REVIEW_IDS = /^(backend_|yandex$|payment_|wheelchair_|pushkin_|privilege_|preliminary_|audio_guide$|tickets$|unavailable$|cash$)/i;
 
-/** Whether a network response URL may contain organization reviews. */
+/** Подходит ли URL сетевого ответа для извлечения отзывов. */
 export function isReviewPayloadUrl(url: string): boolean {
   const lower = url.toLowerCase();
 
@@ -29,7 +33,7 @@ export function isReviewPayloadUrl(url: string): boolean {
   );
 }
 
-/** Map a JSON record to a review when it looks like a real UGC review. */
+/** Преобразовать JSON-запись в отзыв, если это похоже на UGC (не виджет/навигация). */
 export function mapRecordToReview(record: Record<string, unknown>): ParsedReview | null {
   const author = pickString(record, [...AUTHOR_KEYS]);
   const text = pickString(record, [...TEXT_KEYS]);
@@ -78,7 +82,7 @@ export function mapRecordToReview(record: Record<string, unknown>): ParsedReview
   };
 }
 
-/** Keep DOM reviews that look like real user feedback. */
+/** Отфильтровать DOM-отзывы с мусорным текстом («Подписаться», «Без текста»). */
 export function isPlausibleDomReview(review: ParsedReview): boolean {
   const text = review.text?.trim() ?? '';
   const author = review.author_name.trim();
@@ -98,7 +102,7 @@ export function isPlausibleDomReview(review: ParsedReview): boolean {
   return false;
 }
 
-/** Normalize and deduplicate DOM reviews. */
+/** Очистить авторов, стабилизировать external_id для dom-*, дедуплицировать. */
 export function normalizeDomReviews(reviews: ParsedReview[]): ParsedReview[] {
   const normalized: ParsedReview[] = [];
 
@@ -126,7 +130,7 @@ export function normalizeDomReviews(reviews: ParsedReview[]): ParsedReview[] {
   return dedupeReviews(normalized);
 }
 
-/** Deduplicate reviews by external id. */
+/** Дедупликация по external_id (последняя запись побеждает). */
 export function dedupeReviews(reviews: ParsedReview[]): ParsedReview[] {
   const map = new Map<string, ParsedReview>();
 
@@ -137,6 +141,7 @@ export function dedupeReviews(reviews: ParsedReview[]): ParsedReview[] {
   return Array.from(map.values());
 }
 
+/** Оценить «полноту» записи при слиянии дубликатов по тексту. */
 function reviewQualityScore(review: ParsedReview): number {
   let score = 0;
 
@@ -155,7 +160,7 @@ function reviewQualityScore(review: ParsedReview): number {
   return score;
 }
 
-/** Collapse DOM and page-state duplicates that share the same review text. */
+/** Схлопнуть дубликаты DOM/page-state с одинаковым текстом, оставив более полную запись. */
 export function dedupeReviewsByContent(reviews: ParsedReview[]): ParsedReview[] {
   const map = new Map<string, ParsedReview>();
 
