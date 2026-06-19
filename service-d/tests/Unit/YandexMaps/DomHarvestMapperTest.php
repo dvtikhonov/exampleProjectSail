@@ -98,4 +98,20 @@ class DomHarvestMapperTest extends TestCase
         $this->assertNotNull($candidate);
         $this->assertSame(24, $candidate->reviewsCount);
     }
+
+    public function test_map_page_meta_parses_four_digit_tab_counter_without_truncation(): void
+    {
+        $candidate = $this->domHarvestMapper->mapPageMeta(
+            PageMetaDto::fromParserArray([
+                'title' => 'Вкусно — и точка — Яндекс Карты',
+                'header_text' => 'Вкусно — и точкаОбзорФото2Отзывы1077Филиалы',
+                'address_text' => 'Мясницкая ул., 30/1, Москва',
+            ]),
+            'https://yandex.ru/maps/org/vkusno_i_tochka/3079258579/',
+            '3079258579',
+        );
+
+        $this->assertNotNull($candidate);
+        $this->assertSame(1077, $candidate->reviewsCount);
+    }
 }
