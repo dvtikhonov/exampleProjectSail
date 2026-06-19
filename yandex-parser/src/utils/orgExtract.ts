@@ -1,10 +1,13 @@
+/**
+ * Извлечение полей организации из JSON Яндекс.Карт и общие DOM-селекторы.
+ */
 import { pickRecord, pickString } from './jsonExtract.js';
 import { extractOrgIdFromHref, extractOrgIdFromUrl, parseCount, parseRating } from './yandexUrl.js';
 
 const HREF_KEYS = ['uri', 'url', 'link', 'permalink', 'canonicalUrl'] as const;
 const ORG_NAME_KEYS = ['shortName', 'name', 'title', 'caption', 'fullName'] as const;
 
-/** Reject tab-navigation text accidentally scraped as an organization name. */
+/** Отсечь текст вкладок («Обзор», «Отзывы12») ошибочно принятый за название. */
 export function isPlausibleOrgName(name: string): boolean {
   const trimmed = name.trim();
 
@@ -23,7 +26,7 @@ export function isPlausibleOrgName(name: string): boolean {
   return true;
 }
 
-/** Extract organization id only from /org/.../{id} paths in href-like fields. */
+/** Извлечь org_id только из путей /org/.../{id} в href-подобных полях. */
 export function pickOrgIdFromHref(record: Record<string, unknown>): string | null {
   for (const key of HREF_KEYS) {
     const value = pickString(record, [key]);
@@ -42,7 +45,7 @@ export function pickOrgIdFromHref(record: Record<string, unknown>): string | nul
   return null;
 }
 
-/** Check whether a JSON record belongs to the requested organization. */
+/** Принадлежит ли JSON-запись запрошенной организации (href или id + признаки карточки). */
 export function recordMatchesOrgId(record: Record<string, unknown>, orgId: string): boolean {
   const fromHref = pickOrgIdFromHref(record);
 
@@ -57,6 +60,7 @@ export function recordMatchesOrgId(record: Record<string, unknown>, orgId: strin
     return false;
   }
 
+  // id без href/name/address часто встречается в нерелевантных узлах — требуем «признаки» организации.
   return (
     pickRecord(record, ['ratingData', 'rating', 'stars']) !== null ||
     pickString(record, ['address', 'fullAddress', 'formattedAddress']) !== null ||
@@ -64,7 +68,7 @@ export function recordMatchesOrgId(record: Record<string, unknown>, orgId: strin
   );
 }
 
-/** Extract rating counters from a Yandex Maps business record. */
+/** Счётчики рейтинга из записи бизнеса Яндекс.Карт. */
 export function extractRatingFields(record: Record<string, unknown>): {
   average_rating: number | null;
   reviews_count: number | null;
@@ -101,7 +105,7 @@ export function extractRatingFields(record: Record<string, unknown>): {
   };
 }
 
-/** DOM selectors for organization title on card pages. */
+/** Селекторы названия на странице карточки организации. */
 export const ORG_PAGE_NAME_SELECTORS = [
   '[class*="orgpage-header-view__header"] [class*="title"]',
   '[class*="business-card-title-view__title"]',
@@ -109,7 +113,7 @@ export const ORG_PAGE_NAME_SELECTORS = [
   '[class*="orgpage-header"] [class*="title"]',
 ] as const;
 
-/** DOM selectors for organization address on org card and reviews pages. */
+/** Селекторы адреса на карточке и странице отзывов. */
 export const ORG_PAGE_ADDRESS_SELECTORS = [
   '[class*="orgpage-header"] [class*="address"]',
   '[class*="business-contacts"] [class*="address"]',
@@ -118,7 +122,7 @@ export const ORG_PAGE_ADDRESS_SELECTORS = [
   '[class*="search-snippet-view__address"]',
 ].join(', ');
 
-/** DOM selectors for organization title in search snippets. */
+/** Селекторы названия в сниппетах поисковой выдачи. */
 export const SEARCH_SNIPPET_NAME_SELECTORS = [
   '[class*="search-business-snippet-view__title"]',
   '[class*="search-snippet-view__title"]',

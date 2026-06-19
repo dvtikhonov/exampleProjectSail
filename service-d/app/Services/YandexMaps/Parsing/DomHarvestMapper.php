@@ -156,15 +156,19 @@ class DomHarvestMapper
     }
 
     /**
-     * Число отзывов по шаблону «N отзыв(ов)» в тексте карточки или header.
+     * Число отзывов: «24 отзыва» или вкладка «Отзывы24» (не «Фото11» перед «Отзывы»).
      */
     private function parseReviewsCount(string $text): ?int
     {
-        if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s*отзыв/iu', $text, $matches) !== 1) {
-            return null;
+        if (preg_match('/(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s+отзыв(?:ов|а|ы)?(?:[^\p{L}]|$)/u', $text, $matches) === 1) {
+            $count = $this->urlHelper->parseCount($matches[1]);
+        } elseif (preg_match('/отзыв(?:ов|а|ы)?\s*(\d{1,3}(?:\s\d{3})*|\d+)/iu', $text, $matches) === 1) {
+            $count = $this->urlHelper->parseCount($matches[1]);
+        } else {
+            $count = null;
         }
 
-        return $this->urlHelper->parseCount($matches[1]);
+        return $count;
     }
 
     /**

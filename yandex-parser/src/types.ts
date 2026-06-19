@@ -1,4 +1,8 @@
-/** Candidate organization from Yandex Maps search or direct URL. */
+/**
+ * Типы контракта HTTP API и DTO парсера.
+ * Resolve отдаёт сырые данные; Sync — уже нормализованные org + reviews.
+ */
+/** Кандидат организации из поиска Яндекс.Карт или прямой ссылки. */
 export interface OrganizationCandidate {
   org_id: string;
   name: string;
@@ -9,7 +13,7 @@ export interface OrganizationCandidate {
   canonical_url: string;
 }
 
-/** Organization metadata from reviews page. */
+/** Метаданные организации со страницы отзывов. */
 export interface OrganizationMeta {
   org_id: string;
   name: string;
@@ -20,7 +24,7 @@ export interface OrganizationMeta {
   canonical_url: string;
 }
 
-/** Parsed review from Yandex Maps. */
+/** Распарсенный отзыв. */
 export interface ParsedReview {
   external_id: string;
   author_name: string;
@@ -30,10 +34,11 @@ export interface ParsedReview {
 }
 
 export interface ResolveRequestBody {
+  /** URL поиска или прямой карточки на yandex.ru/maps. */
   url: string;
 }
 
-/** Raw DOM snippet harvested from a search result or org card link. */
+/** Сырой фрагмент DOM из сниппета поиска или ссылки на карточку. */
 export interface DomOrgHarvest {
   href: string;
   link_text: string;
@@ -42,14 +47,14 @@ export interface DomOrgHarvest {
   meta_text: string;
 }
 
-/** Page-level metadata harvested without business interpretation. */
+/** Метаданные страницы без бизнес-интерпретации (title, заголовок, адрес). */
 export interface PageMeta {
   title: string;
   header_text: string;
   address_text: string;
 }
 
-/** Raw collect payload returned by POST /resolve for Laravel-side parsing. */
+/** Ответ POST /resolve — Laravel сам выбирает org_id из dom_harvest и network_payloads. */
 export interface ResolveCollectResponseBody {
   resolved_url: string;
   is_direct_org: boolean;
@@ -59,12 +64,13 @@ export interface ResolveCollectResponseBody {
   page_meta: PageMeta;
 }
 
-/** @deprecated Use ResolveCollectResponseBody. Kept for transitional references. */
+/** @deprecated Используйте ResolveCollectResponseBody. */
 export type ResolveResponseBody = ResolveCollectResponseBody;
 
 export interface SyncReviewsRequestBody {
   org_id: string;
   canonical_url: string;
+  /** external_id уже сохранённых отзывов для инкрементальной синхронизации. */
   stop_anchors?: string[];
 }
 

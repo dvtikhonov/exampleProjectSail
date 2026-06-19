@@ -86,6 +86,28 @@ export function parseCount(value: unknown): number | null {
   return Number.parseInt(digits[0], 10);
 }
 
+/**
+ * Число отзывов из текста карточки Яндекса.
+ * Поддерживает «24 отзыва» и вкладки «Отзывы24» без ложного совпадения «Фото11Отзывы24» → 11.
+ */
+export function parseReviewsCountFromText(text: string): number | null {
+  const classicMatch = text.match(
+    /(?:^|[^\d,])(\d{1,3}(?:\s\d{3})*|\d+)\s+отзыв(?:ов|а|ы)?(?:[^\p{L}]|$)/iu,
+  );
+
+  if (classicMatch) {
+    return parseCount(classicMatch[1]);
+  }
+
+  const tabMatch = text.match(/отзыв(?:ов|а|ы)?\s*(\d{1,3}(?:\s\d{3})*|\d+)/iu);
+
+  if (tabMatch) {
+    return parseCount(tabMatch[1]);
+  }
+
+  return null;
+}
+
 /** Дата публикации: ISO-строка или unix (сек/мс) → ISO UTC. */
 export function parsePublishedAt(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {

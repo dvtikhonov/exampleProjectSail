@@ -82,4 +82,20 @@ class DomHarvestMapperTest extends TestCase
         $this->assertSame('Invitro', $candidate->name);
         $this->assertSame('ул. Тореза, 61', $candidate->address);
     }
+
+    public function test_map_page_meta_parses_reviews_from_yandex_tab_counters(): void
+    {
+        $candidate = $this->domHarvestMapper->mapPageMeta(
+            PageMetaDto::fromParserArray([
+                'title' => 'Invitro — Яндекс Карты',
+                'header_text' => 'InvitroОбзорТовары и услугиНовости2Фото11Отзывы24Филиалы',
+                'address_text' => 'ул. Тореза, 61, Новокузнецк',
+            ]),
+            'https://yandex.ru/maps/org/invitro/115272305870/',
+            '115272305870',
+        );
+
+        $this->assertNotNull($candidate);
+        $this->assertSame(24, $candidate->reviewsCount);
+    }
 }
