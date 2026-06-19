@@ -1,3 +1,6 @@
+/**
+ * Синхронизация отзывов: DOM, встроенный page state, сетевые JSON и инкрементальный скролл.
+ */
 import type { Page } from 'playwright';
 import { config } from '../config.js';
 import { createContext, gotoWithJiggle, waitForSelectorWithJiggle } from '../browser.js';
@@ -30,11 +33,12 @@ import type { OrganizationMeta, ParsedReview } from '../types.js';
 interface SyncReviewsInput {
   org_id: string;
   canonical_url: string;
+  /** external_id верхних отзывов из кэша — при совпадении скролл прекращается. */
   stop_anchors?: string[];
 }
 
 /**
- * Sync organization metadata and reviews from Yandex Maps reviews page.
+ * Синхронизировать метаданные организации и отзывы со страницы /reviews/.
  */
 export async function syncReviews(input: SyncReviewsInput): Promise<{ org: OrganizationMeta; reviews: ParsedReview[] }> {
   const stopAnchors = (input.stop_anchors ?? []).filter((anchor) => anchor.trim() !== '');
@@ -67,6 +71,7 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
     let idleIterations = 0;
     let previousCount = reviews.length;
 
+    // Уже на первой порции есть якоря — дальше листать не нужно.
     if (stopAnchors.length > 0 && shouldStopFetching(reviews, stopAnchors)) {
       return { org, reviews: dedupeReviewsByContent(reviews) };
     }
@@ -80,6 +85,7 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
         break;
       }
 
+      // Ждём XHR с отзывами, который обычно уходит после скролла панели.
       const responsePromise = page
         .waitForResponse(
           (response) => {
@@ -129,6 +135,7 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
   }
 }
 
+/** Слить метаданные: API приоритетнее, имя — только если проходит isPlausibleOrgName. */
 function mergeOrgMeta(domMeta: OrganizationMeta, apiMeta: OrganizationMeta | null): OrganizationMeta {
   if (!apiMeta) {
     return domMeta;
@@ -151,6 +158,7 @@ function mergeOrgMeta(domMeta: OrganizationMeta, apiMeta: OrganizationMeta | nul
   };
 }
 
+/** Прочитать название, адрес и счётчики рейтинга из DOM страницы отзывов. */
 async function readOrgMetaFromDom(
   page: Page,
   orgId: string,
@@ -242,6 +250,7 @@ async function readOrgMetaFromDom(
   };
 }
 
+/** Найти запись организации в перехваченных JSON по org_id. */
 function extractOrgMetaFromPayloads(
   payloads: unknown[],
   orgId: string,
@@ -275,6 +284,7 @@ function extractOrgMetaFromPayloads(
   return meta;
 }
 
+/** Извлечь отзывы из всех сетевых payload с дедупликацией по external_id. */
 function extractReviewsFromAllPayloads(payloads: Array<{ url: string; json: unknown }>): ParsedReview[] {
   const reviews: ParsedReview[] = [];
 
@@ -291,6 +301,7 @@ function extractReviewsFromAllPayloads(payloads: Array<{ url: string; json: unkn
   return dedupeReviews(reviews);
 }
 
+/** Считать видимые карточки отзывов из DOM (fallback, если API не отдал данные). */
 async function extractReviewsFromDom(page: Page): Promise<ParsedReview[]> {
   await humanMouseJiggle(page, {
     minPx: config.mouseJiggleMinPx,
@@ -353,6 +364,7 @@ async function extractReviewsFromDom(page: Page): Promise<ParsedReview[]> {
   });
 }
 
+/** Прокрутить панель отзывов: hover + wheel + programmatic scrollTop для lazy-load. */
 async function scrollReviewsPanel(page: Page): Promise<void> {
   const panelSelector =
     '[class*="business-reviews-page"] [class*="scroll__container"], [class*="business-reviews-page"] [class*="scroll"], [class*="scroll__container"]';

@@ -1,9 +1,15 @@
+/**
+ * Отладочный дамп для выбранных org_id: NDJSON в файл и опционально ingest по HTTP.
+ */
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+/** Идентификатор отладочной сессии в логах. */
 const SESSION_ID = '029acb';
+/** Локальный endpoint для стриминга NDJSON (игнорируется при ошибке сети). */
 const INGEST_URL = 'http://127.0.0.1:7733/ingest/c27e23f0-3066-42e9-a51b-eec8b6075cfb';
 
+/** org_id, для которых включён дамп (DEBUG_ORG_IDS, через запятую). */
 const debugOrgIds = new Set(
   (process.env.DEBUG_ORG_IDS ?? '115272305870')
     .split(',')
@@ -14,7 +20,7 @@ const debugOrgIds = new Set(
 const dumpDir = process.env.PARSER_DEBUG_DUMP_DIR ?? '/app/debug-dumps';
 const workspaceLogPath = process.env.DEBUG_LOG_PATH ?? `/workspace/debug-${SESSION_ID}.log`;
 
-/** Whether parser debug dump is enabled for the given organization id. */
+/** Включён ли отладочный дамп для данного org_id. */
 export function isParserDebugOrg(orgId: string): boolean {
   return debugOrgIds.has(orgId);
 }
@@ -27,7 +33,7 @@ interface DebugLogPayload {
   runId?: string;
 }
 
-/** Append one NDJSON debug line for the target organization. */
+/** Одна NDJSON-строка в лог и ingest (только для DEBUG_ORG_IDS). */
 export function parserDebugLog(orgId: string, payload: DebugLogPayload): void {
   if (!isParserDebugOrg(orgId)) {
     return;
@@ -62,7 +68,7 @@ export function parserDebugLog(orgId: string, payload: DebugLogPayload): void {
   // #endregion
 }
 
-/** Write a human-readable parser dump file with one JSON object per line. */
+/** Файл org-{id}-{timestamp}.ndjson с секциями дампа парсера. */
 export function writeParserDataDump(orgId: string, sections: Record<string, unknown>[]): void {
   if (!isParserDebugOrg(orgId)) {
     return;

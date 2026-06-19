@@ -1,3 +1,7 @@
+/**
+ * Сбор сырых DOM-фрагментов со страницы поиска и карточки организации.
+ * Селекторы завязаны на BEM-классы Яндекс.Карт — при смене вёрстки править здесь.
+ */
 import type { Page } from 'playwright';
 import type { DomOrgHarvest, PageMeta } from '../types.js';
 import {
@@ -6,20 +10,25 @@ import {
   SEARCH_SNIPPET_NAME_SELECTORS,
 } from '../utils/orgExtract.js';
 
+/** Контейнер одной карточки в результатах поиска. */
 const SEARCH_CARD_SELECTORS =
   '[class*="search-snippet"], [class*="search-business-snippet"], [class*="snippet-view"], li, article';
 
+/** Адрес в сниппете или на карточке. */
 const ADDRESS_SELECTORS =
   '[class*="search-snippet-view__address"], [class*="business-card-view__address"], [class*="address"], [class*="subtitle"], [class*="geo"]';
 
+/** Блок рейтинга (звёзды, aria-label «рейтинг»). */
 const RATING_SELECTORS =
   '[class*="rating"], [class*="stars"], [aria-label*="рейтинг"], [aria-label*="оцен"]';
 
+/** Доп. подпись: отзывы, категория, расстояние. */
 const META_SELECTORS = '[class*="meta"], [class*="caption"], [class*="subtitle"]';
 
+/** Шапка страницы организации. */
 const ORG_PAGE_HEADER_SELECTORS = '[class*="orgpage-header"], [class*="business-card-view"]';
 
-/** Collect raw organization snippets from a Yandex Maps search results page. */
+/** Собрать сырые сниппеты организаций со страницы результатов поиска. */
 export async function harvestDomFromSearchPage(page: Page): Promise<DomOrgHarvest[]> {
   return page.evaluate(
     ({ nameSelectors, cardSelector, addressSelector, ratingSelector, metaSelector }) => {
@@ -36,6 +45,7 @@ export async function harvestDomFromSearchPage(page: Page): Promise<DomOrgHarves
 
         const extraPath = href.match(/\/org\/[^/]+\/\d+(\/[^/?#]+)/i)?.[1] ?? '';
 
+        // Пропускаем ссылки на подразделы (/reviews, /gallery), нужны только корневые /org/.../id.
         if (extraPath && extraPath !== '/') {
           continue;
         }
@@ -85,7 +95,7 @@ export async function harvestDomFromSearchPage(page: Page): Promise<DomOrgHarves
   );
 }
 
-/** Collect a minimal DOM harvest entry from a direct organization card page. */
+/** Минимальный dom_harvest для прямой карточки организации (одна запись). */
 export async function harvestDirectOrgDom(page: Page, resolvedUrl: string): Promise<DomOrgHarvest[]> {
   let href = resolvedUrl;
 
@@ -144,7 +154,7 @@ export async function harvestDirectOrgDom(page: Page, resolvedUrl: string): Prom
   ];
 }
 
-/** Collect page-level metadata without interpreting business fields. */
+/** title, заголовок и адрес страницы без разбора полей бизнес-логики. */
 export async function harvestPageMeta(page: Page): Promise<PageMeta> {
   return page.evaluate(
     ({ orgNameSelectors, searchNameSelectors, addressSelector, headerSelector }) => {

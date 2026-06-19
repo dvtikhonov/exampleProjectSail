@@ -1,32 +1,36 @@
+/**
+ * Утилиты для работы с JSON: перехват сети Playwright и обход вложенных деревьев.
+ */
 import type { Response } from 'playwright';
 
 export interface CollectedPayload {
+  /** URL ответа, из которого извлечён JSON. */
   url: string;
   json: unknown;
 }
 
-/** Collect JSON payloads from Playwright network responses. */
+/** Слушает response и копит JSON с релевантных URL Яндекс.Карт. */
 export class NetworkJsonCollector {
   private readonly payloads: CollectedPayload[] = [];
 
-  /** Attach listener to a Playwright page. */
+  /** Подписаться на response страницы. */
   attach(page: { on(event: 'response', handler: (response: Response) => void): void }): void {
     page.on('response', (response) => {
       void this.handleResponse(response);
     });
   }
 
-  /** Return all collected JSON payloads. */
+  /** Только JSON без метаданных URL. */
   getPayloads(): unknown[] {
     return this.payloads.map((entry) => entry.json);
   }
 
-  /** Return payloads with source response URLs. */
+  /** Копия payload с URL источника. */
   getPayloadsWithMeta(): CollectedPayload[] {
     return [...this.payloads];
   }
 
-  /** Clear collected payloads. */
+  /** Очистить накопленные ответы. */
   clear(): void {
     this.payloads.length = 0;
   }
@@ -52,6 +56,7 @@ export class NetworkJsonCollector {
 
   private isRelevantUrl(url: string): boolean {
     const lower = url.toLowerCase();
+    // Отсекаем тайлы, метрику и прочий шум — оставляем maps/search/review/business/org.
     return (
       lower.includes('yandex') &&
       (lower.includes('maps') ||
@@ -63,7 +68,7 @@ export class NetworkJsonCollector {
   }
 }
 
-/** Depth-first walk over JSON trees. */
+/** Обход JSON в глубину: visitor вызывается для каждого объекта с путём ключей. */
 export function walkJson(
   node: unknown,
   visitor: (value: Record<string, unknown>, path: string[]) => void,
@@ -81,7 +86,7 @@ export function walkJson(
   }
 }
 
-/** Pick first non-empty string from candidate keys. */
+/** Первое непустое строковое поле из списка ключей. */
 export function pickString(record: Record<string, unknown>, keys: string[]): string | null {
   for (const key of keys) {
     const value = record[key];
@@ -93,7 +98,7 @@ export function pickString(record: Record<string, unknown>, keys: string[]): str
   return null;
 }
 
-/** Pick nested record by keys. */
+/** Первый вложенный объект (не массив) из списка ключей. */
 export function pickRecord(record: Record<string, unknown>, keys: string[]): Record<string, unknown> | null {
   for (const key of keys) {
     const value = record[key];

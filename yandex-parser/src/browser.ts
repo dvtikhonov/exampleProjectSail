@@ -1,10 +1,14 @@
+/**
+ * Обёртка над Playwright: общий Chromium, контекст с ru-RU и действия с «дрожанием» курсора.
+ * Jiggle снижает вероятность детекта автоматизации перед goto/scroll/wait.
+ */
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import { config } from './config.js';
 import { humanMouseJiggle } from './humanMouseJiggle.js';
 
 let browserInstance: Browser | null = null;
 
-/** Lazily launch a shared Chromium browser instance. */
+/** Ленивый запуск общего экземпляра Chromium. */
 export async function getBrowser(): Promise<Browser> {
   if (browserInstance && browserInstance.isConnected()) {
     return browserInstance;
@@ -12,6 +16,7 @@ export async function getBrowser(): Promise<Browser> {
 
   browserInstance = await chromium.launch({
     headless: config.headless,
+    // Флаги для headless в Docker и маскировки webdriver.
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
@@ -22,7 +27,7 @@ export async function getBrowser(): Promise<Browser> {
   return browserInstance;
 }
 
-/** Create an isolated browser context with Russian locale. */
+/** Изолированный контекст с локалью ru-RU и типичным desktop user-agent. */
 export async function createContext(): Promise<BrowserContext> {
   const browser = await getBrowser();
 
@@ -36,11 +41,13 @@ export async function createContext(): Promise<BrowserContext> {
 }
 
 export interface PageActionOptions {
+  /** Переопределить минимальный шаг jiggle для одного действия. */
   minPx?: number;
+  /** Переопределить максимальный шаг jiggle для одного действия. */
   maxPx?: number;
 }
 
-/** Navigate with humanMouseJiggle before the action. */
+/** Переход по URL после jiggle; waitUntil: domcontentloaded. */
 export async function gotoWithJiggle(
   page: Page,
   url: string,
@@ -57,7 +64,7 @@ export async function gotoWithJiggle(
   });
 }
 
-/** Wait for selector with jiggle beforehand. */
+/** Ожидание селектора (state: attached) после jiggle. */
 export async function waitForSelectorWithJiggle(
   page: Page,
   selector: string,
@@ -74,7 +81,7 @@ export async function waitForSelectorWithJiggle(
   });
 }
 
-/** Scroll page/container with jiggle beforehand. */
+/** Скролл колёсиком после jiggle. */
 export async function scrollWithJiggle(
   page: Page,
   deltaY: number,
@@ -88,7 +95,7 @@ export async function scrollWithJiggle(
   await page.mouse.wheel(0, deltaY);
 }
 
-/** Gracefully close the shared browser (for shutdown). */
+/** Закрыть общий браузер при shutdown процесса. */
 export async function closeBrowser(): Promise<void> {
   if (browserInstance) {
     await browserInstance.close();
