@@ -12,6 +12,11 @@ const REVIEW_ID_KEYS = ['reviewId', 'review_id', 'externalId', 'uuid'] as const;
 /** id из API навигации/виджетов — не UGC-отзывы. */
 const NAVIGATION_REVIEW_IDS = /^(backend_|yandex$|payment_|wheelchair_|pushkin_|privilege_|preliminary_|audio_guide$|tickets$|unavailable$|cash$)/i;
 
+/** Настоящий reviewId из API Яндекса (не синтетический dom-/author-text). */
+export function isYandexApiReviewId(externalId: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9_-]{15,}$/.test(externalId);
+}
+
 /** Подходит ли URL сетевого ответа для извлечения отзывов. */
 export function isReviewPayloadUrl(url: string): boolean {
   const lower = url.toLowerCase();
@@ -139,6 +144,49 @@ export function dedupeReviews(reviews: ParsedReview[]): ParsedReview[] {
   }
 
   return Array.from(map.values());
+}
+
+/** Схлопнуть дубликаты по тексту, оставив API reviewId вместо author-text/dom id. */
+export function unifyReviewsByContentPreferApiIds(reviews: ParsedReview[]): ParsedReview[] {
+  const result: ParsedReview[] = [];
+  const indexByKey = new Map<string, number>();
+
+  for (const review of reviews) {
+    const textKey = (review.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 120).toLowerCase();
+    const key = textKey.length >= 15 ? `text:${textKey}` : `id:${review.external_id}`;
+    const existingIndex = indexByKey.get(key);
+
+    if (existingIndex === undefined) {
+      indexByKey.set(key, result.length);
+      result.push(review);
+      continue;
+    }
+
+    const existing = result[existingIndex];
+    const existingApi = isYandexApiReviewId(existing.external_id);
+    const incomingApi = isYandexApiReviewId(review.external_id);
+
+    if (!existingApi && incomingApi) {
+      result[existingIndex] = {
+        ...existing,
+        external_id: review.external_id,
+        author_name: review.author_name || existing.author_name,
+        published_at: review.published_at ?? existing.published_at,
+        rating: review.rating ?? existing.rating,
+      };
+      continue;
+    }
+
+    if (existingApi && !incomingApi) {
+      continue;
+    }
+
+    if (reviewQualityScore(review) > reviewQualityScore(existing)) {
+      result[existingIndex] = review;
+    }
+  }
+
+  return result;
 }
 
 /** Оценить «полноту» записи при слиянии дубликатов по тексту. */

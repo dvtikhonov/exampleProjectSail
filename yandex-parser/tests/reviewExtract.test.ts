@@ -5,7 +5,9 @@ import {
   isReviewPayloadUrl,
   mapRecordToReview,
   normalizeDomReviews,
+  unifyReviewsByContentPreferApiIds,
 } from '../src/utils/reviewExtract.js';
+import type { ParsedReview } from '../src/types.js';
 
 describe('isReviewPayloadUrl', () => {
   it('rejects location discovery payloads', () => {
@@ -126,5 +128,32 @@ describe('dedupeReviewsByContent', () => {
     ]);
 
     expect(reviews).toHaveLength(2);
+  });
+});
+
+describe('unifyReviewsByContentPreferApiIds', () => {
+  const sharedText = 'Этот медофис посещаю довольно регулярно и всегда доволен';
+
+  const synthetic: ParsedReview = {
+    external_id: `Аноним-${sharedText.slice(0, 40)}`,
+    author_name: 'Аноним',
+    published_at: null,
+    text: sharedText,
+    rating: 5,
+  };
+
+  const api: ParsedReview = {
+    external_id: 'Kl5w-CHJ0EhBH7M6dbGAanejbmaghFp',
+    author_name: 'Аноним',
+    published_at: '1 января 2026',
+    text: sharedText,
+    rating: 5,
+  };
+
+  it('replaces synthetic external_id with API id at first occurrence', () => {
+    const unified = unifyReviewsByContentPreferApiIds([synthetic, api]);
+
+    expect(unified).toHaveLength(1);
+    expect(unified[0]?.external_id).toBe('Kl5w-CHJ0EhBH7M6dbGAanejbmaghFp');
   });
 });
