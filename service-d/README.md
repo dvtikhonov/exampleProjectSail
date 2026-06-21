@@ -180,7 +180,7 @@ SyncYandexOrganizationReviewsJob
   │     gotoWithJiggle → страница отзывов
   │     mergeOrgMeta(DOM, network JSON)
   │     цикл скролла: DOM + pageState + network → dedupe
-  │     остановка: SYNC_MAX_IDLE_ITERATIONS | reviews_count | stop_anchors
+  │     остановка: SYNC_MAX_DURATION_MS | SYNC_MAX_IDLE_ITERATIONS | reviews_count | stop_anchors
   │     → готовые org + reviews[]
   │
   └─ service-d: updateFromParsedMeta, replace/merge отзывов, sync_status

@@ -108,14 +108,14 @@ class PlaywrightYandexMapsClient implements YandexMapsClientInterface
     /**
      * Собирает HTTP-клиент с базовым URL парсера.
      *
-     * Таймаут 300 с — парсинг через Playwright может занимать несколько минут.
+     * Таймаут 360 с — навигация + sync-reviews (до 4 мин 30 сек) + запас.
      */
     private function httpClient(): PendingRequest
     {
         return Http::baseUrl(rtrim($this->baseUrl, '/'))
             ->acceptJson()
             ->asJson()
-            ->timeout(300);
+            ->timeout(360);
     }
 
     /**
