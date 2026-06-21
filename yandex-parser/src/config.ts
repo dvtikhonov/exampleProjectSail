@@ -12,6 +12,8 @@ export interface AppConfig {
   syncMaxIdleIterations: number;
   /** Пауза между скроллами при sync-reviews (SYNC_SCROLL_DELAY_MS). */
   syncScrollDelayMs: number;
+  /** Максимальная длительность sync-reviews в мс (SYNC_MAX_DURATION_MS, по умолчанию 4 мин 30 сек). */
+  syncMaxDurationMs: number;
   /** Таймаут навигации Playwright (NAVIGATION_TIMEOUT_MS). */
   navigationTimeoutMs: number;
   /** Запуск Chromium без UI (HEADLESS). */
@@ -51,6 +53,7 @@ export function loadConfig(): AppConfig {
     resolveCandidateLimit: parseIntEnv('RESOLVE_CANDIDATE_LIMIT', 30),
     syncMaxIdleIterations: parseIntEnv('SYNC_MAX_IDLE_ITERATIONS', 15),
     syncScrollDelayMs: parseIntEnv('SYNC_SCROLL_DELAY_MS', 800),
+    syncMaxDurationMs: parseIntEnv('SYNC_MAX_DURATION_MS', 270_000),
     navigationTimeoutMs: parseIntEnv('NAVIGATION_TIMEOUT_MS', 60_000),
     headless: parseBoolEnv('HEADLESS', true),
   };

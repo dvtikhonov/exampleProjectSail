@@ -1,11 +1,7 @@
 /**
-
  * Синхронизация отзывов: DOM, встроенный page state, сетевые JSON и инкрементальный скролл.
-
  */
-
 import type { Page } from 'playwright';
-
 import { config } from '../config.js';
 
 import { createContext, gotoWithJiggle, waitForSelectorWithJiggle } from '../browser.js';
@@ -64,8 +60,6 @@ import { shouldStopFetching } from '../utils/reviewStopAnchors.js';
 
 import type { OrganizationMeta, ParsedReview } from '../types.js';
 
-
-
 interface SyncReviewsInput {
 
   org_id: string;
@@ -81,6 +75,11 @@ interface SyncReviewsInput {
 
 
 /** Лимит «пустых» итераций скролла: больше для организаций с сотнями отзывов. */
+
+/** Истекло ли время одной синхронизации отзывов. */
+function hasSyncDurationElapsed(startedAtMs: number): boolean {
+  return Date.now() - startedAtMs >= config.syncMaxDurationMs;
+}
 
 function resolveMaxIdleIterations(targetCount: number, currentCount: number): number {
 
@@ -113,7 +112,6 @@ function resolveMaxIdleIterations(targetCount: number, currentCount: number): nu
  */
 
 export async function syncReviews(input: SyncReviewsInput): Promise<{ org: OrganizationMeta; reviews: ParsedReview[] }> {
-
   const stopAnchors = (input.stop_anchors ?? []).filter((anchor) => anchor.trim() !== '');
 
   const reviewsUrl = buildReviewsUrl(input.canonical_url);
@@ -129,7 +127,6 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
 
 
   try {
-
     await gotoWithJiggle(page, reviewsUrl);
 
     await waitForSelectorWithJiggle(page, 'body');
@@ -184,9 +181,12 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
 
     }
 
-
+    const syncStartedAt = Date.now();
 
     while (idleIterations < maxIdleIterations) {
+      if (hasSyncDurationElapsed(syncStartedAt)) {
+        break;
+      }
 
       if (stopAnchors.length > 0 && shouldStopFetching(reviews, stopAnchors)) {
 
@@ -201,8 +201,6 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
         break;
 
       }
-
-
 
       // Ждём XHR с отзывами, который обычно уходит после скролла панели.
 
@@ -295,8 +293,6 @@ export async function syncReviews(input: SyncReviewsInput): Promise<{ org: Organ
 
 
     const finalReviews = dedupeReviewsByContent(reviews);
-
-
 
     return { org, reviews: finalReviews };
 
