@@ -9,6 +9,8 @@ use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\Contracts\Food\DishImageDeliveryInterface;
 use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\FoodOrderMaxNotifierInterface;
+use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\Repositories\Food\EloquentCustomerCategoryRepository;
@@ -18,7 +20,9 @@ use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
 use App\Services\Food\DishImageDeliveryService;
 use App\Services\Food\DishImageUrlResolver;
+use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
+use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
 use App\Services\Max\MaxWebAppInitDataValidator;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
@@ -56,6 +60,11 @@ class AppServiceProvider extends ServiceProvider
         });
         $this->app->bind(MaxWebhookUpdateRouterInterface::class, MaxWebhookUpdateRouter::class);
         $this->app->bind(MaxWebAppInitDataValidatorInterface::class, MaxWebAppInitDataValidator::class);
+        $this->app->bind(
+            MaxOrderNotificationConfigProviderInterface::class,
+            ConfigMaxOrderNotificationConfigProvider::class,
+        );
+        $this->app->bind(FoodOrderMaxNotifierInterface::class, LaravelFoodOrderMaxNotifier::class);
     }
 
     public function boot(): void

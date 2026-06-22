@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
     addToCart,
     authenticate,
+    clearCart,
     extractErrorMessage,
     fetchCart,
     fetchMenu,
@@ -49,6 +50,7 @@ const cart = ref(null);
 const cartLoading = ref(false);
 const cartError = ref('');
 const updatingItemId = ref(null);
+const clearingCart = ref(false);
 const submitting = ref(false);
 const savingAddress = ref(false);
 
@@ -164,12 +166,32 @@ async function handleRemoveItem(item) {
     }
 }
 
+async function handleClearCart() {
+    clearingCart.value = true;
+    cartError.value = '';
+
+    try {
+        cart.value = await clearCart();
+    } catch (error) {
+        cartError.value = extractErrorMessage(error);
+    } finally {
+        clearingCart.value = false;
+    }
+}
+
 async function saveDeliveryAddress(address) {
+    const trimmed = address.trim();
+
+    if (trimmed === '') {
+        cartError.value = '';
+        return;
+    }
+
     savingAddress.value = true;
     cartError.value = '';
 
     try {
-        cart.value = await updateCartDeliveryAddress(address);
+        cart.value = await updateCartDeliveryAddress(trimmed);
     } catch (error) {
         cartError.value = extractErrorMessage(error);
     } finally {
@@ -203,11 +225,18 @@ async function handleSubmitOrder(deliveryAddress) {
         addressDebounceTimer = null;
     }
 
+    const trimmed = deliveryAddress.trim();
+
+    if (trimmed === '') {
+        cartError.value = 'Укажите адрес доставки.';
+        return;
+    }
+
     submitting.value = true;
     cartError.value = '';
 
     try {
-        cart.value = await updateCartDeliveryAddress(deliveryAddress);
+        cart.value = await updateCartDeliveryAddress(trimmed);
         submittedOrder.value = await submitOrder();
         cart.value = null;
         currentView.value = VIEWS.confirmation;
@@ -340,8 +369,10 @@ onUnmounted(() => {
                 :submitting="submitting"
                 :updating-item-id="updatingItemId"
                 :saving-address="savingAddress"
+                :clearing="clearingCart"
                 @update-quantity="handleUpdateQuantity"
                 @remove-item="handleRemoveItem"
+                @clear-cart="handleClearCart"
                 @submit-order="handleSubmitOrder"
                 @go-to-restaurants="goToRestaurants"
                 @delivery-address-input="handleDeliveryAddressInput"

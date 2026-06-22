@@ -7,6 +7,10 @@
 
         <title>Заказ еды</title>
 
+        @if (! empty($localDevInitData))
+            <script>window.__MAX_DEV_INIT_DATA__ = @json($localDevInitData);</script>
+        @endif
+
         <script src="https://st.max.ru/js/max-web-app.js"></script>
         <script>
             (function () {

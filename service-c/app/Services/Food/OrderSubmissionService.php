@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
 use App\Enums\Food\OrderStatus;
@@ -22,11 +23,12 @@ class OrderSubmissionService
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
+        private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
     ) {}
 
     public function submit(MaxUser $maxUser): OrderDto
     {
-        return DB::transaction(function () use ($maxUser): OrderDto {
+        $orderDto = DB::transaction(function () use ($maxUser): OrderDto {
             $cart = Cart::query()
                 ->where('max_user_id', $maxUser->max_user_id)
                 ->where('status', CartStatus::Draft)
@@ -39,7 +41,7 @@ class OrderSubmissionService
             }
 
             if ($cart->delivery_address === null || trim($cart->delivery_address) === '') {
-                throw new FoodDomainException('Delivery address is required.');
+                throw new FoodDomainException('Укажите адрес доставки.');
             }
 
             $itemsSnapshot = [];
@@ -102,5 +104,9 @@ class OrderSubmissionService
                 createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             );
         });
+
+        $this->foodOrderMaxNotifier->notify($orderDto, $maxUser);
+
+        return $orderDto;
     }
 }

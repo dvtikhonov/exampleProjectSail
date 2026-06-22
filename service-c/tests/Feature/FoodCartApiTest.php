@@ -153,6 +153,39 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    public function test_clear_cart_removes_all_items_and_draft_cart(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 2,
+        ], $auth['headers']);
+
+        $this->deleteJson('/api/food/cart', [], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart', null);
+
+        $this->assertDatabaseMissing('max_carts', [
+            'max_user_id' => $auth['user']->max_user_id,
+            'status' => CartStatus::Draft->value,
+        ]);
+
+        $this->getJson('/api/food/cart', $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart', null);
+    }
+
+    public function test_clear_cart_is_idempotent_when_cart_is_empty(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->deleteJson('/api/food/cart', [], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart', null);
+    }
+
     public function test_cart_item_operations_reject_foreign_cart_item(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -355,7 +388,14 @@ class FoodCartApiTest extends TestCase
         ], $auth['headers'])->assertOk();
 
         $this->patchJson('/api/food/cart', [], $auth['headers'])
-            ->assertUnprocessable();
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Укажите адрес доставки.');
+
+        $this->patchJson('/api/food/cart', [
+            'delivery_address' => '',
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
     public function test_patch_cart_delivery_address_requires_draft_cart(): void

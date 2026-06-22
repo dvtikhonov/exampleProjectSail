@@ -81,4 +81,20 @@ class CartServiceTest extends TestCase
 
         $this->assertSame($address, $cart->deliveryAddress);
     }
+
+    public function test_clear_removes_draft_cart_with_items(): void
+    {
+        $maxUser = MaxUser::query()->create([
+            'max_user_id' => 11_005,
+            'first_name' => 'Cart',
+        ]);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+        $cartService = app(CartService::class);
+
+        $cartService->addItem($maxUser, $fixture['dish']->id, 2);
+        $cartService->clear($maxUser);
+
+        $this->assertNull($cartService->getDraftCart($maxUser));
+    }
 }

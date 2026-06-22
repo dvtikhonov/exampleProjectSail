@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\MaxAppRequestContext;
+use App\Support\MaxLocalDevInitData;
 use App\Support\MaxMiniAppAccessLogger;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
@@ -18,7 +19,9 @@ Route::get('/max-app', function (MaxMiniAppAccessLogger $accessLogger) {
     }
 
     return response()
-        ->view('max-app')
+        ->view('max-app', [
+            'localDevInitData' => MaxLocalDevInitData::build(request()),
+        ])
         ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
         ->header('Pragma', 'no-cache');
 });

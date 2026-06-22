@@ -123,6 +123,19 @@ class CartService
         });
     }
 
+    public function clear(MaxUser $maxUser): void
+    {
+        DB::transaction(function () use ($maxUser): void {
+            $cart = $this->findDraftCart($maxUser);
+
+            if ($cart === null) {
+                return;
+            }
+
+            $cart->delete();
+        });
+    }
+
     private function findDraftCart(MaxUser $maxUser): ?Cart
     {
         return Cart::query()

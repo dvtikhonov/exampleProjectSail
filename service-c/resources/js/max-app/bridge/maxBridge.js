@@ -23,6 +23,12 @@ export function getInitData() {
         return fromBridge;
     }
 
+    const devInitData = window.__MAX_DEV_INIT_DATA__;
+
+    if (typeof devInitData === 'string' && devInitData !== '') {
+        return devInitData;
+    }
+
     const hash = window.location.hash.replace(/^#/, '');
 
     if (!hash) {

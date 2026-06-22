@@ -102,6 +102,15 @@ class CartController extends Controller
         ]);
     }
 
+    public function clear(Request $request): JsonResponse
+    {
+        $this->cartService->clear($this->maxUser($request));
+
+        return response()->json([
+            'cart' => null,
+        ]);
+    }
+
     private function maxUser(Request $request): MaxUser
     {
         /** @var MaxUser $maxUser */

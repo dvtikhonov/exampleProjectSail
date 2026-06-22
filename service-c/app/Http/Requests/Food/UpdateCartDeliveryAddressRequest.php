@@ -23,6 +23,27 @@ class UpdateCartDeliveryAddressRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'delivery_address.required' => 'Укажите адрес доставки.',
+            'delivery_address.max' => 'Адрес доставки не должен превышать 1000 символов.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'delivery_address' => 'адрес доставки',
+        ];
+    }
+
     public function deliveryAddress(): string
     {
         return trim((string) $this->validated('delivery_address'));
