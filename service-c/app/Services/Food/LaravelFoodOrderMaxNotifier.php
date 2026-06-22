@@ -25,6 +25,15 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
     public function notify(OrderDto $order, MaxUser $maxUser): void
     {
         $config = $this->configProvider->config();
+
+        if ($config->chatIds === [] && $config->userIds === []) {
+            Log::channel('messMax')->warning('MAX order notification skipped: recipients are not configured', [
+                'order_id' => $order->id,
+            ]);
+
+            return;
+        }
+
         $text = $this->messageBuilder->build($order, $maxUser, $config->maxTextLength);
 
         foreach ($config->chatIds as $chatId) {

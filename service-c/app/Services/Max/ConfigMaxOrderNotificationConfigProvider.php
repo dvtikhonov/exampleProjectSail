@@ -7,7 +7,6 @@ namespace App\Services\Max;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\DTO\Max\MaxOrderNotificationConfig;
 use Illuminate\Contracts\Config\Repository;
-use RuntimeException;
 
 class ConfigMaxOrderNotificationConfigProvider implements MaxOrderNotificationConfigProviderInterface
 {
@@ -25,10 +24,6 @@ class ConfigMaxOrderNotificationConfigProvider implements MaxOrderNotificationCo
             intval(...),
             (array) $this->config->get('max.order_notifications.user_ids', []),
         ));
-
-        if ($chatIds === [] && $userIds === []) {
-            throw new RuntimeException('MAX order notification recipients are not configured.');
-        }
 
         return new MaxOrderNotificationConfig(
             chatIds: $chatIds,

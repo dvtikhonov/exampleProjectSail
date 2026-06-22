@@ -98,6 +98,34 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $this->assertSame('Chat not found', $log->context['error']);
     }
 
+    public function test_notify_skips_send_when_recipients_are_not_configured(): void
+    {
+        $captured = [];
+
+        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client->expects($this->never())->method('sendMessage');
+
+        $notifier = new LaravelFoodOrderMaxNotifier(
+            client: $client,
+            configProvider: $this->makeConfigProvider(new MaxOrderNotificationConfig(
+                chatIds: [],
+                userIds: [],
+                maxTextLength: 4000,
+            )),
+            messageBuilder: new FoodOrderMaxMessageBuilder,
+        );
+
+        $notifier->notify($this->makeOrder(), $this->makeMaxUser());
+
+        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX order notification skipped: recipients are not configured');
+        $this->assertSame('warning', $log->level);
+        $this->assertSame(42, $log->context['order_id']);
+    }
+
     public function test_notify_calls_recipients_sequentially(): void
     {
         $callOrder = [];
