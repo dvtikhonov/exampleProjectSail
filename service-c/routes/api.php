@@ -30,6 +30,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
 
         Route::get('/cart', [CartController::class, 'show']);
         Route::patch('/cart', [CartController::class, 'updateDeliveryAddress']);
+        Route::delete('/cart', [CartController::class, 'clear']);
         Route::post('/cart/items', [CartController::class, 'store']);
         Route::patch('/cart/items/{item}', [CartController::class, 'update']);
         Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);

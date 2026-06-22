@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Food\FoodOrderMaxNotifierInterface;
+use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
 use App\Enums\Food\OrderStatus;
 use App\Models\FoodOrder;
@@ -41,6 +43,54 @@ class FoodOrderApiTest extends TestCase
         $this->postJson('/api/food/orders/submit', [], $auth['headers'])
             ->assertUnprocessable()
             ->assertJsonPath('message', 'Cart is empty.');
+    }
+
+    public function test_submit_order_triggers_max_notification_with_created_order(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Notify Place',
+            'Burger',
+            500,
+        );
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+        $address = 'ул. Примерная, 1';
+
+        $capturedOrder = null;
+        $capturedUser = null;
+
+        $notifier = $this->createMock(FoodOrderMaxNotifierInterface::class);
+        $notifier
+            ->expects($this->once())
+            ->method('notify')
+            ->willReturnCallback(function (OrderDto $order, MaxUser $user) use (&$capturedOrder, &$capturedUser): void {
+                $capturedOrder = $order;
+                $capturedUser = $user;
+            });
+
+        $this->app->instance(FoodOrderMaxNotifierInterface::class, $notifier);
+
+        $this->addItemToCart($auth, $fixture['dish']->id, 2);
+        $this->setCartDeliveryAddress($auth, $address);
+
+        $response = $this->postJson('/api/food/orders/submit', [], $auth['headers']);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('order.restaurant_name', 'Notify Place')
+            ->assertJsonPath('order.items_total', '1000.00')
+            ->assertJsonPath('order.delivery_address', $address);
+
+        $this->assertNotNull($capturedOrder);
+        $this->assertNotNull($capturedUser);
+        $this->assertSame($auth['user']->max_user_id, $capturedUser->max_user_id);
+        $this->assertSame($response->json('order.id'), $capturedOrder->id);
+        $this->assertSame(OrderStatus::Submitted->value, $capturedOrder->status);
+        $this->assertSame('Notify Place', $capturedOrder->restaurantName);
+        $this->assertSame('1000.00', $capturedOrder->itemsTotal);
+        $this->assertSame($address, $capturedOrder->deliveryAddress);
+        $this->assertSame('Burger', $capturedOrder->itemsSnapshot[0]['dish_name'] ?? null);
     }
 
     public function test_submit_order_creates_submitted_order_and_marks_cart_submitted(): void
@@ -153,7 +203,7 @@ class FoodOrderApiTest extends TestCase
 
         $this->postJson('/api/food/orders/submit', [], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Delivery address is required.');
+            ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
     public function test_submit_order_rejects_missing_delivery_address_for_user_without_category(): void
@@ -165,7 +215,7 @@ class FoodOrderApiTest extends TestCase
 
         $this->postJson('/api/food/orders/submit', [], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Delivery address is required.');
+            ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
     public function test_submit_order_allows_user_without_category_when_address_present(): void

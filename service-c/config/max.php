@@ -27,6 +27,28 @@ return [
         'token_ttl_seconds' => (int) env('MAX_MINIAPP_TOKEN_TTL_SECONDS', 86_400),
     ],
 
+    // Подписанная заглушка initData на localhost:8083/max-app (только APP_ENV=local).
+    'local_dev_init_data' => filter_var(env('MAX_LOCAL_DEV_INIT_DATA', false), FILTER_VALIDATE_BOOL),
+
+    // Уведомления о заказах еды в MAX-чаты отчётов (те же MAX_REPORT_* env, что в service-b).
+    'order_notifications' => [
+        'chat_ids' => array_values(array_filter(array_map(
+            static fn (string $id): int => (int) $id,
+            array_filter(array_map(
+                trim(...),
+                explode(',', (string) env('MAX_REPORT_CHAT_IDS', '')),
+            )),
+        ))),
+        'user_ids' => array_values(array_filter(array_map(
+            static fn (string $id): int => (int) $id,
+            array_filter(array_map(
+                trim(...),
+                explode(',', (string) env('MAX_REPORT_USER_IDS', '')),
+            )),
+        ))),
+        'max_text_length' => 4000,
+    ],
+
     'ui_stand' => [
         'mini_app_url' => env('MAX_MINI_APP_URL', ''),
         'mini_app_button_text' => env('MAX_UI_STAND_MINI_APP_BUTTON_TEXT', 'Заказ еды'),

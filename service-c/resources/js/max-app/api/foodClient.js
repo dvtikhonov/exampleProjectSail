@@ -94,6 +94,12 @@ export async function removeCartItem(itemId) {
     return data.cart;
 }
 
+export async function clearCart() {
+    const { data } = await client.delete('/food/cart');
+
+    return data.cart;
+}
+
 /**
  * @param {string} address
  */

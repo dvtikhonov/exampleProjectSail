@@ -27,11 +27,16 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    clearing: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits([
     'update-quantity',
     'remove-item',
+    'clear-cart',
     'submit-order',
     'go-to-restaurants',
     'delivery-address-input',
@@ -39,10 +44,15 @@ const emit = defineEmits([
 ]);
 
 const localAddress = ref('');
+const isAddressFocused = ref(false);
 
 watch(
     () => props.cart?.delivery_address,
     (value) => {
+        if (isAddressFocused.value) {
+            return;
+        }
+
         localAddress.value = value ?? '';
     },
     { immediate: true },
@@ -58,11 +68,16 @@ const canSubmit = computed(
     () => hasAddress.value && !props.submitting && !props.savingAddress,
 );
 
+function handleAddressFocus() {
+    isAddressFocused.value = true;
+}
+
 function handleAddressInput() {
     emit('delivery-address-input', localAddress.value);
 }
 
 function handleAddressBlur() {
+    isAddressFocused.value = false;
     emit('delivery-address-blur', localAddress.value);
 }
 </script>
@@ -70,20 +85,26 @@ function handleAddressBlur() {
 <template>
     <div class="flex min-h-dvh flex-col pb-52">
         <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3">
-            <h1 class="text-lg font-semibold text-gray-900">Корзина</h1>
-            <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h1 class="text-lg font-semibold text-gray-900">Корзина</h1>
+                    <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
+                </div>
+                <button
+                    v-if="!isEmpty && !loading"
+                    type="button"
+                    class="shrink-0 text-sm font-medium text-red-500 transition hover:text-red-700 disabled:opacity-40"
+                    :disabled="clearing || submitting || savingAddress"
+                    @click="emit('clear-cart')"
+                >
+                    Очистить
+                </button>
+            </div>
         </header>
 
         <main class="flex-1 px-4 py-4">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
-            </div>
-
-            <div
-                v-else-if="error"
-                class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
-                {{ error }}
             </div>
 
             <div v-else-if="isEmpty" class="flex flex-col items-center py-16 text-center">
@@ -100,6 +121,13 @@ function handleAddressBlur() {
             </div>
 
             <template v-else>
+                <div
+                    v-if="error"
+                    class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                    {{ error }}
+                </div>
+
                 <ul class="space-y-3">
                     <li
                         v-for="item in cart.items"
@@ -154,8 +182,8 @@ function handleAddressBlur() {
                         rows="3"
                         maxlength="1000"
                         placeholder="Укажите адрес доставки"
-                        class="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-60"
-                        :disabled="savingAddress"
+                        class="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary"
+                        @focus="handleAddressFocus"
                         @input="handleAddressInput"
                         @blur="handleAddressBlur"
                     />
