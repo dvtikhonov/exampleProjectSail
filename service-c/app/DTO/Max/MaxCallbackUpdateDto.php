@@ -4,6 +4,9 @@ namespace App\DTO\Max;
 
 use InvalidArgumentException;
 
+/**
+ * Данные callback-обновления inline-кнопки MAX.
+ */
 readonly class MaxCallbackUpdateDto
 {
     public function __construct(

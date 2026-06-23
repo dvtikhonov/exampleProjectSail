@@ -8,8 +8,14 @@ use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Enums\Food\CustomerCategoryName;
 use App\Models\CustomerCategory;
 
+/**
+ * Eloquent-реализация репозитория категорий клиентов.
+ */
 class EloquentCustomerCategoryRepository implements CustomerCategoryRepositoryInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function findOrCreateDefaultCategoryId(): int
     {
         return CustomerCategory::query()->firstOrCreate(

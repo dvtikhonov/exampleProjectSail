@@ -6,6 +6,9 @@ namespace App\Exceptions\Food;
 
 use RuntimeException;
 
+/**
+ * Доменная ошибка модуля заказа еды с HTTP-кодом ответа.
+ */
 class FoodDomainException extends RuntimeException
 {
     public function __construct(
@@ -15,6 +18,9 @@ class FoodDomainException extends RuntimeException
         parent::__construct($message);
     }
 
+    /**
+     * Возвращает HTTP-код для ответа API.
+     */
     public function statusCode(): int
     {
         return $this->statusCode;

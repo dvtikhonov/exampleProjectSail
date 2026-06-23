@@ -55,6 +55,7 @@ const submitting = ref(false);
 const savingAddress = ref(false);
 
 const submittedOrder = ref(null);
+const cartPageRef = ref(null);
 
 let unbindBackButton = () => {};
 let addressDebounceTimer = null;
@@ -256,21 +257,62 @@ function goToRestaurants() {
 
 function goToCart() {
     currentView.value = VIEWS.cart;
-    loadCart();
+    loadCart().then(() => {
+        syncSelectedRestaurantFromCart();
+    });
+}
+
+function syncSelectedRestaurantFromCart() {
+    if (!cart.value?.restaurant_id || restaurants.value.length === 0) {
+        return;
+    }
+
+    const restaurant = restaurants.value.find((item) => item.id === cart.value.restaurant_id);
+
+    if (restaurant) {
+        selectedRestaurant.value = restaurant;
+    }
+}
+
+async function goToMenuFromCart() {
+    syncSelectedRestaurantFromCart();
+
+    if (!selectedRestaurant.value) {
+        goToRestaurants();
+
+        return;
+    }
+
+    currentView.value = VIEWS.menu;
+
+    if (menu.value?.restaurant_id === selectedRestaurant.value.id) {
+        return;
+    }
+
+    menuLoading.value = true;
+    menuError.value = '';
+
+    try {
+        menu.value = await fetchMenu(selectedRestaurant.value.id);
+    } catch (error) {
+        menuError.value = extractErrorMessage(error);
+    } finally {
+        menuLoading.value = false;
+    }
 }
 
 function handleBack() {
+    if (currentView.value === VIEWS.cart && cartPageRef.value?.handleBackRequest?.()) {
+        return;
+    }
+
     if (currentView.value === VIEWS.menu) {
         goToRestaurants();
         return;
     }
 
     if (currentView.value === VIEWS.cart) {
-        if (selectedRestaurant.value) {
-            currentView.value = VIEWS.menu;
-        } else {
-            goToRestaurants();
-        }
+        goToMenuFromCart();
     }
 }
 
@@ -362,6 +404,7 @@ onUnmounted(() => {
             />
 
             <CartPage
+                ref="cartPageRef"
                 v-else-if="currentView === VIEWS.cart"
                 :cart="cart"
                 :loading="cartLoading"
@@ -374,6 +417,7 @@ onUnmounted(() => {
                 @remove-item="handleRemoveItem"
                 @clear-cart="handleClearCart"
                 @submit-order="handleSubmitOrder"
+                @go-back="handleBack"
                 @go-to-restaurants="goToRestaurants"
                 @delivery-address-input="handleDeliveryAddressInput"
                 @delivery-address-blur="handleDeliveryAddressBlur"

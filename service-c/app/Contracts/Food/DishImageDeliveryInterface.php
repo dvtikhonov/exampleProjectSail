@@ -7,6 +7,9 @@ namespace App\Contracts\Food;
 use App\Models\Dish;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Доставка изображения блюда клиенту mini-app.
+ */
 interface DishImageDeliveryInterface
 {
     /**

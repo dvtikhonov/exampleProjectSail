@@ -6,6 +6,9 @@ namespace App\Http\Requests\Food;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Валидация запроса добавления блюда в корзину.
+ */
 class AddCartItemRequest extends FormRequest
 {
     public function authorize(): bool
@@ -24,11 +27,17 @@ class AddCartItemRequest extends FormRequest
         ];
     }
 
+    /**
+     * Возвращает ID блюда из валидированных данных.
+     */
     public function dishId(): int
     {
         return (int) $this->validated('dish_id');
     }
 
+    /**
+     * Возвращает количество из валидированных данных.
+     */
     public function quantity(): int
     {
         return (int) $this->validated('quantity');

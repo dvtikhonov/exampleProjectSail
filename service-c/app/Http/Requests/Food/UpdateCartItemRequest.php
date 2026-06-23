@@ -6,6 +6,9 @@ namespace App\Http\Requests\Food;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Валидация запроса изменения количества позиции корзины.
+ */
 class UpdateCartItemRequest extends FormRequest
 {
     public function authorize(): bool
@@ -23,6 +26,9 @@ class UpdateCartItemRequest extends FormRequest
         ];
     }
 
+    /**
+     * Возвращает новое количество из валидированных данных.
+     */
     public function quantity(): int
     {
         return (int) $this->validated('quantity');

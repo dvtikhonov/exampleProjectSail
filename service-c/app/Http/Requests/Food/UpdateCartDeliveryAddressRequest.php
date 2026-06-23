@@ -6,6 +6,9 @@ namespace App\Http\Requests\Food;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Валидация запроса обновления адреса доставки корзины.
+ */
 class UpdateCartDeliveryAddressRequest extends FormRequest
 {
     public function authorize(): bool
@@ -44,6 +47,9 @@ class UpdateCartDeliveryAddressRequest extends FormRequest
         ];
     }
 
+    /**
+     * Возвращает нормализованный адрес доставки.
+     */
     public function deliveryAddress(): string
     {
         return trim((string) $this->validated('delivery_address'));

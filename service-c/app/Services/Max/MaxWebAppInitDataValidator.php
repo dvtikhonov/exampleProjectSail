@@ -9,12 +9,18 @@ use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Exceptions\Max\MaxWebAppInitDataException;
 use Illuminate\Contracts\Config\Repository;
 
+/**
+ * Валидация подписи и срока действия initData MAX WebApp.
+ */
 class MaxWebAppInitDataValidator implements MaxWebAppInitDataValidatorInterface
 {
     public function __construct(
         private readonly Repository $config,
     ) {}
 
+    /**
+     * {@inheritDoc}
+     */
     public function validate(string $initData): MaxWebAppInitDataDto
     {
         $initData = trim($initData);

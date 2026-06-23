@@ -13,6 +13,9 @@ use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
 use Throwable;
 
+/**
+ * Управление подписками MAX webhook через platform API.
+ */
 class MaxWebhookSubscriber
 {
     private const BASE_URL = 'https://platform-api.max.ru';
@@ -32,7 +35,12 @@ class MaxWebhookSubscriber
     ) {}
 
     /**
+     * Возвращает список активных webhook-подписок бота.
+     *
      * @return list<array<string, mixed>>
+     *
+     * @throws MaxMessengerAuthException
+     * @throws MaxMessengerRequestException
      */
     public function listSubscriptions(): array
     {
@@ -56,6 +64,8 @@ class MaxWebhookSubscriber
     }
 
     /**
+     * Проверяет доступность настроенного MAX_WEBHOOK_URL.
+     *
      * @return array{url: string, http_status: int|null, reachable: bool, error: string|null}
      */
     public function probeWebhookUrl(): array
@@ -110,6 +120,13 @@ class MaxWebhookSubscriber
         }
     }
 
+    /**
+     * Удаляет webhook-подписку по URL.
+     *
+     * @throws RuntimeException
+     * @throws MaxMessengerAuthException
+     * @throws MaxMessengerRequestException
+     */
     public function unsubscribe(string $url): void
     {
         $url = trim($url);
@@ -152,6 +169,8 @@ class MaxWebhookSubscriber
     }
 
     /**
+     * Удаляет устаревшие dev-туннели, сохраняя текущий URL.
+     *
      * @return array{removed: list<string>, preserved: list<string>}
      */
     public function unsubscribeStaleDevTunnels(string $configuredUrl): array
@@ -183,6 +202,13 @@ class MaxWebhookSubscriber
         ];
     }
 
+    /**
+     * Регистрирует webhook-подписку с текущими настройками.
+     *
+     * @throws RuntimeException
+     * @throws MaxMessengerAuthException
+     * @throws MaxMessengerRequestException
+     */
     public function subscribe(): void
     {
         $url = trim((string) $this->config->get('max.webhook.url', ''));

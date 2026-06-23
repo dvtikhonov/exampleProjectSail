@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Рассчитанные суммы корзины: блюда, доставка и итог.
+ */
 readonly class CartTotalsDto
 {
     public function __construct(

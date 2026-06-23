@@ -8,10 +8,13 @@ use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\DTO\Food\DeliveryTierDto;
 use App\Models\RestaurantCategoryDeliveryTier;
 
+/**
+ * Eloquent-реализация репозитория тарифов доставки.
+ */
 class EloquentDeliveryTierRepository implements DeliveryTierRepositoryInterface
 {
     /**
-     * @return list<DeliveryTierDto>
+     * {@inheritDoc}
      */
     public function findTiersFor(int $restaurantId, int $customerCategoryId): array
     {

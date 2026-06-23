@@ -9,6 +9,9 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Доверенная аутентификация пользователя через nginx-gateway.
+ */
 class TrustGatewayAuth
 {
     public function __construct(

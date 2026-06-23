@@ -5,12 +5,18 @@ namespace App\Services\Max;
 use Illuminate\Contracts\Config\Repository;
 use Shared\MaxMessenger\Config\MaxMessengerRetryConfig;
 
+/**
+ * Фабрика конфигурации повторных запросов к MAX Messenger API.
+ */
 class ConfigMaxMessengerRetryConfigFactory
 {
     public function __construct(
         private readonly Repository $config,
     ) {}
 
+    /**
+     * Создаёт конфигурацию retry из настроек Laravel.
+     */
     public function make(): MaxMessengerRetryConfig
     {
         return new MaxMessengerRetryConfig(

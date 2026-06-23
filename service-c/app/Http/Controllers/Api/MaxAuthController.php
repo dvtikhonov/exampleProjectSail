@@ -13,6 +13,9 @@ use App\Support\MaxMiniAppAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Аутентификация MAX mini-app по initData и выдача Bearer-токена.
+ */
 class MaxAuthController extends Controller
 {
     public function __construct(
@@ -21,6 +24,9 @@ class MaxAuthController extends Controller
         private readonly MaxMiniAppAccessLogger $accessLogger,
     ) {}
 
+    /**
+     * Проверяет initData и возвращает access token Sanctum.
+     */
     public function store(ValidateInitDataRequest $request): JsonResponse
     {
         try {

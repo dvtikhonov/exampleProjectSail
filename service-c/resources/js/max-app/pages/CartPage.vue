@@ -38,13 +38,20 @@ const emit = defineEmits([
     'remove-item',
     'clear-cart',
     'submit-order',
+    'go-back',
     'go-to-restaurants',
     'delivery-address-input',
     'delivery-address-blur',
 ]);
 
 const localAddress = ref('');
+const showOrderConfirm = ref(false);
 const isAddressFocused = ref(false);
+const quantityDrafts = ref({});
+const focusedQuantityItemId = ref(null);
+
+const MIN_QUANTITY = 1;
+const MAX_QUANTITY = 99;
 
 watch(
     () => props.cart?.delivery_address,
@@ -80,15 +87,108 @@ function handleAddressBlur() {
     isAddressFocused.value = false;
     emit('delivery-address-blur', localAddress.value);
 }
+
+function getQuantityDisplay(item) {
+    if (focusedQuantityItemId.value === item.id && quantityDrafts.value[item.id] !== undefined) {
+        return quantityDrafts.value[item.id];
+    }
+
+    return String(item.quantity);
+}
+
+function handleQuantityFocus(item) {
+    focusedQuantityItemId.value = item.id;
+    quantityDrafts.value[item.id] = String(item.quantity);
+}
+
+function handleQuantityInput(item, event) {
+    quantityDrafts.value[item.id] = event.target.value.replace(/\D/g, '');
+}
+
+function clampQuantity(value) {
+    return Math.min(MAX_QUANTITY, Math.max(MIN_QUANTITY, value));
+}
+
+function commitQuantity(item) {
+    focusedQuantityItemId.value = null;
+
+    const raw = quantityDrafts.value[item.id] ?? String(item.quantity);
+    delete quantityDrafts.value[item.id];
+
+    const parsed = Number.parseInt(raw, 10);
+    const quantity = Number.isNaN(parsed) ? item.quantity : clampQuantity(parsed);
+
+    if (quantity !== item.quantity) {
+        emit('update-quantity', item, quantity);
+    }
+}
+
+function openOrderConfirm() {
+    if (!canSubmit.value) {
+        return;
+    }
+
+    showOrderConfirm.value = true;
+}
+
+function closeOrderConfirm() {
+    if (!props.submitting) {
+        showOrderConfirm.value = false;
+    }
+}
+
+function confirmOrder() {
+    emit('submit-order', localAddress.value);
+}
+
+function handleBackRequest() {
+    if (showOrderConfirm.value) {
+        closeOrderConfirm();
+
+        return true;
+    }
+
+    return false;
+}
+
+function handleGoBack() {
+    if (!handleBackRequest()) {
+        emit('go-back');
+    }
+}
+
+defineExpose({ handleBackRequest });
+
+watch(
+    () => props.submitting,
+    (submitting, wasSubmitting) => {
+        if (wasSubmitting && !submitting && props.error) {
+            showOrderConfirm.value = false;
+        }
+    },
+);
 </script>
 
 <template>
     <div class="flex min-h-dvh flex-col pb-52">
         <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3">
             <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <h1 class="text-lg font-semibold text-gray-900">Корзина</h1>
-                    <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
+                <div class="flex min-w-0 items-start gap-2">
+                    <button
+                        type="button"
+                        class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 disabled:opacity-40"
+                        :disabled="loading || submitting"
+                        aria-label="Назад"
+                        @click="handleGoBack"
+                    >
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <div class="min-w-0">
+                        <h1 class="text-lg font-semibold text-gray-900">Корзина</h1>
+                        <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
+                    </div>
                 </div>
                 <button
                     v-if="!isEmpty && !loading"
@@ -154,16 +254,29 @@ function handleAddressBlur() {
                             <button
                                 type="button"
                                 class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
-                                :disabled="item.quantity <= 1 || updatingItemId === item.id"
+                                :disabled="item.quantity <= MIN_QUANTITY || updatingItemId === item.id"
                                 @click="emit('update-quantity', item, item.quantity - 1)"
                             >
                                 −
                             </button>
-                            <span class="min-w-6 text-center font-medium">{{ item.quantity }}</span>
+                            <input
+                                type="text"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                autocomplete="off"
+                                class="h-9 w-12 rounded-xl border border-gray-200 bg-gray-50 text-center text-sm font-medium text-gray-900 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-40"
+                                :value="getQuantityDisplay(item)"
+                                :disabled="updatingItemId === item.id"
+                                :aria-label="`Количество: ${item.dish_name}`"
+                                @focus="handleQuantityFocus(item)"
+                                @input="handleQuantityInput(item, $event)"
+                                @blur="commitQuantity(item)"
+                                @keydown.enter.prevent="commitQuantity(item)"
+                            />
                             <button
                                 type="button"
                                 class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
-                                :disabled="item.quantity >= 99 || updatingItemId === item.id"
+                                :disabled="item.quantity >= MAX_QUANTITY || updatingItemId === item.id"
                                 @click="emit('update-quantity', item, item.quantity + 1)"
                             >
                                 +
@@ -224,11 +337,86 @@ function handleAddressBlur() {
                 type="button"
                 class="flex w-full items-center justify-center rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
                 :disabled="!canSubmit"
-                @click="emit('submit-order', localAddress)"
+                @click="openOrderConfirm"
             >
-                <span v-if="submitting" class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 Оформить заявку
             </button>
+        </div>
+
+        <div
+            v-if="showOrderConfirm"
+            class="fixed inset-0 z-30 flex items-end justify-center bg-black/40 px-4 pb-4 pt-8 safe-area-bottom"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-confirm-title"
+            @click.self="closeOrderConfirm"
+        >
+            <div class="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl">
+                <h2 id="order-confirm-title" class="text-lg font-semibold text-gray-900">
+                    Подтвердите заявку
+                </h2>
+                <p class="mt-1 text-sm text-max-muted">
+                    Проверьте состав заказа и адрес доставки перед отправкой
+                </p>
+
+                <div class="mt-4 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <ul class="space-y-2 text-sm">
+                        <li
+                            v-for="item in cart.items"
+                            :key="item.id"
+                            class="flex items-center justify-between gap-3"
+                        >
+                            <span class="min-w-0 text-gray-700">{{ item.dish_name }} × {{ item.quantity }}</span>
+                            <span class="shrink-0 font-medium text-gray-900">{{ item.line_total }} ₽</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
+                    <p class="mt-1 text-gray-900">{{ localAddress.trim() }}</p>
+                </div>
+
+                <div class="mt-4 space-y-1.5 text-sm">
+                    <template v-if="deliveryApplicable">
+                        <div class="flex items-center justify-between">
+                            <span class="text-max-muted">Сумма блюд</span>
+                            <span class="font-medium text-gray-900">{{ cart.items_total }} ₽</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-max-muted">Доставка</span>
+                            <span class="font-medium text-gray-900">{{ cart.delivery_cost }} ₽</span>
+                        </div>
+                    </template>
+                    <div class="flex items-center justify-between border-t border-gray-200 pt-2 text-base">
+                        <span class="font-medium text-gray-900">Итого</span>
+                        <span class="text-lg font-bold text-gray-900">{{ cart.total }} ₽</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex gap-3">
+                    <button
+                        type="button"
+                        class="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-40"
+                        :disabled="submitting"
+                        @click="closeOrderConfirm"
+                    >
+                        Отмена
+                    </button>
+                    <button
+                        type="button"
+                        class="flex flex-1 items-center justify-center rounded-2xl bg-max-primary px-4 py-3 font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-60"
+                        :disabled="submitting"
+                        @click="confirmOrder"
+                    >
+                        <span
+                            v-if="submitting"
+                            class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                        />
+                        Подтвердить
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>

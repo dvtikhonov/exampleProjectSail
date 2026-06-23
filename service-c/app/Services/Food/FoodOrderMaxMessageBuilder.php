@@ -7,12 +7,18 @@ namespace App\Services\Food;
 use App\DTO\Food\OrderDto;
 use App\Models\MaxUser;
 
+/**
+ * Формирование текста уведомления о заказе для MAX с усечением по лимиту.
+ */
 class FoodOrderMaxMessageBuilder
 {
     private const DEFAULT_MAX_TEXT_LENGTH = 4000;
 
     private const TRUNCATION_SUFFIX_TEMPLATE = '…и ещё %d позиций';
 
+    /**
+     * Собирает текст уведомления о заказе с учётом лимита символов.
+     */
     public function build(
         OrderDto $order,
         MaxUser $maxUser,

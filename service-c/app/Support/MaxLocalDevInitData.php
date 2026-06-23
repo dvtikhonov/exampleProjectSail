@@ -13,6 +13,9 @@ final class MaxLocalDevInitData
 {
     private const DEMO_VIP_MAX_USER_ID = 1002;
 
+    /**
+     * Проверяет, разрешена ли локальная заглушка initData.
+     */
     public static function isEnabled(?Request $request = null): bool
     {
         if (! (bool) config('max.local_dev_init_data', false)) {
@@ -34,6 +37,9 @@ final class MaxLocalDevInitData
         return MaxAppRequestContext::isLocalDevelopmentRequest($request);
     }
 
+    /**
+     * Формирует подписанную заглушку initData для локальной отладки.
+     */
     public static function build(?Request $request = null): ?string
     {
         if (! self::isEnabled($request)) {

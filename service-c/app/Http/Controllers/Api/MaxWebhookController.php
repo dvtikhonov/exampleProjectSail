@@ -11,12 +11,18 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
+/**
+ * Приём webhook-обновлений от MAX platform API.
+ */
 class MaxWebhookController extends Controller
 {
     public function __construct(
         private readonly MaxWebhookUpdateRouterInterface $router,
     ) {}
 
+    /**
+     * Принимает webhook и передаёт payload в маршрутизатор обновлений.
+     */
     public function __invoke(Request $request): Response
     {
         /** @var array<string, mixed> $payload */

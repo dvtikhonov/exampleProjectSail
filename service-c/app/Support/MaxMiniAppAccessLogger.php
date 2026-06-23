@@ -13,11 +13,17 @@ use Illuminate\Support\Str;
  */
 final class MaxMiniAppAccessLogger
 {
+    /**
+     * Логирует обращение к странице mini-app.
+     */
     public function logPageRequest(Request $request): void
     {
         Log::channel('messMax')->info('MAX mini-app page requested', $this->baseContext($request));
     }
 
+    /**
+     * Логирует запрос аутентификации mini-app.
+     */
     public function logAuthRequest(Request $request, int $statusCode, ?int $maxUserId = null): void
     {
         Log::channel('messMax')->info('MAX mini-app auth requested', [

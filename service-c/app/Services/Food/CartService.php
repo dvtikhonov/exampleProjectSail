@@ -14,6 +14,9 @@ use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Управление корзиной пользователя MAX mini-app.
+ */
 class CartService
 {
     public function __construct(
@@ -21,6 +24,9 @@ class CartService
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
     ) {}
 
+    /**
+     * Возвращает черновик корзины пользователя или null.
+     */
     public function getDraftCart(MaxUser $maxUser): ?CartDto
     {
         $cart = $this->findDraftCart($maxUser);
@@ -32,6 +38,11 @@ class CartService
         return $this->cartDtoFactory->fromModel($cart, $maxUser);
     }
 
+    /**
+     * Добавляет блюдо в корзину или увеличивает количество.
+     *
+     * @throws FoodDomainException
+     */
     public function addItem(MaxUser $maxUser, int $dishId, int $quantity): CartDto
     {
         return DB::transaction(function () use ($maxUser, $dishId, $quantity): CartDto {
@@ -90,6 +101,11 @@ class CartService
         });
     }
 
+    /**
+     * Обновляет количество позиции корзины.
+     *
+     * @throws FoodDomainException
+     */
     public function updateItemQuantity(MaxUser $maxUser, int $cartItemId, int $quantity): CartDto
     {
         return DB::transaction(function () use ($maxUser, $cartItemId, $quantity): CartDto {
@@ -104,6 +120,11 @@ class CartService
         });
     }
 
+    /**
+     * Удаляет позицию из корзины; при пустой корзине удаляет её целиком.
+     *
+     * @throws FoodDomainException
+     */
     public function removeItem(MaxUser $maxUser, int $cartItemId): ?CartDto
     {
         return DB::transaction(function () use ($maxUser, $cartItemId): ?CartDto {
@@ -123,6 +144,9 @@ class CartService
         });
     }
 
+    /**
+     * Удаляет черновик корзины пользователя.
+     */
     public function clear(MaxUser $maxUser): void
     {
         DB::transaction(function () use ($maxUser): void {

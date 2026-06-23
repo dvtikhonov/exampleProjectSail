@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Аутентификация запросов MAX mini-app по Sanctum Bearer-токену.
+ */
 class AuthenticateMaxMiniApp
 {
     private const TOKEN_ABILITY = 'max-miniapp';

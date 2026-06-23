@@ -20,6 +20,9 @@ use Laravel\Sanctum\HasApiTokens;
     'customer_category_id',
     'delivery_address',
 ])]
+/**
+ * Пользователь MAX mini-app, аутентифицируемый через Sanctum.
+ */
 class MaxUser extends Authenticatable
 {
     use HasApiTokens;

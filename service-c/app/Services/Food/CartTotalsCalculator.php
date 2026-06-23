@@ -9,6 +9,9 @@ use App\DTO\Food\CartTotalsDto;
 use App\DTO\Food\CustomerCategoryDto;
 use App\Models\MaxUser;
 
+/**
+ * Расчёт итогов корзины с учётом тарифов доставки.
+ */
 class CartTotalsCalculator
 {
     public function __construct(
@@ -16,6 +19,9 @@ class CartTotalsCalculator
         private readonly DeliveryTierRepositoryInterface $deliveryTierRepository,
     ) {}
 
+    /**
+     * Рассчитывает суммы блюд, доставки и итог корзины.
+     */
     public function calculate(int $restaurantId, MaxUser $maxUser, float $itemsTotal): CartTotalsDto
     {
         if (! $this->deliveryCostResolver->isApplicable($maxUser)) {

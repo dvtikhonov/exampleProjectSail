@@ -16,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'name',
     'sort_order',
 ])]
+/**
+ * Категория меню ресторана (таблица max_menu_categories).
+ */
 class MenuCategory extends Model
 {
     protected $table = 'max_menu_categories';

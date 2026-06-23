@@ -16,6 +16,9 @@ use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Оформление заказа из черновика корзины и уведомление MAX.
+ */
 class OrderSubmissionService
 {
     public function __construct(
@@ -26,6 +29,11 @@ class OrderSubmissionService
         private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
     ) {}
 
+    /**
+     * Создаёт заказ из корзины пользователя.
+     *
+     * @throws FoodDomainException
+     */
     public function submit(MaxUser $maxUser): OrderDto
     {
         $orderDto = DB::transaction(function () use ($maxUser): OrderDto {

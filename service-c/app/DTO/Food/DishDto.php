@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Данные блюда для меню и корзины.
+ */
 readonly class DishDto
 {
     public function __construct(
@@ -15,6 +18,8 @@ readonly class DishDto
     ) {}
 
     /**
+     * Преобразует блюдо в массив для JSON-ответа API.
+     *
      * @return array<string, int|string|bool|null>
      */
     public function toArray(): array

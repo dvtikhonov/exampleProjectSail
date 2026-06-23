@@ -15,6 +15,9 @@ final class MaxOpenAppTargetResolver
         private readonly Repository $config,
     ) {}
 
+    /**
+     * Возвращает URL mini-app для кнопки open_app.
+     */
     public function resolveWebApp(): ?string
     {
         $explicit = trim((string) $this->config->get('max.ui_stand.mini_app_url', ''));
@@ -38,6 +41,9 @@ final class MaxOpenAppTargetResolver
         return null;
     }
 
+    /**
+     * Возвращает contact_id бота для кнопки open_app.
+     */
     public function resolveContactId(): ?int
     {
         $botUserId = (int) $this->config->get('max.bot_user_id', 0);

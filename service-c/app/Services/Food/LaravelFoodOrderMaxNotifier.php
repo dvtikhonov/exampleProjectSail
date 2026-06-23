@@ -14,6 +14,9 @@ use Shared\MaxMessenger\DTO\MaxMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Отправка уведомлений о новом заказе еды в чаты и пользователям MAX.
+ */
 class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
 {
     public function __construct(
@@ -22,6 +25,9 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
     ) {}
 
+    /**
+     * {@inheritDoc}
+     */
     public function notify(OrderDto $order, MaxUser $maxUser): void
     {
         $config = $this->configProvider->config();
