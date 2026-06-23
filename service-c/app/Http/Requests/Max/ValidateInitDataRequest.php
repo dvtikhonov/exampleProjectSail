@@ -6,6 +6,9 @@ namespace App\Http\Requests\Max;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Валидация запроса аутентификации MAX mini-app по initData.
+ */
 class ValidateInitDataRequest extends FormRequest
 {
     public function authorize(): bool
@@ -23,6 +26,9 @@ class ValidateInitDataRequest extends FormRequest
         ];
     }
 
+    /**
+     * Возвращает строку initData из валидированных данных.
+     */
     public function initData(): string
     {
         return (string) $this->validated('init_data');

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Краткие данные ресторана для списка в mini-app.
+ */
 readonly class RestaurantSummaryDto
 {
     public function __construct(
@@ -13,6 +16,8 @@ readonly class RestaurantSummaryDto
     ) {}
 
     /**
+     * Преобразует ресторан в массив для JSON-ответа API.
+     *
      * @return array<string, int|string>
      */
     public function toArray(): array

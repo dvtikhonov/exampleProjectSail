@@ -9,8 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
+/**
+ * Разрешение пользователя gateway по заголовку X-User-Id.
+ */
 class EloquentGatewayUserResolver implements GatewayUserResolverInterface
 {
+    /**
+     * {@inheritDoc}
+     */
     public function resolveFromRequest(Request $request): ?GatewayUserDto
     {
         $userId = $request->header('X-User-Id');
@@ -25,6 +31,9 @@ class EloquentGatewayUserResolver implements GatewayUserResolverInterface
         return new GatewayUserDto(user: $user);
     }
 
+    /**
+     * Создаёт пользователя gateway при первом обращении.
+     */
     private function provisionGatewayUser(int $userId): User
     {
         return User::query()->forceCreate([

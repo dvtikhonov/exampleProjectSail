@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'price',
     'is_available',
 ])]
+/**
+ * Блюдо меню ресторана (таблица max_dishes).
+ */
 class Dish extends Model
 {
     protected $table = 'max_dishes';

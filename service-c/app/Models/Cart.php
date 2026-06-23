@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'status',
     'delivery_address',
 ])]
+/**
+ * Корзина пользователя MAX перед оформлением заказа (таблица max_carts).
+ */
 class Cart extends Model
 {
     protected $table = 'max_carts';

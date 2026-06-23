@@ -12,6 +12,9 @@ use App\DTO\Food\RestaurantSummaryDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Restaurant;
 
+/**
+ * Запросы меню и списка активных ресторанов.
+ */
 class MenuQueryService
 {
     public function __construct(
@@ -20,6 +23,8 @@ class MenuQueryService
     ) {}
 
     /**
+     * Возвращает список активных ресторанов.
+     *
      * @return list<RestaurantSummaryDto>
      */
     public function listActiveRestaurants(): array
@@ -36,6 +41,11 @@ class MenuQueryService
             ->all();
     }
 
+    /**
+     * Возвращает меню ресторана с категориями и блюдами.
+     *
+     * @throws FoodDomainException
+     */
     public function getRestaurantMenu(int $restaurantId): MenuDto
     {
         $restaurant = Restaurant::query()

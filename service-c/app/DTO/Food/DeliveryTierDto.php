@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Тариф доставки: минимальная сумма заказа и стоимость доставки.
+ */
 readonly class DeliveryTierDto
 {
     public function __construct(

@@ -6,6 +6,9 @@ namespace App\Contracts\Food;
 
 use App\DTO\Food\DeliveryTierDto;
 
+/**
+ * Репозиторий тарифов доставки по ресторану и категории клиента.
+ */
 interface DeliveryTierRepositoryInterface
 {
     /**

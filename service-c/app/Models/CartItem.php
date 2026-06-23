@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'dish_id',
     'quantity',
 ])]
+/**
+ * Позиция корзины: блюдо и количество (таблица max_cart_items).
+ */
 class CartItem extends Model
 {
     protected $table = 'max_cart_items';

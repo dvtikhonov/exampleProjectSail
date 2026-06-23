@@ -7,12 +7,18 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
+/**
+ * Artisan-команда получения профиля бота MAX (GET /me).
+ */
 class MaxBotInfoCommand extends Command
 {
     protected $signature = 'max:bot:info';
 
     protected $description = 'Показать профиль бота MAX (GET /me) для проверки токена и username';
 
+    /**
+     * Запрашивает профиль бота и выводит данные для .env.
+     */
     public function handle(): int
     {
         $token = trim((string) config('max.bot_access_token', ''));

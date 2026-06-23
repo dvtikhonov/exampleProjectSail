@@ -11,12 +11,18 @@ use App\Services\Food\OrderSubmissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * API оформления заказа еды для MAX mini-app.
+ */
 class OrderController extends Controller
 {
     public function __construct(
         private readonly OrderSubmissionService $orderSubmissionService,
     ) {}
 
+    /**
+     * Оформляет заказ из черновой корзины пользователя.
+     */
     public function submit(Request $request): JsonResponse
     {
         try {

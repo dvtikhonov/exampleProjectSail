@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Позиция корзины: блюдо, цена, количество и сумма строки.
+ */
 readonly class CartItemDto
 {
     public function __construct(
@@ -17,6 +20,8 @@ readonly class CartItemDto
     ) {}
 
     /**
+     * Преобразует позицию корзины в массив для JSON-ответа API.
+     *
      * @return array<string, int|string|null>
      */
     public function toArray(): array

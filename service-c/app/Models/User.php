@@ -12,13 +12,16 @@ use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
+/**
+ * Пользователь Laravel для gateway-аутентификации (таблица users).
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
-     * Get the attributes that should be cast.
+     * Приведение атрибутов модели к типам.
      *
      * @return array<string, string>
      */

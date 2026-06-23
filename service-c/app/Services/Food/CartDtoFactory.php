@@ -10,6 +10,9 @@ use App\DTO\Food\CartItemDto;
 use App\Models\Cart;
 use App\Models\MaxUser;
 
+/**
+ * Сборка CartDto из модели корзины с расчётом сумм.
+ */
 class CartDtoFactory
 {
     public function __construct(
@@ -18,6 +21,9 @@ class CartDtoFactory
         private readonly CartTotalsCalculator $cartTotalsCalculator,
     ) {}
 
+    /**
+     * Преобразует модель корзины в DTO с актуальными суммами.
+     */
     public function fromModel(Cart $cart, MaxUser $maxUser): CartDto
     {
         $cart->loadMissing(['restaurant', 'items.dish']);

@@ -12,6 +12,9 @@ use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Отправка приветственного сообщения стенда MAX с inline-клавиатурой.
+ */
 class MaxUiStandGreetingSender
 {
     public function __construct(
@@ -20,6 +23,11 @@ class MaxUiStandGreetingSender
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
     ) {}
 
+    /**
+     * Отправляет приветствие всем получателям из конфигурации.
+     *
+     * @throws RuntimeException
+     */
     public function send(): void
     {
         $chatIds = $this->recipientChatIds();
@@ -32,6 +40,9 @@ class MaxUiStandGreetingSender
         $this->sendToRecipients($chatIds, $userIds);
     }
 
+    /**
+     * Отправляет приветствие одному пользователю MAX.
+     */
     public function sendToUser(int $userId): void
     {
         $this->sendToRecipients([], [$userId]);

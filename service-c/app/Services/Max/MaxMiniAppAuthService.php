@@ -9,6 +9,9 @@ use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Models\MaxUser;
 use Illuminate\Contracts\Config\Repository;
 
+/**
+ * Аутентификация пользователя MAX mini-app и выдача Sanctum-токена.
+ */
 class MaxMiniAppAuthService
 {
     private const TOKEN_NAME = 'max-miniapp';
@@ -21,6 +24,8 @@ class MaxMiniAppAuthService
     ) {}
 
     /**
+     * Создаёт или обновляет пользователя MAX и выдаёт access token.
+     *
      * @return array{token: string, token_type: string, expires_in: int, user: array<string, mixed>}
      */
     public function issueToken(MaxWebAppInitDataDto $initData): array

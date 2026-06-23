@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'address',
     'is_active',
 ])]
+/**
+ * Ресторан с меню и тарифами доставки (таблица max_restaurants).
+ */
 class Restaurant extends Model
 {
     protected $table = 'max_restaurants';

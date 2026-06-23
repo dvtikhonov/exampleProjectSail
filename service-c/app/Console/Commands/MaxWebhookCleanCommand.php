@@ -9,12 +9,18 @@ use Illuminate\Console\Command;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Artisan-команда удаления устаревших dev-туннелей из подписок MAX.
+ */
 class MaxWebhookCleanCommand extends Command
 {
     protected $signature = 'max:webhook:clean';
 
     protected $description = 'Удалить в MAX устаревшие dev-туннели (trycloudflare), внешние подписки не трогать';
 
+    /**
+     * Удаляет устаревшие webhook-подписки dev-туннелей.
+     */
     public function handle(MaxWebhookSubscriber $subscriber): int
     {
         $configuredUrl = trim((string) config('max.webhook.url', ''));

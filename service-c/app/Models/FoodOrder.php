@@ -20,6 +20,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'items_total',
     'items_snapshot',
 ])]
+/**
+ * Заказ еды пользователя MAX mini-app (таблица max_food_orders).
+ */
 class FoodOrder extends Model
 {
     protected $table = 'max_food_orders';

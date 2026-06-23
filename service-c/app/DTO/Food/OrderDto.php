@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Данные оформленного заказа еды для API и уведомлений MAX.
+ */
 readonly class OrderDto
 {
     /**
@@ -24,6 +27,8 @@ readonly class OrderDto
     ) {}
 
     /**
+     * Преобразует заказ в массив для JSON-ответа API.
+     *
      * @return array<string, bool|int|string|null|list<array<string, mixed>>>
      */
     public function toArray(): array

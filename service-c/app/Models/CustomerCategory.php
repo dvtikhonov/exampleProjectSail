@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'sort_order',
     'is_active',
 ])]
+/**
+ * Категория клиента для расчёта доставки (таблица max_customer_categories).
+ */
 class CustomerCategory extends Model
 {
     protected $table = 'max_customer_categories';

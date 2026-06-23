@@ -15,6 +15,9 @@ use App\Services\Food\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * API корзины заказа еды для MAX mini-app.
+ */
 class CartController extends Controller
 {
     public function __construct(
@@ -22,6 +25,9 @@ class CartController extends Controller
         private readonly CartDeliveryAddressService $cartDeliveryAddressService,
     ) {}
 
+    /**
+     * Возвращает текущую черновую корзину пользователя.
+     */
     public function show(Request $request): JsonResponse
     {
         $cart = $this->cartService->getDraftCart($this->maxUser($request));
@@ -31,6 +37,9 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Обновляет адрес доставки в корзине.
+     */
     public function updateDeliveryAddress(UpdateCartDeliveryAddressRequest $request): JsonResponse
     {
         try {
@@ -49,6 +58,9 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Добавляет блюдо в корзину.
+     */
     public function store(AddCartItemRequest $request): JsonResponse
     {
         try {
@@ -68,6 +80,9 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Обновляет количество позиции корзины.
+     */
     public function update(UpdateCartItemRequest $request, int $item): JsonResponse
     {
         try {
@@ -87,6 +102,9 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Удаляет позицию из корзины.
+     */
     public function destroy(Request $request, int $item): JsonResponse
     {
         try {
@@ -102,6 +120,9 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Очищает черновую корзину пользователя.
+     */
     public function clear(Request $request): JsonResponse
     {
         $this->cartService->clear($this->maxUser($request));

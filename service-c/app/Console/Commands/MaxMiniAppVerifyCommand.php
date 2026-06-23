@@ -8,12 +8,18 @@ use App\Support\MaxAppRequestContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
+/**
+ * Artisan-команда проверки доступности MAX mini-app по публичному URL.
+ */
 class MaxMiniAppVerifyCommand extends Command
 {
     protected $signature = 'max:miniapp:verify';
 
     protected $description = 'Проверить доступность MAX mini-app по MAX_MINI_APP_URL';
 
+    /**
+     * Выполняет проверку HTML и ассетов mini-app.
+     */
     public function handle(): int
     {
         $miniAppUrl = $this->resolveMiniAppUrl();

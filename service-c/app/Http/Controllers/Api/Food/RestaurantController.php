@@ -9,12 +9,18 @@ use App\Http\Controllers\Controller;
 use App\Services\Food\MenuQueryService;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * API списка ресторанов и меню для MAX mini-app.
+ */
 class RestaurantController extends Controller
 {
     public function __construct(
         private readonly MenuQueryService $menuQueryService,
     ) {}
 
+    /**
+     * Возвращает список активных ресторанов.
+     */
     public function index(): JsonResponse
     {
         $restaurants = $this->menuQueryService->listActiveRestaurants();
@@ -27,6 +33,9 @@ class RestaurantController extends Controller
         ]);
     }
 
+    /**
+     * Возвращает меню выбранного ресторана.
+     */
     public function menu(int $restaurant): JsonResponse
     {
         try {

@@ -8,6 +8,9 @@ use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Маршрутизация webhook-обновлений MAX по типу события.
+ */
 final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
 {
     public function __construct(
@@ -16,6 +19,8 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
     ) {}
 
     /**
+     * Обрабатывает входящее webhook-обновление MAX.
+     *
      * @param  array<string, mixed>  $payload
      */
     public function handle(array $payload): void

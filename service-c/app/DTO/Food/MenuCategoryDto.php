@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Категория меню ресторана со списком блюд.
+ */
 readonly class MenuCategoryDto
 {
     /**
@@ -16,6 +19,8 @@ readonly class MenuCategoryDto
     ) {}
 
     /**
+     * Преобразует категорию меню в массив для JSON-ответа API.
+     *
      * @return array<string, int|string|list<array<string, int|string|bool>>>
      */
     public function toArray(): array

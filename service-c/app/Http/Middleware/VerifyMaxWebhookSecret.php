@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Проверка секрета MAX webhook в заголовке X-Max-Bot-Api-Secret.
+ */
 class VerifyMaxWebhookSecret
 {
     /**

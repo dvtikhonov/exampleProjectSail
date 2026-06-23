@@ -11,12 +11,18 @@ use RuntimeException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Artisan-команда отправки приветствия стенда MAX с inline-клавиатурой.
+ */
 class MaxUiStandSendCommand extends Command
 {
     protected $signature = 'max:ui-stand:send';
 
     protected $description = 'Отправить приветствие стенда MAX с inline-клавиатурой всем получателям из конфига';
 
+    /**
+     * Отправляет приветственное сообщение настроенным получателям.
+     */
     public function handle(MaxUiStandGreetingSender $sender, MaxOpenAppTargetResolver $openAppTargetResolver): int
     {
         $openAppTarget = $openAppTargetResolver->resolveWebApp();

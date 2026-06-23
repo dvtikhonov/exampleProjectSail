@@ -14,6 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'min_items_total',
     'delivery_cost',
 ])]
+/**
+ * Тариф доставки для пары ресторан + категория клиента.
+ */
 class RestaurantCategoryDeliveryTier extends Model
 {
     protected $table = 'max_restaurant_category_delivery_tiers';

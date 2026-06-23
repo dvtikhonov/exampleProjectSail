@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\DTO\Food;
 
+/**
+ * Состояние корзины пользователя: позиции, суммы и адрес доставки.
+ */
 readonly class CartDto
 {
     /**
@@ -24,6 +27,8 @@ readonly class CartDto
     ) {}
 
     /**
+     * Преобразует корзину в массив для JSON-ответа API.
+     *
      * @return array<string, bool|int|string|null|list<array<string, int|string>>|array<string, int|string>>
      */
     public function toArray(): array

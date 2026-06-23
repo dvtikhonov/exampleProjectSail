@@ -9,6 +9,9 @@ use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Обработка нажатий inline-кнопок стенда MAX.
+ */
 class MaxCallbackHandler
 {
     public function __construct(
@@ -16,6 +19,9 @@ class MaxCallbackHandler
         private readonly Repository $config,
     ) {}
 
+    /**
+     * Отвечает на callback кнопки сообщением или уведомлением.
+     */
     public function handle(MaxCallbackUpdateDto $update): void
     {
         $yesPayload = (string) $this->config->get('max.ui_stand.button_yes_payload', 'yes');

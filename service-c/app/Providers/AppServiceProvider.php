@@ -33,8 +33,14 @@ use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
 use Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 
+/**
+ * Регистрация DI-привязок и настройка публичных URL приложения.
+ */
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Регистрирует контракты и сервисы в контейнере.
+     */
     public function register(): void
     {
         $this->app->bind(GatewayUserContextInterface::class, RequestGatewayUserContext::class);
@@ -67,6 +73,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(FoodOrderMaxNotifierInterface::class, LaravelFoodOrderMaxNotifier::class);
     }
 
+    /**
+     * Настраивает схему и корневой URL для HTTPS-туннеля и прокси.
+     */
     public function boot(): void
     {
         if (! $this->app->runningInConsole() && MaxAppRequestContext::isPublicTunnelRequest()) {

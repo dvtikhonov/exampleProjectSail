@@ -10,12 +10,18 @@ use RuntimeException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Artisan-команда регистрации MAX webhook для событий бота.
+ */
 class MaxWebhookSubscribeCommand extends Command
 {
     protected $signature = 'max:webhook:subscribe';
 
     protected $description = 'Зарегистрировать MAX webhook для событий message_callback и bot_started';
 
+    /**
+     * Очищает устаревшие туннели и регистрирует webhook-подписку.
+     */
     public function handle(MaxWebhookSubscriber $subscriber): int
     {
         try {

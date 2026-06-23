@@ -9,12 +9,18 @@ use Illuminate\Console\Command;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
+/**
+ * Artisan-команда проверки подписки MAX webhook и доступности URL.
+ */
 class MaxWebhookStatusCommand extends Command
 {
     protected $signature = 'max:webhook:status';
 
     protected $description = 'Проверить подписку MAX webhook и доступность MAX_WEBHOOK_URL';
 
+    /**
+     * Выводит подписки MAX и результат пробы webhook URL.
+     */
     public function handle(MaxWebhookSubscriber $subscriber): int
     {
         $configuredUrl = trim((string) config('max.webhook.url', ''));

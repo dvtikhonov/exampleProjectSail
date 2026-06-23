@@ -6,8 +6,14 @@ namespace App\Services\Max;
 
 use App\Models\MaxUser;
 
+/**
+ * Хранение и чтение адреса доставки пользователя MAX.
+ */
 class MaxUserDeliveryAddressService
 {
+    /**
+     * Возвращает сохранённый адрес доставки пользователя.
+     */
     public function defaultFor(MaxUser $maxUser): ?string
     {
         $address = $maxUser->delivery_address;
@@ -21,6 +27,9 @@ class MaxUserDeliveryAddressService
         return $trimmed === '' ? null : $trimmed;
     }
 
+    /**
+     * Сохраняет адрес доставки, если он изменился.
+     */
     public function persist(MaxUser $maxUser, string $deliveryAddress): void
     {
         $trimmed = trim($deliveryAddress);
