@@ -27,8 +27,43 @@ return [
         'token_ttl_seconds' => (int) env('MAX_MINIAPP_TOKEN_TTL_SECONDS', 86_400),
     ],
 
-    // Подписанная заглушка initData на localhost:8083/max-app (только APP_ENV=local).
+    // Подписанная заглушка initData на localhost:8083/max-app (только APP_ENV=local|testing).
     'local_dev_init_data' => filter_var(env('MAX_LOCAL_DEV_INIT_DATA', false), FILTER_VALIDATE_BOOL),
+
+    // Каким демо-пользователем открывать /max-app в браузере (профили — local_dev_demo_users).
+    'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1003),
+
+    /**
+     * Профили демо-пользователей MAX (синхронизированы с Database\Seeders).
+     *
+     * @var array<int, array{first_name: string, last_name: string, username: string, language_code: string}>
+     */
+    'local_dev_demo_users' => [
+        1001 => [
+            'first_name' => 'Demo',
+            'last_name' => 'Стандарт',
+            'username' => 'demo_standard',
+            'language_code' => 'ru',
+        ],
+        1002 => [
+            'first_name' => 'Demo',
+            'last_name' => 'VIP',
+            'username' => 'demo_vip',
+            'language_code' => 'ru',
+        ],
+        1003 => [
+            'first_name' => 'Demo',
+            'last_name' => 'Админ адреса',
+            'username' => 'demo_address_admin',
+            'language_code' => 'ru',
+        ],
+        1004 => [
+            'first_name' => 'Demo',
+            'last_name' => 'Админ состава',
+            'username' => 'demo_composition_admin',
+            'language_code' => 'ru',
+        ],
+    ],
 
     // Уведомления о заказах еды в MAX-чаты отчётов (те же MAX_REPORT_* env, что в service-b).
     'order_notifications' => [

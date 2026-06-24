@@ -28,6 +28,8 @@ class MaxLocalDevInitDataTest extends TestCase
 
     public function test_builds_valid_init_data_for_demo_vip_user_on_localhost(): void
     {
+        config(['max.local_dev_user_id' => 1002]);
+
         $request = Request::create(
             'http://127.0.0.1:8083/max-app',
             'GET',
@@ -45,6 +47,42 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertSame('Demo', $dto->firstName);
         $this->assertSame('VIP', $dto->lastName);
         $this->assertSame('demo_vip', $dto->username);
+    }
+
+    public function test_builds_init_data_for_configured_address_admin_user(): void
+    {
+        config(['max.local_dev_user_id' => 1003]);
+
+        $request = Request::create(
+            'http://127.0.0.1:8083/max-app',
+            'GET',
+            server: ['HTTP_HOST' => '127.0.0.1:8083'],
+        );
+
+        $initData = MaxLocalDevInitData::build($request);
+
+        $this->assertNotNull($initData);
+
+        $validator = new MaxWebAppInitDataValidator(config());
+        $dto = $validator->validate((string) $initData);
+
+        $this->assertSame(1003, $dto->maxUserId);
+        $this->assertSame('Demo', $dto->firstName);
+        $this->assertSame('Админ адреса', $dto->lastName);
+        $this->assertSame('demo_address_admin', $dto->username);
+    }
+
+    public function test_returns_null_for_unknown_local_dev_user_id(): void
+    {
+        config(['max.local_dev_user_id' => 9999]);
+
+        $request = Request::create(
+            'http://127.0.0.1:8083/max-app',
+            'GET',
+            server: ['HTTP_HOST' => '127.0.0.1:8083'],
+        );
+
+        $this->assertNull(MaxLocalDevInitData::build($request));
     }
 
     public function test_is_disabled_when_flag_is_off(): void
