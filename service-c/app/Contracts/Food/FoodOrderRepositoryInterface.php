@@ -39,4 +39,18 @@ interface FoodOrderRepositoryInterface
      * @return list<FoodOrder>
      */
     public function findForCompositionReview(OrderReviewStatus $reviewStatus): array;
+
+    /**
+     * Заказы клиента в хронологическом порядке (новые первыми).
+     *
+     * @return list<FoodOrder>
+     */
+    public function findByMaxUserId(int $maxUserId): array;
+
+    /**
+     * Все заказы в хронологическом порядке (новые первыми).
+     *
+     * @return list<FoodOrder>
+     */
+    public function findAll(): array;
 }

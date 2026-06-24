@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\DTO\Food\OrderDto;
+use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
@@ -17,6 +18,8 @@ class FoodOrderMaxMessageBuilder
     private const DEFAULT_MAX_TEXT_LENGTH = 4000;
 
     private const TRUNCATION_SUFFIX_TEMPLATE = '…и ещё %d позиций';
+
+    private const ORDER_CHAT_PREVIEW_MAX_LENGTH = 200;
 
     /**
      * Собирает текст уведомления о заказе с учётом лимита символов.
@@ -77,6 +80,36 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Текст push-уведомления о новом сообщении в чате заказа.
+     */
+    public function buildOrderChatNotification(FoodOrder $order, OrderMessageDto $message): string
+    {
+        return implode("\n", [
+            sprintf('Новое сообщение по заказу №%d', $order->id),
+            sprintf('%s: %s', $this->formatMessageSender($message), $this->truncateChatPreview($message->body)),
+        ]);
+    }
+
+    /**
+     * URL mini-app с deep-link на чат заказа.
+     */
+    public function buildOrderChatOpenAppUrl(int $orderId, ?string $baseWebAppUrl): ?string
+    {
+        $baseUrl = trim((string) $baseWebAppUrl);
+
+        if ($baseUrl === '') {
+            return null;
+        }
+
+        $separator = str_contains($baseUrl, '?') ? '&' : '?';
+
+        return $baseUrl.$separator.http_build_query([
+            'order_id' => $orderId,
+            'view' => 'chat',
+        ]);
+    }
+
+    /**
      * Текст уведомления клиенту о подтверждении заявки.
      */
     public function buildCustomerConfirmed(FoodOrder $order): string
@@ -120,6 +153,35 @@ class FoodOrderMaxMessageBuilder
         $lines[] = sprintf('Итого: %s ₽', $order->total);
 
         return implode("\n", $lines);
+    }
+
+    private function formatMessageSender(OrderMessageDto $message): string
+    {
+        $name = trim(implode(' ', array_filter([
+            $message->senderFirstName,
+            $message->senderLastName,
+        ])));
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        if ($message->senderUsername !== null && trim($message->senderUsername) !== '') {
+            return '@'.trim($message->senderUsername);
+        }
+
+        return 'Пользователь';
+    }
+
+    private function truncateChatPreview(string $body): string
+    {
+        $normalized = trim($body);
+
+        if (mb_strlen($normalized) <= self::ORDER_CHAT_PREVIEW_MAX_LENGTH) {
+            return $normalized;
+        }
+
+        return mb_substr($normalized, 0, self::ORDER_CHAT_PREVIEW_MAX_LENGTH - 1).'…';
     }
 
     private function formatClient(MaxUser $maxUser): string

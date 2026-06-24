@@ -9,6 +9,7 @@ use App\Enums\Food\OrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'cart_id',
@@ -95,6 +96,14 @@ class FoodOrder extends Model
     public function compositionReviewedBy(): BelongsTo
     {
         return $this->belongsTo(MaxUser::class, 'composition_reviewed_by', 'max_user_id');
+    }
+
+    /**
+     * @return HasMany<FoodOrderMessage, $this>
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(FoodOrderMessage::class, 'food_order_id');
     }
 
     /**

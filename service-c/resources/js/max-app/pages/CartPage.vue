@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import DishImage from '../components/DishImage.vue';
+import MyOrdersButton from '../components/MyOrdersButton.vue';
 
 const props = defineProps({
     cart: {
@@ -31,6 +32,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    ordersUnreadCount: {
+        type: Number,
+        default: 0,
+    },
 });
 
 const emit = defineEmits([
@@ -42,6 +47,7 @@ const emit = defineEmits([
     'go-to-restaurants',
     'delivery-address-input',
     'delivery-address-blur',
+    'open-orders',
 ]);
 
 const localAddress = ref('');
@@ -190,15 +196,23 @@ watch(
                         <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
                     </div>
                 </div>
-                <button
-                    v-if="!isEmpty && !loading"
-                    type="button"
-                    class="shrink-0 text-sm font-medium text-red-500 transition hover:text-red-700 disabled:opacity-40"
-                    :disabled="clearing || submitting || savingAddress"
-                    @click="emit('clear-cart')"
-                >
-                    Очистить
-                </button>
+                <div class="flex shrink-0 items-center gap-2">
+                    <MyOrdersButton
+                        label="Заказы"
+                        :unread-count="ordersUnreadCount"
+                        button-class="text-sm font-medium text-max-primary transition hover:text-max-primary-hover"
+                        @click="emit('open-orders')"
+                    />
+                    <button
+                        v-if="!isEmpty && !loading"
+                        type="button"
+                        class="text-sm font-medium text-red-500 transition hover:text-red-700 disabled:opacity-40"
+                        :disabled="clearing || submitting || savingAddress"
+                        @click="emit('clear-cart')"
+                    >
+                        Очистить
+                    </button>
+                </div>
             </div>
         </header>
 

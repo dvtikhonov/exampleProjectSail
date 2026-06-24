@@ -118,6 +118,51 @@ export async function submitOrder() {
 }
 
 /**
+ * @returns {Promise<object[]>}
+ */
+export async function fetchMyOrders() {
+    const { data } = await client.get('/food/orders');
+
+    return data.orders;
+}
+
+/**
+ * @param {number} orderId
+ */
+export async function fetchOrder(orderId) {
+    const { data } = await client.get(`/food/orders/${orderId}`);
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ * @param {{ afterId?: number|null, limit?: number }} [options]
+ * @returns {Promise<object[]>}
+ */
+export async function fetchOrderMessages(orderId, { afterId = null, limit = 50 } = {}) {
+    const params = { limit };
+
+    if (afterId !== null) {
+        params.after_id = afterId;
+    }
+
+    const { data } = await client.get(`/food/orders/${orderId}/messages`, { params });
+
+    return data.messages;
+}
+
+/**
+ * @param {number} orderId
+ * @param {string} body
+ */
+export async function sendOrderMessage(orderId, body) {
+    const { data } = await client.post(`/food/orders/${orderId}/messages`, { body });
+
+    return data.message;
+}
+
+/**
  * @returns {Promise<string[]>}
  */
 export async function fetchAdminMe() {

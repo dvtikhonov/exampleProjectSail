@@ -11,6 +11,8 @@ import {
     fetchAdminOrders,
     fetchCart,
     fetchMenu,
+    fetchMyOrders,
+    fetchOrder,
     fetchRestaurants,
     rejectOrderAddress,
     rejectOrderComposition,
@@ -29,6 +31,8 @@ import {
 import CartPage from './pages/CartPage.vue';
 import MenuPage from './pages/MenuPage.vue';
 import OrderConfirmationPage from './pages/OrderConfirmationPage.vue';
+import OrderDetailPage from './pages/OrderDetailPage.vue';
+import OrderListPage from './pages/OrderListPage.vue';
 import RestaurantList from './pages/RestaurantList.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
@@ -41,6 +45,8 @@ const VIEWS = {
     menu: 'menu',
     cart: 'cart',
     confirmation: 'confirmation',
+    orderList: 'orderList',
+    orderDetail: 'orderDetail',
 };
 
 const ADMIN_VIEWS = {
@@ -89,6 +95,16 @@ const savingAddress = ref(false);
 const submittedOrder = ref(null);
 const cartPageRef = ref(null);
 
+const myOrders = ref([]);
+const myOrdersLoading = ref(false);
+const myOrdersRefreshing = ref(false);
+const myOrdersError = ref('');
+
+const selectedOrderId = ref(null);
+const orderDetail = ref(null);
+const orderDetailLoading = ref(false);
+const orderDetailError = ref('');
+
 let unbindBackButton = () => {};
 let addressDebounceTimer = null;
 
@@ -101,6 +117,10 @@ const cartItemCount = computed(() => {
 });
 
 const cartTotal = computed(() => cart.value?.total ?? '0.00');
+
+const ordersUnreadCount = computed(() =>
+    myOrders.value.reduce((sum, order) => sum + (order.unread_count ?? 0), 0),
+);
 
 const hasAdminRoles = computed(() => adminRoles.value.length > 0);
 
@@ -149,10 +169,10 @@ function initAdminSession() {
     loadAdminOrders();
 }
 
-async function loadAdminOrders({ refreshing = false } = {}) {
+async function loadAdminOrders({ refreshing = false, silent = false } = {}) {
     if (refreshing) {
         adminOrdersRefreshing.value = true;
-    } else {
+    } else if (!silent) {
         adminOrdersLoading.value = true;
     }
 
@@ -422,6 +442,101 @@ function goToRestaurants() {
     selectedRestaurant.value = null;
     menu.value = null;
     submittedOrder.value = null;
+    selectedOrderId.value = null;
+    orderDetail.value = null;
+    loadMyOrders({ silent: true });
+}
+
+/**
+ * @returns {number|null}
+ */
+function parseDeepLinkOrderId() {
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get('order_id');
+    const view = params.get('view');
+
+    if (!orderId || view !== 'chat') {
+        return null;
+    }
+
+    const parsed = Number.parseInt(orderId, 10);
+
+    return Number.isNaN(parsed) ? null : parsed;
+}
+
+function handleChatMessagesRead() {
+    if (hasAdminRoles.value && adminView.value === ADMIN_VIEWS.detail) {
+        loadAdminOrders({ silent: true });
+    } else if (currentView.value === VIEWS.orderDetail) {
+        loadMyOrders({ silent: true });
+    }
+}
+
+async function loadMyOrders({ refreshing = false, silent = false } = {}) {
+    if (refreshing) {
+        myOrdersRefreshing.value = true;
+    } else if (!silent) {
+        myOrdersLoading.value = true;
+    }
+
+    myOrdersError.value = '';
+
+    try {
+        myOrders.value = await fetchMyOrders();
+    } catch (error) {
+        if (!silent) {
+            myOrdersError.value = extractErrorMessage(error);
+        }
+    } finally {
+        myOrdersLoading.value = false;
+        myOrdersRefreshing.value = false;
+    }
+}
+
+function goToMyOrders() {
+    currentView.value = VIEWS.orderList;
+    selectedOrderId.value = null;
+    orderDetail.value = null;
+    loadMyOrders();
+}
+
+async function openOrderDetail(orderId) {
+    selectedOrderId.value = orderId;
+    currentView.value = VIEWS.orderDetail;
+    orderDetail.value = null;
+    orderDetailError.value = '';
+    orderDetailLoading.value = true;
+
+    try {
+        orderDetail.value = await fetchOrder(orderId);
+    } catch (error) {
+        orderDetailError.value = extractErrorMessage(error);
+    } finally {
+        orderDetailLoading.value = false;
+    }
+}
+
+/**
+ * @param {{ id: number }} order
+ */
+function handleSelectOrder(order) {
+    openOrderDetail(order.id);
+}
+
+function closeOrderDetail() {
+    currentView.value = VIEWS.orderList;
+    selectedOrderId.value = null;
+    orderDetail.value = null;
+    orderDetailError.value = '';
+    loadMyOrders();
+}
+
+function goToOrderFromConfirmation() {
+    if (!submittedOrder.value) {
+        return;
+    }
+
+    openOrderDetail(submittedOrder.value.id);
 }
 
 function goToCart() {
@@ -488,6 +603,16 @@ function handleBack() {
         return;
     }
 
+    if (currentView.value === VIEWS.orderDetail) {
+        closeOrderDetail();
+        return;
+    }
+
+    if (currentView.value === VIEWS.orderList) {
+        goToRestaurants();
+        return;
+    }
+
     if (currentView.value === VIEWS.cart) {
         goToMenuFromCart();
     }
@@ -526,6 +651,18 @@ function setupBackButton() {
         return;
     }
 
+    if (currentView.value === VIEWS.orderList && getPlatform() === 'desktop') {
+        unbindBackButton = bindBackButton(closeMaxApp);
+
+        return;
+    }
+
+    if (currentView.value === VIEWS.orderList) {
+        hideBackButton();
+
+        return;
+    }
+
     unbindBackButton = bindBackButton(handleBack);
 }
 
@@ -539,7 +676,13 @@ async function bootstrapApp() {
         if (hasAdminRoles.value) {
             initAdminSession();
         } else {
-            await Promise.all([loadRestaurants(), loadCart()]);
+            await Promise.all([loadRestaurants(), loadCart(), loadMyOrders({ silent: true })]);
+
+            const deepLinkOrderId = parseDeepLinkOrderId();
+
+            if (deepLinkOrderId !== null) {
+                await openOrderDetail(deepLinkOrderId);
+            }
         }
     }
 
@@ -595,6 +738,7 @@ onUnmounted(() => {
                     @open-reject="openAdminRejectModal"
                     @close-reject="closeAdminRejectModal"
                     @reject="handleAdminReject"
+                    @messages-read="handleChatMessagesRead"
                 />
 
                 <AdminHomePage
@@ -618,8 +762,10 @@ onUnmounted(() => {
                 :loading="restaurantsLoading"
                 :error="restaurantsError"
                 :cart-item-count="cartItemCount"
+                :orders-unread-count="ordersUnreadCount"
                 @select-restaurant="openRestaurant"
                 @open-cart="goToCart"
+                @open-orders="goToMyOrders"
             />
 
             <MenuPage
@@ -630,8 +776,10 @@ onUnmounted(() => {
                 :adding-dish-id="addingDishId"
                 :cart-item-count="cartItemCount"
                 :cart-total="cartTotal"
+                :orders-unread-count="ordersUnreadCount"
                 @add-to-cart="handleAddToCart"
                 @open-cart="goToCart"
+                @open-orders="goToMyOrders"
             />
 
             <CartPage
@@ -644,6 +792,7 @@ onUnmounted(() => {
                 :updating-item-id="updatingItemId"
                 :saving-address="savingAddress"
                 :clearing="clearingCart"
+                :orders-unread-count="ordersUnreadCount"
                 @update-quantity="handleUpdateQuantity"
                 @remove-item="handleRemoveItem"
                 @clear-cart="handleClearCart"
@@ -652,12 +801,34 @@ onUnmounted(() => {
                 @go-to-restaurants="goToRestaurants"
                 @delivery-address-input="handleDeliveryAddressInput"
                 @delivery-address-blur="handleDeliveryAddressBlur"
+                @open-orders="goToMyOrders"
+            />
+
+            <OrderListPage
+                v-else-if="currentView === VIEWS.orderList"
+                :orders="myOrders"
+                :loading="myOrdersLoading"
+                :error="myOrdersError"
+                :refreshing="myOrdersRefreshing"
+                @select-order="handleSelectOrder"
+                @refresh="loadMyOrders({ refreshing: true })"
+                @back="goToRestaurants"
+            />
+
+            <OrderDetailPage
+                v-else-if="currentView === VIEWS.orderDetail && selectedOrderId"
+                :order="orderDetail ?? { id: selectedOrderId }"
+                :loading="orderDetailLoading"
+                :error="orderDetailError"
+                @back="closeOrderDetail"
+                @messages-read="handleChatMessagesRead"
             />
 
             <OrderConfirmationPage
                 v-else-if="currentView === VIEWS.confirmation && submittedOrder"
                 :order="submittedOrder"
                 @back-to-restaurants="goToRestaurants"
+                @go-to-order="goToOrderFromConfirmation"
             />
             </template>
         </template>

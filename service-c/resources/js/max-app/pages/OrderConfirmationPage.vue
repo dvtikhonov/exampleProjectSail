@@ -8,7 +8,7 @@ defineProps({
     },
 });
 
-const emit = defineEmits(['back-to-restaurants']);
+const emit = defineEmits(['back-to-restaurants', 'go-to-order']);
 </script>
 
 <template>
@@ -66,6 +66,14 @@ const emit = defineEmits(['back-to-restaurants']);
         <button
             type="button"
             class="mt-8 w-full max-w-sm rounded-2xl bg-max-primary px-6 py-3.5 font-medium text-white transition hover:bg-max-primary-hover"
+            @click="emit('go-to-order')"
+        >
+            Перейти к заказу
+        </button>
+
+        <button
+            type="button"
+            class="mt-3 w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-3.5 font-medium text-gray-700 transition hover:bg-gray-50"
             @click="emit('back-to-restaurants')"
         >
             К ресторанам

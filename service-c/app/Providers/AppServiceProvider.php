@@ -13,6 +13,8 @@ use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\OrderChatNotifierInterface;
+use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
@@ -20,6 +22,7 @@ use App\Repositories\Food\EloquentCustomerCategoryRepository;
 use App\Repositories\Food\EloquentDeliveryTierRepository;
 use App\Repositories\Food\EloquentFoodOrderAdminRepository;
 use App\Repositories\Food\EloquentFoodOrderRepository;
+use App\Repositories\Food\EloquentOrderMessageRepository;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
@@ -27,6 +30,7 @@ use App\Services\Food\DishImageDeliveryService;
 use App\Services\Food\DishImageUrlResolver;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
+use App\Services\Food\LaravelOrderChatNotifier;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
@@ -70,6 +74,10 @@ class AppServiceProvider extends ServiceProvider
             FoodOrderAdminRepositoryInterface::class,
             EloquentFoodOrderAdminRepository::class,
         );
+        $this->app->bind(
+            OrderMessageRepositoryInterface::class,
+            EloquentOrderMessageRepository::class,
+        );
 
         $this->app->bind(MaxBotTokenProviderInterface::class, EnvMaxBotTokenProvider::class);
         $this->app->bind(MaxMessengerClientInterface::class, function ($app): HttpMaxMessengerClient {
@@ -86,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
         );
         $this->app->bind(FoodOrderMaxNotifierInterface::class, LaravelFoodOrderMaxNotifier::class);
         $this->app->bind(FoodOrderCustomerNotifierInterface::class, LaravelFoodOrderCustomerNotifier::class);
+        $this->app->bind(OrderChatNotifierInterface::class, LaravelOrderChatNotifier::class);
     }
 
     /**

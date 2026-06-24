@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -22,6 +23,7 @@ abstract class TestCase extends BaseTestCase
 
         config()->set('database.connections.mysql.database', 'sail_db_testing');
         config()->set('database.default', 'mysql');
+        DB::purge('mysql');
 
         $this->resetMessMaxLogListeners();
     }

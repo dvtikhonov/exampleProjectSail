@@ -23,4 +23,11 @@ interface FoodOrderAdminRepositoryInterface
      * Назначает или реактивирует роль администратора для пользователя MAX.
      */
     public function assignActiveRole(int $maxUserId, FoodOrderAdminRole $role): FoodOrderAdmin;
+
+    /**
+     * Уникальные max_user_id всех активных администраторов заказов.
+     *
+     * @return list<int>
+     */
+    public function listActiveAdminMaxUserIds(): array;
 }

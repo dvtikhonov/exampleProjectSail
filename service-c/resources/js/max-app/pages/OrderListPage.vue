@@ -1,9 +1,7 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
-import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
-import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
+import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 
-const props = defineProps({
+defineProps({
     orders: {
         type: Array,
         default: () => [],
@@ -22,31 +20,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['select-order', 'refresh']);
-
-const pullDistance = ref(0);
-const isPulling = ref(false);
-let touchStartY = 0;
-let scrollContainer = null;
-
-const PULL_THRESHOLD = 72;
-
-/**
- * @param {{ first_name?: string|null, last_name?: string|null, username?: string|null, max_user_id: number }} customer
- */
-function formatCustomerName(customer) {
-    const parts = [customer.first_name, customer.last_name].filter(Boolean);
-
-    if (parts.length > 0) {
-        return parts.join(' ');
-    }
-
-    if (customer.username) {
-        return `@${customer.username}`;
-    }
-
-    return `ID ${customer.max_user_id}`;
-}
+const emit = defineEmits(['select-order', 'refresh', 'back']);
 
 /**
  * @param {string} iso
@@ -64,67 +38,44 @@ function formatDate(iso) {
     }
 }
 
-function onTouchStart(event) {
-    if (!scrollContainer || scrollContainer.scrollTop > 0 || props.loading || props.refreshing) {
-        isPulling.value = false;
-        return;
-    }
-
-    touchStartY = event.touches[0].clientY;
-    isPulling.value = true;
+/**
+ * @param {{ last_message_at?: string|null, created_at: string }} order
+ */
+function formatOrderDate(order) {
+    return formatDate(order.last_message_at ?? order.created_at);
 }
-
-function onTouchMove(event) {
-    if (!isPulling.value) {
-        return;
-    }
-
-    const delta = event.touches[0].clientY - touchStartY;
-
-    if (delta <= 0) {
-        pullDistance.value = 0;
-        return;
-    }
-
-    pullDistance.value = Math.min(delta * 0.5, PULL_THRESHOLD * 1.5);
-}
-
-function onTouchEnd() {
-    if (isPulling.value && pullDistance.value >= PULL_THRESHOLD && !props.refreshing) {
-        emit('refresh');
-    }
-
-    isPulling.value = false;
-    pullDistance.value = 0;
-}
-
-onMounted(() => {
-    scrollContainer = document.getElementById('admin-order-list-scroll');
-});
-
-onUnmounted(() => {
-    scrollContainer = null;
-});
 </script>
 
 <template>
-    <div class="flex min-h-0 flex-1 flex-col">
-        <div
-            class="flex shrink-0 items-center justify-center overflow-hidden text-xs text-max-muted transition-[height]"
-            :style="{ height: `${Math.max(pullDistance, refreshing ? 40 : 0)}px` }"
-        >
-            <span v-if="refreshing">Обновление…</span>
-            <span v-else-if="pullDistance >= PULL_THRESHOLD">Отпустите для обновления</span>
-            <span v-else-if="pullDistance > 0">Потяните вниз</span>
-        </div>
+    <div class="flex min-h-dvh flex-col">
+        <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 safe-area-top">
+            <div class="flex items-center gap-3">
+                <button
+                    type="button"
+                    class="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
+                    aria-label="Назад"
+                    @click="emit('back')"
+                >
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <div class="min-w-0 flex-1">
+                    <h1 class="text-lg font-semibold text-gray-900">Мои заказы</h1>
+                    <p class="text-sm text-max-muted">История и переписка</p>
+                </div>
+                <button
+                    type="button"
+                    class="rounded-full px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-max-primary/10 disabled:opacity-50"
+                    :disabled="loading || refreshing"
+                    @click="emit('refresh')"
+                >
+                    {{ refreshing ? '…' : 'Обновить' }}
+                </button>
+            </div>
+        </header>
 
-        <div
-            id="admin-order-list-scroll"
-            class="min-h-0 flex-1 overflow-y-auto px-4 pb-4"
-            @touchstart.passive="onTouchStart"
-            @touchmove.passive="onTouchMove"
-            @touchend="onTouchEnd"
-        >
+        <main class="flex-1 px-4 py-4">
             <div v-if="loading && orders.length === 0" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
@@ -143,8 +94,10 @@ onUnmounted(() => {
                 </button>
             </div>
 
-            <div v-else-if="orders.length === 0" class="py-16 text-center text-sm text-max-muted">
-                Нет заказов в очереди
+            <div v-else-if="orders.length === 0" class="py-16 text-center">
+                <div class="mb-4 text-5xl">📋</div>
+                <p class="text-base font-medium text-gray-900">Заказов пока нет</p>
+                <p class="mt-1 text-sm text-max-muted">Оформите заказ в ресторане — он появится здесь</p>
             </div>
 
             <ul v-else class="space-y-3">
@@ -166,19 +119,9 @@ onUnmounted(() => {
                                     >
                                         {{ order.unread_count }}
                                     </span>
-                                    <span class="text-xs text-max-muted">{{ formatDate(order.created_at) }}</span>
                                 </div>
-                                <OrderReviewStageBadges class="mt-1.5" :order="order" />
                                 <p class="mt-1 truncate text-sm text-gray-700">{{ order.restaurant_name }}</p>
-                                <p class="mt-0.5 truncate text-sm text-max-muted">
-                                    {{ formatCustomerName(order.customer) }}
-                                </p>
-                                <p
-                                    v-if="order.delivery_address"
-                                    class="mt-1 line-clamp-2 text-sm text-gray-600"
-                                >
-                                    {{ order.delivery_address }}
-                                </p>
+                                <p class="mt-0.5 text-xs text-max-muted">{{ formatOrderDate(order) }}</p>
                             </div>
                             <div class="shrink-0 text-right">
                                 <p class="font-semibold text-gray-900">{{ order.total }} ₽</p>
@@ -196,6 +139,6 @@ onUnmounted(() => {
                     </button>
                 </li>
             </ul>
-        </div>
+        </main>
     </div>
 </template>

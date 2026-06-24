@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
 use App\Http\Controllers\Api\Food\DishImageController;
+use App\Http\Controllers\Api\Food\OrderChatController;
 use App\Http\Controllers\Api\Food\OrderController;
 use App\Http\Controllers\Api\Food\RestaurantController;
 use App\Http\Controllers\Api\MaxAuthController;
@@ -37,6 +38,13 @@ Route::middleware('max.miniapp.auth')->group(function () {
         Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);
 
         Route::post('/orders/submit', [OrderController::class, 'submit']);
+        Route::get('/orders', [OrderController::class, 'index']);
+        Route::get('/orders/{order}', [OrderController::class, 'show'])
+            ->whereNumber('order');
+        Route::get('/orders/{order}/messages', [OrderChatController::class, 'index'])
+            ->whereNumber('order');
+        Route::post('/orders/{order}/messages', [OrderChatController::class, 'store'])
+            ->whereNumber('order');
 
         Route::prefix('admin')->group(function () {
             Route::get('/me', [AdminOrderReviewController::class, 'me']);
