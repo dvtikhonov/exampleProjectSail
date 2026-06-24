@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\AuthenticateMaxMiniApp;
+use App\Http\Middleware\EnsureFoodOrderAdmin;
 use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'trust.gateway' => TrustGatewayAuth::class,
             'max.webhook.secret' => VerifyMaxWebhookSecret::class,
             'max.miniapp.auth' => AuthenticateMaxMiniApp::class,
+            'food.order.admin' => EnsureFoodOrderAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Food\OrderReviewStatus;
 use App\Enums\Food\OrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +15,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'max_user_id',
     'restaurant_id',
     'status',
+    'address_review_status',
+    'composition_review_status',
+    'address_reviewed_by',
+    'address_reviewed_at',
+    'composition_reviewed_by',
+    'composition_reviewed_at',
+    'address_rejection_comment',
+    'composition_rejection_comment',
     'total',
     'delivery_address',
     'delivery_cost',
@@ -35,6 +44,12 @@ class FoodOrder extends Model
         return [
             'max_user_id' => 'integer',
             'status' => OrderStatus::class,
+            'address_review_status' => OrderReviewStatus::class,
+            'composition_review_status' => OrderReviewStatus::class,
+            'address_reviewed_by' => 'integer',
+            'address_reviewed_at' => 'datetime',
+            'composition_reviewed_by' => 'integer',
+            'composition_reviewed_at' => 'datetime',
             'total' => 'decimal:2',
             'delivery_cost' => 'decimal:2',
             'items_total' => 'decimal:2',
@@ -64,5 +79,34 @@ class FoodOrder extends Model
     public function restaurant(): BelongsTo
     {
         return $this->belongsTo(Restaurant::class);
+    }
+
+    /**
+     * @return BelongsTo<MaxUser, $this>
+     */
+    public function addressReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(MaxUser::class, 'address_reviewed_by', 'max_user_id');
+    }
+
+    /**
+     * @return BelongsTo<MaxUser, $this>
+     */
+    public function compositionReviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(MaxUser::class, 'composition_reviewed_by', 'max_user_id');
+    }
+
+    /**
+     * Заказ ожидает проверки состава (включая legacy-записи с not_applicable после миграции).
+     */
+    public function isInCompositionReviewQueue(): bool
+    {
+        if (in_array($this->status, [OrderStatus::Rejected, OrderStatus::Confirmed], true)) {
+            return false;
+        }
+
+        return $this->composition_review_status === OrderReviewStatus::Pending
+            || $this->composition_review_status === OrderReviewStatus::NotApplicable;
     }
 }

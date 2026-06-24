@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Max;
 
 use App\Contracts\Food\CustomerCategoryRepositoryInterface;
+use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
+use App\Enums\Food\FoodOrderAdminRole;
 use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Models\MaxUser;
 use Illuminate\Contracts\Config\Repository;
@@ -21,6 +23,7 @@ class MaxMiniAppAuthService
     public function __construct(
         private readonly Repository $config,
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
+        private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
     ) {}
 
     /**
@@ -56,6 +59,11 @@ class MaxMiniAppAuthService
             now()->addSeconds($expiresInSeconds),
         );
 
+        $adminRoles = array_map(
+            static fn (FoodOrderAdminRole $role): string => $role->value,
+            $this->foodOrderAdminRepository->getActiveRoles($maxUser->max_user_id),
+        );
+
         return [
             'token' => $accessToken->plainTextToken,
             'token_type' => 'Bearer',
@@ -67,6 +75,7 @@ class MaxMiniAppAuthService
                 'username' => $maxUser->username,
                 'language_code' => $maxUser->language_code,
                 'photo_url' => $maxUser->photo_url,
+                'admin_roles' => $adminRoles,
             ],
         ];
     }

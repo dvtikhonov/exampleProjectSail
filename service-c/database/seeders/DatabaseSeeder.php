@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RestaurantSeeder::class,
             DishImageUrlBackfillSeeder::class,
             CustomerCategorySeeder::class,
+            FoodOrderAdminSeeder::class,
         ]);
     }
 }

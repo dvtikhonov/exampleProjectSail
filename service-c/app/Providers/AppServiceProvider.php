@@ -9,17 +9,23 @@ use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\Contracts\Food\DishImageDeliveryInterface;
 use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\FoodOrderRepositoryInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\Repositories\Food\EloquentCustomerCategoryRepository;
 use App\Repositories\Food\EloquentDeliveryTierRepository;
+use App\Repositories\Food\EloquentFoodOrderAdminRepository;
+use App\Repositories\Food\EloquentFoodOrderRepository;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
 use App\Services\Food\DishImageDeliveryService;
 use App\Services\Food\DishImageUrlResolver;
+use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
@@ -56,6 +62,14 @@ class AppServiceProvider extends ServiceProvider
             CustomerCategoryRepositoryInterface::class,
             EloquentCustomerCategoryRepository::class,
         );
+        $this->app->bind(
+            FoodOrderRepositoryInterface::class,
+            EloquentFoodOrderRepository::class,
+        );
+        $this->app->bind(
+            FoodOrderAdminRepositoryInterface::class,
+            EloquentFoodOrderAdminRepository::class,
+        );
 
         $this->app->bind(MaxBotTokenProviderInterface::class, EnvMaxBotTokenProvider::class);
         $this->app->bind(MaxMessengerClientInterface::class, function ($app): HttpMaxMessengerClient {
@@ -71,6 +85,7 @@ class AppServiceProvider extends ServiceProvider
             ConfigMaxOrderNotificationConfigProvider::class,
         );
         $this->app->bind(FoodOrderMaxNotifierInterface::class, LaravelFoodOrderMaxNotifier::class);
+        $this->app->bind(FoodOrderCustomerNotifierInterface::class, LaravelFoodOrderCustomerNotifier::class);
     }
 
     /**

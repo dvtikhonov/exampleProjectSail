@@ -118,6 +118,82 @@ export async function submitOrder() {
 }
 
 /**
+ * @returns {Promise<string[]>}
+ */
+export async function fetchAdminMe() {
+    const { data } = await client.get('/food/admin/me');
+
+    return data.admin_roles;
+}
+
+/**
+ * @param {'address'|'composition'} scope
+ * @param {string} [status]
+ * @returns {Promise<object[]>}
+ */
+export async function fetchAdminOrders(scope, status = 'pending') {
+    const { data } = await client.get('/food/admin/orders', {
+        params: { scope, status },
+    });
+
+    return data.orders;
+}
+
+/**
+ * @param {number} orderId
+ * @param {'address'|'composition'} scope
+ */
+export async function fetchAdminOrder(orderId, scope) {
+    const { data } = await client.get(`/food/admin/orders/${orderId}`, {
+        params: { scope },
+    });
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ */
+export async function approveOrderAddress(orderId) {
+    const { data } = await client.post(`/food/admin/orders/${orderId}/address/approve`);
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ * @param {string} comment
+ */
+export async function rejectOrderAddress(orderId, comment) {
+    const { data } = await client.post(`/food/admin/orders/${orderId}/address/reject`, {
+        comment,
+    });
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ */
+export async function approveOrderComposition(orderId) {
+    const { data } = await client.post(`/food/admin/orders/${orderId}/composition/approve`);
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ * @param {string} comment
+ */
+export async function rejectOrderComposition(orderId, comment) {
+    const { data } = await client.post(`/food/admin/orders/${orderId}/composition/reject`, {
+        comment,
+    });
+
+    return data.order;
+}
+
+/**
  * @param {unknown} error
  * @returns {string}
  */

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
 use App\Http\Controllers\Api\Food\DishImageController;
 use App\Http\Controllers\Api\Food\OrderController;
@@ -36,6 +37,26 @@ Route::middleware('max.miniapp.auth')->group(function () {
         Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);
 
         Route::post('/orders/submit', [OrderController::class, 'submit']);
+
+        Route::prefix('admin')->group(function () {
+            Route::get('/me', [AdminOrderReviewController::class, 'me']);
+            Route::get('/orders', [AdminOrderReviewController::class, 'index']);
+            Route::get('/orders/{order}', [AdminOrderReviewController::class, 'show'])
+                ->whereNumber('order');
+
+            Route::post('/orders/{order}/address/approve', [AdminOrderReviewController::class, 'approveAddress'])
+                ->middleware('food.order.admin:address_reviewer')
+                ->whereNumber('order');
+            Route::post('/orders/{order}/address/reject', [AdminOrderReviewController::class, 'rejectAddress'])
+                ->middleware('food.order.admin:address_reviewer')
+                ->whereNumber('order');
+            Route::post('/orders/{order}/composition/approve', [AdminOrderReviewController::class, 'approveComposition'])
+                ->middleware('food.order.admin:composition_reviewer')
+                ->whereNumber('order');
+            Route::post('/orders/{order}/composition/reject', [AdminOrderReviewController::class, 'rejectComposition'])
+                ->middleware('food.order.admin:composition_reviewer')
+                ->whereNumber('order');
+        });
     });
 });
 

@@ -86,14 +86,14 @@ class FoodOrderApiTest extends TestCase
         $this->assertNotNull($capturedUser);
         $this->assertSame($auth['user']->max_user_id, $capturedUser->max_user_id);
         $this->assertSame($response->json('order.id'), $capturedOrder->id);
-        $this->assertSame(OrderStatus::Submitted->value, $capturedOrder->status);
+        $this->assertSame(OrderStatus::PendingReview->value, $capturedOrder->status);
         $this->assertSame('Notify Place', $capturedOrder->restaurantName);
         $this->assertSame('1000.00', $capturedOrder->itemsTotal);
         $this->assertSame($address, $capturedOrder->deliveryAddress);
         $this->assertSame('Burger', $capturedOrder->itemsSnapshot[0]['dish_name'] ?? null);
     }
 
-    public function test_submit_order_creates_submitted_order_and_marks_cart_submitted(): void
+    public function test_submit_order_creates_pending_review_order_and_marks_cart_submitted(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
             'Order Place',
@@ -112,7 +112,7 @@ class FoodOrderApiTest extends TestCase
 
         $response
             ->assertCreated()
-            ->assertJsonPath('order.status', OrderStatus::Submitted->value)
+            ->assertJsonPath('order.status', OrderStatus::PendingReview->value)
             ->assertJsonPath('order.restaurant_id', $fixture['restaurant']->id)
             ->assertJsonPath('order.restaurant_name', 'Order Place')
             ->assertJsonPath('order.items_total', '1400.00')
@@ -127,7 +127,9 @@ class FoodOrderApiTest extends TestCase
         $this->assertDatabaseHas('max_food_orders', [
             'max_user_id' => $auth['user']->max_user_id,
             'restaurant_id' => $fixture['restaurant']->id,
-            'status' => OrderStatus::Submitted->value,
+            'status' => OrderStatus::PendingReview->value,
+            'address_review_status' => 'pending',
+            'composition_review_status' => 'pending',
             'items_total' => '1400.00',
             'delivery_cost' => '0.00',
             'total' => '1400.00',
