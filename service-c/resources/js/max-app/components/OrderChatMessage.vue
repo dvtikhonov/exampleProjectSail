@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Одно сообщение в чате заказа: пузырь с подписью отправителя и временем.
+ */
 import { computed } from 'vue';
 
 const props = defineProps({

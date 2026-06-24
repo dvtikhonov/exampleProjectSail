@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Меню ресторана: категории и блюда с кнопкой «+» в корзину.
+ * При непустой корзине показывает фиксированную панель внизу с итогом.
+ */
 import { computed } from 'vue';
 import DishImage from '../components/DishImage.vue';
 import MyOrdersButton from '../components/MyOrdersButton.vue';

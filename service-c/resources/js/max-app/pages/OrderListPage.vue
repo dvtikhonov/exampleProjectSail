@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Список заказов клиента с статусом, суммой и счётчиком непрочитанных сообщений.
+ */
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 
 defineProps({

@@ -17,13 +17,10 @@ abstract class TestCase extends BaseTestCase
         // Таблицы создаёт prepare в test-services.sh (main-app, service-a/b/c migrations).
         RefreshDatabaseState::$migrated = true;
 
+        $this->configureTestingDatabaseConnection();
         $this->ensureTestingDatabaseReady();
 
         parent::setUp();
-
-        config()->set('database.connections.mysql.database', 'sail_db_testing');
-        config()->set('database.default', 'mysql');
-        DB::purge('mysql');
 
         $this->resetMessMaxLogListeners();
     }
@@ -35,18 +32,22 @@ abstract class TestCase extends BaseTestCase
         parent::tearDown();
     }
 
-    private function ensureTestingDatabaseReady(): void
+    private function configureTestingDatabaseConnection(): void
     {
-        if (self::$pendingMigrationsApplied) {
-            return;
-        }
-
         if (! $this->app) {
             $this->refreshApplication();
         }
 
         config()->set('database.connections.mysql.database', 'sail_db_testing');
         config()->set('database.default', 'mysql');
+        DB::purge('mysql');
+    }
+
+    private function ensureTestingDatabaseReady(): void
+    {
+        if (self::$pendingMigrationsApplied) {
+            return;
+        }
 
         Artisan::call('migrate', ['--force' => true]);
 

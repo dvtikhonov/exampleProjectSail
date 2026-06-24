@@ -1,4 +1,11 @@
 <script setup>
+/**
+ * Корневой компонент MAX mini-app.
+ *
+ * Управляет навигацией без vue-router: переключение экранов через currentView / adminView.
+ * При старте авторизуется через initData из MAX Bridge; при наличии admin_roles
+ * показывает админ-интерфейс проверки заказов вместо клиентского потока.
+ */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
     addToCart,
@@ -37,9 +44,11 @@ import RestaurantList from './pages/RestaurantList.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
 
+/** Роли администратора, определяющие доступные вкладки проверки */
 const ROLE_ADDRESS = 'address_reviewer';
 const ROLE_COMPOSITION = 'composition_reviewer';
 
+/** Экраны клиентского потока (ресторан → меню → корзина → заказ) */
 const VIEWS = {
     restaurants: 'restaurants',
     menu: 'menu',
@@ -49,16 +58,19 @@ const VIEWS = {
     orderDetail: 'orderDetail',
 };
 
+/** Экраны админ-потока (список очереди / карточка заказа) */
 const ADMIN_VIEWS = {
     list: 'list',
     detail: 'detail',
 };
 
+// --- Состояние навигации ---
 const currentView = ref(VIEWS.restaurants);
 const adminView = ref(ADMIN_VIEWS.list);
 const adminScope = ref('address');
 const adminRoles = ref([]);
 
+// --- Админ: очередь и карточка заказа ---
 const adminOrders = ref([]);
 const adminOrdersLoading = ref(false);
 const adminOrdersRefreshing = ref(false);
@@ -71,9 +83,11 @@ const adminActionLoading = ref(false);
 const adminActionError = ref('');
 const showRejectModal = ref(false);
 
+// --- Авторизация ---
 const authLoading = ref(true);
 const authError = ref('');
 
+// --- Клиент: рестораны и меню ---
 const restaurants = ref([]);
 const restaurantsLoading = ref(false);
 const restaurantsError = ref('');
@@ -84,6 +98,7 @@ const menuLoading = ref(false);
 const menuError = ref('');
 const addingDishId = ref(null);
 
+// --- Клиент: корзина и оформление ---
 const cart = ref(null);
 const cartLoading = ref(false);
 const cartError = ref('');
@@ -95,6 +110,7 @@ const savingAddress = ref(false);
 const submittedOrder = ref(null);
 const cartPageRef = ref(null);
 
+// --- Клиент: история заказов и чат ---
 const myOrders = ref([]);
 const myOrdersLoading = ref(false);
 const myOrdersRefreshing = ref(false);
@@ -105,7 +121,9 @@ const orderDetail = ref(null);
 const orderDetailLoading = ref(false);
 const orderDetailError = ref('');
 
+/** Снимает обработчик кнопки «Назад» MAX Bridge при смене экрана */
 let unbindBackButton = () => {};
+/** Таймер debounce для автосохранения адреса доставки (500 мс) */
 let addressDebounceTimer = null;
 
 const cartItemCount = computed(() => {
@@ -124,6 +142,7 @@ const ordersUnreadCount = computed(() =>
 
 const hasAdminRoles = computed(() => adminRoles.value.length > 0);
 
+/** Авторизация по initData из MAX; заполняет adminRoles для выбора режима UI */
 async function initAuth() {
     authLoading.value = true;
     authError.value = '';
@@ -160,6 +179,7 @@ function resolveDefaultAdminScope(roles) {
     return 'address';
 }
 
+/** Сброс админ-состояния и загрузка очереди при входе с ролью проверяющего */
 function initAdminSession() {
     adminView.value = ADMIN_VIEWS.list;
     selectedAdminOrder.value = null;
@@ -389,6 +409,7 @@ async function saveDeliveryAddress(address) {
     }
 }
 
+/** Отложенное сохранение адреса при вводе (не блокирует UI на каждый символ) */
 function handleDeliveryAddressInput(address) {
     if (addressDebounceTimer !== null) {
         clearTimeout(addressDebounceTimer);
@@ -448,6 +469,8 @@ function goToRestaurants() {
 }
 
 /**
+ * Deep link из уведомления MAX: ?order_id=N&view=chat открывает чат заказа.
+ *
  * @returns {number|null}
  */
 function parseDeepLinkOrderId() {
@@ -585,6 +608,10 @@ async function goToMenuFromCart() {
     }
 }
 
+/**
+ * Обработка системной кнопки «Назад» MAX.
+ * Учитывает вложенные модалки (корзина) и разные стеки admin / client.
+ */
 function handleBack() {
     if (hasAdminRoles.value) {
         if (adminView.value === ADMIN_VIEWS.detail) {
@@ -618,6 +645,10 @@ function handleBack() {
     }
 }
 
+/**
+ * Привязка BackButton MAX к закрытию приложения или навигации назад.
+ * На desktop на корневых экранах «Назад» закрывает mini-app.
+ */
 function setupBackButton() {
     unbindBackButton();
 
@@ -669,6 +700,7 @@ function setupBackButton() {
 watch(currentView, setupBackButton);
 watch(adminView, setupBackButton);
 
+/** Стартовая последовательность: auth → admin или клиентские данные + deep link */
 async function bootstrapApp() {
     await initAuth();
 

@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Карточка заказа клиента: снимок состава, адрес, итог и чат с оператором.
+ */
 import DishImage from '../components/DishImage.vue';
 import OrderChatPanel from '../components/OrderChatPanel.vue';
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';

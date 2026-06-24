@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Превью блюда: lazy-load изображения с fallback на эмодзи при ошибке или отсутствии URL.
+ */
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({

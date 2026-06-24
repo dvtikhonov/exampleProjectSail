@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Пара бейджей этапов проверки: адрес и состав заказа (для админ-списка и карточки).
+ */
 import { computed } from 'vue';
 import { getReviewStageDisplay } from '../utils/orderStatus';
 

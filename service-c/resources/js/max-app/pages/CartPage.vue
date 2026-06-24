@@ -1,4 +1,10 @@
 <script setup>
+/**
+ * Корзина: позиции, адрес доставки, подтверждение заявки.
+ *
+ * Адрес синхронизируется с сервером через debounce (родитель App.vue).
+ * Модалка подтверждения перехватывает кнопку «Назад» через defineExpose.
+ */
 import { computed, ref, watch } from 'vue';
 import DishImage from '../components/DishImage.vue';
 import MyOrdersButton from '../components/MyOrdersButton.vue';
@@ -59,6 +65,7 @@ const focusedQuantityItemId = ref(null);
 const MIN_QUANTITY = 1;
 const MAX_QUANTITY = 99;
 
+/** Не перезаписывать localAddress с сервера, пока пользователь редактирует поле */
 watch(
     () => props.cart?.delivery_address,
     (value) => {
@@ -94,6 +101,7 @@ function handleAddressBlur() {
     emit('delivery-address-blur', localAddress.value);
 }
 
+/** Черновик количества в input до blur/Enter — не шлём API на каждый символ */
 function getQuantityDisplay(item) {
     if (focusedQuantityItemId.value === item.id && quantityDrafts.value[item.id] !== undefined) {
         return quantityDrafts.value[item.id];
@@ -147,6 +155,10 @@ function confirmOrder() {
     emit('submit-order', localAddress.value);
 }
 
+/**
+ * Перехват «Назад» из App.vue: сначала закрыть модалку подтверждения.
+ * @returns {boolean} true — событие обработано, навигацию не продолжать
+ */
 function handleBackRequest() {
     if (showOrderConfirm.value) {
         closeOrderConfirm();

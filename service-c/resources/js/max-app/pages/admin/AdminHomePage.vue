@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Оболочка админ-интерфейса: заголовок и вкладки «Адреса» / «Состав»
+ * в зависимости от admin_roles пользователя.
+ */
 import { computed } from 'vue';
 import AdminOrderListPage from './AdminOrderListPage.vue';
 

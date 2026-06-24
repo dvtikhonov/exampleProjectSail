@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Очередь заказов на проверку с pull-to-refresh на touch-устройствах.
+ */
 import { onMounted, onUnmounted, ref } from 'vue';
 import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
@@ -29,6 +32,7 @@ const isPulling = ref(false);
 let touchStartY = 0;
 let scrollContainer = null;
 
+/** Порог смещения пальца (px) для срабатывания обновления списка */
 const PULL_THRESHOLD = 72;
 
 /**
@@ -65,6 +69,7 @@ function formatDate(iso) {
 }
 
 function onTouchStart(event) {
+    // Pull-to-refresh только у верхней границы списка
     if (!scrollContainer || scrollContainer.scrollTop > 0 || props.loading || props.refreshing) {
         isPulling.value = false;
         return;
@@ -86,6 +91,7 @@ function onTouchMove(event) {
         return;
     }
 
+    // Демпфирование жеста: визуальное смещение меньше реального
     pullDistance.value = Math.min(delta * 0.5, PULL_THRESHOLD * 1.5);
 }
 

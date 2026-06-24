@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Панель чата по заказу: загрузка истории, отправка, polling новых сообщений.
+ * perspective определяет, какие сообщения считаются «своими» (customer | admin).
+ */
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { extractErrorMessage, fetchOrderMessages, sendOrderMessage } from '../api/foodClient';
 import OrderChatMessage from './OrderChatMessage.vue';
@@ -30,6 +34,7 @@ const MAX_BODY_LENGTH = 2000;
 
 let pollTimer = null;
 
+/** Сообщения текущего пользователя выравниваются справа в ленте */
 function isOwnMessage(message) {
     if (props.perspective === 'customer') {
         return message.author_type === 'customer';
@@ -63,6 +68,7 @@ async function loadMessages() {
     }
 }
 
+/** Инкрементальная подгрузка только сообщений новее lastId */
 async function pollNewMessages() {
     if (loading.value || messages.value.length === 0) {
         return;

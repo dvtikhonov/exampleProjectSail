@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Кнопка перехода к списку заказов с бейджем непрочитанных сообщений.
+ */
 import { computed } from 'vue';
 
 const props = defineProps({

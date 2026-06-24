@@ -1,9 +1,14 @@
 /**
+ * Маппинг статусов заказа и этапов проверки в подписи и CSS-классы бейджей.
+ */
+
+/**
  * @typedef {{ label: string, badgeClass: string }} OrderStatusDisplay
  */
 
 /**
  * @param {string|undefined|null} reviewStatus
+ * pending и not_applicable трактуются как «ещё не пройден этап»
  */
 function isReviewStagePending(reviewStatus) {
     return reviewStatus === 'pending' || reviewStatus === 'not_applicable';

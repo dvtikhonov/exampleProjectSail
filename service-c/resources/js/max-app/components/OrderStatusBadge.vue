@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Бейдж агрегированного статуса заказа (Поступил, На проверке, Выполнен и т.д.).
+ */
 import { computed } from 'vue';
 import { getOrderStatusDisplay } from '../utils/orderStatus';
 

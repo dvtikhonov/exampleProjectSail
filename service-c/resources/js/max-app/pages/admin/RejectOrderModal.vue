@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Модальное окно отклонения заказа: обязательный комментарий для клиента (до 1000 символов).
+ * Рендерится через Teleport в body поверх всего UI.
+ */
 import { ref, watch } from 'vue';
 
 const props = defineProps({

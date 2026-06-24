@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Карточка заказа для проверяющего: клиент, адрес, состав, чат, approve/reject.
+ * Активный scope (address | composition) подсвечивается рамкой.
+ */
 import { computed } from 'vue';
 import DishImage from '../../components/DishImage.vue';
 import OrderChatPanel from '../../components/OrderChatPanel.vue';

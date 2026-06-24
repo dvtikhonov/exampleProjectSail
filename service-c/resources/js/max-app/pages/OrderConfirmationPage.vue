@@ -1,4 +1,7 @@
 <script setup>
+/**
+ * Экран после успешной отправки заявки: ожидание проверки оператором.
+ */
 import DishImage from '../components/DishImage.vue';
 
 defineProps({

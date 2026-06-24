@@ -1,4 +1,8 @@
 <script setup>
+/**
+ * Стартовый экран клиента: список ресторанов.
+ * Шапка содержит переход в «Мои заказы» и корзину с бейджем количества.
+ */
 import MyOrdersButton from '../components/MyOrdersButton.vue';
 
 defineProps({
