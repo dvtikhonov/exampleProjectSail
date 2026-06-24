@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\Food;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
+use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use App\Services\Food\AdminOrderQueryService;
 use App\Services\Food\OrderAddressReviewService;
@@ -138,7 +139,7 @@ class AdminOrderReviewController extends Controller
     }
 
     /**
-     * @param  callable(): \App\Models\FoodOrder  $action
+     * @param  callable(): FoodOrder  $action
      */
     private function respondReviewDecision(callable $action): JsonResponse
     {

@@ -8,7 +8,6 @@ use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderRepositoryInterface;
 use App\Enums\Food\OrderRejectionScope;
 use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;

@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
  */
 final class MaxLocalDevInitData
 {
-#    private const DEMO_VIP_MAX_USER_ID = 1002;
+    //    private const DEMO_VIP_MAX_USER_ID = 1002;
     private const DEMO_VIP_MAX_USER_ID = 1003;
 
     /**

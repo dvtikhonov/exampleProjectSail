@@ -6,8 +6,8 @@ namespace App\Services\Max;
 
 use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Enums\Food\FoodOrderAdminRole;
 use App\DTO\Max\MaxWebAppInitDataDto;
+use App\Enums\Food\FoodOrderAdminRole;
 use App\Models\MaxUser;
 use Illuminate\Contracts\Config\Repository;
 

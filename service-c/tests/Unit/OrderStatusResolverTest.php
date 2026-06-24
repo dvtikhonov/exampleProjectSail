@@ -18,7 +18,7 @@ class OrderStatusResolverTest extends TestCase
     {
         parent::setUp();
 
-        $this->resolver = new OrderStatusResolver();
+        $this->resolver = new OrderStatusResolver;
     }
 
     #[DataProvider('statusTransitionProvider')]
