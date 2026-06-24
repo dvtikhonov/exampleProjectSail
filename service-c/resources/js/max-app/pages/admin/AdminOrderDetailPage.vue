@@ -1,6 +1,13 @@
 <script setup>
+/**
+ * Карточка заказа для проверяющего: клиент, адрес, состав, чат, approve/reject.
+ * Активный scope (address | composition) подсвечивается рамкой.
+ */
 import { computed } from 'vue';
 import DishImage from '../../components/DishImage.vue';
+import OrderChatPanel from '../../components/OrderChatPanel.vue';
+import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
+import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 import RejectOrderModal from './RejectOrderModal.vue';
 
 const props = defineProps({
@@ -31,7 +38,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['back', 'approve', 'open-reject', 'close-reject', 'reject']);
+const emit = defineEmits(['back', 'approve', 'open-reject', 'close-reject', 'reject', 'messages-read']);
 
 const isAddressScope = computed(() => props.scope === 'address');
 
@@ -72,25 +79,30 @@ function formatCustomerName(customer) {
                     </svg>
                 </button>
                 <div class="min-w-0 flex-1">
-                    <h1 class="truncate text-lg font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 class="truncate text-lg font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
+                        <OrderStatusBadge :order="order" size="md" />
+                    </div>
                     <p class="truncate text-sm text-max-muted">{{ order.restaurant_name }}</p>
+                    <OrderReviewStageBadges class="mt-1.5" :order="order" />
                 </div>
             </div>
         </header>
 
-        <main class="flex-1 overflow-y-auto px-4 py-4">
+        <main class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
 
             <template v-else>
+                <div class="shrink-0 space-y-4 overflow-y-auto">
                 <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Клиент</p>
                     <p class="mt-1 text-sm text-gray-900">{{ formatCustomerName(order.customer) }}</p>
                 </div>
 
                 <div
-                    class="mt-4 rounded-2xl border bg-white p-4 shadow-sm"
+                    class="rounded-2xl border bg-white p-4 shadow-sm"
                     :class="isAddressScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
@@ -98,7 +110,7 @@ function formatCustomerName(customer) {
                 </div>
 
                 <div
-                    class="mt-4 rounded-2xl border bg-white p-4 shadow-sm"
+                    class="rounded-2xl border bg-white p-4 shadow-sm"
                     :class="!isAddressScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Состав заказа</p>
@@ -135,10 +147,18 @@ function formatCustomerName(customer) {
 
                 <div
                     v-if="actionError"
-                    class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                    class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
                 >
                     {{ actionError }}
                 </div>
+                </div>
+
+                <OrderChatPanel
+                    :order-id="order.id"
+                    perspective="admin"
+                    class="min-h-[220px] flex-1"
+                    @messages-read="emit('messages-read')"
+                />
             </template>
         </main>
 

@@ -6,6 +6,7 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\AdminOrderDetailDto;
 use App\DTO\Food\AdminOrderListItemDto;
 use App\Enums\Food\FoodOrderAdminRole;
@@ -22,6 +23,7 @@ class AdminOrderQueryService
     public function __construct(
         private readonly FoodOrderRepositoryInterface $foodOrderRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly OrderMessageRepositoryInterface $orderMessageRepository,
         private readonly FoodMoneyFormatter $moneyFormatter,
     ) {}
 
@@ -41,20 +43,21 @@ class AdminOrderQueryService
      *
      * @throws FoodDomainException
      */
-    public function listPending(MaxUser $admin, string $scope): array
+    public function list(MaxUser $admin, string $scope, string $status): array
     {
         $this->assertScopeAccess($admin, $scope);
 
-        $orders = match ($scope) {
-            'address' => $this->foodOrderRepository->findForAddressReview(OrderReviewStatus::Pending),
-            'composition' => $this->foodOrderRepository->findForCompositionReview(OrderReviewStatus::Pending),
-            default => throw new FoodDomainException('Invalid scope. Use address or composition.', 422),
+        $orders = match ($status) {
+            'pending' => match ($scope) {
+                'address' => $this->foodOrderRepository->findForAddressReview(OrderReviewStatus::Pending),
+                'composition' => $this->foodOrderRepository->findForCompositionReview(OrderReviewStatus::Pending),
+                default => throw new FoodDomainException('Invalid scope. Use address or composition.', 422),
+            },
+            'all' => $this->foodOrderRepository->findAll(),
+            default => throw new FoodDomainException('Invalid status. Use pending or all.', 422),
         };
 
-        return array_map(
-            fn (FoodOrder $order): AdminOrderListItemDto => $this->mapListItem($order),
-            $orders,
-        );
+        return $this->mapListItems($admin, $orders);
     }
 
     /**
@@ -69,8 +72,6 @@ class AdminOrderQueryService
         if ($order === null) {
             throw new FoodDomainException('Order not found.', 404);
         }
-
-        $this->assertOrderVisibleForScope($order, $scope);
 
         return $this->mapDetail($order);
     }
@@ -102,35 +103,31 @@ class AdminOrderQueryService
     }
 
     /**
-     * @throws FoodDomainException
+     * @param  list<FoodOrder>  $orders
+     * @return list<AdminOrderListItemDto>
      */
-    private function assertOrderVisibleForScope(FoodOrder $order, string $scope): void
+    private function mapListItems(MaxUser $admin, array $orders): array
     {
-        match ($scope) {
-            'address' => $this->assertAddressQueueOrder($order),
-            'composition' => $this->assertCompositionQueueOrder($order),
-            default => throw new FoodDomainException('Invalid scope. Use address or composition.', 422),
-        };
-    }
+        $orderIds = array_map(
+            static fn (FoodOrder $order): int => $order->id,
+            $orders,
+        );
+        $chatStats = $this->orderMessageRepository->getChatStatsForOrders(
+            $orderIds,
+            $admin->max_user_id,
+        );
 
-    /**
-     * @throws FoodDomainException
-     */
-    private function assertAddressQueueOrder(FoodOrder $order): void
-    {
-        if ($order->address_review_status !== OrderReviewStatus::Pending) {
-            throw new FoodDomainException('Order is not in address review queue.', 422);
-        }
-    }
+        return array_map(
+            function (FoodOrder $order) use ($chatStats): AdminOrderListItemDto {
+                $stats = $chatStats[$order->id] ?? [
+                    'last_message_at' => null,
+                    'unread_count' => 0,
+                ];
 
-    /**
-     * @throws FoodDomainException
-     */
-    private function assertCompositionQueueOrder(FoodOrder $order): void
-    {
-        if (! $order->isInCompositionReviewQueue()) {
-            throw new FoodDomainException('Order is not in composition review queue.', 422);
-        }
+                return $this->mapListItem($order, $stats);
+            },
+            $orders,
+        );
     }
 
     /**
@@ -145,7 +142,10 @@ class AdminOrderQueryService
         };
     }
 
-    private function mapListItem(FoodOrder $order): AdminOrderListItemDto
+    /**
+     * @param  array{last_message_at: ?string, unread_count: int}  $chatStats
+     */
+    private function mapListItem(FoodOrder $order, array $chatStats): AdminOrderListItemDto
     {
         return new AdminOrderListItemDto(
             id: $order->id,
@@ -162,6 +162,8 @@ class AdminOrderQueryService
             total: $this->formatMoney($order->total),
             addressReviewStatus: $order->address_review_status->value,
             compositionReviewStatus: $order->composition_review_status->value,
+            lastMessageAt: $chatStats['last_message_at'],
+            unreadCount: $chatStats['unread_count'],
             createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
         );
     }

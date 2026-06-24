@@ -1,6 +1,11 @@
 <script setup>
+/**
+ * Меню ресторана: категории и блюда с кнопкой «+» в корзину.
+ * При непустой корзине показывает фиксированную панель внизу с итогом.
+ */
 import { computed } from 'vue';
 import DishImage from '../components/DishImage.vue';
+import MyOrdersButton from '../components/MyOrdersButton.vue';
 
 const props = defineProps({
     menu: {
@@ -27,9 +32,13 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    ordersUnreadCount: {
+        type: Number,
+        default: 0,
+    },
 });
 
-const emit = defineEmits(['add-to-cart', 'open-cart']);
+const emit = defineEmits(['add-to-cart', 'open-cart', 'open-orders']);
 
 const hasCart = computed(() => props.cartItemCount > 0);
 </script>
@@ -37,10 +46,20 @@ const hasCart = computed(() => props.cartItemCount > 0);
 <template>
     <div class="flex min-h-dvh flex-col pb-24">
         <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3">
-            <h1 class="truncate text-lg font-semibold text-gray-900">
-                {{ menu?.restaurant_name ?? 'Меню' }}
-            </h1>
-            <p class="text-sm text-max-muted">Выберите блюда</p>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h1 class="truncate text-lg font-semibold text-gray-900">
+                        {{ menu?.restaurant_name ?? 'Меню' }}
+                    </h1>
+                    <p class="text-sm text-max-muted">Выберите блюда</p>
+                </div>
+                <MyOrdersButton
+                    label="Заказы"
+                    :unread-count="ordersUnreadCount"
+                    button-class="shrink-0 rounded-full px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-max-primary/10"
+                    @click="emit('open-orders')"
+                />
+            </div>
         </header>
 
         <main class="flex-1 px-4 py-4">

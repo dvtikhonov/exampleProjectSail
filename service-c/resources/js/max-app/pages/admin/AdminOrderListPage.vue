@@ -1,5 +1,10 @@
 <script setup>
+/**
+ * Очередь заказов на проверку с pull-to-refresh на touch-устройствах.
+ */
 import { onMounted, onUnmounted, ref } from 'vue';
+import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
+import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 
 const props = defineProps({
     orders: {
@@ -27,6 +32,7 @@ const isPulling = ref(false);
 let touchStartY = 0;
 let scrollContainer = null;
 
+/** Порог смещения пальца (px) для срабатывания обновления списка */
 const PULL_THRESHOLD = 72;
 
 /**
@@ -63,6 +69,7 @@ function formatDate(iso) {
 }
 
 function onTouchStart(event) {
+    // Pull-to-refresh только у верхней границы списка
     if (!scrollContainer || scrollContainer.scrollTop > 0 || props.loading || props.refreshing) {
         isPulling.value = false;
         return;
@@ -84,6 +91,7 @@ function onTouchMove(event) {
         return;
     }
 
+    // Демпфирование жеста: визуальное смещение меньше реального
     pullDistance.value = Math.min(delta * 0.5, PULL_THRESHOLD * 1.5);
 }
 
@@ -154,10 +162,19 @@ onUnmounted(() => {
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-2">
                                     <span class="font-semibold text-gray-900">№{{ order.id }}</span>
+                                    <OrderStatusBadge :order="order" />
+                                    <span
+                                        v-if="order.unread_count > 0"
+                                        class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white"
+                                        :aria-label="`${order.unread_count} новых сообщений`"
+                                    >
+                                        {{ order.unread_count }}
+                                    </span>
                                     <span class="text-xs text-max-muted">{{ formatDate(order.created_at) }}</span>
                                 </div>
+                                <OrderReviewStageBadges class="mt-1.5" :order="order" />
                                 <p class="mt-1 truncate text-sm text-gray-700">{{ order.restaurant_name }}</p>
                                 <p class="mt-0.5 truncate text-sm text-max-muted">
                                     {{ formatCustomerName(order.customer) }}

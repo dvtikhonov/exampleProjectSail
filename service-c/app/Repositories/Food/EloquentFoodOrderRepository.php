@@ -90,4 +90,29 @@ class EloquentFoodOrderRepository implements FoodOrderRepositoryInterface
             ->get()
             ->all();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findByMaxUserId(int $maxUserId): array
+    {
+        return FoodOrder::query()
+            ->with(['restaurant'])
+            ->where('max_user_id', $maxUserId)
+            ->orderByDesc('created_at')
+            ->get()
+            ->all();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findAll(): array
+    {
+        return FoodOrder::query()
+            ->with(['restaurant', 'maxUser'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->all();
+    }
 }

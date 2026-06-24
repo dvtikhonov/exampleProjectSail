@@ -1,6 +1,13 @@
 <script setup>
+/**
+ * Корзина: позиции, адрес доставки, подтверждение заявки.
+ *
+ * Адрес синхронизируется с сервером через debounce (родитель App.vue).
+ * Модалка подтверждения перехватывает кнопку «Назад» через defineExpose.
+ */
 import { computed, ref, watch } from 'vue';
 import DishImage from '../components/DishImage.vue';
+import MyOrdersButton from '../components/MyOrdersButton.vue';
 
 const props = defineProps({
     cart: {
@@ -31,6 +38,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    ordersUnreadCount: {
+        type: Number,
+        default: 0,
+    },
 });
 
 const emit = defineEmits([
@@ -42,6 +53,7 @@ const emit = defineEmits([
     'go-to-restaurants',
     'delivery-address-input',
     'delivery-address-blur',
+    'open-orders',
 ]);
 
 const localAddress = ref('');
@@ -53,6 +65,7 @@ const focusedQuantityItemId = ref(null);
 const MIN_QUANTITY = 1;
 const MAX_QUANTITY = 99;
 
+/** Не перезаписывать localAddress с сервера, пока пользователь редактирует поле */
 watch(
     () => props.cart?.delivery_address,
     (value) => {
@@ -88,6 +101,7 @@ function handleAddressBlur() {
     emit('delivery-address-blur', localAddress.value);
 }
 
+/** Черновик количества в input до blur/Enter — не шлём API на каждый символ */
 function getQuantityDisplay(item) {
     if (focusedQuantityItemId.value === item.id && quantityDrafts.value[item.id] !== undefined) {
         return quantityDrafts.value[item.id];
@@ -141,6 +155,10 @@ function confirmOrder() {
     emit('submit-order', localAddress.value);
 }
 
+/**
+ * Перехват «Назад» из App.vue: сначала закрыть модалку подтверждения.
+ * @returns {boolean} true — событие обработано, навигацию не продолжать
+ */
 function handleBackRequest() {
     if (showOrderConfirm.value) {
         closeOrderConfirm();
@@ -190,15 +208,23 @@ watch(
                         <p v-if="cart?.restaurant_name" class="text-sm text-max-muted">{{ cart.restaurant_name }}</p>
                     </div>
                 </div>
-                <button
-                    v-if="!isEmpty && !loading"
-                    type="button"
-                    class="shrink-0 text-sm font-medium text-red-500 transition hover:text-red-700 disabled:opacity-40"
-                    :disabled="clearing || submitting || savingAddress"
-                    @click="emit('clear-cart')"
-                >
-                    Очистить
-                </button>
+                <div class="flex shrink-0 items-center gap-2">
+                    <MyOrdersButton
+                        label="Заказы"
+                        :unread-count="ordersUnreadCount"
+                        button-class="text-sm font-medium text-max-primary transition hover:text-max-primary-hover"
+                        @click="emit('open-orders')"
+                    />
+                    <button
+                        v-if="!isEmpty && !loading"
+                        type="button"
+                        class="text-sm font-medium text-red-500 transition hover:text-red-700 disabled:opacity-40"
+                        :disabled="clearing || submitting || savingAddress"
+                        @click="emit('clear-cart')"
+                    >
+                        Очистить
+                    </button>
+                </div>
             </div>
         </header>
 

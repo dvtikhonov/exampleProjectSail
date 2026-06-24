@@ -24,6 +24,8 @@ readonly class AdminOrderListItemDto
         public string $total,
         public string $addressReviewStatus,
         public string $compositionReviewStatus,
+        public ?string $lastMessageAt,
+        public int $unreadCount,
         public string $createdAt,
     ) {}
 
@@ -49,6 +51,8 @@ readonly class AdminOrderListItemDto
             'total' => $this->total,
             'address_review_status' => $this->addressReviewStatus,
             'composition_review_status' => $this->compositionReviewStatus,
+            'last_message_at' => $this->lastMessageAt,
+            'unread_count' => $this->unreadCount,
             'created_at' => $this->createdAt,
         ];
     }

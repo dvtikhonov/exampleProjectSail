@@ -47,11 +47,7 @@ class AdminOrderReviewController extends Controller
             $scope = (string) $request->query('scope', '');
             $status = (string) $request->query('status', 'pending');
 
-            if ($status !== 'pending') {
-                throw new FoodDomainException('Only pending status is supported.', 422);
-            }
-
-            $orders = $this->adminOrderQueryService->listPending($this->maxUser($request), $scope);
+            $orders = $this->adminOrderQueryService->list($this->maxUser($request), $scope, $status);
         } catch (FoodDomainException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),

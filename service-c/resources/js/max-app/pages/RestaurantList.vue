@@ -1,4 +1,10 @@
 <script setup>
+/**
+ * Стартовый экран клиента: список ресторанов.
+ * Шапка содержит переход в «Мои заказы» и корзину с бейджем количества.
+ */
+import MyOrdersButton from '../components/MyOrdersButton.vue';
+
 defineProps({
     restaurants: {
         type: Array,
@@ -16,9 +22,13 @@ defineProps({
         type: Number,
         default: 0,
     },
+    ordersUnreadCount: {
+        type: Number,
+        default: 0,
+    },
 });
 
-const emit = defineEmits(['select-restaurant', 'open-cart']);
+const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders']);
 </script>
 
 <template>
@@ -29,12 +39,17 @@ const emit = defineEmits(['select-restaurant', 'open-cart']);
                     <h1 class="text-lg font-semibold text-gray-900">Рестораны</h1>
                     <p class="text-sm text-max-muted">Выберите, где заказать</p>
                 </div>
-                <button
-                    type="button"
-                    class="relative flex h-10 w-10 items-center justify-center rounded-full bg-max-primary text-white transition hover:bg-max-primary-hover"
-                    aria-label="Корзина"
-                    @click="emit('open-cart')"
-                >
+                <div class="flex items-center gap-2">
+                    <MyOrdersButton
+                        :unread-count="ordersUnreadCount"
+                        @click="emit('open-orders')"
+                    />
+                    <button
+                        type="button"
+                        class="relative flex h-10 w-10 items-center justify-center rounded-full bg-max-primary text-white transition hover:bg-max-primary-hover"
+                        aria-label="Корзина"
+                        @click="emit('open-cart')"
+                    >
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
@@ -44,7 +59,8 @@ const emit = defineEmits(['select-restaurant', 'open-cart']);
                     >
                         {{ cartItemCount }}
                     </span>
-                </button>
+                    </button>
+                </div>
             </div>
         </header>
 

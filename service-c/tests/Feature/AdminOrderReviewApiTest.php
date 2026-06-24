@@ -427,6 +427,109 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.delivery_address', 'ул. Примерная, 1');
     }
 
+    public function test_admin_can_view_confirmed_order_by_id(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $addressAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+        $compositionAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_004,
+                'first_name' => 'CompositionAdmin',
+            ])),
+            FoodOrderAdminRole::CompositionReviewer,
+        );
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
+            ->assertOk();
+        $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.status', OrderStatus::Confirmed->value);
+
+        $this->getJson("/api/food/admin/orders/{$orderId}?scope=address", $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.id', $orderId)
+            ->assertJsonPath('order.status', OrderStatus::Confirmed->value);
+    }
+
+    public function test_admin_can_view_rejected_order_by_id(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/address/reject", [
+            'comment' => 'Неверный адрес',
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.status', OrderStatus::Rejected->value);
+
+        $this->getJson("/api/food/admin/orders/{$orderId}?scope=address", $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.id', $orderId)
+            ->assertJsonPath('order.status', OrderStatus::Rejected->value)
+            ->assertJsonPath('order.address_rejection_comment', 'Неверный адрес');
+    }
+
+    public function test_confirmed_order_not_in_pending_list_but_visible_with_status_all(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $addressAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+        $compositionAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_004,
+                'first_name' => 'CompositionAdmin',
+            ])),
+            FoodOrderAdminRole::CompositionReviewer,
+        );
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
+            ->assertOk();
+        $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
+            ->assertOk();
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=pending', $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonCount(0, 'orders');
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=all', $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('orders.0.id', $orderId)
+            ->assertJsonPath('orders.0.status', OrderStatus::Confirmed->value);
+    }
+
+    public function test_list_orders_rejects_invalid_status(): void
+    {
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=unknown', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Invalid status. Use pending or all.');
+    }
+
     private function createPendingReviewOrder(int $customerMaxUserId = 99_101): int
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
