@@ -143,7 +143,7 @@ class AdminOrderQueryService
     }
 
     /**
-     * @param array{last_message_at: ?string, unread_count: int} $chatStats
+     * @param  array{last_message_at: ?string, unread_count: int}  $chatStats
      */
     private function mapListItem(FoodOrder $order, array $chatStats): AdminOrderListItemDto
     {
