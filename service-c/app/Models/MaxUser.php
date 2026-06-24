@@ -67,4 +67,12 @@ class MaxUser extends Authenticatable
     {
         return $this->hasMany(FoodOrder::class, 'max_user_id', 'max_user_id');
     }
+
+    /**
+     * @return HasMany<FoodOrderAdmin, $this>
+     */
+    public function adminRoles(): HasMany
+    {
+        return $this->hasMany(FoodOrderAdmin::class, 'max_user_id', 'max_user_id');
+    }
 }

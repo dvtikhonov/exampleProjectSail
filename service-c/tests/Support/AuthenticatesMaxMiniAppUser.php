@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Enums\Food\FoodOrderAdminRole;
+use App\Models\FoodOrderAdmin;
 use App\Models\MaxUser;
 
 trait AuthenticatesMaxMiniAppUser
@@ -24,5 +26,24 @@ trait AuthenticatesMaxMiniAppUser
                 'Authorization' => 'Bearer '.$token,
             ],
         ];
+    }
+
+    /**
+     * @param  array{user: MaxUser, headers: array<string, string>}  $auth
+     * @return array{user: MaxUser, headers: array<string, string>}
+     */
+    protected function asFoodOrderAdmin(array $auth, FoodOrderAdminRole $role): array
+    {
+        FoodOrderAdmin::query()->updateOrCreate(
+            [
+                'max_user_id' => $auth['user']->max_user_id,
+                'role' => $role,
+            ],
+            [
+                'is_active' => true,
+            ],
+        );
+
+        return $auth;
     }
 }

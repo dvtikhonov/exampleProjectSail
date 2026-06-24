@@ -13,12 +13,12 @@ const emit = defineEmits(['back-to-restaurants']);
 
 <template>
     <div class="flex min-h-dvh flex-col items-center justify-center px-6 py-12 text-center">
-        <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-4xl">
-            ✓
+        <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 text-4xl">
+            ⏳
         </div>
-        <h1 class="text-2xl font-bold text-gray-900">Заявка принята</h1>
+        <h1 class="text-2xl font-bold text-gray-900">Заявка отправлена на проверку</h1>
         <p class="mt-2 text-sm text-max-muted">
-            Заказ №{{ order.id }} отправлен в {{ order.restaurant_name }}
+            Заказ №{{ order.id }} ожидает подтверждения. Мы сообщим вам в MAX, когда заявка будет обработана.
         </p>
 
         <div class="mt-8 w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm">

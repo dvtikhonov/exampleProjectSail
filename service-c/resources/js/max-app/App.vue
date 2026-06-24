@@ -2,12 +2,18 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import {
     addToCart,
+    approveOrderAddress,
+    approveOrderComposition,
     authenticate,
     clearCart,
     extractErrorMessage,
+    fetchAdminOrder,
+    fetchAdminOrders,
     fetchCart,
     fetchMenu,
     fetchRestaurants,
+    rejectOrderAddress,
+    rejectOrderComposition,
     removeCartItem,
     submitOrder,
     updateCartDeliveryAddress,
@@ -24,6 +30,11 @@ import CartPage from './pages/CartPage.vue';
 import MenuPage from './pages/MenuPage.vue';
 import OrderConfirmationPage from './pages/OrderConfirmationPage.vue';
 import RestaurantList from './pages/RestaurantList.vue';
+import AdminHomePage from './pages/admin/AdminHomePage.vue';
+import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
+
+const ROLE_ADDRESS = 'address_reviewer';
+const ROLE_COMPOSITION = 'composition_reviewer';
 
 const VIEWS = {
     restaurants: 'restaurants',
@@ -32,7 +43,28 @@ const VIEWS = {
     confirmation: 'confirmation',
 };
 
+const ADMIN_VIEWS = {
+    list: 'list',
+    detail: 'detail',
+};
+
 const currentView = ref(VIEWS.restaurants);
+const adminView = ref(ADMIN_VIEWS.list);
+const adminScope = ref('address');
+const adminRoles = ref([]);
+
+const adminOrders = ref([]);
+const adminOrdersLoading = ref(false);
+const adminOrdersRefreshing = ref(false);
+const adminOrdersError = ref('');
+
+const selectedAdminOrder = ref(null);
+const adminOrderDetail = ref(null);
+const adminDetailLoading = ref(false);
+const adminActionLoading = ref(false);
+const adminActionError = ref('');
+const showRejectModal = ref(false);
+
 const authLoading = ref(true);
 const authError = ref('');
 
@@ -70,6 +102,8 @@ const cartItemCount = computed(() => {
 
 const cartTotal = computed(() => cart.value?.total ?? '0.00');
 
+const hasAdminRoles = computed(() => adminRoles.value.length > 0);
+
 async function initAuth() {
     authLoading.value = true;
     authError.value = '';
@@ -81,11 +115,146 @@ async function initAuth() {
             throw new Error('Не удалось получить initData от MAX. Откройте приложение через MAX.');
         }
 
-        await authenticate(initData);
+        const authData = await authenticate(initData);
+        adminRoles.value = authData.user?.admin_roles ?? [];
+        adminScope.value = resolveDefaultAdminScope(adminRoles.value);
     } catch (error) {
         authError.value = extractErrorMessage(error);
     } finally {
         authLoading.value = false;
+    }
+}
+
+/**
+ * @param {string[]} roles
+ */
+function resolveDefaultAdminScope(roles) {
+    if (roles.includes(ROLE_ADDRESS)) {
+        return 'address';
+    }
+
+    if (roles.includes(ROLE_COMPOSITION)) {
+        return 'composition';
+    }
+
+    return 'address';
+}
+
+function initAdminSession() {
+    adminView.value = ADMIN_VIEWS.list;
+    selectedAdminOrder.value = null;
+    adminOrderDetail.value = null;
+    adminActionError.value = '';
+    showRejectModal.value = false;
+    loadAdminOrders();
+}
+
+async function loadAdminOrders({ refreshing = false } = {}) {
+    if (refreshing) {
+        adminOrdersRefreshing.value = true;
+    } else {
+        adminOrdersLoading.value = true;
+    }
+
+    adminOrdersError.value = '';
+
+    try {
+        adminOrders.value = await fetchAdminOrders(adminScope.value);
+    } catch (error) {
+        adminOrdersError.value = extractErrorMessage(error);
+    } finally {
+        adminOrdersLoading.value = false;
+        adminOrdersRefreshing.value = false;
+    }
+}
+
+async function handleAdminScopeChange(scope) {
+    if (adminScope.value === scope) {
+        return;
+    }
+
+    adminScope.value = scope;
+    adminView.value = ADMIN_VIEWS.list;
+    selectedAdminOrder.value = null;
+    adminOrderDetail.value = null;
+    await loadAdminOrders();
+}
+
+async function openAdminOrder(order) {
+    selectedAdminOrder.value = order;
+    adminView.value = ADMIN_VIEWS.detail;
+    adminOrderDetail.value = null;
+    adminActionError.value = '';
+    showRejectModal.value = false;
+    adminDetailLoading.value = true;
+
+    try {
+        adminOrderDetail.value = await fetchAdminOrder(order.id, adminScope.value);
+    } catch (error) {
+        adminActionError.value = extractErrorMessage(error);
+    } finally {
+        adminDetailLoading.value = false;
+    }
+}
+
+function closeAdminOrderDetail() {
+    adminView.value = ADMIN_VIEWS.list;
+    selectedAdminOrder.value = null;
+    adminOrderDetail.value = null;
+    adminActionError.value = '';
+    showRejectModal.value = false;
+    loadAdminOrders();
+}
+
+async function handleAdminApprove() {
+    if (!selectedAdminOrder.value) {
+        return;
+    }
+
+    adminActionLoading.value = true;
+    adminActionError.value = '';
+
+    try {
+        const approve =
+            adminScope.value === 'address' ? approveOrderAddress : approveOrderComposition;
+        await approve(selectedAdminOrder.value.id);
+        closeAdminOrderDetail();
+    } catch (error) {
+        adminActionError.value = extractErrorMessage(error);
+    } finally {
+        adminActionLoading.value = false;
+    }
+}
+
+function openAdminRejectModal() {
+    adminActionError.value = '';
+    showRejectModal.value = true;
+}
+
+function closeAdminRejectModal() {
+    if (!adminActionLoading.value) {
+        showRejectModal.value = false;
+    }
+}
+
+async function handleAdminReject(comment) {
+    if (!selectedAdminOrder.value) {
+        return;
+    }
+
+    adminActionLoading.value = true;
+    adminActionError.value = '';
+
+    try {
+        const reject =
+            adminScope.value === 'address' ? rejectOrderAddress : rejectOrderComposition;
+        await reject(selectedAdminOrder.value.id, comment);
+        showRejectModal.value = false;
+        closeAdminOrderDetail();
+    } catch (error) {
+        adminActionError.value = extractErrorMessage(error);
+    } finally {
+        adminActionLoading.value = false;
     }
 }
 
@@ -302,6 +471,14 @@ async function goToMenuFromCart() {
 }
 
 function handleBack() {
+    if (hasAdminRoles.value) {
+        if (adminView.value === ADMIN_VIEWS.detail) {
+            closeAdminOrderDetail();
+        }
+
+        return;
+    }
+
     if (currentView.value === VIEWS.cart && cartPageRef.value?.handleBackRequest?.()) {
         return;
     }
@@ -319,6 +496,24 @@ function handleBack() {
 function setupBackButton() {
     unbindBackButton();
 
+    if (hasAdminRoles.value) {
+        if (adminView.value === ADMIN_VIEWS.list && getPlatform() === 'desktop') {
+            unbindBackButton = bindBackButton(closeMaxApp);
+
+            return;
+        }
+
+        if (adminView.value === ADMIN_VIEWS.list) {
+            hideBackButton();
+
+            return;
+        }
+
+        unbindBackButton = bindBackButton(handleBack);
+
+        return;
+    }
+
     if (currentView.value === VIEWS.restaurants && getPlatform() === 'desktop') {
         unbindBackButton = bindBackButton(closeMaxApp);
 
@@ -335,12 +530,17 @@ function setupBackButton() {
 }
 
 watch(currentView, setupBackButton);
+watch(adminView, setupBackButton);
 
 async function bootstrapApp() {
     await initAuth();
 
     if (!authError.value) {
-        await Promise.all([loadRestaurants(), loadCart()]);
+        if (hasAdminRoles.value) {
+            initAdminSession();
+        } else {
+            await Promise.all([loadRestaurants(), loadCart()]);
+        }
     }
 
     setupBackButton();
@@ -381,6 +581,37 @@ onUnmounted(() => {
         </div>
 
         <template v-else>
+            <template v-if="hasAdminRoles">
+                <AdminOrderDetailPage
+                    v-if="adminView === ADMIN_VIEWS.detail && selectedAdminOrder"
+                    :order="adminOrderDetail ?? selectedAdminOrder"
+                    :scope="adminScope"
+                    :loading="adminDetailLoading"
+                    :action-loading="adminActionLoading"
+                    :action-error="adminActionError"
+                    :show-reject-modal="showRejectModal"
+                    @back="closeAdminOrderDetail"
+                    @approve="handleAdminApprove"
+                    @open-reject="openAdminRejectModal"
+                    @close-reject="closeAdminRejectModal"
+                    @reject="handleAdminReject"
+                />
+
+                <AdminHomePage
+                    v-else
+                    :admin-roles="adminRoles"
+                    :active-scope="adminScope"
+                    :orders="adminOrders"
+                    :loading="adminOrdersLoading"
+                    :error="adminOrdersError"
+                    :refreshing="adminOrdersRefreshing"
+                    @change-scope="handleAdminScopeChange"
+                    @select-order="openAdminOrder"
+                    @refresh="loadAdminOrders({ refreshing: true })"
+                />
+            </template>
+
+            <template v-else>
             <RestaurantList
                 v-if="currentView === VIEWS.restaurants"
                 :restaurants="restaurants"
@@ -428,6 +659,7 @@ onUnmounted(() => {
                 :order="submittedOrder"
                 @back-to-restaurants="goToRestaurants"
             />
+            </template>
         </template>
     </div>
 </template>

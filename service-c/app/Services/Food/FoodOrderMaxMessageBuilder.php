@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\DTO\Food\OrderDto;
+use App\Enums\Food\OrderRejectionScope;
+use App\Models\FoodOrder;
 use App\Models\MaxUser;
 
 /**
@@ -74,9 +76,40 @@ class FoodOrderMaxMessageBuilder
         return implode("\n", $lines);
     }
 
+    /**
+     * Текст уведомления клиенту о подтверждении заявки.
+     */
+    public function buildCustomerConfirmed(FoodOrder $order): string
+    {
+        return sprintf('Заявка №%d принята к исполнению', $order->id);
+    }
+
+    /**
+     * Текст уведомления клиенту об отклонении заявки.
+     */
+    public function buildCustomerRejected(FoodOrder $order, OrderRejectionScope $scope): string
+    {
+        $comment = match ($scope) {
+            OrderRejectionScope::Address => trim((string) $order->address_rejection_comment),
+            OrderRejectionScope::Composition => trim((string) $order->composition_rejection_comment),
+        };
+
+        $lines = [
+            sprintf('Заявка №%d отклонена', $order->id),
+            sprintf('Проверка: %s', $scope->label()),
+        ];
+
+        if ($comment !== '') {
+            $lines[] = sprintf('Причина: %s', $comment);
+        }
+
+        return implode("\n", $lines);
+    }
+
     private function buildFooter(OrderDto $order): string
     {
         $lines = [
+            'Статус: ожидает проверки адреса и состава',
             sprintf('Сумма блюд: %s ₽', $order->itemsTotal),
         ];
 

@@ -62,6 +62,7 @@ class FoodOrderMaxMessageBuilderTest extends TestCase
 • Маргарита × 2 — 800.00 ₽
 • Кола × 1 — 150.00 ₽
 
+Статус: ожидает проверки адреса и состава
 Сумма блюд: 950.00 ₽
 Доставка: 200.00 ₽
 Итого: 1150.00 ₽
@@ -98,6 +99,7 @@ TEXT,
         $text = $this->builder->build($order, $maxUser);
 
         $this->assertStringContainsString('Клиент: Анна (id 501)', $text);
+        $this->assertStringContainsString('Статус: ожидает проверки адреса и состава', $text);
         $this->assertStringContainsString('Сумма блюд: 250.00 ₽', $text);
         $this->assertStringContainsString('Итого: 250.00 ₽', $text);
         $this->assertStringNotContainsString('Доставка:', $text);

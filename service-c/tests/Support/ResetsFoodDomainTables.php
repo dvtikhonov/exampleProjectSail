@@ -9,6 +9,7 @@ use App\Models\CartItem;
 use App\Models\CustomerCategory;
 use App\Models\Dish;
 use App\Models\FoodOrder;
+use App\Models\FoodOrderAdmin;
 use App\Models\MaxUser;
 use App\Models\MenuCategory;
 use App\Models\Restaurant;
@@ -20,6 +21,7 @@ trait ResetsFoodDomainTables
     protected function resetFoodDomainTables(): void
     {
         FoodOrder::query()->delete();
+        FoodOrderAdmin::query()->delete();
         CartItem::query()->delete();
         Cart::query()->delete();
         Dish::query()->delete();

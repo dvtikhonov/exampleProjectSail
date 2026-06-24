@@ -6,12 +6,13 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\FoodOrderRepositoryInterface;
 use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
+use App\Enums\Food\OrderReviewStatus;
 use App\Enums\Food\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Cart;
-use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class OrderSubmissionService
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
+        private readonly FoodOrderRepositoryInterface $foodOrderRepository,
         private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
     ) {}
 
@@ -84,11 +86,13 @@ class OrderSubmissionService
 
             $this->maxUserDeliveryAddressService->persist($maxUser, $cart->delivery_address);
 
-            $order = FoodOrder::query()->create([
+            $order = $this->foodOrderRepository->create([
                 'cart_id' => $cart->id,
                 'max_user_id' => $maxUser->max_user_id,
                 'restaurant_id' => $cart->restaurant_id,
-                'status' => OrderStatus::Submitted,
+                'status' => OrderStatus::PendingReview,
+                'address_review_status' => OrderReviewStatus::Pending,
+                'composition_review_status' => OrderReviewStatus::Pending,
                 'total' => $formattedTotal,
                 'delivery_address' => $cart->delivery_address,
                 'delivery_cost' => $formattedDeliveryCost,
