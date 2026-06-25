@@ -1,0 +1,196 @@
+/**
+ * Корзина: загрузка, изменение позиций, адрес доставки, оформление заказа.
+ */
+import { computed, onScopeDispose, ref } from 'vue';
+import {
+    clearCart,
+    extractErrorMessage,
+    fetchCart,
+    removeCartItem,
+    submitOrder,
+    updateCartDeliveryAddress,
+    updateCartItem,
+} from '../api/foodClient';
+import { VIEWS } from '../constants/views';
+
+/** Задержка debounce автосохранения адреса (мс) */
+const ADDRESS_DEBOUNCE_MS = 500;
+
+/**
+ * @param {object} deps
+ * @param {import('vue').Ref<string>} deps.currentView — для перехода на экран подтверждения
+ */
+export function useCart({ currentView }) {
+    const cart = ref(null);
+    const cartLoading = ref(false);
+    const cartError = ref('');
+    const updatingItemId = ref(null);
+    const clearingCart = ref(false);
+    const submitting = ref(false);
+    const savingAddress = ref(false);
+    const submittedOrder = ref(null);
+    const cartPageRef = ref(null);
+
+    /** Таймер debounce для автосохранения адреса доставки */
+    let addressDebounceTimer = null;
+
+    const cartItemCount = computed(() => {
+        if (!cart.value?.items) {
+            return 0;
+        }
+
+        return cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
+    });
+
+    const cartTotal = computed(() => cart.value?.total ?? '0.00');
+
+    function clearAddressDebounceTimer() {
+        if (addressDebounceTimer !== null) {
+            clearTimeout(addressDebounceTimer);
+            addressDebounceTimer = null;
+        }
+    }
+
+    async function loadCart() {
+        cartLoading.value = true;
+        cartError.value = '';
+
+        try {
+            cart.value = await fetchCart();
+        } catch (error) {
+            cartError.value = extractErrorMessage(error);
+        } finally {
+            cartLoading.value = false;
+        }
+    }
+
+    async function handleUpdateQuantity(item, quantity) {
+        updatingItemId.value = item.id;
+
+        try {
+            cart.value = await updateCartItem(item.id, quantity);
+        } catch (error) {
+            cartError.value = extractErrorMessage(error);
+        } finally {
+            updatingItemId.value = null;
+        }
+    }
+
+    async function handleRemoveItem(item) {
+        updatingItemId.value = item.id;
+
+        try {
+            cart.value = await removeCartItem(item.id);
+        } catch (error) {
+            cartError.value = extractErrorMessage(error);
+        } finally {
+            updatingItemId.value = null;
+        }
+    }
+
+    async function handleClearCart() {
+        clearingCart.value = true;
+        cartError.value = '';
+
+        try {
+            cart.value = await clearCart();
+        } catch (error) {
+            cartError.value = extractErrorMessage(error);
+        } finally {
+            clearingCart.value = false;
+        }
+    }
+
+    async function saveDeliveryAddress(address) {
+        const trimmed = address.trim();
+
+        if (trimmed === '') {
+            cartError.value = '';
+            return;
+        }
+
+        savingAddress.value = true;
+        cartError.value = '';
+
+        try {
+            cart.value = await updateCartDeliveryAddress(trimmed);
+        } catch (error) {
+            cartError.value = extractErrorMessage(error);
+        } finally {
+            savingAddress.value = false;
+        }
+    }
+
+    /** Отложенное сохранение адреса при вводе (не блокирует UI на каждый символ) */
+    function handleDeliveryAddressInput(address) {
+        if (addressDebounceTimer !== null) {
+            clearTimeout(addressDebounceTimer);
+        }
+
+        addressDebounceTimer = setTimeout(() => {
+            addressDebounceTimer = null;
+            saveDeliveryAddress(address);
+        }, ADDRESS_DEBOUNCE_MS);
+    }
+
+    function handleDeliveryAddressBlur(address) {
+        clearAddressDebounceTimer();
+        saveDeliveryAddress(address);
+    }
+
+    async function handleSubmitOrder(deliveryAddress) {
+        clearAddressDebounceTimer();
+
+        const trimmed = deliveryAddress.trim();
+
+        if (trimmed === '') {
+            cartError.value = 'Укажите адрес доставки.';
+            return;
+        }
+
+        submitting.value = true;
+        cartError.value = '';
+
+        try {
+            cart.value = await updateCartDeliveryAddress(trimmed);
+            submittedOrder.value = await submitOrder();
+            cart.value = null;
+            currentView.value = VIEWS.confirmation;
+        } catch (error) {
+            cartError.value = extractErrorMessage(error);
+        } finally {
+            submitting.value = false;
+        }
+    }
+
+    /** Сброс оформленного заказа при возврате на главный экран */
+    function resetSubmittedOrder() {
+        submittedOrder.value = null;
+    }
+
+    onScopeDispose(() => {
+        clearAddressDebounceTimer();
+    });
+
+    return {
+        cart,
+        cartLoading,
+        cartError,
+        updatingItemId,
+        clearingCart,
+        submitting,
+        savingAddress,
+        submittedOrder,
+        cartPageRef,
+        cartItemCount,
+        cartTotal,
+        loadCart,
+        handleUpdateQuantity,
+        handleRemoveItem,
+        handleClearCart,
+        handleDeliveryAddressInput,
+        handleDeliveryAddressBlur,
+        handleSubmitOrder,
+        resetSubmittedOrder,
+    };
+}
