@@ -3,6 +3,7 @@
 #
 # Запускать НА VPS из корня репозитория после:
 #   export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+#   ./scripts/vps-phpmyadmin-mysql.sh ensure-root-auth   # MySQL 5.7 / auth_socket
 #   ./scripts/vps-phpmyadmin-mysql.sh apply
 #   docker compose up -d phpmyadmin
 #
@@ -199,7 +200,8 @@ collect_cert_domains() {
 
     [[ -n "${text}" ]] || return 1
 
-    printf '%s\n' "${text}" | sed -n 's/[[:space:]]*DNS://p' | sort -u
+    # Несколько SAN часто в одной строке: DNS:a.example, DNS:b.example
+    printf '%s\n' "${text}" | grep -oE 'DNS:[^,[:space:]]+' | sed 's/^DNS://' | sort -u
 }
 
 build_cert_domain_flags() {
@@ -208,6 +210,8 @@ build_cert_domain_flags() {
 
     while IFS= read -r domain; do
         [[ -n "${domain}" ]] || continue
+        # certbot отклоняет имена без точки (ошибка «Cannot issue for "dns"» при битом парсинге)
+        [[ "${domain}" == *.* ]] || continue
         domains+=("${domain}")
     done < <(collect_cert_domains || true)
 
@@ -293,9 +297,15 @@ cmd_install_deps() {
 
     if ! run_root apt-get update; then
         echo "WARNING: apt-get update не удался — пробую установить из кэша..." >&2
+        echo "  Частая причина на Ubuntu 18.04: просроченный GPG-ключ Docker (NO_PUBKEY)." >&2
+        echo "  Починка: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -" >&2
+        echo "  Либо временно отключите /etc/apt/sources.list.d/docker.list" >&2
     fi
 
-    run_root DEBIAN_FRONTEND=noninteractive apt-get install -y apache2-utils
+    if ! run_root DEBIAN_FRONTEND=noninteractive apt-get install -y apache2-utils; then
+        echo "ERROR: не удалось установить apache2-utils." >&2
+        exit 1
+    fi
     echo "Готово."
 }
 
