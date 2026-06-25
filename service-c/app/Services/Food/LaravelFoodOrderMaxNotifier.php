@@ -8,8 +8,12 @@ use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\DTO\Food\OrderDto;
 use App\Models\MaxUser;
+use App\Support\MaxOpenAppTargetResolver;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
+use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
+use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
@@ -23,6 +27,8 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
         private readonly MaxMessengerClientInterface $client,
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
+        private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
+        private readonly Repository $config,
     ) {}
 
     /**
@@ -41,23 +47,62 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
         }
 
         $text = $this->messageBuilder->build($order, $maxUser, $config->maxTextLength);
+        $buttonRows = $this->buildOpenAppButtonRows();
 
         foreach ($config->chatIds as $chatId) {
-            $this->trySendMessage($text, orderId: $order->id, chatId: $chatId);
+            $this->trySendNotification($text, $buttonRows, orderId: $order->id, chatId: $chatId);
         }
 
         foreach ($config->userIds as $userId) {
-            $this->trySendMessage($text, orderId: $order->id, userId: $userId);
+            $this->trySendNotification($text, $buttonRows, orderId: $order->id, userId: $userId);
         }
     }
 
-    private function trySendMessage(
+    /**
+     * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
+     */
+    private function buildOpenAppButtonRows(): array
+    {
+        $webAppUrl = $this->openAppTargetResolver->resolveWebApp();
+
+        if ($webAppUrl === null) {
+            return [];
+        }
+
+        return [
+            [
+                new MaxInlineKeyboardButtonDto(
+                    text: (string) $this->config->get('max.ui_stand.mini_app_button_text', 'Заказ еды'),
+                    type: 'open_app',
+                    webApp: $webAppUrl,
+                    contactId: $this->openAppTargetResolver->resolveContactId(),
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
+     */
+    private function trySendNotification(
         string $text,
+        array $buttonRows,
         int $orderId,
         ?int $chatId = null,
         ?int $userId = null,
     ): void {
         try {
+            if ($buttonRows !== []) {
+                $this->client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
+                    text: $text,
+                    buttonRows: $buttonRows,
+                    chatId: $chatId,
+                    userId: $userId,
+                ));
+
+                return;
+            }
+
             $this->client->sendMessage(new MaxMessageDto(
                 text: $text,
                 chatId: $chatId,
