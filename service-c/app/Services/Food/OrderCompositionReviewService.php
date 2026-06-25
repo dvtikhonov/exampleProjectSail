@@ -48,6 +48,7 @@ class OrderCompositionReviewService
                 'status' => $this->orderStatusResolver->resolve(
                     $order->address_review_status,
                     $compositionReviewStatus,
+                    $order->payment_review_status,
                 ),
             ]);
         });
@@ -77,6 +78,7 @@ class OrderCompositionReviewService
                 'status' => $this->orderStatusResolver->resolve(
                     $order->address_review_status,
                     $compositionReviewStatus,
+                    $order->payment_review_status,
                 ),
             ]);
         });

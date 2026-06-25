@@ -57,10 +57,25 @@ class EloquentFoodOrderRepository implements FoodOrderRepositoryInterface
      */
     public function findForAddressReview(OrderReviewStatus $reviewStatus): array
     {
-        return FoodOrder::query()
+        $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
-            ->where('address_review_status', $reviewStatus)
-            ->whereNotIn('status', [OrderStatus::Rejected, OrderStatus::Confirmed])
+            ->whereNotIn('status', [OrderStatus::Rejected, OrderStatus::Confirmed]);
+
+        if ($reviewStatus === OrderReviewStatus::Pending) {
+            $query->where(function ($builder): void {
+                $builder
+                    ->where('address_review_status', OrderReviewStatus::Pending)
+                    ->orWhere('payment_review_status', OrderReviewStatus::Pending);
+            });
+        } else {
+            $query->where(function ($builder) use ($reviewStatus): void {
+                $builder
+                    ->where('address_review_status', $reviewStatus)
+                    ->orWhere('payment_review_status', $reviewStatus);
+            });
+        }
+
+        return $query
             ->orderByDesc('created_at')
             ->get()
             ->all();

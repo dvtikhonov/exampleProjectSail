@@ -60,6 +60,24 @@ class OrderReviewAuthorizationService
     /**
      * @throws FoodDomainException
      */
+    public function assertCanApprovePayment(MaxUser $admin, FoodOrder $order): void
+    {
+        $this->assertHasRole($admin, FoodOrderAdminRole::AddressReviewer);
+        $this->assertPaymentReviewPending($order);
+    }
+
+    /**
+     * @throws FoodDomainException
+     */
+    public function assertCanRejectPayment(MaxUser $admin, FoodOrder $order, string $comment): void
+    {
+        $this->assertCanApprovePayment($admin, $order);
+        $this->assertRejectionCommentPresent($comment);
+    }
+
+    /**
+     * @throws FoodDomainException
+     */
     private function assertHasRole(MaxUser $admin, FoodOrderAdminRole $role): void
     {
         if (! $this->foodOrderAdminRepository->hasActiveRole($admin->max_user_id, $role)) {
@@ -88,6 +106,20 @@ class OrderReviewAuthorizationService
     {
         if (! $order->isInCompositionReviewQueue()) {
             throw new FoodDomainException('Composition review already completed.', 422);
+        }
+    }
+
+    /**
+     * @throws FoodDomainException
+     */
+    private function assertPaymentReviewPending(FoodOrder $order): void
+    {
+        if ($order->payment_review_status !== OrderReviewStatus::Pending) {
+            throw new FoodDomainException('Payment review already completed.', 422);
+        }
+
+        if ($this->isReviewClosed($order->status)) {
+            throw new FoodDomainException('Order is not awaiting payment review.', 422);
         }
     }
 

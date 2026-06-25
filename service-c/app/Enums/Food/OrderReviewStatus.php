@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Food;
 
 /**
- * Статус этапа проверки заказа (адрес или состав).
+ * Статус этапа проверки заказа (адрес, состав или оплата).
  */
 enum OrderReviewStatus: string
 {

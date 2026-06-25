@@ -17,7 +17,7 @@ function isReviewStagePending(reviewStatus) {
 /**
  * Человекочитаемый статус заказа и классы бейджа для карточки.
  *
- * @param {{ status: string, address_review_status?: string, composition_review_status?: string }} order
+ * @param {{ status: string, address_review_status?: string, composition_review_status?: string, payment_review_status?: string }} order
  * @returns {OrderStatusDisplay}
  */
 export function getOrderStatusDisplay(order) {
@@ -46,8 +46,9 @@ export function getOrderStatusDisplay(order) {
 
     const addressPending = order.address_review_status === 'pending';
     const compositionPending = isReviewStagePending(order.composition_review_status);
+    const paymentPending = order.payment_review_status === 'pending';
 
-    if (addressPending && compositionPending) {
+    if (addressPending && compositionPending && paymentPending) {
         return {
             label: 'Поступил',
             badgeClass: 'bg-red-100 text-red-800',
@@ -61,12 +62,12 @@ export function getOrderStatusDisplay(order) {
 }
 
 /**
- * @param {'address'|'composition'} scope
+ * @param {'address'|'composition'|'payment'} scope
  * @param {string} reviewStatus
  * @returns {OrderStatusDisplay}
  */
 export function getReviewStageDisplay(scope, reviewStatus) {
-    const scopeLabel = scope === 'address' ? 'Адрес' : 'Состав';
+    const scopeLabel = scope === 'address' ? 'Адрес' : scope === 'payment' ? 'Оплата' : 'Состав';
 
     if (reviewStatus === 'approved') {
         return {

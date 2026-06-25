@@ -1,0 +1,23 @@
+<?php
+/**
+ * phpMyAdmin user config (production hardening).
+ *
+ * На VPS:
+ *   cp phpmyadmin/config.user.inc.php.example phpmyadmin/config.user.inc.php
+ *   # Сгенерировать blowfish_secret (32 символа), подставить ниже.
+ *   openssl rand -base64 24
+ *
+ * Файл config.user.inc.php не коммитить (содержит blowfish_secret).
+ */
+
+$cfg['blowfish_secret'] = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
+$cfg['ForceSSL'] = true;
+$cfg['LoginCookieValidity'] = 1800;
+
+$cfg['AllowArbitraryServer'] = false;
+$cfg['ShowPhpInfo'] = false;
+$cfg['ShowChgPassword'] = false;
+$cfg['ShowCreateDb'] = false;
+
+$cfg['Servers'][1]['hide_db'] = '^(information_schema|performance_schema|mysql|sys)$';

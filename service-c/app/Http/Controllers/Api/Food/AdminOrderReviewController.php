@@ -12,6 +12,7 @@ use App\Models\MaxUser;
 use App\Services\Food\AdminOrderQueryService;
 use App\Services\Food\OrderAddressReviewService;
 use App\Services\Food\OrderCompositionReviewService;
+use App\Services\Food\OrderPaymentReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,6 +25,7 @@ class AdminOrderReviewController extends Controller
         private readonly AdminOrderQueryService $adminOrderQueryService,
         private readonly OrderAddressReviewService $orderAddressReviewService,
         private readonly OrderCompositionReviewService $orderCompositionReviewService,
+        private readonly OrderPaymentReviewService $orderPaymentReviewService,
     ) {}
 
     /**
@@ -127,6 +129,30 @@ class AdminOrderReviewController extends Controller
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
             return $this->orderCompositionReviewService->reject(
+                $order,
+                $this->maxUser($request),
+                $request->comment(),
+            );
+        });
+    }
+
+    /**
+     * Подтверждает получение оплаты (проверяющий адреса).
+     */
+    public function approvePayment(Request $request, int $order): JsonResponse
+    {
+        return $this->respondReviewDecision(function () use ($request, $order) {
+            return $this->orderPaymentReviewService->approve($order, $this->maxUser($request));
+        });
+    }
+
+    /**
+     * Отклоняет оплату (проверяющий адреса).
+     */
+    public function rejectPayment(RejectOrderReviewRequest $request, int $order): JsonResponse
+    {
+        return $this->respondReviewDecision(function () use ($request, $order) {
+            return $this->orderPaymentReviewService->reject(
                 $order,
                 $this->maxUser($request),
                 $request->comment(),

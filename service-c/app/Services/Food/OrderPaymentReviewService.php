@@ -14,9 +14,9 @@ use App\Models\MaxUser;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Проверка адреса доставки администратором заказов.
+ * Подтверждение получения оплаты проверяющим адреса.
  */
-class OrderAddressReviewService
+class OrderPaymentReviewService
 {
     public function __construct(
         private readonly FoodOrderRepositoryInterface $foodOrderRepository,
@@ -37,18 +37,18 @@ class OrderAddressReviewService
             $order = $this->findOrderForReview($orderId);
             $statusBefore = $order->status;
 
-            $this->orderReviewAuthorizationService->assertCanApproveAddress($admin, $order);
+            $this->orderReviewAuthorizationService->assertCanApprovePayment($admin, $order);
 
-            $addressReviewStatus = OrderReviewStatus::Approved;
+            $paymentReviewStatus = OrderReviewStatus::Approved;
 
             return $this->foodOrderRepository->update($order, [
-                'address_review_status' => $addressReviewStatus,
-                'address_reviewed_by' => $admin->max_user_id,
-                'address_reviewed_at' => now(),
+                'payment_review_status' => $paymentReviewStatus,
+                'payment_reviewed_by' => $admin->max_user_id,
+                'payment_reviewed_at' => now(),
                 'status' => $this->orderStatusResolver->resolve(
-                    $addressReviewStatus,
+                    $order->address_review_status,
                     $order->composition_review_status,
-                    $order->payment_review_status,
+                    $paymentReviewStatus,
                 ),
             ]);
         });
@@ -66,24 +66,24 @@ class OrderAddressReviewService
         $order = DB::transaction(function () use ($orderId, $admin, $comment): FoodOrder {
             $order = $this->findOrderForReview($orderId);
 
-            $this->orderReviewAuthorizationService->assertCanRejectAddress($admin, $order, $comment);
+            $this->orderReviewAuthorizationService->assertCanRejectPayment($admin, $order, $comment);
 
-            $addressReviewStatus = OrderReviewStatus::Rejected;
+            $paymentReviewStatus = OrderReviewStatus::Rejected;
 
             return $this->foodOrderRepository->update($order, [
-                'address_review_status' => $addressReviewStatus,
-                'address_rejection_comment' => $comment,
-                'address_reviewed_by' => $admin->max_user_id,
-                'address_reviewed_at' => now(),
+                'payment_review_status' => $paymentReviewStatus,
+                'payment_rejection_comment' => $comment,
+                'payment_reviewed_by' => $admin->max_user_id,
+                'payment_reviewed_at' => now(),
                 'status' => $this->orderStatusResolver->resolve(
-                    $addressReviewStatus,
+                    $order->address_review_status,
                     $order->composition_review_status,
-                    $order->payment_review_status,
+                    $paymentReviewStatus,
                 ),
             ]);
         });
 
-        $this->foodOrderCustomerNotifier->notifyRejected($order, OrderRejectionScope::Address);
+        $this->foodOrderCustomerNotifier->notifyRejected($order, OrderRejectionScope::Payment);
 
         return $order;
     }

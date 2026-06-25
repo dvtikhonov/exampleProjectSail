@@ -11,6 +11,7 @@ import {
     addToCart,
     approveOrderAddress,
     approveOrderComposition,
+    approveOrderPayment,
     authenticate,
     clearCart,
     extractErrorMessage,
@@ -23,6 +24,7 @@ import {
     fetchRestaurants,
     rejectOrderAddress,
     rejectOrderComposition,
+    rejectOrderPayment,
     removeCartItem,
     submitOrder,
     updateCartDeliveryAddress,
@@ -82,6 +84,7 @@ const adminDetailLoading = ref(false);
 const adminActionLoading = ref(false);
 const adminActionError = ref('');
 const showRejectModal = ref(false);
+const adminRejectTarget = ref('address');
 
 // --- Авторизация ---
 const authLoading = ref(true);
@@ -243,10 +246,18 @@ function closeAdminOrderDetail() {
     adminOrderDetail.value = null;
     adminActionError.value = '';
     showRejectModal.value = false;
+    adminRejectTarget.value = 'address';
     loadAdminOrders();
 }
 
-async function handleAdminApprove() {
+/**
+ * @param {object} order
+ */
+function isAddressScopeReviewComplete(order) {
+    return order.address_review_status !== 'pending' && order.payment_review_status !== 'pending';
+}
+
+async function handleAdminApproveAddress() {
     if (!selectedAdminOrder.value) {
         return;
     }
@@ -255,9 +266,57 @@ async function handleAdminApprove() {
     adminActionError.value = '';
 
     try {
-        const approve =
-            adminScope.value === 'address' ? approveOrderAddress : approveOrderComposition;
-        await approve(selectedAdminOrder.value.id);
+        const order = await approveOrderAddress(selectedAdminOrder.value.id);
+        adminOrderDetail.value = order;
+        selectedAdminOrder.value = order;
+
+        if (isAddressScopeReviewComplete(order)) {
+            closeAdminOrderDetail();
+        } else {
+            await loadAdminOrders({ silent: true });
+        }
+    } catch (error) {
+        adminActionError.value = extractErrorMessage(error);
+    } finally {
+        adminActionLoading.value = false;
+    }
+}
+
+async function handleAdminApprovePayment() {
+    if (!selectedAdminOrder.value) {
+        return;
+    }
+
+    adminActionLoading.value = true;
+    adminActionError.value = '';
+
+    try {
+        const order = await approveOrderPayment(selectedAdminOrder.value.id);
+        adminOrderDetail.value = order;
+        selectedAdminOrder.value = order;
+
+        if (isAddressScopeReviewComplete(order)) {
+            closeAdminOrderDetail();
+        } else {
+            await loadAdminOrders({ silent: true });
+        }
+    } catch (error) {
+        adminActionError.value = extractErrorMessage(error);
+    } finally {
+        adminActionLoading.value = false;
+    }
+}
+
+async function handleAdminApproveComposition() {
+    if (!selectedAdminOrder.value) {
+        return;
+    }
+
+    adminActionLoading.value = true;
+    adminActionError.value = '';
+
+    try {
+        await approveOrderComposition(selectedAdminOrder.value.id);
         closeAdminOrderDetail();
     } catch (error) {
         adminActionError.value = extractErrorMessage(error);
@@ -266,8 +325,12 @@ async function handleAdminApprove() {
     }
 }
 
-function openAdminRejectModal() {
+/**
+ * @param {'address'|'payment'|'composition'} target
+ */
+function openAdminRejectModal(target) {
     adminActionError.value = '';
+    adminRejectTarget.value = target;
     showRejectModal.value = true;
 }
 
@@ -286,8 +349,12 @@ async function handleAdminReject(comment) {
     adminActionError.value = '';
 
     try {
-        const reject =
-            adminScope.value === 'address' ? rejectOrderAddress : rejectOrderComposition;
+        const rejectByTarget = {
+            address: rejectOrderAddress,
+            payment: rejectOrderPayment,
+            composition: rejectOrderComposition,
+        };
+        const reject = rejectByTarget[adminRejectTarget.value] ?? rejectOrderAddress;
         await reject(selectedAdminOrder.value.id, comment);
         showRejectModal.value = false;
         closeAdminOrderDetail();
@@ -765,8 +832,11 @@ onUnmounted(() => {
                     :action-loading="adminActionLoading"
                     :action-error="adminActionError"
                     :show-reject-modal="showRejectModal"
+                    :reject-target="adminRejectTarget"
                     @back="closeAdminOrderDetail"
-                    @approve="handleAdminApprove"
+                    @approve-address="handleAdminApproveAddress"
+                    @approve-payment="handleAdminApprovePayment"
+                    @approve-composition="handleAdminApproveComposition"
                     @open-reject="openAdminRejectModal"
                     @close-reject="closeAdminRejectModal"
                     @reject="handleAdminReject"
