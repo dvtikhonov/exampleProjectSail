@@ -93,6 +93,7 @@ jobs:
   backend-tests:
     name: Backend tests (Docker)
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     needs:
       - php-style
       - frontend-build

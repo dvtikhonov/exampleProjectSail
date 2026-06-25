@@ -233,6 +233,7 @@ class OrderChatApiTest extends TestCase
             'status' => OrderStatus::Confirmed->value,
             'address_review_status' => OrderReviewStatus::Approved->value,
             'composition_review_status' => OrderReviewStatus::Approved->value,
+            'payment_review_status' => OrderReviewStatus::Approved->value,
         ]);
 
         $this->postJson("/api/food/orders/{$orderId}/messages", [

@@ -125,6 +125,7 @@ class FoodOrderMaxMessageBuilder
         $comment = match ($scope) {
             OrderRejectionScope::Address => trim((string) $order->address_rejection_comment),
             OrderRejectionScope::Composition => trim((string) $order->composition_rejection_comment),
+            OrderRejectionScope::Payment => trim((string) $order->payment_rejection_comment),
         };
 
         $lines = [
@@ -142,7 +143,7 @@ class FoodOrderMaxMessageBuilder
     private function buildFooter(OrderDto $order): string
     {
         $lines = [
-            'Статус: ожидает проверки адреса и состава',
+            'Статус: ожидает проверки адреса, состава и оплаты',
             sprintf('Сумма блюд: %s ₽', $order->itemsTotal),
         ];
 

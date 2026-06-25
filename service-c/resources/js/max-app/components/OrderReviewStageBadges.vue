@@ -14,6 +14,7 @@ const props = defineProps({
 
 const stages = computed(() => [
     getReviewStageDisplay('address', props.order.address_review_status),
+    getReviewStageDisplay('payment', props.order.payment_review_status),
     getReviewStageDisplay('composition', props.order.composition_review_status),
 ]);
 </script>

@@ -11,6 +11,7 @@ enum OrderRejectionScope: string
 {
     case Address = 'address';
     case Composition = 'composition';
+    case Payment = 'payment';
 
     /**
      * Человекочитаемое название этапа для уведомления клиенту.
@@ -20,6 +21,7 @@ enum OrderRejectionScope: string
         return match ($this) {
             self::Address => 'адрес доставки',
             self::Composition => 'состав заказа',
+            self::Payment => 'оплата',
         };
     }
 }

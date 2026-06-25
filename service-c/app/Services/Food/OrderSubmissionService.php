@@ -93,6 +93,7 @@ class OrderSubmissionService
                 'status' => OrderStatus::PendingReview,
                 'address_review_status' => OrderReviewStatus::Pending,
                 'composition_review_status' => OrderReviewStatus::Pending,
+                'payment_review_status' => OrderReviewStatus::Pending,
                 'total' => $formattedTotal,
                 'delivery_address' => $cart->delivery_address,
                 'delivery_cost' => $formattedDeliveryCost,

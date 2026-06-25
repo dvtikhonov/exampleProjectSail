@@ -13,6 +13,7 @@
 #   PASSPORT_CLIENT_SECRET, MAIL_HOST, MAIL_FROM_ADDRESS, REVERB_ALLOWED_ORIGINS
 #   REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io
 #   GATEWAY_HTTP_PORT (по умолчанию 8080 — upstream для host nginx)
+#   VPS_DOMAIN, PMA_SUBDOMAIN (по умолчанию pma), PHPMYADMIN_PORT (по умолчанию 8085)
 
 services:
   mysql-host:
@@ -39,6 +40,27 @@ services:
       - internal
     restart: unless-stopped
     mem_limit: 64m
+
+  phpmyadmin:
+    image: phpmyadmin:5-apache
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      PMA_HOST: host.docker.internal
+      PMA_PORT: 3306
+      PMA_ABSOLUTE_URI: https://${PMA_SUBDOMAIN:-pma}.${VPS_DOMAIN}/
+      UPLOAD_LIMIT: 32M
+    ports:
+      - "127.0.0.1:${PHPMYADMIN_PORT:-8085}:80"
+    volumes:
+      - ./phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+    networks:
+      - internal
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 128m
 
   main-app:
     # Доступ снаружи только через gateway (host nginx → 127.0.0.1:8080).

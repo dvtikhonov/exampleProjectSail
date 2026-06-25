@@ -16,14 +16,17 @@ class OrderStatusResolver
     public function resolve(
         OrderReviewStatus $addressReviewStatus,
         OrderReviewStatus $compositionReviewStatus,
+        OrderReviewStatus $paymentReviewStatus,
     ): OrderStatus {
         if ($addressReviewStatus === OrderReviewStatus::Rejected
-            || $compositionReviewStatus === OrderReviewStatus::Rejected) {
+            || $compositionReviewStatus === OrderReviewStatus::Rejected
+            || $paymentReviewStatus === OrderReviewStatus::Rejected) {
             return OrderStatus::Rejected;
         }
 
         if ($addressReviewStatus === OrderReviewStatus::Approved
-            && $compositionReviewStatus === OrderReviewStatus::Approved) {
+            && $compositionReviewStatus === OrderReviewStatus::Approved
+            && $paymentReviewStatus === OrderReviewStatus::Approved) {
             return OrderStatus::Confirmed;
         }
 
@@ -35,6 +38,7 @@ class OrderStatusResolver
         return $this->resolve(
             $order->address_review_status,
             $order->composition_review_status,
+            $order->payment_review_status,
         );
     }
 }

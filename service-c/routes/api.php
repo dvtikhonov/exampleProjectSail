@@ -58,6 +58,12 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::post('/orders/{order}/address/reject', [AdminOrderReviewController::class, 'rejectAddress'])
                 ->middleware('food.order.admin:address_reviewer')
                 ->whereNumber('order');
+            Route::post('/orders/{order}/payment/approve', [AdminOrderReviewController::class, 'approvePayment'])
+                ->middleware('food.order.admin:address_reviewer')
+                ->whereNumber('order');
+            Route::post('/orders/{order}/payment/reject', [AdminOrderReviewController::class, 'rejectPayment'])
+                ->middleware('food.order.admin:address_reviewer')
+                ->whereNumber('order');
             Route::post('/orders/{order}/composition/approve', [AdminOrderReviewController::class, 'approveComposition'])
                 ->middleware('food.order.admin:composition_reviewer')
                 ->whereNumber('order');

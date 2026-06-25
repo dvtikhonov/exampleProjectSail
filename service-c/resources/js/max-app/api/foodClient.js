@@ -233,6 +233,27 @@ export async function rejectOrderAddress(orderId, comment) {
 /**
  * @param {number} orderId
  */
+export async function approveOrderPayment(orderId) {
+    const { data } = await client.post(`/food/admin/orders/${orderId}/payment/approve`);
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ * @param {string} comment
+ */
+export async function rejectOrderPayment(orderId, comment) {
+    const { data } = await client.post(`/food/admin/orders/${orderId}/payment/reject`, {
+        comment,
+    });
+
+    return data.order;
+}
+
+/**
+ * @param {number} orderId
+ */
 export async function approveOrderComposition(orderId) {
     const { data } = await client.post(`/food/admin/orders/${orderId}/composition/approve`);
 

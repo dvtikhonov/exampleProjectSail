@@ -542,8 +542,112 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 | `service-c` (MAX mini-app) | `https://94-228-117-27.sslip.io/max-app` |
 | `service-c` (webhook) | `https://94-228-117-27.sslip.io/api/webhooks/max` |
 | `service-d` | `https://yandexmaps.94-228-117-27.sslip.io/` |
+| phpMyAdmin (только после настройки) | `https://pma.94-228-117-27.sslip.io/` |
 
 В `.env` на VPS: `main-app` → `APP_URL=https://94-228-117-27.sslip.io`; `REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io` (см. `docker-compose.prod.yml`).
+
+### phpMyAdmin на VPS
+
+phpMyAdmin доступен **только в production** (`docker-compose.prod.yml`). В базовый `docker-compose.yml` для локальной разработки он **не** добавляется.
+
+MySQL установлен **на хосте VPS** (не в Docker). Контейнер phpMyAdmin подключается к нему через `host.docker.internal:3306`. Три слоя защиты:
+
+1. **Сеть** — phpMyAdmin слушает только `127.0.0.1:8085`; порт MySQL `3306` не открывается в UFW.
+2. **Host nginx** — HTTPS (Let's Encrypt) + HTTP Basic Auth (`htpasswd`, файл вне репозитория).
+3. **phpMyAdmin** — вход под `pma_admin` (не root), права только на прикладные БД `sail_db` и `service_d_db`.
+
+```mermaid
+flowchart LR
+  Admin["Администратор"] -->|"HTTPS + Basic Auth"| PMA_Nginx["Host nginx\npma.*.sslip.io"]
+  PMA_Nginx -->|"127.0.0.1:8085"| PMA["phpMyAdmin container"]
+  PMA --> MySQLHost["MySQL host :3306"]
+  Admin -->|"логин MySQL pma_admin"| PMA
+```
+
+#### Переменные окружения (корневой `.env` на VPS)
+
+| Переменная | Обязательна | Описание |
+|---|---|---|
+| `VPS_DOMAIN` | да | Публичный домен VPS, например `94-228-117-27.sslip.io` |
+| `PMA_MYSQL_PASSWORD` | да | Пароль MySQL-пользователя `pma_admin` (отдельно от `MYSQL_ROOT_PASSWORD`) |
+| `MYSQL_ROOT_PASSWORD` | да (для `apply`) | Пароль root MySQL на хосте — нужен скрипту `vps-phpmyadmin-mysql.sh` |
+| `PMA_SUBDOMAIN` | нет | Префикс субдомена (по умолчанию `pma` → `pma.${VPS_DOMAIN}`) |
+| `PHPMYADMIN_PORT` | нет | Порт upstream на localhost (по умолчанию `8085`) |
+| `CERTBOT_EMAIL` | для первого cert | Email Let's Encrypt — для `vps-phpmyadmin.sh issue-cert` |
+
+Дополнительно (export или при вызове скриптов):
+
+| Переменная | По умолчанию | Описание |
+|---|---|---|
+| `COMPOSE_FILE` | `docker-compose.yml:docker-compose.prod.yml` | Overlay compose для production |
+| `PMA_DOMAIN` | `${PMA_SUBDOMAIN}.${VPS_DOMAIN}` | Полный субдомен phpMyAdmin |
+| `HTPASSWD_FILE` | `/etc/nginx/.htpasswd-phpmyadmin` | Файл HTTP Basic Auth nginx |
+| `PMA_MYSQL_USER` | `pma_admin` | Имя MySQL-пользователя phpMyAdmin |
+
+Перед первым запуском на VPS создайте `phpmyadmin/config.user.inc.php` из шаблона и сгенерируйте `blowfish_secret` (32 символа):
+
+```bash
+cp phpmyadmin/config.user.inc.php.example phpmyadmin/config.user.inc.php
+openssl rand -base64 24   # подставить в blowfish_secret
+```
+
+Файл `phpmyadmin/config.user.inc.php` **не коммитить** (содержит секрет).
+
+#### Порядок развёртывания на VPS
+
+Выполнять **на VPS** из корня репозитория. Предварительно должен быть настроен основной HTTPS (`scripts/vps-nginx-ssl.sh all`) и healthcheck `mysql-host` в compose — `healthy`.
+
+```bash
+cd ~/apps/exampleProjectSail   # или ваш DEPLOY_PATH
+
+# 1. Переменные в корневом .env:
+#    VPS_DOMAIN, PMA_MYSQL_PASSWORD, MYSQL_ROOT_PASSWORD, PHPMYADMIN_PORT (опционально)
+
+# 2. Hardening-конфиг phpMyAdmin (blowfish_secret — см. выше)
+cp phpmyadmin/config.user.inc.php.example phpmyadmin/config.user.inc.php
+# отредактировать blowfish_secret
+
+export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+
+# 3. MySQL-пользователь pma_admin (один раз или при смене пароля)
+./scripts/vps-phpmyadmin-mysql.sh apply
+./scripts/vps-phpmyadmin-mysql.sh check
+
+# 4. Контейнер phpMyAdmin (только localhost:8085)
+docker compose up -d phpmyadmin
+
+# 5. Host nginx: Basic Auth + TLS для субдомена pma.*
+export VPS_DOMAIN=94-228-117-27.sslip.io
+export CERTBOT_EMAIL=your@email.com
+./scripts/vps-phpmyadmin.sh create-htpasswd   # интерактивно, один раз
+./scripts/vps-phpmyadmin.sh all
+./scripts/vps-phpmyadmin.sh check
+```
+
+**Вход в браузере:** `https://pma.${VPS_DOMAIN}` → HTTP Basic Auth (nginx) → логин `pma_admin` / `PMA_MYSQL_PASSWORD`.
+
+CD через `.github/workflows/deploy.yml` поднимает контейнер `phpmyadmin` при `docker compose up -d`, но **не** настраивает nginx, certbot и `pma_admin` — это одноразовые шаги на VPS вручную.
+
+#### Скрипты и файлы
+
+| Файл | Назначение |
+|---|---|
+| `docker-compose.prod.yml` | Сервис `phpmyadmin`, порт `127.0.0.1:${PHPMYADMIN_PORT:-8085}` |
+| `phpmyadmin/config.user.inc.php.example` | Шаблон hardening без секретов |
+| `scripts/vps-phpmyadmin-mysql.sh` | Создание/проверка `pma_admin` (`apply`, `check`) |
+| `scripts/mysql-create-pma-admin.sql` | SQL-шаблон (пароль подставляет обёртка) |
+| `scripts/vps-phpmyadmin.sh` | nginx site, certbot, htpasswd (`all`, `check`, …) |
+
+Команды `vps-phpmyadmin.sh`: `install-deps`, `create-htpasswd`, `issue-cert`, `apply-nginx`, `all`, `check` — подробности в `./scripts/vps-phpmyadmin.sh` без аргументов.
+
+#### Безопасность (рекомендации)
+
+- **UFW:** не открывать порты `8085` и `3306` наружу.
+- **Не задавать** `PMA_USER` / `PMA_PASSWORD` в compose — иначе phpMyAdmin выполнит авто-логин без проверки.
+- **Не коммитить:** `.htpasswd`, реальные пароли, `blowfish_secret`, `phpmyadmin/config.user.inc.php`.
+- **Ротация:** периодически менять `PMA_MYSQL_PASSWORD` и пароли htpasswd; после смены MySQL-пароля — `./scripts/vps-phpmyadmin-mysql.sh apply`.
+- **fail2ban** (уже ставится `scripts/vps-bootstrap.sh`): при желании добавить jail для nginx `auth_basic` — отдельный необязательный шаг.
+- Опционально в nginx site: `allow <ваш_IP>; deny all;` перед `proxy_pass`.
 
 ### Отладка MAX mini-app (гибрид)
 

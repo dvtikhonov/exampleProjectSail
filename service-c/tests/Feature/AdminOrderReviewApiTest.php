@@ -191,6 +191,11 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::PendingReview->value);
 
+        $this->postJson("/api/food/admin/orders/{$orderId}/payment/approve", [], $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.status', OrderStatus::PendingReview->value)
+            ->assertJsonPath('order.payment_review_status', OrderReviewStatus::Approved->value);
+
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
@@ -200,6 +205,7 @@ class AdminOrderReviewApiTest extends TestCase
             'id' => $orderId,
             'status' => OrderStatus::Confirmed->value,
             'composition_reviewed_by' => 10_004,
+            'payment_reviewed_by' => 10_003,
         ]);
     }
 
@@ -236,8 +242,13 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
             ->assertOk()
-            ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
+            ->assertJsonPath('order.status', OrderStatus::PendingReview->value)
             ->assertJsonPath('order.address_review_status', OrderReviewStatus::Approved->value);
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/payment/approve", [], $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
+            ->assertJsonPath('order.payment_review_status', OrderReviewStatus::Approved->value);
     }
 
     public function test_address_reject_requires_comment(): void
@@ -447,6 +458,8 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
             ->assertOk();
+        $this->postJson("/api/food/admin/orders/{$orderId}/payment/approve", [], $addressAdmin['headers'])
+            ->assertOk();
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Confirmed->value);
@@ -501,6 +514,8 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
             ->assertOk();
+        $this->postJson("/api/food/admin/orders/{$orderId}/payment/approve", [], $addressAdmin['headers'])
+            ->assertOk();
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
             ->assertOk();
 
@@ -513,6 +528,75 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonCount(1, 'orders')
             ->assertJsonPath('orders.0.id', $orderId)
             ->assertJsonPath('orders.0.status', OrderStatus::Confirmed->value);
+    }
+
+    public function test_payment_reject_requires_comment(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/payment/reject", [], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['comment']);
+    }
+
+    public function test_payment_reject_with_comment_notifies_customer_and_marks_order_rejected(): void
+    {
+        $orderId = $this->createPendingReviewOrder(customerMaxUserId: 88_803);
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+        $comment = 'Оплата не поступила';
+
+        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier
+            ->expects($this->once())
+            ->method('notifyRejected')
+            ->with(
+                $this->callback(static fn (FoodOrder $order): bool => $order->id === $orderId),
+                OrderRejectionScope::Payment,
+            );
+        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/payment/reject", [
+            'comment' => $comment,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.status', OrderStatus::Rejected->value)
+            ->assertJsonPath('order.payment_rejection_comment', $comment);
+    }
+
+    public function test_address_admin_pending_list_includes_orders_awaiting_payment_only(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        FoodOrder::query()->whereKey($orderId)->update([
+            'address_review_status' => OrderReviewStatus::Approved->value,
+            'payment_review_status' => OrderReviewStatus::Pending->value,
+        ]);
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=pending', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('orders.0.id', $orderId)
+            ->assertJsonPath('orders.0.payment_review_status', OrderReviewStatus::Pending->value);
     }
 
     public function test_list_orders_rejects_invalid_status(): void

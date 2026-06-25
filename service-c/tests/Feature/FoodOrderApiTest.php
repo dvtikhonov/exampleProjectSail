@@ -130,6 +130,7 @@ class FoodOrderApiTest extends TestCase
             'status' => OrderStatus::PendingReview->value,
             'address_review_status' => 'pending',
             'composition_review_status' => 'pending',
+            'payment_review_status' => 'pending',
             'items_total' => '1400.00',
             'delivery_cost' => '0.00',
             'total' => '1400.00',

@@ -1,7 +1,7 @@
 <script setup>
 /**
- * Карточка заказа для проверяющего: клиент, адрес, состав, чат, approve/reject.
- * Активный scope (address | composition) подсвечивается рамкой.
+ * Карточка заказа для проверяющего: клиент, адрес, оплата, состав, чат, approve/reject.
+ * В разделе «Адреса» проверяющий подтверждает адрес и оплату независимо.
  */
 import { computed } from 'vue';
 import DishImage from '../../components/DishImage.vue';
@@ -36,15 +36,41 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    rejectTarget: {
+        type: String,
+        default: 'address',
+        validator: (value) => ['address', 'payment', 'composition'].includes(value),
+    },
 });
 
-const emit = defineEmits(['back', 'approve', 'open-reject', 'close-reject', 'reject', 'messages-read']);
+const emit = defineEmits([
+    'back',
+    'approve-address',
+    'approve-payment',
+    'approve-composition',
+    'open-reject',
+    'close-reject',
+    'reject',
+    'messages-read',
+]);
 
 const isAddressScope = computed(() => props.scope === 'address');
+const isCompositionScope = computed(() => props.scope === 'composition');
 
-const rejectModalTitle = computed(() =>
-    isAddressScope.value ? 'Отклонить адрес доставки' : 'Отклонить состав заказа',
-);
+const isAddressPending = computed(() => props.order.address_review_status === 'pending');
+const isPaymentPending = computed(() => props.order.payment_review_status === 'pending');
+
+const rejectModalTitle = computed(() => {
+    if (props.rejectTarget === 'payment') {
+        return 'Отклонить оплату';
+    }
+
+    if (props.rejectTarget === 'composition') {
+        return 'Отклонить состав заказа';
+    }
+
+    return 'Отклонить адрес доставки';
+});
 
 /**
  * @param {{ first_name?: string|null, last_name?: string|null, username?: string|null, max_user_id: number }} customer
@@ -103,15 +129,27 @@ function formatCustomerName(customer) {
 
                 <div
                     class="rounded-2xl border bg-white p-4 shadow-sm"
-                    :class="isAddressScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
+                    :class="isAddressScope && isAddressPending ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
                     <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
                 </div>
 
                 <div
+                    v-if="isAddressScope"
                     class="rounded-2xl border bg-white p-4 shadow-sm"
-                    :class="!isAddressScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
+                    :class="isPaymentPending ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
+                >
+                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Оплата</p>
+                    <p class="mt-1 text-2xl font-bold text-gray-900">{{ order.total }} ₽</p>
+                    <p class="mt-1 text-sm text-max-muted">
+                        Подтвердите, что оплата от клиента получена
+                    </p>
+                </div>
+
+                <div
+                    class="rounded-2xl border bg-white p-4 shadow-sm"
+                    :class="isCompositionScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Состав заказа</p>
                     <ul class="mt-3 space-y-2">
@@ -162,13 +200,16 @@ function formatCustomerName(customer) {
             </template>
         </main>
 
-        <footer class="sticky bottom-0 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom">
+        <footer
+            v-if="!loading && isCompositionScope"
+            class="sticky bottom-0 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
+        >
             <div class="flex gap-3">
                 <button
                     type="button"
                     class="flex-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                     :disabled="loading || actionLoading"
-                    @click="emit('open-reject')"
+                    @click="emit('open-reject', 'composition')"
                 >
                     Отклонить
                 </button>
@@ -176,11 +217,62 @@ function formatCustomerName(customer) {
                     type="button"
                     class="flex-1 rounded-2xl bg-max-primary px-4 py-3.5 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                     :disabled="loading || actionLoading"
-                    @click="emit('approve')"
+                    @click="emit('approve-composition')"
                 >
                     <span v-if="actionLoading">Обработка…</span>
                     <span v-else>Подтвердить</span>
                 </button>
+            </div>
+        </footer>
+
+        <footer
+            v-else-if="!loading && isAddressScope && (isAddressPending || isPaymentPending)"
+            class="sticky bottom-0 space-y-3 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
+        >
+            <div v-if="isAddressPending" class="space-y-2">
+                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес</p>
+                <div class="flex gap-3">
+                    <button
+                        type="button"
+                        class="flex-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                        :disabled="actionLoading"
+                        @click="emit('open-reject', 'address')"
+                    >
+                        Отклонить
+                    </button>
+                    <button
+                        type="button"
+                        class="flex-1 rounded-2xl bg-max-primary px-4 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                        :disabled="actionLoading"
+                        @click="emit('approve-address')"
+                    >
+                        <span v-if="actionLoading">Обработка…</span>
+                        <span v-else>Подтвердить адрес</span>
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="isPaymentPending" class="space-y-2">
+                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Оплата</p>
+                <div class="flex gap-3">
+                    <button
+                        type="button"
+                        class="flex-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                        :disabled="actionLoading"
+                        @click="emit('open-reject', 'payment')"
+                    >
+                        Не получена
+                    </button>
+                    <button
+                        type="button"
+                        class="flex-1 rounded-2xl bg-max-primary px-4 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                        :disabled="actionLoading"
+                        @click="emit('approve-payment')"
+                    >
+                        <span v-if="actionLoading">Обработка…</span>
+                        <span v-else>Оплата получена</span>
+                    </button>
+                </div>
             </div>
         </footer>
 
