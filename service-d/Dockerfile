@@ -19,7 +19,13 @@ WORKDIR /var/www/html
 
 COPY service-d/composer.json service-d/composer.lock ./
 
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-progress --no-scripts
+# Без --prefer-dist: при HTTP 400 на codeload.github.com Composer может клонировать из git.
+RUN for attempt in 1 2 3; do \
+      composer install --no-interaction --optimize-autoloader --no-progress --no-scripts --no-dev \
+      && break; \
+      if [ "$attempt" = 3 ]; then exit 1; fi; \
+      sleep 10; \
+    done
 
 COPY service-d/package.json service-d/.npmrc ./
 RUN npm install --ignore-scripts
