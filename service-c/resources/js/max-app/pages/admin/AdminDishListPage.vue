@@ -2,7 +2,8 @@
 /**
  * Список блюд для администратора: фильтры, добавление, редактирование, удаление.
  */
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import AppSelect from '../../components/AppSelect.vue';
 import DishImage from '../../components/DishImage.vue';
 
 const props = defineProps({
@@ -70,6 +71,22 @@ let scrollContainer = null;
 /** Порог смещения пальца (px) для срабатывания обновления списка */
 const PULL_THRESHOLD = 72;
 
+const restaurantSelectOptions = computed(() => [
+    { value: '', label: 'Все рестораны' },
+    ...props.restaurantOptions.map((restaurant) => ({
+        value: String(restaurant.id),
+        label: restaurant.name,
+    })),
+]);
+
+const categorySelectOptions = computed(() => [
+    { value: '', label: 'Все категории' },
+    ...props.categoryOptions.map((category) => ({
+        value: category.name,
+        label: category.name,
+    })),
+]);
+
 function onTouchStart(event) {
     if (!scrollContainer || scrollContainer.scrollTop > 0 || props.loading || props.refreshing) {
         isPulling.value = false;
@@ -133,35 +150,19 @@ onUnmounted(() => {
             </div>
 
             <div class="grid grid-cols-2 gap-2">
-                <select
-                    :value="filterRestaurantId"
-                    class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
-                    @change="emit('filter-restaurant', ($event.target).value)"
-                >
-                    <option value="">Все рестораны</option>
-                    <option
-                        v-for="restaurant in restaurantOptions"
-                        :key="restaurant.id"
-                        :value="String(restaurant.id)"
-                    >
-                        {{ restaurant.name }}
-                    </option>
-                </select>
+                <AppSelect
+                    :model-value="filterRestaurantId"
+                    :options="restaurantSelectOptions"
+                    size="sm"
+                    @update:model-value="emit('filter-restaurant', $event)"
+                />
 
-                <select
-                    :value="filterCategoryName"
-                    class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
-                    @change="emit('filter-category', ($event.target).value)"
-                >
-                    <option value="">Все категории</option>
-                    <option
-                        v-for="category in categoryOptions"
-                        :key="category.name"
-                        :value="category.name"
-                    >
-                        {{ category.name }}
-                    </option>
-                </select>
+                <AppSelect
+                    :model-value="filterCategoryName"
+                    :options="categorySelectOptions"
+                    size="sm"
+                    @update:model-value="emit('filter-category', $event)"
+                />
             </div>
 
             <input

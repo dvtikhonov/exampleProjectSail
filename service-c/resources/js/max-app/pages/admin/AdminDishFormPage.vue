@@ -3,6 +3,7 @@
  * Форма создания и редактирования блюда с клиентской валидацией фото.
  */
 import { computed, ref, watch } from 'vue';
+import AppSelect from '../../components/AppSelect.vue';
 import DishImage from '../../components/DishImage.vue';
 import {
     DISH_PHOTO_ACCEPT,
@@ -110,6 +111,40 @@ const photoFileLabel = computed(() => {
 
     return 'Файл не выбран';
 });
+
+const restaurantSelectOptions = computed(() => [
+    { value: '', label: 'Выберите ресторан', disabled: true },
+    ...props.restaurantOptions.map((restaurant) => ({
+        value: String(restaurant.id),
+        label: restaurant.name,
+    })),
+]);
+
+const categorySelectOptions = computed(() => [
+    {
+        value: '',
+        label: props.restaurantId ? 'Выберите категорию' : 'Сначала выберите ресторан',
+        disabled: true,
+    },
+    ...props.categoryOptions.map((category) => ({
+        value: String(category.id),
+        label: category.label,
+    })),
+]);
+
+const weightUnitSelectOptions = computed(() =>
+    WEIGHT_UNITS.map((unit) => ({
+        value: unit.value,
+        label: unit.label,
+    })),
+);
+
+const vatSelectOptions = computed(() =>
+    VAT_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+    })),
+);
 
 /** Снимок полей при загрузке блюда — для сравнения в режиме редактирования */
 const initialSnapshot = ref(null);
@@ -410,22 +445,14 @@ function handleSubmit() {
                     <label for="dish-restaurant" class="mb-1 block text-sm font-medium text-gray-700">
                         Ресторан <span class="text-red-500">*</span>
                     </label>
-                    <select
+                    <AppSelect
                         id="dish-restaurant"
-                        :value="restaurantId"
-                        class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
-                        :class="displayFieldErrors.restaurant_id ? 'border-red-300' : ''"
-                        @change="emit('update:restaurantId', ($event.target).value)"
-                    >
-                        <option value="" disabled>Выберите ресторан</option>
-                        <option
-                            v-for="restaurant in restaurantOptions"
-                            :key="restaurant.id"
-                            :value="String(restaurant.id)"
-                        >
-                            {{ restaurant.name }}
-                        </option>
-                    </select>
+                        :model-value="restaurantId"
+                        :options="restaurantSelectOptions"
+                        placeholder="Выберите ресторан"
+                        :invalid="Boolean(displayFieldErrors.restaurant_id)"
+                        @update:model-value="emit('update:restaurantId', $event)"
+                    />
                     <p v-if="displayFieldErrors.restaurant_id" class="mt-1 text-xs text-red-600">
                         {{ displayFieldErrors.restaurant_id }}
                     </p>
@@ -435,24 +462,14 @@ function handleSubmit() {
                     <label for="dish-category" class="mb-1 block text-sm font-medium text-gray-700">
                         Категория <span class="text-red-500">*</span>
                     </label>
-                    <select
+                    <AppSelect
                         id="dish-category"
                         v-model="menuCategoryId"
-                        class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary disabled:bg-gray-50 disabled:text-gray-400"
-                        :class="displayFieldErrors.menu_category_id ? 'border-red-300' : ''"
+                        :options="categorySelectOptions"
                         :disabled="!restaurantId"
-                    >
-                        <option value="" disabled>
-                            {{ restaurantId ? 'Выберите категорию' : 'Сначала выберите ресторан' }}
-                        </option>
-                        <option
-                            v-for="category in categoryOptions"
-                            :key="category.id"
-                            :value="String(category.id)"
-                        >
-                            {{ category.label }}
-                        </option>
-                    </select>
+                        placeholder="Выберите категорию"
+                        :invalid="Boolean(displayFieldErrors.menu_category_id)"
+                    />
                     <p v-if="displayFieldErrors.menu_category_id" class="mt-1 text-xs text-red-600">
                         {{ displayFieldErrors.menu_category_id }}
                     </p>
@@ -542,19 +559,11 @@ function handleSubmit() {
                         <label for="dish-weight-unit" class="mb-1 block text-sm font-medium text-gray-700">
                             Единицы <span class="text-red-500">*</span>
                         </label>
-                        <select
+                        <AppSelect
                             id="dish-weight-unit"
                             v-model="weightUnit"
-                            class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
-                        >
-                            <option
-                                v-for="unit in WEIGHT_UNITS"
-                                :key="unit.value"
-                                :value="unit.value"
-                            >
-                                {{ unit.label }}
-                            </option>
-                        </select>
+                            :options="weightUnitSelectOptions"
+                        />
                     </div>
                 </div>
 
@@ -583,19 +592,11 @@ function handleSubmit() {
                     <label for="dish-vat" class="mb-1 block text-sm font-medium text-gray-700">
                         НДС
                     </label>
-                    <select
+                    <AppSelect
                         id="dish-vat"
                         v-model="vatRate"
-                        class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
-                    >
-                        <option
-                            v-for="option in VAT_OPTIONS"
-                            :key="option.label"
-                            :value="option.value"
-                        >
-                            {{ option.label }}
-                        </option>
-                    </select>
+                        :options="vatSelectOptions"
+                    />
                 </div>
 
                 <label class="flex items-center gap-2 text-sm text-gray-700">
