@@ -83,7 +83,7 @@ jobs:
              docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
              docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
              docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
-             docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
+             docker compose run --rm --no-deps service-d composer install --no-interaction --no-progress --no-dev
              docker compose up -d --remove-orphans
              docker compose up -d service-d service-d-queue yandex-parser
              docker compose exec -T service-d-queue php artisan queue:restart || true
