@@ -13,8 +13,8 @@ use App\Http\Requests\Food\Admin\UpdateDishRequest;
 use App\Models\MenuCategory;
 use App\Services\Food\DishAdminService;
 use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Административный CRUD блюд меню для MAX mini-app.

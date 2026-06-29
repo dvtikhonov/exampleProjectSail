@@ -33,6 +33,7 @@ class Dish extends Model
 
     /** @use HasFactory<DishFactory> */
     use HasFactory;
+
     use SoftDeletes;
 
     /**

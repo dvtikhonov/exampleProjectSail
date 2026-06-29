@@ -21,7 +21,7 @@ class DishImageUploadServiceTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
-        $this->service = new DishImageUploadService();
+        $this->service = new DishImageUploadService;
     }
 
     public function test_upload_stores_valid_jpeg_under_dishes_path(): void

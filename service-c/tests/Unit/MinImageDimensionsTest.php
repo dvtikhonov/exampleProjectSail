@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Rules\MinImageDimensions;
 use App\Rules\ValidDishPhotoMime;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Tests\Support\DishPhotoTestImageFactory;
 use Tests\TestCase;
@@ -18,7 +19,7 @@ class MinImageDimensionsTest extends TestCase
 
         $validator = Validator::make(
             ['photo' => $file],
-            ['photo' => [new MinImageDimensions()]],
+            ['photo' => [new MinImageDimensions]],
         );
 
         $this->assertTrue($validator->passes());
@@ -30,7 +31,7 @@ class MinImageDimensionsTest extends TestCase
 
         $validator = Validator::make(
             ['photo' => $file],
-            ['photo' => [new MinImageDimensions()]],
+            ['photo' => [new MinImageDimensions]],
         );
 
         $this->assertFalse($validator->passes());
@@ -43,7 +44,7 @@ class MinImageDimensionsTest extends TestCase
 
         $validator = Validator::make(
             ['photo' => $file],
-            ['photo' => [new MinImageDimensions()]],
+            ['photo' => [new MinImageDimensions]],
         );
 
         $this->assertFalse($validator->passes());
@@ -56,7 +57,7 @@ class MinImageDimensionsTest extends TestCase
 
         $validator = Validator::make(
             ['photo' => $file],
-            ['photo' => [new ValidDishPhotoMime()]],
+            ['photo' => [new ValidDishPhotoMime]],
         );
 
         $this->assertTrue($validator->passes());
@@ -66,11 +67,11 @@ class MinImageDimensionsTest extends TestCase
     {
         $path = tempnam(sys_get_temp_dir(), 'fake_png_');
         file_put_contents($path, 'not-an-image');
-        $file = new \Illuminate\Http\UploadedFile($path, 'fake.png', 'image/png', null, true);
+        $file = new UploadedFile($path, 'fake.png', 'image/png', null, true);
 
         $validator = Validator::make(
             ['photo' => $file],
-            ['photo' => [new ValidDishPhotoMime()]],
+            ['photo' => [new ValidDishPhotoMime]],
         );
 
         $this->assertFalse($validator->passes());

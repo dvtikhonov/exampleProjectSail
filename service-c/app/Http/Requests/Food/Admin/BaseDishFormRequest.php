@@ -63,8 +63,8 @@ abstract class BaseDishFormRequest extends FormRequest
             'file',
             DishPhotoAllowedExtensions::mimesRule(),
             'max:'.DishPhotoAllowedExtensions::MAX_SIZE_KILOBYTES,
-            new ValidDishPhotoMime(),
-            new MinImageDimensions(),
+            new ValidDishPhotoMime,
+            new MinImageDimensions,
         ];
     }
 

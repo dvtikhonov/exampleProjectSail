@@ -26,6 +26,7 @@ class MenuCategory extends Model
 
     /** @use HasFactory<MenuCategoryFactory> */
     use HasFactory;
+
     use SoftDeletes;
 
     /**

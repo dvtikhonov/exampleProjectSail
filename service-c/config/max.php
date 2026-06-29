@@ -31,7 +31,7 @@ return [
     'local_dev_init_data' => filter_var(env('MAX_LOCAL_DEV_INIT_DATA', false), FILTER_VALIDATE_BOOL),
 
     // Каким демо-пользователем открывать /max-app в браузере (профили — local_dev_demo_users).
-        'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1003),
+    'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1003),
     // 'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1002),
 
     /**

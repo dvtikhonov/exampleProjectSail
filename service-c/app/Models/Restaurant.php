@@ -25,6 +25,7 @@ class Restaurant extends Model
 
     /** @use HasFactory<RestaurantFactory> */
     use HasFactory;
+
     use SoftDeletes;
 
     /**
