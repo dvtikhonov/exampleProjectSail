@@ -14,7 +14,12 @@ export default defineConfig({
             buildDirectory: 'max-build',
             refresh: true,
         }),
-        vue(),
+        vue({
+            // props.categoryOptions в <script setup> иначе компилируется в categoryOptions.value без объявления
+            script: {
+                propsDestructure: false,
+            },
+        }),
         tailwindcss(),
     ],
     server: {

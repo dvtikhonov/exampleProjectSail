@@ -18,7 +18,7 @@ class EloquentCustomerCategoryRepositoryTest extends TestCase
     {
         parent::setUp();
 
-        CustomerCategory::query()->delete();
+        CustomerCategory::query()->forceDelete();
     }
 
     public function test_find_or_create_default_category_id_creates_standard_category(): void

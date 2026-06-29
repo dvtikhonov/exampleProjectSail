@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Food\DishWeightUnit;
 use Database\Factories\DishFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'menu_category_id',
     'name',
+    'description',
+    'weight',
+    'weight_unit',
     'image_url',
     'price',
+    'vat_rate',
     'is_available',
 ])]
 /**
@@ -28,13 +34,18 @@ class Dish extends Model
     /** @use HasFactory<DishFactory> */
     use HasFactory;
 
+    use SoftDeletes;
+
     /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'weight' => 'decimal:3',
+            'weight_unit' => DishWeightUnit::class,
             'price' => 'decimal:2',
+            'vat_rate' => 'integer',
             'is_available' => 'boolean',
         ];
     }

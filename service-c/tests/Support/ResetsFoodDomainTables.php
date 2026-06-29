@@ -24,12 +24,12 @@ trait ResetsFoodDomainTables
         FoodOrderAdmin::query()->delete();
         CartItem::query()->delete();
         Cart::query()->delete();
-        Dish::query()->delete();
-        MenuCategory::query()->delete();
+        Dish::query()->forceDelete();
+        MenuCategory::query()->forceDelete();
         RestaurantCategoryDeliveryTier::query()->delete();
         DB::table('personal_access_tokens')->delete();
         MaxUser::query()->delete();
-        CustomerCategory::query()->delete();
-        Restaurant::query()->delete();
+        CustomerCategory::query()->forceDelete();
+        Restaurant::query()->forceDelete();
     }
 }

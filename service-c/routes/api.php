@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Food\AdminDishController;
 use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
 use App\Http\Controllers\Api\Food\DishImageController;
@@ -70,6 +71,18 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::post('/orders/{order}/composition/reject', [AdminOrderReviewController::class, 'rejectComposition'])
                 ->middleware('food.order.admin:composition_reviewer')
                 ->whereNumber('order');
+
+            Route::middleware('food.order.admin:menu_manager')->group(function () {
+                Route::get('/menu-categories', [AdminDishController::class, 'menuCategories']);
+                Route::get('/dishes', [AdminDishController::class, 'index']);
+                Route::get('/dishes/{dish}', [AdminDishController::class, 'show'])
+                    ->whereNumber('dish');
+                Route::post('/dishes', [AdminDishController::class, 'store']);
+                Route::post('/dishes/{dish}', [AdminDishController::class, 'update'])
+                    ->whereNumber('dish');
+                Route::delete('/dishes/{dish}', [AdminDishController::class, 'destroy'])
+                    ->whereNumber('dish');
+            });
         });
     });
 });

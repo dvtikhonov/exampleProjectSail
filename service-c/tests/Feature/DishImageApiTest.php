@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -23,19 +22,13 @@ class DishImageApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
-    public function test_dish_image_endpoint_proxies_remote_url_without_auth(): void
+    public function test_dish_image_endpoint_returns_not_found_for_remote_url(): void
     {
-        Http::fake([
-            'images.unsplash.com/*' => Http::response('fake-image-bytes', 200, [
-                'Content-Type' => 'image/jpeg',
-            ]),
-        ]);
-
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['image_url' => 'https://images.unsplash.com/photo-example']);
 
         $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
-            ->assertOk()
-            ->assertHeader('Content-Type', 'image/jpeg');
+            ->assertNotFound();
     }
 
     public function test_dish_image_endpoint_returns_not_found_when_image_missing(): void

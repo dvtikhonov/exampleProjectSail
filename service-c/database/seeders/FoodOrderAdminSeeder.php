@@ -10,7 +10,7 @@ use App\Models\MaxUser;
 use Illuminate\Database\Seeder;
 
 /**
- * Демо-администраторы проверки заказов еды (MAX mini-app).
+ * Демо-администраторы проверки заказов и меню еды (MAX mini-app).
  */
 class FoodOrderAdminSeeder extends Seeder
 {
@@ -36,6 +36,16 @@ class FoodOrderAdminSeeder extends Seeder
             ],
         );
 
+        MaxUser::query()->updateOrCreate(
+            ['max_user_id' => 1005],
+            [
+                'first_name' => 'Demo',
+                'last_name' => 'Админ меню',
+                'username' => 'demo_menu_admin',
+                'language_code' => 'ru',
+            ],
+        );
+
         FoodOrderAdmin::query()->updateOrCreate(
             [
                 'max_user_id' => 1003,
@@ -50,6 +60,16 @@ class FoodOrderAdminSeeder extends Seeder
             [
                 'max_user_id' => 1004,
                 'role' => FoodOrderAdminRole::CompositionReviewer,
+            ],
+            [
+                'is_active' => true,
+            ],
+        );
+
+        FoodOrderAdmin::query()->updateOrCreate(
+            [
+                'max_user_id' => 1005,
+                'role' => FoodOrderAdminRole::MenuManager,
             ],
             [
                 'is_active' => true,

@@ -125,5 +125,4 @@ jobs:
              docker compose exec -T service-a php artisan migrate --force
              docker compose exec -T service-b php artisan migrate --force
              docker compose exec -T service-c php artisan migrate --force
-             docker compose exec -T service-c php artisan db:seed --class=DishImageUrlBackfillSeeder --force
              docker compose exec -T service-d php artisan migrate --force"

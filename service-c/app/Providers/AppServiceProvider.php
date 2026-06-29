@@ -8,11 +8,14 @@ use App\Contracts\Auth\GatewayUserResolverInterface;
 use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\Contracts\Food\DishImageDeliveryInterface;
+use App\Contracts\Food\DishImageUploadInterface;
 use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\DishRepositoryInterface;
 use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\OrderChatNotifierInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
@@ -20,13 +23,16 @@ use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\Repositories\Food\EloquentCustomerCategoryRepository;
 use App\Repositories\Food\EloquentDeliveryTierRepository;
+use App\Repositories\Food\EloquentDishRepository;
 use App\Repositories\Food\EloquentFoodOrderAdminRepository;
 use App\Repositories\Food\EloquentFoodOrderRepository;
+use App\Repositories\Food\EloquentMenuCategoryRepository;
 use App\Repositories\Food\EloquentOrderMessageRepository;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
 use App\Services\Food\DishImageDeliveryService;
+use App\Services\Food\DishImageUploadService;
 use App\Services\Food\DishImageUrlResolver;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
@@ -58,6 +64,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(GatewayAuthSessionInterface::class, LaravelGatewayAuthSession::class);
         $this->app->bind(DishImageUrlResolverInterface::class, DishImageUrlResolver::class);
         $this->app->bind(DishImageDeliveryInterface::class, DishImageDeliveryService::class);
+        $this->app->bind(DishImageUploadInterface::class, DishImageUploadService::class);
+        $this->app->bind(DishRepositoryInterface::class, EloquentDishRepository::class);
+        $this->app->bind(
+            MenuCategoryRepositoryInterface::class,
+            EloquentMenuCategoryRepository::class,
+        );
         $this->app->bind(
             DeliveryTierRepositoryInterface::class,
             EloquentDeliveryTierRepository::class,

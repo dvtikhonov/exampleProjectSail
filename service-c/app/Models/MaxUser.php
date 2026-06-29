@@ -49,7 +49,7 @@ class MaxUser extends Authenticatable
      */
     public function customerCategory(): BelongsTo
     {
-        return $this->belongsTo(CustomerCategory::class, 'customer_category_id');
+        return $this->belongsTo(CustomerCategory::class, 'customer_category_id')->withTrashed();
     }
 
     /**

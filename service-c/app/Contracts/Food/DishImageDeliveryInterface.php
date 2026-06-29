@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 interface DishImageDeliveryInterface
 {
     /**
-     * Отдаёт изображение блюда клиенту (локальный файл или прокси upstream).
+     * Отдаёт изображение блюда клиенту из локального public disk.
      */
     public function deliver(Dish $dish): Response;
 }
