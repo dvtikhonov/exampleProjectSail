@@ -17,8 +17,7 @@
 | `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/` и `/api/b/` |
 | `docker-compose.yml` | Основной compose-файл для локального запуска |
 | `docker-compose.ci.yml` | Overlay для CI: внутренний MySQL и `depends_on` с healthcheck |
-| `scripts/test-services.sh` | Единый сценарий подготовки тестовой БД и запуска тестов всех сервисов |
-| `scripts/e2e-verify-report-stats.cjs` | E2E-проверка: два WebSocket-клиента + REST статистики отчётов |
+| `scripts/` | Вспомогательные скрипты: тесты, VPS, MAX-туннели, диагностика — см. [docs/scripts.md](docs/scripts.md) |
 | `.github/workflows/ci.yml` | CI: Pint, сборка frontend, Docker-тесты |
 | `.github/workflows/deploy.yml` | CD: деплой на VPS по SSH |
 | `main-app/compose.yaml` | Отдельный Laravel Sail compose для изолированного запуска `main-app`; для общего запуска обычно не используется |
@@ -474,12 +473,19 @@ docker compose exec service-b php artisan test
 
 ## E2E: статистика отчётов и WebSocket
 
-Скрипт `scripts/e2e-verify-report-stats.cjs` проверяет, что два независимых WebSocket-клиента получают одинаковые события `ReportJobStatsChanged`, пока `service-b-queue` обрабатывает CSV- и email-отчёты.
+E2E-проверка: два независимых WebSocket-клиента получают одинаковые события `ReportJobStatsChanged`, пока `service-b-queue` обрабатывает CSV- и email-отчёты.
 
 Предварительно: запущен compose, есть пользователь с Passport-токеном, работают `reverb` и `service-b-queue`.
 
+Рекомендуемый запуск (обёртка создаёт токен и проверяет `/broadcasting/auth`):
+
 ```bash
-# из корня репозитория; pusher-js берётся из main-app/node_modules
+./scripts/e2e-verify-report-stats.sh
+```
+
+Ручной запуск `.cjs` (pusher-js из `main-app/node_modules`):
+
+```bash
 export TOKEN="<passport-bearer-token>"
 export AUTH_BASE_URL=http://localhost
 export MAIN_APP_URL=http://localhost
@@ -517,6 +523,8 @@ docker compose run --rm --no-deps service-d composer install --no-interaction --
 docker compose up -d mysql redis main-app service-a service-b service-c service-d
 ./scripts/test-services.sh all
 ```
+
+Полный каталог скриптов: [docs/scripts.md](docs/scripts.md).
 
 ## CD (деплой на VPS)
 
@@ -676,7 +684,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт чистую БД `sail_db_testing`, затем применяет миграции в порядке `main-app` → `service-a` → `service-b`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c`, `service_d_db_testing` для `service-d`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-d`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 

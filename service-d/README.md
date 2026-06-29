@@ -5,6 +5,7 @@ Laravel 13 (PHP 8.4) и Vue 3 SPA с авторизацией через **Larav
 | Документ | Назначение |
 |---|---|
 | [корневой README](../README.md) | Docker, gateway, CI/CD, общая инфраструктура |
+| [docs/scripts.md](../docs/scripts.md) | Каталог скриптов: `diag-service-d-sync.sh`, `debug-dump-yandex-org.sh`, VPS |
 | [yandex-parser/README.md](../yandex-parser/README.md) | Playwright-сервис: HTTP API `/resolve`, `/sync-reviews`, переменные окружения |
 
 
