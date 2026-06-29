@@ -10,15 +10,15 @@ use App\Models\MaxUser;
 use Illuminate\Console\Command;
 
 /**
- * Artisan-команда назначения роли администратора проверки заказов еды.
+ * Artisan-команда назначения роли администратора заказов еды и меню.
  */
 class MaxFoodAdminAssignCommand extends Command
 {
     protected $signature = 'max:food-admin:assign
                             {max_user_id : MAX user ID из max_users}
-                            {role : address_reviewer или composition_reviewer}';
+                            {role : address_reviewer, composition_reviewer или menu_manager}';
 
-    protected $description = 'Назначить роль администратора проверки заказов еды пользователю MAX';
+    protected $description = 'Назначить роль администратора заказов еды или меню пользователю MAX';
 
     /**
      * Назначает активную роль администратора, если пользователь MAX существует.
@@ -33,7 +33,8 @@ class MaxFoodAdminAssignCommand extends Command
             $this->error(
                 'Недопустимая роль. Допустимые значения: '
                 .FoodOrderAdminRole::AddressReviewer->value.', '
-                .FoodOrderAdminRole::CompositionReviewer->value.'.',
+                .FoodOrderAdminRole::CompositionReviewer->value.', '
+                .FoodOrderAdminRole::MenuManager->value.'.',
             );
 
             return self::FAILURE;

@@ -20,9 +20,13 @@ class DishImageController extends Controller
 
     /**
      * Возвращает бинарное содержимое изображения блюда.
+     *
+     * Удалённые блюда (soft delete) остаются доступны для истории заказов.
      */
-    public function show(Dish $dish): Response
+    public function show(int $dish): Response
     {
-        return $this->dishImageDelivery->deliver($dish);
+        $dishModel = Dish::query()->withTrashed()->findOrFail($dish);
+
+        return $this->dishImageDelivery->deliver($dishModel);
     }
 }

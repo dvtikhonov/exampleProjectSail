@@ -3,17 +3,29 @@
  */
 import { onScopeDispose, watch } from 'vue';
 import { bindBackButton, closeMaxApp, getPlatform, hideBackButton } from '../bridge/maxBridge';
-import { ADMIN_VIEWS, VIEWS } from '../constants/views';
+import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from '../constants/views';
 
 /**
  * @param {object} deps
  * @param {import('vue').ComputedRef<boolean>} deps.hasAdminRoles
+ * @param {import('vue').Ref<string>} deps.adminSection
+ * @param {import('vue').ComputedRef<boolean>} deps.hasMenuManagerRole
  * @param {ReturnType<import('./useAdminFlow').useAdminFlow>} deps.admin
+ * @param {ReturnType<import('./useDishAdmin').useDishAdmin>} deps.dishAdmin
  * @param {ReturnType<import('./useClientNavigation').useClientNavigation>} deps.nav
  * @param {ReturnType<import('./useCart').useCart>} deps.cart
  * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders
  */
-export function useMaxBackButton({ hasAdminRoles, admin, nav, cart, orders }) {
+export function useMaxBackButton({
+    hasAdminRoles,
+    adminSection,
+    hasMenuManagerRole,
+    admin,
+    dishAdmin,
+    nav,
+    cart,
+    orders,
+}) {
     /** Снимает обработчик кнопки «Назад» при смене экрана */
     let unbindBackButton = () => {};
 
@@ -23,6 +35,14 @@ export function useMaxBackButton({ hasAdminRoles, admin, nav, cart, orders }) {
      */
     function handleBack() {
         if (hasAdminRoles.value) {
+            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
+                if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.form) {
+                    dishAdmin.closeDishForm();
+                }
+
+                return;
+            }
+
             if (admin.adminView.value === ADMIN_VIEWS.detail) {
                 admin.closeAdminOrderDetail();
             }
@@ -62,6 +82,27 @@ export function useMaxBackButton({ hasAdminRoles, admin, nav, cart, orders }) {
         unbindBackButton();
 
         if (hasAdminRoles.value) {
+            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
+                if (
+                    dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
+                    && getPlatform() === 'desktop'
+                ) {
+                    unbindBackButton = bindBackButton(closeMaxApp);
+
+                    return;
+                }
+
+                if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list) {
+                    hideBackButton();
+
+                    return;
+                }
+
+                unbindBackButton = bindBackButton(handleBack);
+
+                return;
+            }
+
             if (admin.adminView.value === ADMIN_VIEWS.list && getPlatform() === 'desktop') {
                 unbindBackButton = bindBackButton(closeMaxApp);
 
@@ -108,6 +149,8 @@ export function useMaxBackButton({ hasAdminRoles, admin, nav, cart, orders }) {
 
     watch(nav.currentView, setupBackButton);
     watch(admin.adminView, setupBackButton);
+    watch(adminSection, setupBackButton);
+    watch(dishAdmin.dishAdminView, setupBackButton);
 
     function cleanup() {
         unbindBackButton();

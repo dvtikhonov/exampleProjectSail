@@ -13,16 +13,19 @@ import { useAdminFlow } from './composables/useAdminFlow';
 import { useAuth } from './composables/useAuth';
 import { useCart } from './composables/useCart';
 import { useClientNavigation } from './composables/useClientNavigation';
+import { useDishAdmin } from './composables/useDishAdmin';
 import { createChatMessagesReadHandler, useMaxBackButton } from './composables/useMaxBackButton';
 import { useMyOrders } from './composables/useMyOrders';
 import { useRestaurantsMenu } from './composables/useRestaurantsMenu';
-import { ADMIN_VIEWS, VIEWS } from './constants/views';
+import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from './constants/views';
 import CartPage from './pages/CartPage.vue';
 import MenuPage from './pages/MenuPage.vue';
 import OrderConfirmationPage from './pages/OrderConfirmationPage.vue';
 import OrderDetailPage from './pages/OrderDetailPage.vue';
 import OrderListPage from './pages/OrderListPage.vue';
 import RestaurantList from './pages/RestaurantList.vue';
+import AdminDishFormPage from './pages/admin/AdminDishFormPage.vue';
+import AdminDishListPage from './pages/admin/AdminDishListPage.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
 
@@ -33,12 +36,17 @@ const {
     authLoading,
     authError,
     adminRoles,
+    adminSection,
+    hasOrderReviewRoles,
+    hasMenuManagerRole,
     hasAdminRoles,
+    showAdminSectionSwitcher,
     adminScope,
     initAuth,
 } = useAuth();
 
 const admin = useAdminFlow(adminScope);
+const dishAdmin = useDishAdmin();
 const {
     adminView,
     adminOrders,
@@ -64,6 +72,38 @@ const {
     closeAdminRejectModal,
     handleAdminReject,
 } = admin;
+
+const {
+    dishAdminView,
+    dishes,
+    dishesLoading,
+    dishesRefreshing,
+    dishesError,
+    filterRestaurantId,
+    filterCategoryName,
+    filterNameSearch,
+    formRestaurantId,
+    restaurantOptions,
+    categoryFilterOptions,
+    categoryFormOptions,
+    editingDish,
+    formLoading,
+    formError,
+    formFieldErrors,
+    deleteLoadingId,
+    deleteError,
+    initDishAdminSession,
+    loadDishes,
+    handleFilterRestaurantChange,
+    handleFilterCategoryChange,
+    handleFilterNameSearchChange,
+    openCreateForm,
+    openEditForm,
+    closeDishForm,
+    handleFormRestaurantChange,
+    submitDishForm,
+    handleDeleteDish,
+} = dishAdmin;
 
 const cartFlow = useCart({ currentView });
 const {
@@ -122,7 +162,10 @@ const { goToRestaurants, goToCart, bootstrapClient } = nav;
 
 const back = useMaxBackButton({
     hasAdminRoles,
+    adminSection,
+    hasMenuManagerRole,
     admin,
+    dishAdmin,
     nav,
     cart: cartFlow,
     orders,
@@ -141,13 +184,44 @@ async function bootstrapApp() {
 
     if (!authError.value) {
         if (hasAdminRoles.value) {
-            initAdminSession();
+            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
+                initDishAdminSession();
+            } else if (hasOrderReviewRoles.value) {
+                initAdminSession();
+            }
         } else {
             await bootstrapClient();
         }
     }
 
     back.setupBackButton();
+}
+
+/**
+ * @param {string} section
+ */
+function handleAdminSectionChange(section) {
+    if (adminSection.value === section) {
+        return;
+    }
+
+    adminSection.value = section;
+
+    if (section === ADMIN_SECTIONS.menu) {
+        initDishAdminSession();
+    } else {
+        initAdminSession();
+    }
+
+    back.setupBackButton();
+}
+
+/**
+ * @param {object} fields
+ * @param {File|null} photoFile
+ */
+function handleDishFormSubmit(fields, photoFile) {
+    submitDishForm(fields, photoFile);
 }
 
 onMounted(async () => {
@@ -178,37 +252,114 @@ onMounted(async () => {
 
         <template v-else>
             <template v-if="hasAdminRoles">
-                <AdminOrderDetailPage
-                    v-if="adminView === ADMIN_VIEWS.detail && selectedAdminOrder"
-                    :order="adminOrderDetail ?? selectedAdminOrder"
-                    :scope="adminScope"
-                    :loading="adminDetailLoading"
-                    :action-loading="adminActionLoading"
-                    :action-error="adminActionError"
-                    :show-reject-modal="showRejectModal"
-                    :reject-target="adminRejectTarget"
-                    @back="closeAdminOrderDetail"
-                    @approve-address="handleAdminApproveAddress"
-                    @approve-payment="handleAdminApprovePayment"
-                    @approve-composition="handleAdminApproveComposition"
-                    @open-reject="openAdminRejectModal"
-                    @close-reject="closeAdminRejectModal"
-                    @reject="handleAdminReject"
-                    @messages-read="handleChatMessagesRead"
-                />
+                <header
+                    v-if="showAdminSectionSwitcher"
+                    class="sticky top-0 z-20 border-b border-gray-200 bg-white safe-area-top"
+                >
+                    <nav class="flex" aria-label="Разделы админки">
+                        <button
+                            type="button"
+                            class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
+                            :class="
+                                adminSection === ADMIN_SECTIONS.orders
+                                    ? 'border-max-primary text-max-primary'
+                                    : 'border-transparent text-max-muted hover:text-gray-700'
+                            "
+                            @click="handleAdminSectionChange(ADMIN_SECTIONS.orders)"
+                        >
+                            Заказы
+                        </button>
+                        <button
+                            type="button"
+                            class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
+                            :class="
+                                adminSection === ADMIN_SECTIONS.menu
+                                    ? 'border-max-primary text-max-primary'
+                                    : 'border-transparent text-max-muted hover:text-gray-700'
+                            "
+                            @click="handleAdminSectionChange(ADMIN_SECTIONS.menu)"
+                        >
+                            Меню
+                        </button>
+                    </nav>
+                </header>
 
-                <AdminHomePage
-                    v-else
-                    :admin-roles="adminRoles"
-                    :active-scope="adminScope"
-                    :orders="adminOrders"
-                    :loading="adminOrdersLoading"
-                    :error="adminOrdersError"
-                    :refreshing="adminOrdersRefreshing"
-                    @change-scope="handleAdminScopeChange"
-                    @select-order="openAdminOrder"
-                    @refresh="loadAdminOrders({ refreshing: true })"
-                />
+                <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
+                    <AdminDishFormPage
+                        v-if="dishAdminView === ADMIN_DISH_VIEWS.form"
+                        :dish="editingDish"
+                        :category-options="categoryFormOptions"
+                        :restaurant-options="restaurantOptions"
+                        :restaurant-id="formRestaurantId"
+                        :loading="formLoading && !editingDish"
+                        :submit-loading="formLoading"
+                        :error="formError"
+                        :server-field-errors="formFieldErrors"
+                        @back="closeDishForm"
+                        @update:restaurant-id="handleFormRestaurantChange"
+                        @submit="handleDishFormSubmit"
+                    />
+
+                    <div
+                        v-else
+                        class="flex min-h-dvh flex-col"
+                    >
+                        <AdminDishListPage
+                            :dishes="dishes"
+                            :loading="dishesLoading"
+                            :error="dishesError"
+                            :refreshing="dishesRefreshing"
+                            :delete-error="deleteError"
+                            :delete-loading-id="deleteLoadingId"
+                            :restaurant-options="restaurantOptions"
+                            :category-options="categoryFilterOptions"
+                            :filter-restaurant-id="filterRestaurantId"
+                            :filter-category-name="filterCategoryName"
+                            :filter-name-search="filterNameSearch"
+                            @add="openCreateForm"
+                            @edit="openEditForm"
+                            @delete="handleDeleteDish"
+                            @refresh="loadDishes({ refreshing: true })"
+                            @filter-restaurant="handleFilterRestaurantChange"
+                            @filter-category="handleFilterCategoryChange"
+                            @filter-name-search="handleFilterNameSearchChange"
+                        />
+                    </div>
+                </template>
+
+                <template v-else-if="hasOrderReviewRoles">
+                    <AdminOrderDetailPage
+                        v-if="adminView === ADMIN_VIEWS.detail && selectedAdminOrder"
+                        :order="adminOrderDetail ?? selectedAdminOrder"
+                        :scope="adminScope"
+                        :loading="adminDetailLoading"
+                        :action-loading="adminActionLoading"
+                        :action-error="adminActionError"
+                        :show-reject-modal="showRejectModal"
+                        :reject-target="adminRejectTarget"
+                        @back="closeAdminOrderDetail"
+                        @approve-address="handleAdminApproveAddress"
+                        @approve-payment="handleAdminApprovePayment"
+                        @approve-composition="handleAdminApproveComposition"
+                        @open-reject="openAdminRejectModal"
+                        @close-reject="closeAdminRejectModal"
+                        @reject="handleAdminReject"
+                        @messages-read="handleChatMessagesRead"
+                    />
+
+                    <AdminHomePage
+                        v-else
+                        :admin-roles="adminRoles"
+                        :active-scope="adminScope"
+                        :orders="adminOrders"
+                        :loading="adminOrdersLoading"
+                        :error="adminOrdersError"
+                        :refreshing="adminOrdersRefreshing"
+                        @change-scope="handleAdminScopeChange"
+                        @select-order="openAdminOrder"
+                        @refresh="loadAdminOrders({ refreshing: true })"
+                    />
+                </template>
             </template>
 
             <template v-else>

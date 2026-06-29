@@ -5,7 +5,12 @@
 import { computed, ref } from 'vue';
 import { authenticate, extractErrorMessage } from '../api/foodClient';
 import { getInitData } from '../bridge/maxBridge';
-import { ROLE_ADDRESS, ROLE_COMPOSITION } from '../constants/views';
+import {
+    ADMIN_SECTIONS,
+    ROLE_ADDRESS,
+    ROLE_COMPOSITION,
+    ROLE_MENU,
+} from '../constants/views';
 
 /**
  * @returns {object} Состояние и методы авторизации
@@ -15,8 +20,22 @@ export function useAuth() {
     const authError = ref('');
     const adminRoles = ref([]);
     const adminScope = ref('address');
+    const adminSection = ref(ADMIN_SECTIONS.orders);
 
-    const hasAdminRoles = computed(() => adminRoles.value.length > 0);
+    const hasOrderReviewRoles = computed(() =>
+        adminRoles.value.includes(ROLE_ADDRESS)
+        || adminRoles.value.includes(ROLE_COMPOSITION),
+    );
+
+    const hasMenuManagerRole = computed(() => adminRoles.value.includes(ROLE_MENU));
+
+    const hasAdminRoles = computed(() =>
+        hasOrderReviewRoles.value || hasMenuManagerRole.value,
+    );
+
+    const showAdminSectionSwitcher = computed(() =>
+        hasOrderReviewRoles.value && hasMenuManagerRole.value,
+    );
 
     /**
      * Выбирает вкладку админки по приоритету ролей пользователя.
@@ -36,6 +55,23 @@ export function useAuth() {
         return 'address';
     }
 
+    /**
+     * Определяет начальный раздел админки: заказы или меню.
+     *
+     * @param {string[]} roles
+     * @returns {string}
+     */
+    function resolveDefaultAdminSection(roles) {
+        const hasOrders = roles.includes(ROLE_ADDRESS) || roles.includes(ROLE_COMPOSITION);
+        const hasMenu = roles.includes(ROLE_MENU);
+
+        if (hasMenu && !hasOrders) {
+            return ADMIN_SECTIONS.menu;
+        }
+
+        return ADMIN_SECTIONS.orders;
+    }
+
     /** Авторизация по initData; заполняет adminRoles и начальный adminScope */
     async function initAuth() {
         authLoading.value = true;
@@ -50,6 +86,7 @@ export function useAuth() {
 
             const authData = await authenticate(initData);
             adminRoles.value = authData.user?.admin_roles ?? [];
+            adminSection.value = resolveDefaultAdminSection(adminRoles.value);
             adminScope.value = resolveDefaultAdminScope(adminRoles.value);
         } catch (error) {
             authError.value = extractErrorMessage(error);
@@ -63,7 +100,11 @@ export function useAuth() {
         authError,
         adminRoles,
         adminScope,
+        adminSection,
+        hasOrderReviewRoles,
+        hasMenuManagerRole,
         hasAdminRoles,
+        showAdminSectionSwitcher,
         initAuth,
     };
 }

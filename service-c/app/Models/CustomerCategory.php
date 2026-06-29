@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'name',
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class CustomerCategory extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'max_customer_categories';
 
     /**

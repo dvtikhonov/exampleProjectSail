@@ -21,6 +21,11 @@ client.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${authToken}`;
     }
 
+    if (config.data instanceof FormData) {
+        // Дефолт application/json ломает multipart: Laravel не видит поле photo
+        delete config.headers['Content-Type'];
+    }
+
     return config;
 });
 
@@ -272,6 +277,124 @@ export async function rejectOrderComposition(orderId, comment) {
     return data.order;
 }
 
+// --- Админ: управление меню (CRUD блюд) ---
+
+/**
+ * @param {number|null} [restaurantId]
+ * @returns {Promise<object[]>}
+ */
+export async function fetchAdminMenuCategories(restaurantId = null) {
+    const params = {};
+
+    if (restaurantId !== null) {
+        params.restaurant_id = restaurantId;
+    }
+
+    const { data } = await client.get('/food/admin/menu-categories', { params });
+
+    return data.categories;
+}
+
+/**
+ * @param {{ restaurantId?: number|null, categoryId?: number|null, name?: string|null }} [filters]
+ * @returns {Promise<object[]>}
+ */
+export async function fetchAdminDishes({ restaurantId = null, categoryId = null, name = null } = {}) {
+    const params = {};
+
+    if (restaurantId !== null) {
+        params.restaurant_id = restaurantId;
+    }
+
+    if (categoryId !== null) {
+        params.category_id = categoryId;
+    }
+
+    if (name !== null && name !== '') {
+        params.name = name;
+    }
+
+    const { data } = await client.get('/food/admin/dishes', { params });
+
+    return data.dishes;
+}
+
+/**
+ * @param {number} dishId
+ * @returns {Promise<object>}
+ */
+export async function fetchAdminDish(dishId) {
+    const { data } = await client.get(`/food/admin/dishes/${dishId}`);
+
+    return data.dish;
+}
+
+/**
+ * @param {object} fields
+ * @param {File} photoFile
+ * @returns {Promise<object>}
+ */
+export async function createDish(fields, photoFile) {
+    const formData = buildDishFormData(fields, photoFile);
+
+    const { data } = await client.post('/food/admin/dishes', formData);
+
+    return data.dish;
+}
+
+/**
+ * @param {number} dishId
+ * @param {object} fields
+ * @param {File|null} [photoFile]
+ * @returns {Promise<object>}
+ */
+export async function updateDish(dishId, fields, photoFile = null) {
+    const formData = buildDishFormData(fields, photoFile);
+
+    const { data } = await client.post(`/food/admin/dishes/${dishId}`, formData);
+
+    return data.dish;
+}
+
+/**
+ * @param {number} dishId
+ */
+export async function deleteDish(dishId) {
+    await client.delete(`/food/admin/dishes/${dishId}`);
+}
+
+/**
+ * @param {object} fields
+ * @param {File|null} photoFile
+ * @returns {FormData}
+ */
+function buildDishFormData(fields, photoFile = null) {
+    const formData = new FormData();
+
+    formData.append('name', fields.name);
+    formData.append('menu_category_id', String(fields.menu_category_id));
+
+    if (fields.description) {
+        formData.append('description', fields.description);
+    }
+
+    formData.append('weight', String(fields.weight));
+    formData.append('weight_unit', fields.weight_unit);
+    formData.append('price', String(fields.price));
+
+    if (fields.vat_rate !== null && fields.vat_rate !== undefined && fields.vat_rate !== '') {
+        formData.append('vat_rate', String(fields.vat_rate));
+    }
+
+    formData.append('is_available', fields.is_available ? '1' : '0');
+
+    if (photoFile instanceof File) {
+        formData.append('photo', photoFile);
+    }
+
+    return formData;
+}
+
 // --- Обработка ошибок API ---
 
 /**
@@ -280,6 +403,12 @@ export async function rejectOrderComposition(orderId, comment) {
  */
 export function extractErrorMessage(error) {
     if (axios.isAxiosError(error)) {
+        const validationMessage = extractFirstValidationError(error);
+
+        if (validationMessage) {
+            return validationMessage;
+        }
+
         return error.response?.data?.message ?? error.message;
     }
 
@@ -288,4 +417,42 @@ export function extractErrorMessage(error) {
     }
 
     return 'Произошла ошибка';
+}
+
+/**
+ * @param {import('axios').AxiosError} error
+ * @returns {Record<string, string>}
+ */
+export function extractValidationErrors(error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 422) {
+        return {};
+    }
+
+    const errors = error.response.data?.errors;
+
+    if (!errors || typeof errors !== 'object') {
+        return {};
+    }
+
+    /** @type {Record<string, string>} */
+    const result = {};
+
+    for (const [field, messages] of Object.entries(errors)) {
+        if (Array.isArray(messages) && messages.length > 0 && typeof messages[0] === 'string') {
+            result[field] = messages[0];
+        }
+    }
+
+    return result;
+}
+
+/**
+ * @param {import('axios').AxiosError} error
+ * @returns {string|null}
+ */
+function extractFirstValidationError(error) {
+    const validationErrors = extractValidationErrors(error);
+    const firstMessage = Object.values(validationErrors)[0];
+
+    return firstMessage ?? null;
 }
