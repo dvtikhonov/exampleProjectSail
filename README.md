@@ -8,13 +8,14 @@
 |---|---|
 | `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, Laravel Reverb (Echo), веб-авторизация и проверка токенов для gateway |
 | `service-a` | Laravel API: торговые точки (`/api/sales-outlets`) |
+| `service-e` | Symfony 8 API: торговые точки через `/api/e/` (общая таблица `sales_outlets` с `service-a`) |
 | `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды», webhook MAX, UI Stand |
 | `service-d` | Laravel + Vue 3 SPA: Sanctum на субдомене `yandexmaps.*`, привязка организации Яндекс.Карт и синхронизация отзывов (`yandex-parser`, `service-d-queue`) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
-| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/` и `/api/b/` |
+| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/`, `/api/b/` и `/api/e/` |
 | `docker-compose.yml` | Основной compose-файл для локального запуска |
 | `docker-compose.ci.yml` | Overlay для CI: внутренний MySQL и `depends_on` с healthcheck |
 | `scripts/` | Вспомогательные скрипты: тесты, VPS, MAX-туннели, диагностика — см. [docs/scripts.md](docs/scripts.md) |
@@ -96,7 +97,7 @@ SERVICE_D_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `service-d`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `service-d`, `service-e`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
@@ -178,6 +179,7 @@ docker compose up -d main-app
 | `service-b` напрямую | `http://localhost:8082` |
 | `service-c` напрямую | `http://localhost:8083` |
 | `service-d` напрямую | `http://localhost:8084` |
+| `service-e` напрямую | `http://localhost:8086` |
 | `service-d` через gateway (субдомен) | `http://yandexmaps.localhost:8080` (нужна запись в `/etc/hosts`) |
 | Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
 | Vite dev server | `http://localhost:5173` (`main-app`), `5174` (`service-c`), `5175` (`service-d`) |
@@ -189,8 +191,9 @@ docker compose up -d main-app
 - `main-app`: `http://localhost:8080/`
 - `service-a`: `http://localhost:8080/api/a/...`
 - `service-b`: `http://localhost:8080/api/b/...`
+- `service-e`: `http://localhost:8080/api/e/...`
 
-Gateway переписывает префиксы `/api/a/` и `/api/b/` в `/api/` перед проксированием в соответствующий сервис.
+Gateway переписывает префиксы `/api/a/`, `/api/b/` и `/api/e/` в `/api/` перед проксированием в соответствующий сервис.
 
 Для `/api/a/...` и `/api/b/...` в gateway настроен CORS:
 
@@ -221,6 +224,7 @@ Web (Inertia):
 | `GET` | `/dashboard` | Dashboard после web-авторизации |
 | `GET` | `/objects-sales-outlets` | Страница объектов торговых точек |
 | `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница (экспорт, почта, MAX, live-статистика) |
+| `GET` | `/objects-sales-outlets-3` | Тёмная страница торговых точек на backend `service-e` (без export/mail/max/stats) |
 | `POST` | `/objects-sales-outlets-2/export` | Создание CSV-экспорта (прокси в `service-b`) |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}` | Статус экспорта |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}/download` | Скачивание экспорта |
@@ -502,7 +506,7 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 
 | Job | Что проверяет |
 |---|---|
-| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d` (PHP 8.4) |
+| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d`; PHP-CS-Fixer (`@Symfony`) для `service-e` (PHP 8.4) |
 | `frontend-build` | `npm ci` + `npm run build` в `main-app` и `service-d` (Node 22) |
 | `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` |
 
@@ -684,7 +688,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c`, `service_d_db_testing` для `service-d`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-d`. В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -706,6 +710,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 ./scripts/test-services.sh service-b
 ./scripts/test-services.sh service-c
 ./scripts/test-services.sh service-d
+./scripts/test-services.sh service-e
 ```
 
 Быстрый повторный запуск без пересоздания БД:

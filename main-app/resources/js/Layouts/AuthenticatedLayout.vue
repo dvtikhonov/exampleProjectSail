@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -9,6 +9,11 @@ import { clearApiToken, getApiToken } from '@/Services/apiToken';
 import { Link } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
+
+const isDarkSalesOutletsPage = computed(() =>
+    route().current('objectsSalesOutlets.darkIndex')
+    || route().current('objectsSalesOutlets.thirdIndex'),
+);
 
 const fetchApiToken = async () => {
     try {
@@ -29,11 +34,11 @@ fetchApiToken();
     <div>
         <div
             class="min-h-screen"
-            :class="route().current('objectsSalesOutlets.darkIndex') ? 'bg-slate-950' : 'bg-gray-100'"
+            :class="isDarkSalesOutletsPage ? 'bg-slate-950' : 'bg-gray-100'"
         >
             <nav
                 class="border-b"
-                :class="route().current('objectsSalesOutlets.darkIndex') ? 'border-slate-800 bg-slate-950/95' : 'border-gray-100 bg-white'"
+                :class="isDarkSalesOutletsPage ? 'border-slate-800 bg-slate-950/95' : 'border-gray-100 bg-white'"
             >
                 <!-- Primary Navigation Menu -->
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -72,6 +77,15 @@ fetchApiToken();
                                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
                                 >
                                     Объекты продаж 2
+                                </Link>
+                                <Link
+                                    :href="route('objectsSalesOutlets.thirdIndex')"
+                                    class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none"
+                                    :class="route().current('objectsSalesOutlets.thirdIndex')
+                                        ? 'border-cyan-400 text-cyan-100'
+                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                                >
+                                    Объекты продаж 3
                                 </Link>
                             </div>
                         </div>
@@ -193,6 +207,12 @@ fetchApiToken();
                         >
                             Объекты продаж 2
                         </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('objectsSalesOutlets.thirdIndex')"
+                            :active="route().current('objectsSalesOutlets.thirdIndex')"
+                        >
+                            Объекты продаж 3
+                        </ResponsiveNavLink>
                     </div>
 
                     <!-- Responsive Settings Options -->
@@ -230,7 +250,7 @@ fetchApiToken();
             <!-- Page Heading -->
             <header
                 class="shadow"
-                :class="route().current('objectsSalesOutlets.darkIndex') ? 'border-b border-slate-800 bg-slate-900 shadow-black/20' : 'bg-white'"
+                :class="isDarkSalesOutletsPage ? 'border-b border-slate-800 bg-slate-900 shadow-black/20' : 'bg-white'"
                 v-if="$slots.header"
             >
                 <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">

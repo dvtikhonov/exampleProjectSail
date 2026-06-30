@@ -28,6 +28,8 @@ Route::middleware(['auth.passport'])->group(function () {
         ->name('objectsSalesOutlets.index');
     Route::get('/objects-sales-outlets-2', [ObjectsSalesOutletsController::class, 'darkIndex'])
         ->name('objectsSalesOutlets.darkIndex');
+    Route::get('/objects-sales-outlets-3', [ObjectsSalesOutletsController::class, 'thirdIndex'])
+        ->name('objectsSalesOutlets.thirdIndex');
     Route::post('/objects-sales-outlets-2/export', [ObjectsSalesOutletsController::class, 'createExport'])
         ->name('objectsSalesOutlets.export.create');
     Route::get('/objects-sales-outlets-2/export/{uuid}', [ObjectsSalesOutletsController::class, 'exportStatus'])

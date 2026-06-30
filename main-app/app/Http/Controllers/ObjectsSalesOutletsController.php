@@ -26,6 +26,18 @@ class ObjectsSalesOutletsController extends Controller
         return $this->renderIndex($request, 'ObjectsSalesOutlets/DarkIndex', 'objectsSalesOutlets.darkIndex');
     }
 
+    public function thirdIndex(Request $request): Response
+    {
+        $page = $this->salesOutletsApiClient->indexFromServiceE(
+            SalesOutletIndexQueryDto::fromRequest($request),
+        );
+
+        return Inertia::render(
+            'ObjectsSalesOutlets/ThirdIndex',
+            $page->toInertiaProps('objectsSalesOutlets.thirdIndex', includeReportRoutes: false),
+        );
+    }
+
     public function createExport(Request $request): JsonResponse
     {
         return response()->json(

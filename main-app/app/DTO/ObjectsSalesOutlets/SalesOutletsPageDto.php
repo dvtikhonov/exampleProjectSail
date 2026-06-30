@@ -38,16 +38,15 @@ readonly class SalesOutletsPageDto
     /**
      * @return array<string, mixed>
      */
-    public function toInertiaProps(string $routeName): array
+    public function toInertiaProps(string $routeName, bool $includeReportRoutes = true): array
     {
-        return [
-            'columns' => $this->columns,
-            'salesOutlets' => $this->salesOutlets,
-            'filters' => $this->filters,
-            'pagination' => $this->pagination,
-            'statusOptions' => $this->statusOptions,
-            'routes' => [
-                'index' => route($routeName),
+        $routes = [
+            'index' => route($routeName),
+        ];
+
+        if ($includeReportRoutes) {
+            $routes = [
+                ...$routes,
                 'exportCreate' => route('objectsSalesOutlets.export.create'),
                 'exportStatus' => route('objectsSalesOutlets.export.status', ['uuid' => '__uuid__']),
                 'exportDownload' => route('objectsSalesOutlets.export.download', ['uuid' => '__uuid__']),
@@ -56,7 +55,16 @@ readonly class SalesOutletsPageDto
                 'maxCreate' => route('objectsSalesOutlets.max.create'),
                 'maxStatus' => route('objectsSalesOutlets.max.status', ['uuid' => '__uuid__']),
                 'reportStats' => route('objectsSalesOutlets.reports.stats'),
-            ],
+            ];
+        }
+
+        return [
+            'columns' => $this->columns,
+            'salesOutlets' => $this->salesOutlets,
+            'filters' => $this->filters,
+            'pagination' => $this->pagination,
+            'statusOptions' => $this->statusOptions,
+            'routes' => $routes,
         ];
     }
 

@@ -24,6 +24,7 @@ jobs:
           - service-b
           - service-c
           - service-d
+          - service-e
 
     steps:
       - name: Checkout
@@ -51,8 +52,14 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Run Laravel Pint
+        if: matrix.service != 'service-e'
         working-directory: ${{ matrix.service }}
         run: vendor/bin/pint --test
+
+      - name: Run PHP-CS-Fixer
+        if: matrix.service == 'service-e'
+        working-directory: service-e
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
 
   frontend-build:
     name: Frontend build (${{ matrix.service }})
@@ -127,13 +134,14 @@ jobs:
 
       - name: Prepare environment files for Docker bind mounts
         run: |
-          for service in main-app service-a service-b service-c service-d; do
+          for service in main-app service-a service-b service-c service-d service-e; do
             cp "$service/.env.testing" "$service/.env"
             sed -i 's/DB_HOST=host.docker.internal/DB_HOST=mysql/' "$service/.env"
+            sed -i 's/host.docker.internal/mysql/' "$service/.env"
           done
 
       - name: Build Docker images
-        run: docker compose build main-app service-a service-b service-c service-d
+        run: docker compose build main-app service-a service-b service-c service-d service-e
 
       - name: Install mounted service dependencies
         run: |
@@ -141,9 +149,11 @@ jobs:
           docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
           docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
           docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
+          docker compose run --rm --no-deps service-e composer install --no-interaction --prefer-dist --no-progress --no-scripts
+          docker compose run --rm --no-deps service-e php bin/console cache:clear --env=dev --no-warmup
 
       - name: Start services
-        run: docker compose up -d mysql redis main-app service-a service-b service-c service-d
+        run: docker compose up -d mysql redis main-app service-a service-b service-c service-d service-e
 
       - name: Wait for MySQL readiness
         run: |

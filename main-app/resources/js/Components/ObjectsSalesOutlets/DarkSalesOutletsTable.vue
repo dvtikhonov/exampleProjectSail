@@ -1,6 +1,6 @@
 <script setup>
 import DarkSalesOutletsCell from '@/Components/ObjectsSalesOutlets/DarkSalesOutletsCell.vue';
-import { updateHeadOrganization } from '@/Services/salesOutlets';
+import { createSalesOutletsClient } from '@/Services/salesOutlets';
 import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
@@ -24,10 +24,15 @@ const props = defineProps({
         type: String,
         default: 'asc',
     },
+    apiPrefix: {
+        type: String,
+        default: '/api/a',
+    },
 });
 
 const emit = defineEmits(['sort', 'edit']);
 const localRows = ref(props.rows.map((row) => ({ ...row })));
+const salesOutletsClient = computed(() => createSalesOutletsClient(props.apiPrefix));
 const topScrollbar = ref(null);
 const tableScrollbar = ref(null);
 const openPoptipId = ref(null);
@@ -129,7 +134,7 @@ const replaceLocalRow = (updatedRow, fallbackType = '') => {
 };
 
 const saveCell = async (payload) => {
-    const updatedRow = await updateHeadOrganization(payload);
+    const updatedRow = await salesOutletsClient.value.updateHeadOrganization(payload);
     replaceLocalRow(updatedRow, payload.head_organization_type);
 };
 
