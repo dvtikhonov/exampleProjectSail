@@ -12,6 +12,7 @@
         <server name="KERNEL_CLASS" value="App\Kernel"/>
         <server name="SHELL_VERBOSITY" value="-1"/>
         <env name="APP_SECRET" value="test-secret" force="true"/>
+        <env name="DEFAULT_URI" value="http://localhost" force="true"/>
         <env name="SALES_OUTLETS_STATUS_OPTIONS_ALL_LABEL" value="Все статусы" force="true"/>
     </php>
     <testsuites>
