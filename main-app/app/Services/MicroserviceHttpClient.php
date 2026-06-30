@@ -87,4 +87,14 @@ class MicroserviceHttpClient
 
         return $this->client->$method($url, $data);
     }
+
+    /**
+     * Вызов сервиса E
+     */
+    public function serviceE(string $method, string $uri, array $data = []): Response
+    {
+        $url = config('services.service_e.gateway_url').'/'.ltrim($uri, '/');
+
+        return $this->client->$method($url, $data);
+    }
 }

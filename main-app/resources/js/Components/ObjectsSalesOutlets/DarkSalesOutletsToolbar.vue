@@ -4,6 +4,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    showReports: {
+        type: Boolean,
+        default: true,
+    },
     isExporting: {
         type: Boolean,
         default: false,
@@ -52,7 +56,12 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mai
                 Управление таблицей объектов продаж
             </div>
             <div class="mt-1 text-xs text-slate-500">
-                Настройки колонок, фильтры, экспорт, почта и отправка в MAX.
+                <template v-if="showReports">
+                    Настройки колонок, фильтры, экспорт, почта и отправка в MAX.
+                </template>
+                <template v-else>
+                    Настройки колонок и фильтры.
+                </template>
             </div>
         </div>
 
@@ -77,7 +86,10 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mai
                     ON
                 </span>
             </button>
-            <div class="flex flex-col gap-1">
+            <div
+                v-if="showReports"
+                class="flex flex-col gap-1"
+            >
                 <button
                     type="button"
                     class="inline-flex items-center rounded-lg border border-transparent bg-cyan-500 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-950 transition hover:bg-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-300"
@@ -93,7 +105,10 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mai
                     {{ exportStatusText }}
                 </span>
             </div>
-            <div class="flex flex-col gap-1">
+            <div
+                v-if="showReports"
+                class="flex flex-col gap-1"
+            >
                 <button
                     type="button"
                     class="inline-flex items-center rounded-lg border border-cyan-500/60 bg-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-cyan-300 transition hover:border-cyan-400 hover:bg-slate-700 hover:text-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"
@@ -109,7 +124,10 @@ const emit = defineEmits(['open-columns', 'open-filters', 'save-file', 'send-mai
                     {{ mailStatusText }}
                 </span>
             </div>
-            <div class="flex flex-col gap-1">
+            <div
+                v-if="showReports"
+                class="flex flex-col gap-1"
+            >
                 <button
                     type="button"
                     class="inline-flex items-center rounded-lg border border-violet-500/60 bg-slate-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-violet-300 transition hover:border-violet-400 hover:bg-slate-700 hover:text-violet-200 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-800 disabled:text-slate-500"

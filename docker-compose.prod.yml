@@ -214,6 +214,20 @@ services:
     restart: unless-stopped
     mem_limit: 512m
 
+  service-e:
+    ports: !override
+      - "127.0.0.1:${SERVICE_E_PORT:-8086}:8000"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 384m
+
   yandex-parser:
     restart: unless-stopped
     mem_limit: 1536m

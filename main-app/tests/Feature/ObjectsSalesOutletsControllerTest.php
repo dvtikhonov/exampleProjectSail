@@ -48,6 +48,45 @@ class ObjectsSalesOutletsControllerTest extends TestCase
         });
     }
 
+    public function test_objects_sales_outlets_3_uses_service_e_payload_without_report_routes(): void
+    {
+        Http::fake([
+            'http://gateway/api/e/sales-outlets*' => Http::response($this->servicePayload(), 200),
+        ]);
+
+        $response = $this
+            ->withoutMiddleware(HandleAuthPassport::class)
+            ->get('/objects-sales-outlets-3?status=approved&sort=shop&direction=desc&page=2&per_page=25');
+
+        $response
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('ObjectsSalesOutlets/ThirdIndex')
+                ->where('salesOutlets.0.id', 1004)
+                ->where('columns.0.key', 'id')
+                ->where('filters.status', 'approved')
+                ->where('filters.sort', 'shop')
+                ->where('pagination.current_page', 2)
+                ->where('statusOptions.1.value', 'approved')
+                ->where('routes.index', route('objectsSalesOutlets.thirdIndex'))
+                ->missing('routes.exportCreate')
+                ->missing('routes.mailCreate')
+                ->missing('routes.maxCreate')
+                ->missing('routes.reportStats')
+            );
+
+        Http::assertSent(function (Request $request): bool {
+            $query = $this->requestQuery($request);
+
+            return $this->requestUrl($request) === 'http://gateway/api/e/sales-outlets'
+                && $query['status'] === 'approved'
+                && $query['sort'] === 'shop'
+                && $query['direction'] === 'desc'
+                && $query['page'] === '2'
+                && $query['per_page'] === '25';
+        });
+    }
+
     public function test_objects_sales_outlets_passes_columns_and_column_filters_to_service_a(): void
     {
         Http::fake([

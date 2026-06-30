@@ -41,6 +41,7 @@ Usage:
   ./scripts/test-services.sh service-b [--no-prepare]
   ./scripts/test-services.sh service-c [--no-prepare]
   ./scripts/test-services.sh service-d [--no-prepare]
+  ./scripts/test-services.sh service-e [--no-prepare]
 
 Environment overrides:
   TEST_DATABASE=sail_db_testing
@@ -124,7 +125,7 @@ prepare_mysql_database() {
 
 ensure_supported_mode() {
     case "$MODE" in
-        prepare|all|main-app|service-a|service-b|service-c|service-d)
+        prepare|all|main-app|service-a|service-b|service-c|service-d|service-e)
             ;;
         *)
             echo "Unknown mode: $MODE" >&2
@@ -174,6 +175,16 @@ run_tests_for() {
         database="$SERVICE_D_TEST_DATABASE"
     fi
 
+    if [[ "$service" == "service-e" ]]; then
+        echo "Running tests for service-e..."
+        docker compose run --rm --no-deps \
+            -e APP_ENV=test \
+            -e DATABASE_URL="mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${TEST_DATABASE}?serverVersion=8.0.32&charset=utf8mb4" \
+            service-e php vendor/bin/phpunit --configuration phpunit.xml.dist
+
+        return
+    fi
+
     echo "Running tests for ${service}..."
     artisan "$service" "$database" test --env=testing
 }
@@ -201,11 +212,11 @@ case "$MODE" in
             prepare_all_databases
         fi
 
-        for service in main-app service-a service-b service-c service-d; do
+        for service in main-app service-a service-b service-c service-d service-e; do
             run_tests_for "$service"
         done
         ;;
-    main-app|service-a|service-b|service-c|service-d)
+    main-app|service-a|service-b|service-c|service-d|service-e)
         run_tests_for "$MODE"
         ;;
 esac

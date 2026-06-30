@@ -86,6 +86,16 @@ services:
       yandex-parser:
         condition: service_started
 
+  service-e:
+    build:
+      context: .
+      dockerfile: service-e/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   yandex-parser:
     build:
       context: ./yandex-parser

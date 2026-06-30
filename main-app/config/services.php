@@ -40,5 +40,8 @@ return [
     'service_b' => [
         'gateway_url' => env('SERVICE_B_GATEWAY_URL', 'http://gateway/api/b'),
     ],
+    'service_e' => [
+        'gateway_url' => env('SERVICE_E_GATEWAY_URL', 'http://gateway/api/e'),
+    ],
 
 ];

@@ -26,6 +26,17 @@ class SalesOutletsApiClient
     }
 
     /**
+     * @throws RequestException
+     */
+    public function indexFromServiceE(SalesOutletIndexQueryDto $queryDto): SalesOutletsPageDto
+    {
+        $response = $this->httpClient->serviceE('get', 'sales-outlets', $queryDto->toQuery());
+        $response->throw();
+
+        return SalesOutletsPageDto::fromServicePayload($response->json() ?? []);
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      *
