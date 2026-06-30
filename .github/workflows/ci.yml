@@ -47,6 +47,11 @@ jobs:
             composer-${{ runner.os }}-${{ matrix.service }}-
             composer-${{ runner.os }}-
 
+      - name: Prepare Symfony environment
+        if: matrix.service == 'service-e'
+        working-directory: service-e
+        run: cp .env.example .env
+
       - name: Install PHP dependencies
         working-directory: ${{ matrix.service }}
         run: composer install --no-interaction --prefer-dist --no-progress
