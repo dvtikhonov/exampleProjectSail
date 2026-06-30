@@ -12,9 +12,9 @@ use App\Domain\SalesOutlet;
 use App\Input\SalesOutlets\IndexSalesOutletsInput;
 use App\Input\SalesOutlets\UpdateHeadOrganizationInput;
 use App\Input\SalesOutlets\UpdateSalesOutletInput;
+use App\Presentation\SalesOutletRowPresenter;
 use App\Response\SalesOutletIndexResponse;
 use App\Response\ValidationErrorResponse;
-use App\Presentation\SalesOutletRowPresenter;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,7 +34,8 @@ final class SalesOutletsController
         private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
         private readonly SalesOutletTableMetaProviderInterface $tableMetaProvider,
         private readonly ValidatorInterface $validator,
-    ) {}
+    ) {
+    }
 
     /** Список торговых точек с фильтрами, сортировкой и пагинацией. */
     #[Route('/sales-outlets', name: 'sales_outlets_index', methods: ['GET'])]
@@ -109,7 +110,7 @@ final class SalesOutletsController
     {
         $salesOutlet = $this->salesOutletRepository->findById($id);
 
-        if ($salesOutlet === null) {
+        if (null === $salesOutlet) {
             throw new NotFoundHttpException(sprintf('Sales outlet with id %d not found.', $id));
         }
 

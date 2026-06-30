@@ -30,11 +30,11 @@ final class ValidationErrorResponse
     /** Приводит property path Symfony к формату errors.{field} для API. */
     private static function normalizePropertyPath(string $propertyPath): string
     {
-        if ($propertyPath === '') {
+        if ('' === $propertyPath) {
             return 'payload';
         }
 
-        if (preg_match('/^columns\[(\d+)\]$/', $propertyPath, $matches) === 1) {
+        if (1 === preg_match('/^columns\[(\d+)\]$/', $propertyPath, $matches)) {
             return 'columns.'.$matches[1];
         }
 

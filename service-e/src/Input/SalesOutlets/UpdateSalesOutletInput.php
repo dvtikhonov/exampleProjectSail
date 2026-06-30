@@ -98,7 +98,7 @@ class UpdateSalesOutletInput
 
     private static function nullableString(mixed $value): ?string
     {
-        if ($value === null) {
+        if (null === $value) {
             return null;
         }
 

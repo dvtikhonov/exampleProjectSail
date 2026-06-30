@@ -16,7 +16,7 @@ use Shared\SalesOutletsDomain\Metadata\SalesOutletColumns;
 final class DoctrineSalesOutletQueryApplicator
 {
     /**
-     * @param  array<int, string>  $allowedColumnKeys
+     * @param array<int, string> $allowedColumnKeys
      */
     public function apply(QueryBuilder $queryBuilder, SalesOutletFilterDto $filters, array $allowedColumnKeys): void
     {
@@ -32,7 +32,7 @@ final class DoctrineSalesOutletQueryApplicator
 
     private function applyStatus(QueryBuilder $queryBuilder, string $alias, string $status): void
     {
-        if (SalesOutletStatus::tryFrom($status) === null) {
+        if (null === SalesOutletStatus::tryFrom($status)) {
             return;
         }
 
@@ -42,14 +42,14 @@ final class DoctrineSalesOutletQueryApplicator
     }
 
     /**
-     * @param  array<string, string>  $columnFilters
+     * @param array<string, string> $columnFilters
      */
     private function applyColumnFilters(QueryBuilder $queryBuilder, string $alias, array $columnFilters): void
     {
         foreach (SalesOutletColumns::likePrefixFilterColumnMap() as $columnKey => $dbColumn) {
             $prefix = $columnFilters[$columnKey] ?? '';
 
-            if ($prefix === '' || $prefix === '%' || $prefix === '%%') {
+            if ('' === $prefix || '%' === $prefix || '%%' === $prefix) {
                 continue;
             }
 
@@ -66,7 +66,7 @@ final class DoctrineSalesOutletQueryApplicator
         if (($filterTypes['status_label'] ?? null) === SalesOutletColumns::FILTER_STATUS_LABEL) {
             $statuses = $this->statusesByLabel($columnFilters['status_label'] ?? '');
 
-            if ($statuses !== []) {
+            if ([] !== $statuses) {
                 $queryBuilder
                     ->andWhere(sprintf('%s.status IN (:statusLabelFilter)', $alias))
                     ->setParameter('statusLabelFilter', $statuses);
@@ -76,7 +76,7 @@ final class DoctrineSalesOutletQueryApplicator
 
     private function applySearch(QueryBuilder $queryBuilder, string $alias, string $search): void
     {
-        if ($search === '') {
+        if ('' === $search) {
             return;
         }
 
@@ -90,7 +90,7 @@ final class DoctrineSalesOutletQueryApplicator
             $queryBuilder->setParameter($parameter, '%'.$search.'%');
         }
 
-        if ($conditions === []) {
+        if ([] === $conditions) {
             return;
         }
 
@@ -102,7 +102,7 @@ final class DoctrineSalesOutletQueryApplicator
         $sortColumns = SalesOutletColumns::sortColumnMap();
         $dbColumn = $sortColumns[$sort] ?? 'id';
         $property = $this->dbColumnToProperty($dbColumn);
-        $orderDirection = strtolower($direction) === 'desc' ? 'DESC' : 'ASC';
+        $orderDirection = 'desc' === strtolower($direction) ? 'DESC' : 'ASC';
 
         $queryBuilder->orderBy(sprintf('%s.%s', $alias, $property), $orderDirection);
     }
@@ -113,7 +113,7 @@ final class DoctrineSalesOutletQueryApplicator
     /** Фильтрует статусы по подстроке в человекочитаемой метке. */
     private function statusesByLabel(string $value): array
     {
-        if ($value === '') {
+        if ('' === $value) {
             return [];
         }
 

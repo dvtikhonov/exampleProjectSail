@@ -14,13 +14,14 @@ class RequestGatewayAuthSession implements GatewayAuthSessionInterface
 {
     public function __construct(
         private readonly RequestStack $requestStack,
-    ) {}
+    ) {
+    }
 
     public function login(GatewayUserDto $user): void
     {
         $request = $this->requestStack->getCurrentRequest();
 
-        if ($request === null) {
+        if (null === $request) {
             return;
         }
 

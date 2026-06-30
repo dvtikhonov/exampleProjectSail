@@ -14,13 +14,14 @@ readonly class SalesOutletPaginationDto
         public int $total,
         public int $from,
         public int $to,
-    ) {}
+    ) {
+    }
 
     public static function fromCounts(int $total, int $perPage, int $currentPage): self
     {
         $lastPage = max((int) ceil($total / max($perPage, 1)), 1);
-        $from = $total === 0 ? 0 : (($currentPage - 1) * $perPage) + 1;
-        $to = $total === 0 ? 0 : min($currentPage * $perPage, $total);
+        $from = 0 === $total ? 0 : (($currentPage - 1) * $perPage) + 1;
+        $to = 0 === $total ? 0 : min($currentPage * $perPage, $total);
 
         return new self(
             currentPage: $currentPage,

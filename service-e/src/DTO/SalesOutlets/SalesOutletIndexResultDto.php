@@ -10,13 +10,14 @@ use App\Domain\SalesOutlet;
 readonly class SalesOutletIndexResultDto
 {
     /**
-     * @param  array<int, SalesOutlet>  $salesOutlets
+     * @param array<int, SalesOutlet> $salesOutlets
      */
     public function __construct(
         public array $salesOutlets,
         public SalesOutletPaginationDto $pagination,
         public SalesOutletIndexQueryDto $query,
-    ) {}
+    ) {
+    }
 
     public static function fromPaginatedResult(
         SalesOutletPaginatedResultDto $paginatedResult,

@@ -19,7 +19,8 @@ class SalesOutletService implements SalesOutletServiceInterface
 {
     public function __construct(
         private readonly SalesOutletRepositoryInterface $salesOutletRepository,
-    ) {}
+    ) {
+    }
 
     public function index(SalesOutletIndexQueryDto $queryDto): SalesOutletIndexResultDto
     {

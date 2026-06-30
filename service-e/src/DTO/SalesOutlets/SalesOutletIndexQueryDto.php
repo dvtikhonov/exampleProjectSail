@@ -8,8 +8,8 @@ namespace App\DTO\SalesOutlets;
 readonly class SalesOutletIndexQueryDto
 {
     /**
-     * @param  array<string, string>  $columnFilters
-     * @param  array<int, string>  $columns
+     * @param array<string, string> $columnFilters
+     * @param array<int, string>    $columns
      */
     public function __construct(
         public string $search,
@@ -20,11 +20,12 @@ readonly class SalesOutletIndexQueryDto
         public int $page,
         public int $perPage,
         public array $columns,
-    ) {}
+    ) {
+    }
 
     /**
-     * @param  array<string, mixed>  $validated
-     * @param  array<int, string>  $allowedColumns
+     * @param array<string, mixed> $validated
+     * @param array<int, string>   $allowedColumns
      */
     public static function fromValidated(array $validated, array $allowedColumns): self
     {
@@ -33,7 +34,7 @@ readonly class SalesOutletIndexQueryDto
             ? array_values(array_intersect(array_map('strval', $requestedColumns), $allowedColumns))
             : $allowedColumns;
 
-        if ($columns === []) {
+        if ([] === $columns) {
             $columns = $allowedColumns;
         }
 
@@ -50,13 +51,14 @@ readonly class SalesOutletIndexQueryDto
     }
 
     /**
-     * @param  array<mixed>  $requestedFilters
-     * @param  array<int, string>  $allowedColumns
+     * @param array<mixed>       $requestedFilters
+     * @param array<int, string> $allowedColumns
+     *
      * @return array<string, string>
      */
     private static function columnFilters(array $requestedFilters, array $allowedColumns): array
     {
-        if (! is_array($requestedFilters)) {
+        if (!is_array($requestedFilters)) {
             return [];
         }
 
@@ -65,7 +67,7 @@ readonly class SalesOutletIndexQueryDto
         foreach ($allowedColumns as $column) {
             $value = trim((string) ($requestedFilters[$column] ?? ''));
 
-            if ($value !== '') {
+            if ('' !== $value) {
                 $filters[$column] = $value;
             }
         }

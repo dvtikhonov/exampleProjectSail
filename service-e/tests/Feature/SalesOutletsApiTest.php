@@ -310,7 +310,8 @@ class SalesOutletsApiTest extends WebTestCase
     }
 
     /**
-     * @param  array<string, mixed>|null  $payload
+     * @param array<string, mixed>|null $payload
+     *
      * @return array{status: int, body: array<string, mixed>|null}
      */
     private function requestJson(
@@ -332,7 +333,7 @@ class SalesOutletsApiTest extends WebTestCase
             $method,
             $uri,
             server: $server,
-            content: $payload === null ? null : json_encode($payload, JSON_THROW_ON_ERROR),
+            content: null === $payload ? null : json_encode($payload, JSON_THROW_ON_ERROR),
         );
 
         $httpResponse = $this->client->getResponse();
@@ -340,13 +341,13 @@ class SalesOutletsApiTest extends WebTestCase
 
         return [
             'status' => $httpResponse->getStatusCode(),
-            'body' => $content === false || $content === '' ? null : json_decode($content, true, 512, JSON_THROW_ON_ERROR),
+            'body' => false === $content || '' === $content ? null : json_decode($content, true, 512, JSON_THROW_ON_ERROR),
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $body
-     * @param  list<string>  $fields
+     * @param array<string, mixed> $body
+     * @param list<string>         $fields
      */
     private function assertJsonValidationErrors(array $body, array $fields): void
     {
@@ -358,7 +359,7 @@ class SalesOutletsApiTest extends WebTestCase
     }
 
     /**
-     * @param  array<string, mixed>  $attributes
+     * @param array<string, mixed> $attributes
      */
     private function assertDatabaseHasSalesOutlet(array $attributes): void
     {

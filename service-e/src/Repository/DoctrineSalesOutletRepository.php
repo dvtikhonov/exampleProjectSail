@@ -14,7 +14,6 @@ use App\DTO\SalesOutlets\SalesOutletPaginationDto;
 use App\DTO\SalesOutlets\UpdateHeadOrganizationDto;
 use App\DTO\SalesOutlets\UpdateSalesOutletDto;
 use App\Entity\SalesOutlet as SalesOutletEntity;
-use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Shared\SalesOutletsDomain\DTO\SalesOutletFilterDto;
 
@@ -30,7 +29,8 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
         private readonly DoctrineSalesOutletQueryApplicator $queryApplicator,
         private readonly GatewayUserContextInterface $gatewayUserContext,
-    ) {}
+    ) {
+    }
 
     public function findById(int $id): ?SalesOutlet
     {
@@ -39,7 +39,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
             'deletedAt' => null,
         ]);
 
-        return $entity !== null ? SalesOutletEntityMapper::toDomain($entity) : null;
+        return null !== $entity ? SalesOutletEntityMapper::toDomain($entity) : null;
     }
 
     public function paginate(SalesOutletIndexQueryDto $queryDto): SalesOutletPaginatedResultDto
@@ -114,14 +114,14 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         $entity = $this->resolveEntity($salesOutlet);
         $this->applyGatewayUserId($entity);
 
-        $entity->setDeletedAt(new DateTimeImmutable());
-        $entity->setUpdatedAt(new DateTimeImmutable());
+        $entity->setDeletedAt(new \DateTimeImmutable());
+        $entity->setUpdatedAt(new \DateTimeImmutable());
 
         $this->entityManager->flush();
     }
 
     /**
-     * @param  array<string, mixed>  $attributes
+     * @param array<string, mixed> $attributes
      */
     /** Применяет изменения к Entity и возвращает обновлённую доменную модель. */
     private function persist(SalesOutlet $salesOutlet, array $attributes): SalesOutlet
@@ -144,7 +144,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         }
 
         $this->applyGatewayUserId($entity);
-        $entity->setUpdatedAt(new DateTimeImmutable());
+        $entity->setUpdatedAt(new \DateTimeImmutable());
 
         $this->entityManager->flush();
         $this->entityManager->refresh($entity);
@@ -160,7 +160,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
             'deletedAt' => null,
         ]);
 
-        if ($entity === null) {
+        if (null === $entity) {
             throw $this->createNotFoundException($salesOutlet->id);
         }
 
@@ -172,7 +172,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
     {
         $userId = $this->gatewayUserContext->currentUserId();
 
-        if ($userId === null) {
+        if (null === $userId) {
             return;
         }
 

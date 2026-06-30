@@ -20,7 +20,8 @@ class TrustGatewayAuthSubscriber implements EventSubscriberInterface
     public function __construct(
         private readonly GatewayUserResolverInterface $userResolver,
         private readonly GatewayAuthSessionInterface $authSession,
-    ) {}
+    ) {
+    }
 
     public static function getSubscribedEvents(): array
     {
@@ -31,19 +32,19 @@ class TrustGatewayAuthSubscriber implements EventSubscriberInterface
 
     public function onKernelRequest(RequestEvent $event): void
     {
-        if (! $event->isMainRequest()) {
+        if (!$event->isMainRequest()) {
             return;
         }
 
         $request = $event->getRequest();
 
-        if (! str_starts_with($request->getPathInfo(), '/api/')) {
+        if (!str_starts_with($request->getPathInfo(), '/api/')) {
             return;
         }
 
         $dto = $this->userResolver->resolveFromRequest($request);
 
-        if ($dto === null) {
+        if (null === $dto) {
             $event->setResponse(GatewayUnauthorizedResponse::make());
 
             return;

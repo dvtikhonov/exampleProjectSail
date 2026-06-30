@@ -20,13 +20,14 @@ class DoctrineGatewayUserResolver implements GatewayUserResolverInterface
     public function __construct(
         private readonly UserRepository $userRepository,
         private readonly EntityManagerInterface $entityManager,
-    ) {}
+    ) {
+    }
 
     public function resolveFromRequest(Request $request): ?GatewayUserDto
     {
         $userId = $request->headers->get('X-User-Id');
 
-        if ($userId === null || $userId === '' || ! is_numeric($userId) || (int) $userId <= 0) {
+        if (null === $userId || '' === $userId || !is_numeric($userId) || (int) $userId <= 0) {
             return null;
         }
 

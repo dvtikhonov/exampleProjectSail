@@ -12,16 +12,17 @@ readonly class UpdateHeadOrganizationDto
     public function __construct(
         public string $headOrganization,
         public HeadOrganizationType $headOrganizationType,
-    ) {}
+    ) {
+    }
 
     /**
-     * @param  array<string, mixed>  $validated
+     * @param array<string, mixed> $validated
      */
     public static function fromValidated(array $validated): self
     {
         $headOrganizationType = HeadOrganizationType::fromLabelOrValue((string) $validated['head_organization_type']);
 
-        if ($headOrganizationType === null) {
+        if (null === $headOrganizationType) {
             throw new \InvalidArgumentException('Invalid head organization type.');
         }
 

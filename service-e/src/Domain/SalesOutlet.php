@@ -25,5 +25,6 @@ readonly class SalesOutlet
         public SalesOutletStatus $status,
         public string $approved,
         public ?int $userId,
-    ) {}
+    ) {
+    }
 }

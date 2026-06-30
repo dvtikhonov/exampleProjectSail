@@ -9,5 +9,7 @@ use App\Entity\User;
 /** DTO аутентифицированного gateway-пользователя. */
 readonly class GatewayUserDto
 {
-    public function __construct(public User $user) {}
+    public function __construct(public User $user)
+    {
+    }
 }

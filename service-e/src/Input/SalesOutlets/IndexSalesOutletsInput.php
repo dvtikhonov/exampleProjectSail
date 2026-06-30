@@ -10,7 +10,6 @@ use App\Validator\Constraint\InAllowedSalesOutletColumn;
 use App\Validator\SalesOutletStatusChoices;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * Входные данные GET /api/sales-outlets.
@@ -95,7 +94,7 @@ class IndexSalesOutletsInput
             'columns' => $this->columns,
             'page' => $this->page,
             'per_page' => $this->per_page,
-        ], static fn (mixed $value): bool => $value !== null);
+        ], static fn (mixed $value): bool => null !== $value);
     }
 
     /**
@@ -103,14 +102,14 @@ class IndexSalesOutletsInput
      */
     private static function columnFilters(mixed $value): ?array
     {
-        if (! is_array($value)) {
+        if (!is_array($value)) {
             return null;
         }
 
         $filters = [];
 
         foreach ($value as $key => $filterValue) {
-            $filters[(string) $key] = $filterValue === null ? null : (string) $filterValue;
+            $filters[(string) $key] = null === $filterValue ? null : (string) $filterValue;
         }
 
         return $filters;
@@ -121,7 +120,7 @@ class IndexSalesOutletsInput
      */
     private static function stringList(mixed $value): ?array
     {
-        if (! is_array($value)) {
+        if (!is_array($value)) {
             return null;
         }
 
@@ -130,7 +129,7 @@ class IndexSalesOutletsInput
 
     private static function nullableString(mixed $value): ?string
     {
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return null;
         }
 
@@ -139,7 +138,7 @@ class IndexSalesOutletsInput
 
     private static function nullableInt(mixed $value): int|string|null
     {
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return null;
         }
 

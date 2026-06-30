@@ -16,7 +16,7 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 class ConfigSalesOutletTableMetaProvider implements SalesOutletTableMetaProviderInterface
 {
     /**
-     * @param  array<string, array<string, bool|int|string>>  $columnsUi
+     * @param array<string, array<string, bool|int|string>> $columnsUi
      */
     public function __construct(
         private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
@@ -24,7 +24,8 @@ class ConfigSalesOutletTableMetaProvider implements SalesOutletTableMetaProvider
         private readonly array $columnsUi,
         #[Autowire(param: 'sales_outlets.status_options_all_label')]
         private readonly string $statusOptionsAllLabel,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<int, array<string, bool|int|string>>

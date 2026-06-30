@@ -13,15 +13,15 @@ class ValidRussianInnValidator extends ConstraintValidator
 {
     public function validate(mixed $value, Constraint $constraint): void
     {
-        if (! $constraint instanceof ValidRussianInn) {
+        if (!$constraint instanceof ValidRussianInn) {
             throw new UnexpectedTypeException($constraint, ValidRussianInn::class);
         }
 
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return;
         }
 
-        if (! preg_match('/^\d{10}(\d{2})?$/', (string) $value)) {
+        if (!preg_match('/^\d{10}(\d{2})?$/', (string) $value)) {
             $this->context->buildViolation($constraint->message)
                 ->setParameter('{{ attribute }}', $this->formatAttributeLabel())
                 ->addViolation();
@@ -32,6 +32,6 @@ class ValidRussianInnValidator extends ConstraintValidator
     {
         $attribute = (string) $this->context->getPropertyPath();
 
-        return $attribute !== '' ? $attribute : 'attribute';
+        return '' !== $attribute ? $attribute : 'attribute';
     }
 }

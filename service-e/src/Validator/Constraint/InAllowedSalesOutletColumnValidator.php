@@ -14,19 +14,20 @@ class InAllowedSalesOutletColumnValidator extends ConstraintValidator
 {
     public function __construct(
         private readonly SalesOutletsMetadataRepositoryInterface $metadataRepository,
-    ) {}
+    ) {
+    }
 
     public function validate(mixed $value, Constraint $constraint): void
     {
-        if (! $constraint instanceof InAllowedSalesOutletColumn) {
+        if (!$constraint instanceof InAllowedSalesOutletColumn) {
             throw new UnexpectedTypeException($constraint, InAllowedSalesOutletColumn::class);
         }
 
-        if ($value === null || $value === '') {
+        if (null === $value || '' === $value) {
             return;
         }
 
-        if (! in_array((string) $value, $this->metadataRepository->allowedColumnKeys(), true)) {
+        if (!in_array((string) $value, $this->metadataRepository->allowedColumnKeys(), true)) {
             $this->context->buildViolation($constraint->message)->addViolation();
         }
     }
