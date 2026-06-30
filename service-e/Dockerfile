@@ -22,6 +22,9 @@ COPY service-e .
 RUN mkdir -p var/cache var/log \
     && chown -R www-data:www-data var
 
+# .env исключён из Docker build context (см. корневой .dockerignore)
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
+
 # post-install scripts (cache:clear) require application source (e.g. src/Controller/)
 RUN APP_ENV=prod APP_DEBUG=0 composer install --no-interaction --prefer-dist --optimize-autoloader --no-progress --no-dev
 
