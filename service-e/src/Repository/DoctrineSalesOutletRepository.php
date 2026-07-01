@@ -121,9 +121,10 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
     }
 
     /**
+     * Применяет изменения к Entity и возвращает обновлённую доменную модель.
+     *
      * @param array<string, mixed> $attributes
      */
-    /** Применяет изменения к Entity и возвращает обновлённую доменную модель. */
     private function persist(SalesOutlet $salesOutlet, array $attributes): SalesOutlet
     {
         $entity = $this->resolveEntity($salesOutlet);

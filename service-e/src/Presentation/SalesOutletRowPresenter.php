@@ -10,6 +10,7 @@ use Shared\SalesOutletsDomain\DTO\SalesOutletRowDto;
 /** Преобразует доменную модель в DTO строки таблицы для API-ответа. */
 final class SalesOutletRowPresenter
 {
+    /** Преобразует доменную модель в DTO строки таблицы. */
     public static function fromDomain(SalesOutlet $salesOutlet): SalesOutletRowDto
     {
         return new SalesOutletRowDto(

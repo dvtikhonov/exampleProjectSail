@@ -26,6 +26,7 @@ TEST_DB_PORT="${TEST_DB_PORT%$'\r'}"
 
 TEST_DATABASE="${TEST_DATABASE:-sail_db_testing}"
 SERVICE_D_TEST_DATABASE="${SERVICE_D_TEST_DATABASE:-service_d_db_testing}"
+SERVICE_F_TEST_DATABASE="${SERVICE_F_TEST_DATABASE:-service_f_db_testing}"
 MYSQL_USER="${TEST_DB_USERNAME:-root}"
 MYSQL_PASSWORD="${TEST_DB_PASSWORD:?Set TEST_DB_PASSWORD in .env.testing.local or environment}"
 MYSQL_HOST="${TEST_DB_HOST:-host.docker.internal}"
@@ -42,10 +43,12 @@ Usage:
   ./scripts/test-services.sh service-c [--no-prepare]
   ./scripts/test-services.sh service-d [--no-prepare]
   ./scripts/test-services.sh service-e [--no-prepare]
+  ./scripts/test-services.sh service-f [--no-prepare]
 
 Environment overrides:
   TEST_DATABASE=sail_db_testing
   SERVICE_D_TEST_DATABASE=service_d_db_testing
+  SERVICE_F_TEST_DATABASE=service_f_db_testing
   TEST_DB_HOST=host.docker.internal
   TEST_DB_PORT=3306
   TEST_DB_USERNAME=root
@@ -125,7 +128,7 @@ prepare_mysql_database() {
 
 ensure_supported_mode() {
     case "$MODE" in
-        prepare|all|main-app|service-a|service-b|service-c|service-d|service-e)
+        prepare|all|main-app|service-a|service-b|service-c|service-d|service-e|service-f)
             ;;
         *)
             echo "Unknown mode: $MODE" >&2
@@ -162,9 +165,19 @@ prepare_service_d_database() {
     artisan service-d "$SERVICE_D_TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
 }
 
+prepare_service_f_database() {
+    echo "Preparing clean ${SERVICE_F_TEST_DATABASE} database..."
+
+    prepare_mysql_database "$SERVICE_F_TEST_DATABASE"
+
+    echo "Running service-f migrations..."
+    artisan service-f "$SERVICE_F_TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
+}
+
 prepare_all_databases() {
     prepare_database
     prepare_service_d_database
+    prepare_service_f_database
 }
 
 run_tests_for() {
@@ -173,6 +186,10 @@ run_tests_for() {
 
     if [[ "$service" == "service-d" ]]; then
         database="$SERVICE_D_TEST_DATABASE"
+    fi
+
+    if [[ "$service" == "service-f" ]]; then
+        database="$SERVICE_F_TEST_DATABASE"
     fi
 
     if [[ "$service" == "service-e" ]]; then
@@ -201,6 +218,8 @@ fi
 if [[ "$SKIP_PREPARE" == false && "$MODE" != "all" ]]; then
     if [[ "$MODE" == "service-d" ]]; then
         prepare_service_d_database
+    elif [[ "$MODE" == "service-f" ]]; then
+        prepare_service_f_database
     else
         prepare_database
     fi
@@ -212,11 +231,11 @@ case "$MODE" in
             prepare_all_databases
         fi
 
-        for service in main-app service-a service-b service-c service-d service-e; do
+        for service in main-app service-a service-b service-c service-d service-e service-f; do
             run_tests_for "$service"
         done
         ;;
-    main-app|service-a|service-b|service-c|service-d|service-e)
+    main-app|service-a|service-b|service-c|service-d|service-e|service-f)
         run_tests_for "$MODE"
         ;;
 esac

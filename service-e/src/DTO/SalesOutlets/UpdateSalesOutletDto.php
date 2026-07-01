@@ -24,6 +24,8 @@ readonly class UpdateSalesOutletDto
     }
 
     /**
+     * Собирает DTO из валидированных полей PATCH-запроса.
+     *
      * @param array<string, mixed> $validated
      */
     public static function fromValidated(array $validated): self

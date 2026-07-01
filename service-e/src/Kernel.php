@@ -5,6 +5,7 @@ namespace App;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 
+/** Точка входа Symfony-приложения service-e (API торговых точек). */
 class Kernel extends BaseKernel
 {
     use MicroKernelTrait;

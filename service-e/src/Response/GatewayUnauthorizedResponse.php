@@ -12,6 +12,7 @@ final class GatewayUnauthorizedResponse
 {
     public const string MESSAGE = 'Unauthorized gateway user.';
 
+    /** Возвращает стандартный JSON-ответ 401 для неавторизованного gateway-запроса. */
     public static function make(): JsonResponse
     {
         return new JsonResponse(

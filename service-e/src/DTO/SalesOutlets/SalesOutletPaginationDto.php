@@ -17,6 +17,7 @@ readonly class SalesOutletPaginationDto
     ) {
     }
 
+    /** Вычисляет метаданные пагинации по total, perPage и currentPage. */
     public static function fromCounts(int $total, int $perPage, int $currentPage): self
     {
         $lastPage = max((int) ceil($total / max($perPage, 1)), 1);
@@ -34,6 +35,8 @@ readonly class SalesOutletPaginationDto
     }
 
     /**
+     * Сериализует пагинацию в snake_case для JSON API.
+     *
      * @return array<string, int>
      */
     public function toArray(): array

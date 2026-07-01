@@ -19,6 +19,7 @@ readonly class SalesOutletIndexResultDto
     ) {
     }
 
+    /** Собирает результат index из страницы репозитория и применённых фильтров. */
     public static function fromPaginatedResult(
         SalesOutletPaginatedResultDto $paginatedResult,
         SalesOutletIndexQueryDto $query,

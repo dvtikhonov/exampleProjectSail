@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
+/** Feature-тесты REST API /api/sales-outlets (совместимость с service-a). */
 class SalesOutletsApiTest extends WebTestCase
 {
     private KernelBrowser $client;

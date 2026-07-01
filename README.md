@@ -13,6 +13,7 @@
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды», webhook MAX, UI Stand |
 | `service-d` | Laravel + Vue 3 SPA: Sanctum на субдомене `yandexmaps.*`, привязка организации Яндекс.Карт и синхронизация отзывов (`yandex-parser`, `service-d-queue`) |
+| `service-f` | Laravel 13 + Filament 3: URL shortener на субдомене `urlshort.*`, админка `/admin`, публичный редирект `GET /{code}` — см. [service-f/README.md](service-f/README.md) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/`, `/api/b/` и `/api/e/` |
@@ -87,6 +88,16 @@ SERVICE_D_DB_PASSWORD=<your-local-password>
 
 Создайте `service_d_db` и `service_d_db_testing` во внешнем MySQL (см. [service-d/README.md](service-d/README.md)).
 
+Для `service-f` — отдельная база (не `sail_db`):
+
+```env
+SERVICE_F_DB_HOST=host.docker.internal
+SERVICE_F_DB_DATABASE=service_f_db
+SERVICE_F_DB_PASSWORD=<your-local-password>
+```
+
+Создайте `service_f_db` и `service_f_db_testing` во внешнем MySQL (см. [service-f/README.md](service-f/README.md)).
+
 Для `service-a` задайте `DB_*` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
 
 Стандартные `.env.example` у сервисов по умолчанию настроены на SQLite — для Docker-запуска через корневой compose их нужно перевести на MySQL.
@@ -97,7 +108,7 @@ SERVICE_D_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `service-d`, `service-e`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `service-d`, `service-e`, `service-f`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
@@ -180,7 +191,9 @@ docker compose up -d main-app
 | `service-c` напрямую | `http://localhost:8083` |
 | `service-d` напрямую | `http://localhost:8084` |
 | `service-e` напрямую | `http://localhost:8086` |
+| `service-f` напрямую | `http://localhost:8087` |
 | `service-d` через gateway (субдомен) | `http://yandexmaps.localhost:8080` (нужна запись в `/etc/hosts`) |
+| `service-f` через gateway (субдомен) | `http://urlshort.localhost:8080` (Host-based routing в gateway) |
 | Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
 | Vite dev server | `http://localhost:5173` (`main-app`), `5174` (`service-c`), `5175` (`service-d`) |
 | MailHog | `http://localhost:8025` |

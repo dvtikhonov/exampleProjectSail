@@ -10,6 +10,7 @@ use App\Entity\SalesOutlet as SalesOutletEntity;
 /** Маппинг Doctrine Entity → доменная модель SalesOutlet. */
 final class SalesOutletEntityMapper
 {
+    /** Маппит Doctrine Entity в доменную модель. */
     public static function toDomain(SalesOutletEntity $entity): SalesOutlet
     {
         return new SalesOutlet(

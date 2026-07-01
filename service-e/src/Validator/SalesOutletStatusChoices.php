@@ -10,6 +10,8 @@ use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 final class SalesOutletStatusChoices
 {
     /**
+     * Возвращает value всех статусов для Symfony Choice constraint.
+     *
      * @return array<int, string>
      */
     public static function values(): array

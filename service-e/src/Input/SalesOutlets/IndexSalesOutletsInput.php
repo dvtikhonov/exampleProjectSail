@@ -55,6 +55,7 @@ class IndexSalesOutletsInput
     #[Assert\Type('integer')]
     public int|string|null $per_page = null;
 
+    /** Создаёт Input из query-параметров HTTP-запроса. */
     public static function fromRequest(Request $request): self
     {
         $input = new self();
@@ -72,6 +73,7 @@ class IndexSalesOutletsInput
         return $input;
     }
 
+    /** Преобразует валидированный Input в DTO параметров запроса. */
     public function toQueryDto(SalesOutletsMetadataRepositoryInterface $metadataRepository): SalesOutletIndexQueryDto
     {
         return SalesOutletIndexQueryDto::fromValidated(
