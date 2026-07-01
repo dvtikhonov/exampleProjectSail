@@ -83,7 +83,8 @@ jobs:
              docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
              docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
              docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
-             docker compose run --rm --no-deps service-d composer install --no-interaction --no-progress --no-dev
+             docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress --no-dev
+             docker compose run --rm --no-deps service-f composer install --no-interaction --prefer-dist --no-progress --no-dev
              docker compose run --rm --no-deps service-e composer install --no-interaction --no-progress --no-dev --no-scripts
              docker compose run --rm --no-deps service-e php bin/console cache:clear --env=prod --no-warmup
              docker compose up -d --remove-orphans
@@ -127,4 +128,5 @@ jobs:
              docker compose exec -T service-a php artisan migrate --force
              docker compose exec -T service-b php artisan migrate --force
              docker compose exec -T service-c php artisan migrate --force
-             docker compose exec -T service-d php artisan migrate --force"
+             docker compose exec -T service-d php artisan migrate --force
+             docker compose exec -T service-f php artisan migrate --force"

@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('short_link_clicks', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('short_link_id')->constrained('short_links')->cascadeOnDelete();
+            $table->foreignId('short_link_id');
             $table->string('ip_address', 45);
             $table->timestamp('visited_at');
 
