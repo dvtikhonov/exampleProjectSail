@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('short_links', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->index();
             $table->text('original_url');
             $table->string('code', 12);
             $table->unsignedInteger('clicks_count')->default(0);

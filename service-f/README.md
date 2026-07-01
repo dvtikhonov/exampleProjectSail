@@ -332,15 +332,18 @@ service-f/
 
 ## Production (VPS)
 
-1. DNS: A-запись `urlshort.<VPS_DOMAIN>` → IP VPS
-2. SSL: `scripts/vps-nginx-ssl.sh` (расширяет сертификат для `urlshort.*`)
-3. Обновить `service-f/.env`:
+1. Создайте БД `service_f_db` на хостовом MySQL VPS (см. корневой [README.md](../README.md), раздел про `SERVICE_F_DB_*`).
+2. DNS: A-запись `urlshort.<VPS_DOMAIN>` → IP VPS
+3. SSL: `scripts/vps-nginx-ssl.sh` (расширяет сертификат для `urlshort.*`)
+4. Обновить `service-f/.env`:
 
 ```env
 APP_URL=https://urlshort.<VPS_DOMAIN>
 APP_ENV=production
 APP_DEBUG=false
 ```
+
+Деплой через GitHub Actions: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — параметр `run_migrations=true` применяет миграции к `service_f_db` (отдельный job `production-migrations`, как у `service-d`).
 
 ## CI
 
