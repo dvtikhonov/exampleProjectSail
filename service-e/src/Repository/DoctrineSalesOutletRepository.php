@@ -32,7 +32,6 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
     ) {
     }
 
-    /** {@inheritDoc} */
     public function findById(int $id): ?SalesOutlet
     {
         $entity = $this->entityRepository->findOneBy([
@@ -43,7 +42,6 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         return null !== $entity ? SalesOutletEntityMapper::toDomain($entity) : null;
     }
 
-    /** {@inheritDoc} */
     public function paginate(SalesOutletIndexQueryDto $queryDto): SalesOutletPaginatedResultDto
     {
         $queryBuilder = $this->entityRepository->createQueryBuilder('so');
@@ -88,7 +86,6 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         );
     }
 
-    /** {@inheritDoc} */
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet
     {
         return $this->persist($salesOutlet, [
@@ -97,7 +94,6 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         ]);
     }
 
-    /** {@inheritDoc} */
     public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutlet
     {
         return $this->persist($salesOutlet, [
@@ -113,7 +109,6 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         ]);
     }
 
-    /** {@inheritDoc} */
     public function delete(SalesOutlet $salesOutlet): void
     {
         $entity = $this->resolveEntity($salesOutlet);

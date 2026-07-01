@@ -17,7 +17,6 @@ class InAllowedSalesOutletColumnValidator extends ConstraintValidator
     ) {
     }
 
-    /** {@inheritDoc} */
     public function validate(mixed $value, Constraint $constraint): void
     {
         if (!$constraint instanceof InAllowedSalesOutletColumn) {

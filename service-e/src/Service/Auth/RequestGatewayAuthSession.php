@@ -17,7 +17,6 @@ class RequestGatewayAuthSession implements GatewayAuthSessionInterface
     ) {
     }
 
-    /** {@inheritDoc} */
     public function login(GatewayUserDto $user): void
     {
         $request = $this->requestStack->getCurrentRequest();

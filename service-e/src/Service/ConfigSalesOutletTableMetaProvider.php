@@ -28,8 +28,6 @@ class ConfigSalesOutletTableMetaProvider implements SalesOutletTableMetaProvider
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @return array<int, array<string, bool|int|string>>
      */
     public function columns(): array
@@ -41,8 +39,6 @@ class ConfigSalesOutletTableMetaProvider implements SalesOutletTableMetaProvider
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @return array<int, array{value: string, label: string}>
      */
     public function statusOptions(): array
