@@ -7,6 +7,7 @@ namespace App\Services\UrlShortener;
 use App\Contracts\UrlShortener\OriginalUrlReachabilityCheckerInterface;
 use App\DTO\UrlShortener\OriginalUrlReachabilityResultDto;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -47,7 +48,7 @@ class HttpOriginalUrlReachabilityChecker implements OriginalUrlReachabilityCheck
     /**
      * @param  'head'|'get'  $method
      */
-    private function request(string $method, string $url): \Illuminate\Http\Client\Response
+    private function request(string $method, string $url): Response
     {
         return Http::timeout(self::TIMEOUT_SECONDS)
             ->withOptions([

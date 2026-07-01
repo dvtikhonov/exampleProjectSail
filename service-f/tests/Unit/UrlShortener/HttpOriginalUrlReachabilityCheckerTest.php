@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\UrlShortener;
 
 use App\Services\UrlShortener\HttpOriginalUrlReachabilityChecker;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -52,7 +53,7 @@ class HttpOriginalUrlReachabilityCheckerTest extends TestCase
     public function test_returns_not_reachable_when_connection_fails(): void
     {
         Http::fake(function (): never {
-            throw new \Illuminate\Http\Client\ConnectionException('Connection refused');
+            throw new ConnectionException('Connection refused');
         });
 
         $result = app(HttpOriginalUrlReachabilityChecker::class)->check('https://example.com/unreachable');

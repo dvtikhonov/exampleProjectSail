@@ -9,6 +9,7 @@ use App\Exceptions\UrlShortener\ShortLinkNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Публичный редирект по короткому коду.
@@ -22,7 +23,7 @@ class ShortLinkRedirectController extends Controller
     /**
      * GET /{code} — публичный редирект 302 на original_url.
      *
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws NotFoundHttpException
      */
     public function __invoke(Request $request, string $code): RedirectResponse
     {

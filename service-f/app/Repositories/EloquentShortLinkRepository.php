@@ -17,6 +17,7 @@ class EloquentShortLinkRepository implements ShortLinkRepositoryInterface
     public function __construct(
         private readonly ShortLinkClickRepositoryInterface $shortLinkClickRepository,
     ) {}
+
     /** {@inheritDoc} */
     public function findByCode(string $code): ?ShortLink
     {

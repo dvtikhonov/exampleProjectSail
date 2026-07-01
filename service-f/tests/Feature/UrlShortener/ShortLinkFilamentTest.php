@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\UrlShortener;
 
+use App\Contracts\UrlShortener\OriginalUrlReachabilityCheckerInterface;
+use App\DTO\UrlShortener\OriginalUrlReachabilityResultDto;
 use App\Filament\Admin\Resources\ShortLinkResource\Pages\CreateShortLink;
 use App\Filament\Admin\Resources\ShortLinkResource\Pages\EditShortLink;
 use App\Filament\Admin\Resources\ShortLinkResource\Pages\ListShortLinks;
-use App\Contracts\UrlShortener\OriginalUrlReachabilityCheckerInterface;
-use App\DTO\UrlShortener\OriginalUrlReachabilityResultDto;
+use App\Livewire\ShortLinkClicksTable;
 use App\Models\ShortLink;
 use App\Models\ShortLinkClick;
 use App\Models\User;
@@ -312,7 +313,7 @@ class ShortLinkFilamentTest extends TestCase
         }
 
         Livewire::actingAs($user)
-            ->test(\App\Livewire\ShortLinkClicksTable::class, ['shortLinkId' => $shortLink->id])
+            ->test(ShortLinkClicksTable::class, ['shortLinkId' => $shortLink->id])
             ->assertCanSeeTableRecords(
                 ShortLinkClick::query()
                     ->where('short_link_id', $shortLink->id)
