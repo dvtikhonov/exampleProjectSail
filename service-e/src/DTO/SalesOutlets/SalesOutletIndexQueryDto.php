@@ -24,6 +24,8 @@ readonly class SalesOutletIndexQueryDto
     }
 
     /**
+     * Собирает DTO из валидированных query-параметров с нормализацией пагинации и колонок.
+     *
      * @param array<string, mixed> $validated
      * @param array<int, string>   $allowedColumns
      */

@@ -16,6 +16,8 @@ use Shared\SalesOutletsDomain\Metadata\SalesOutletColumns;
 final class DoctrineSalesOutletQueryApplicator
 {
     /**
+     * Применяет фильтры, поиск, сортировку и исключение soft-deleted записей.
+     *
      * @param array<int, string> $allowedColumnKeys
      */
     public function apply(QueryBuilder $queryBuilder, SalesOutletFilterDto $filters, array $allowedColumnKeys): void
@@ -108,9 +110,10 @@ final class DoctrineSalesOutletQueryApplicator
     }
 
     /**
+     * Фильтрует статусы по подстроке в человекочитаемой метке.
+     *
      * @return array<int, string>
      */
-    /** Фильтрует статусы по подстроке в человекочитаемой метке. */
     private function statusesByLabel(string $value): array
     {
         if ('' === $value) {

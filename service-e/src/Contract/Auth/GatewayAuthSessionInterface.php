@@ -9,5 +9,6 @@ use App\DTO\Auth\GatewayUserDto;
 /** Сохраняет аутентифицированного gateway-пользователя в контексте запроса. */
 interface GatewayAuthSessionInterface
 {
+    /** Сохраняет аутентифицированного пользователя в контексте текущего запроса. */
     public function login(GatewayUserDto $user): void;
 }

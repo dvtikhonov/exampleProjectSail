@@ -23,6 +23,7 @@ class DoctrineGatewayUserResolver implements GatewayUserResolverInterface
     ) {
     }
 
+    /** {@inheritDoc} */
     public function resolveFromRequest(Request $request): ?GatewayUserDto
     {
         $userId = $request->headers->get('X-User-Id');

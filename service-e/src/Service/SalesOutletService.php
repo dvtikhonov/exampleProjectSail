@@ -22,6 +22,7 @@ class SalesOutletService implements SalesOutletServiceInterface
     ) {
     }
 
+    /** {@inheritDoc} */
     public function index(SalesOutletIndexQueryDto $queryDto): SalesOutletIndexResultDto
     {
         $paginatedResult = $this->salesOutletRepository->paginate($queryDto);
@@ -29,16 +30,19 @@ class SalesOutletService implements SalesOutletServiceInterface
         return SalesOutletIndexResultDto::fromPaginatedResult($paginatedResult, $queryDto);
     }
 
+    /** {@inheritDoc} */
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet
     {
         return $this->salesOutletRepository->updateHeadOrganization($salesOutlet, $dto);
     }
 
+    /** {@inheritDoc} */
     public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutlet
     {
         return $this->salesOutletRepository->update($salesOutlet, $dto);
     }
 
+    /** {@inheritDoc} */
     public function delete(SalesOutlet $salesOutlet): void
     {
         $this->salesOutletRepository->delete($salesOutlet);

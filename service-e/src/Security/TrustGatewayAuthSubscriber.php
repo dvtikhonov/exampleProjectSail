@@ -23,6 +23,7 @@ class TrustGatewayAuthSubscriber implements EventSubscriberInterface
     ) {
     }
 
+    /** {@inheritDoc} */
     public static function getSubscribedEvents(): array
     {
         return [
@@ -30,6 +31,7 @@ class TrustGatewayAuthSubscriber implements EventSubscriberInterface
         ];
     }
 
+    /** Проверяет X-User-Id и устанавливает gateway-сессию для /api/* маршрутов. */
     public function onKernelRequest(RequestEvent $event): void
     {
         if (!$event->isMainRequest()) {

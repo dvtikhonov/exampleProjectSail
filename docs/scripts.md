@@ -8,7 +8,7 @@
 
 | Файл | Назначение |
 |---|---|
-| `test-services.sh` | Подготовка тестовых БД (`sail_db_testing`, `service_d_db_testing`) и запуск PHPUnit в Docker. Режимы: `prepare`, `all`, `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, флаг `--no-prepare`. Используется в `.github/workflows/ci.yml`. |
+| `test-services.sh` | Подготовка тестовых БД (`sail_db_testing`, `service_d_db_testing`, `service_f_db_testing`) и запуск PHPUnit в Docker. Режимы: `prepare`, `all`, `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-e`, `service-f`, флаг `--no-prepare`. Используется в `.github/workflows/ci.yml`. |
 | `e2e-verify-report-stats.sh` | Обёртка E2E: создаёт Passport-токен, проверяет `/broadcasting/auth`, запускает `.cjs` внутри контейнера `main-app`. |
 | `e2e-verify-report-stats.cjs` | E2E: два WebSocket-клиента + REST статистики отчётов (`ReportJobStatsChanged`). |
 

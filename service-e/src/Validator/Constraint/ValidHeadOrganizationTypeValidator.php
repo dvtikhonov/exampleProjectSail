@@ -12,6 +12,7 @@ use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 /** Валидатор ограничения ValidHeadOrganizationType. */
 class ValidHeadOrganizationTypeValidator extends ConstraintValidator
 {
+    /** {@inheritDoc} */
     public function validate(mixed $value, Constraint $constraint): void
     {
         if (!$constraint instanceof ValidHeadOrganizationType) {

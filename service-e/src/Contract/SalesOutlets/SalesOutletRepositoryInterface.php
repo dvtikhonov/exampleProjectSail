@@ -19,9 +19,12 @@ interface SalesOutletRepositoryInterface
     /** Возвращает страницу торговых точек с учётом фильтров и сортировки. */
     public function paginate(SalesOutletIndexQueryDto $queryDto): SalesOutletPaginatedResultDto;
 
+    /** Обновляет головную организацию и возвращает доменную модель. */
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet;
 
+    /** Обновляет поля торговой точки и возвращает доменную модель. */
     public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutlet;
 
+    /** Помечает торговую точку удалённой (soft delete). */
     public function delete(SalesOutlet $salesOutlet): void;
 }

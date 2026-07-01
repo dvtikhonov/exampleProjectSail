@@ -62,6 +62,7 @@ class UpdateSalesOutletInput
     #[Assert\Choice(callback: [SalesOutletStatusChoices::class, 'values'])]
     public ?string $status = null;
 
+    /** Создаёт Input из JSON-тела PATCH-запроса. */
     public static function fromRequest(Request $request): self
     {
         /** @var array<string, mixed> $payload */
@@ -81,6 +82,7 @@ class UpdateSalesOutletInput
         return $input;
     }
 
+    /** Преобразует валидированный Input в DTO обновления. */
     public function toDto(): UpdateSalesOutletDto
     {
         return UpdateSalesOutletDto::fromValidated([

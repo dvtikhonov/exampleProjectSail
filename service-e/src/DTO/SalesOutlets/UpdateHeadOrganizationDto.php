@@ -16,6 +16,8 @@ readonly class UpdateHeadOrganizationDto
     }
 
     /**
+     * Собирает DTO из валидированных полей POST head-organization.
+     *
      * @param array<string, mixed> $validated
      */
     public static function fromValidated(array $validated): self

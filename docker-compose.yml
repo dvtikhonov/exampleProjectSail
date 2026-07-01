@@ -411,6 +411,46 @@ services:
     depends_on:
       - redis
 
+  service-f:
+    build:
+      context: .
+      dockerfile: service-f/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SERVICE_F_PORT:-8087}:8000"
+    environment:
+      - APP_ENV=local
+      - CACHE_STORE=file
+      - DB_CONNECTION=mysql
+      - DB_HOST=${SERVICE_F_DB_HOST:-host.docker.internal}
+      - DB_PORT=${SERVICE_F_DB_PORT:-3306}
+      - DB_DATABASE=${SERVICE_F_DB_DATABASE:-service_f_db}
+      - DB_USERNAME=${SERVICE_F_DB_USERNAME:-root}
+      - DB_PASSWORD=${SERVICE_F_DB_PASSWORD:-12345678AS}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./service-f/app:/var/www/html/app
+      - ./service-f/routes:/var/www/html/routes
+      - ./service-f/config:/var/www/html/config
+      - ./service-f/database:/var/www/html/database
+      - ./service-f/resources:/var/www/html/resources
+      - ./service-f/tests:/var/www/html/tests
+      - ./service-f/bootstrap:/var/www/html/bootstrap
+      - ./service-f/public:/var/www/html/public
+      - ./service-f/phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./service-f/storage:/var/www/html/storage
+      - ./service-f/vendor:/var/www/html/vendor
+      - ./service-f/composer.json:/var/www/html/composer.json
+      - ./service-f/composer.lock:/var/www/html/composer.lock
+      - ./service-f/.env:/var/www/html/.env
+      - ./service-f/.env.testing:/var/www/html/.env.testing:ro
+    networks:
+      - internal
+    depends_on:
+      - redis
+
   reverb:
     build:
       context: ./main-app
@@ -497,6 +537,7 @@ services:
       - service-c
       - service-d
       - service-e
+      - service-f
     networks:
       - internal
 

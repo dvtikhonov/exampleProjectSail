@@ -12,6 +12,7 @@ final class ValidationErrorResponse
 {
     public const MESSAGE = 'The given data was invalid.';
 
+    /** Собирает JSON 422 из списка нарушений Symfony Validator. */
     public static function fromViolations(ConstraintViolationListInterface $violations): JsonResponse
     {
         $errors = [];

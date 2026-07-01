@@ -17,6 +17,7 @@ class RequestGatewayUserContext implements GatewayUserContextInterface
     ) {
     }
 
+    /** {@inheritDoc} */
     public function currentUserId(): ?int
     {
         $request = $this->requestStack->getCurrentRequest();

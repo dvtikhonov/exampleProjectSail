@@ -32,6 +32,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
     ) {
     }
 
+    /** {@inheritDoc} */
     public function findById(int $id): ?SalesOutlet
     {
         $entity = $this->entityRepository->findOneBy([
@@ -42,6 +43,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         return null !== $entity ? SalesOutletEntityMapper::toDomain($entity) : null;
     }
 
+    /** {@inheritDoc} */
     public function paginate(SalesOutletIndexQueryDto $queryDto): SalesOutletPaginatedResultDto
     {
         $queryBuilder = $this->entityRepository->createQueryBuilder('so');
@@ -86,6 +88,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         );
     }
 
+    /** {@inheritDoc} */
     public function updateHeadOrganization(SalesOutlet $salesOutlet, UpdateHeadOrganizationDto $dto): SalesOutlet
     {
         return $this->persist($salesOutlet, [
@@ -94,6 +97,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         ]);
     }
 
+    /** {@inheritDoc} */
     public function update(SalesOutlet $salesOutlet, UpdateSalesOutletDto $dto): SalesOutlet
     {
         return $this->persist($salesOutlet, [
@@ -109,6 +113,7 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
         ]);
     }
 
+    /** {@inheritDoc} */
     public function delete(SalesOutlet $salesOutlet): void
     {
         $entity = $this->resolveEntity($salesOutlet);
@@ -121,9 +126,10 @@ class DoctrineSalesOutletRepository implements SalesOutletRepositoryInterface
     }
 
     /**
+     * Применяет изменения к Entity и возвращает обновлённую доменную модель.
+     *
      * @param array<string, mixed> $attributes
      */
-    /** Применяет изменения к Entity и возвращает обновлённую доменную модель. */
     private function persist(SalesOutlet $salesOutlet, array $attributes): SalesOutlet
     {
         $entity = $this->resolveEntity($salesOutlet);

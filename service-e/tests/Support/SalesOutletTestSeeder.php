@@ -8,8 +8,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Shared\SalesOutletsDomain\Enums\HeadOrganizationType;
 use Shared\SalesOutletsDomain\Enums\SalesOutletStatus;
 
+/**
+ * Заполняет таблицу sales_outlets тестовыми данными для Feature-тестов API.
+ * Id записей начинаются с 1001, чтобы не пересекаться с seed service-a.
+ */
 final class SalesOutletTestSeeder
 {
+    /** Вставляет фикстуры торговых точек через DBAL (без Doctrine Entity). */
     public static function seed(EntityManagerInterface $entityManager): void
     {
         $connection = $entityManager->getConnection();

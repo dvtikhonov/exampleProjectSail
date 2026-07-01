@@ -13,6 +13,8 @@ use App\Presentation\SalesOutletRowPresenter;
 final class SalesOutletIndexResponse
 {
     /**
+     * Сериализует результат index в формат API (data + meta).
+     *
      * @return array<string, mixed>
      */
     public static function from(

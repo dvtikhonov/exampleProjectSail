@@ -25,6 +25,7 @@ class UpdateHeadOrganizationInput
     #[ValidHeadOrganizationType]
     public ?string $head_organization_type = null;
 
+    /** Создаёт Input из JSON-тела POST-запроса. */
     public static function fromRequest(Request $request): self
     {
         /** @var array<string, mixed> $payload */
@@ -37,6 +38,7 @@ class UpdateHeadOrganizationInput
         return $input;
     }
 
+    /** Преобразует валидированный Input в DTO обновления головной организации. */
     public function toDto(): UpdateHeadOrganizationDto
     {
         return UpdateHeadOrganizationDto::fromValidated([

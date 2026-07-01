@@ -11,6 +11,7 @@ use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 /** Валидатор ограничения ValidRussianInn. */
 class ValidRussianInnValidator extends ConstraintValidator
 {
+    /** {@inheritDoc} */
     public function validate(mixed $value, Constraint $constraint): void
     {
         if (!$constraint instanceof ValidRussianInn) {

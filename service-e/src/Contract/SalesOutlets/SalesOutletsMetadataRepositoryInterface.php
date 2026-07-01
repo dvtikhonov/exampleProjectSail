@@ -8,11 +8,15 @@ namespace App\Contract\SalesOutlets;
 interface SalesOutletsMetadataRepositoryInterface
 {
     /**
+     * Описание колонок таблицы (key, label, sortable и т.д.).
+     *
      * @return array<int, array<string, bool|int|string|null>>
      */
     public function columns(): array;
 
     /**
+     * Ключи колонок, доступных для sort/columns query-параметров.
+     *
      * @return array<int, string>
      */
     public function allowedColumnKeys(): array;
