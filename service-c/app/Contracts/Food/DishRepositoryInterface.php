@@ -15,6 +15,11 @@ interface DishRepositoryInterface
     public function findById(int $id): ?Dish;
 
     /**
+     * Ищет блюдо по точному совпадению названия в категории меню.
+     */
+    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?Dish;
+
+    /**
      * Список блюд для админки с опциональными фильтрами.
      *
      * @return LengthAwarePaginator<int, Dish>

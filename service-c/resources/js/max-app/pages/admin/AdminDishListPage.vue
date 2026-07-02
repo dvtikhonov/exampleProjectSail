@@ -51,6 +51,18 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    importLoading: {
+        type: Boolean,
+        default: false,
+    },
+    importError: {
+        type: String,
+        default: '',
+    },
+    importSuccessMessage: {
+        type: String,
+        default: '',
+    },
 });
 
 const emit = defineEmits([
@@ -61,7 +73,11 @@ const emit = defineEmits([
     'filter-restaurant',
     'filter-category',
     'filter-name-search',
+    'import-click',
+    'import',
 ]);
+
+const fileInputRef = ref(null);
 
 const pullDistance = ref(0);
 const isPulling = ref(false);
@@ -130,6 +146,27 @@ onMounted(() => {
 onUnmounted(() => {
     scrollContainer = null;
 });
+
+function onImportButtonClick() {
+    emit('import-click');
+}
+
+function onImportFileChange(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+
+    if (file) {
+        emit('import', file);
+    }
+
+    input.value = '';
+}
+
+function openFilePicker() {
+    fileInputRef.value?.click();
+}
+
+defineExpose({ openFilePicker });
 </script>
 
 <template>
@@ -140,14 +177,32 @@ onUnmounted(() => {
                     <h1 class="text-lg font-semibold text-gray-900">Меню</h1>
                     <p class="text-sm text-max-muted">Управление блюдами</p>
                 </div>
-                <button
-                    type="button"
-                    class="shrink-0 rounded-xl bg-max-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-max-primary/90 active:scale-[0.98]"
-                    @click="emit('add')"
-                >
-                    Добавить
-                </button>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary active:scale-[0.98] disabled:opacity-50"
+                        :disabled="importLoading"
+                        @click="onImportButtonClick"
+                    >
+                        {{ importLoading ? 'Загрузка…' : 'Загрузить' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="shrink-0 rounded-xl bg-max-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-max-primary/90 active:scale-[0.98]"
+                        @click="emit('add')"
+                    >
+                        Добавить
+                    </button>
+                </div>
             </div>
+
+            <input
+                ref="fileInputRef"
+                type="file"
+                accept=".xls,.xlsx"
+                class="hidden"
+                @change="onImportFileChange"
+            >
 
             <div class="grid grid-cols-2 gap-2">
                 <AppSelect
@@ -173,6 +228,20 @@ onUnmounted(() => {
                 class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
                 @input="emit('filter-name-search', ($event.target).value)"
             >
+
+            <div
+                v-if="importError"
+                class="whitespace-pre-line rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+                {{ importError }}
+            </div>
+
+            <div
+                v-if="importSuccessMessage"
+                class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+            >
+                {{ importSuccessMessage }}
+            </div>
         </div>
 
         <div

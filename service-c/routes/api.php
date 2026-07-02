@@ -77,6 +77,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 Route::get('/dishes', [AdminDishController::class, 'index']);
                 Route::get('/dishes/{dish}', [AdminDishController::class, 'show'])
                     ->whereNumber('dish');
+                Route::post('/dishes/import', [AdminDishController::class, 'import']);
                 Route::post('/dishes', [AdminDishController::class, 'store']);
                 Route::post('/dishes/{dish}', [AdminDishController::class, 'update'])
                     ->whereNumber('dish');

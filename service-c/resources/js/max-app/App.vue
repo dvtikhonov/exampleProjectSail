@@ -92,6 +92,9 @@ const {
     formFieldErrors,
     deleteLoadingId,
     deleteError,
+    importLoading,
+    importError,
+    importSuccessMessage,
     initDishAdminSession,
     loadDishes,
     handleFilterRestaurantChange,
@@ -103,7 +106,11 @@ const {
     handleFormRestaurantChange,
     submitDishForm,
     handleDeleteDish,
+    handleImportClick,
+    handleImportFile,
 } = dishAdmin;
+
+const dishListPageRef = ref(null);
 
 const cartFlow = useCart({ currentView });
 const {
@@ -224,6 +231,19 @@ function handleDishFormSubmit(fields, photoFile) {
     submitDishForm(fields, photoFile);
 }
 
+function onDishImportClick() {
+    if (handleImportClick()) {
+        dishListPageRef.value?.openFilePicker();
+    }
+}
+
+/**
+ * @param {File} file
+ */
+function onDishImportFile(file) {
+    handleImportFile(file);
+}
+
 onMounted(async () => {
     await bootstrapApp();
 });
@@ -305,6 +325,7 @@ onMounted(async () => {
                         class="flex min-h-dvh flex-col"
                     >
                         <AdminDishListPage
+                            ref="dishListPageRef"
                             :dishes="dishes"
                             :loading="dishesLoading"
                             :error="dishesError"
@@ -316,6 +337,9 @@ onMounted(async () => {
                             :filter-restaurant-id="filterRestaurantId"
                             :filter-category-name="filterCategoryName"
                             :filter-name-search="filterNameSearch"
+                            :import-loading="importLoading"
+                            :import-error="importError"
+                            :import-success-message="importSuccessMessage"
                             @add="openCreateForm"
                             @edit="openEditForm"
                             @delete="handleDeleteDish"
@@ -323,6 +347,8 @@ onMounted(async () => {
                             @filter-restaurant="handleFilterRestaurantChange"
                             @filter-category="handleFilterCategoryChange"
                             @filter-name-search="handleFilterNameSearchChange"
+                            @import-click="onDishImportClick"
+                            @import="onDishImportFile"
                         />
                     </div>
                 </template>
