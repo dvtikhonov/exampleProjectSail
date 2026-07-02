@@ -13,8 +13,8 @@ function save(array $rows, string $path): void
     $sheet->setCellValue('B1', 'Цена');
     foreach ($rows as $i => $row) {
         $n = $i + 2;
-        $sheet->setCellValue('A' . $n, $row[0]);
-        $sheet->setCellValue('B' . $n, $row[1]);
+        $sheet->setCellValueByColumnAndRow(1, $n, $row[0]);
+        $sheet->setCellValueByColumnAndRow(2, $n, $row[1]);
     }
     (new Xls($s))->save($path);
 }
