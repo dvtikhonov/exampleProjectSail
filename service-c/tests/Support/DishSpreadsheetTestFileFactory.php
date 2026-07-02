@@ -17,7 +17,7 @@ class DishSpreadsheetTestFileFactory
      */
     public static function createXlsx(array $dataRows): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setCellValue('A1', 'Название');
         $sheet->setCellValue('B1', 'Цена');

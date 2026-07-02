@@ -11,6 +11,7 @@ use App\Models\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\DishSpreadsheetTestFileFactory;
 use Tests\Support\FoodTestDataBuilder;
@@ -148,7 +149,7 @@ class AdminDishImportApiTest extends TestCase
      * @param  array<string, mixed>  $data
      * @param  array<string, string>  $headers
      */
-    private function postMultipart(string $uri, array $data, array $headers): \Illuminate\Testing\TestResponse
+    private function postMultipart(string $uri, array $data, array $headers): TestResponse
     {
         return $this->post($uri, $data, [
             ...$headers,
