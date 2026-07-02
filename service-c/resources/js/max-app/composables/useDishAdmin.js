@@ -10,6 +10,7 @@ import {
     fetchAdminDish,
     fetchAdminDishes,
     fetchAdminMenuCategories,
+    importDishesSpreadsheet,
     updateDish,
 } from '../api/foodClient';
 import { ADMIN_DISH_VIEWS } from '../constants/views';
@@ -93,6 +94,10 @@ export function useDishAdmin() {
 
     const deleteLoadingId = ref(null);
     const deleteError = ref('');
+
+    const importLoading = ref(false);
+    const importError = ref('');
+    const importSuccessMessage = ref('');
 
     const restaurantOptions = computed(() => {
         const map = new Map();
@@ -301,6 +306,109 @@ export function useDishAdmin() {
     }
 
     /**
+     * @returns {boolean}
+     */
+    function validateImportFilters() {
+        importSuccessMessage.value = '';
+
+        if (filterRestaurantId.value === '' || filterCategoryName.value === '') {
+            importError.value = 'Выберите ресторан и категорию перед загрузкой';
+
+            return false;
+        }
+
+        const restaurantId = Number(filterRestaurantId.value);
+        const categoryId = resolveCategoryId(
+            categories.value,
+            restaurantId,
+            filterCategoryName.value,
+        );
+
+        if (categoryId === null) {
+            importError.value = 'Категория не найдена';
+
+            return false;
+        }
+
+        importError.value = '';
+
+        return true;
+    }
+
+    /**
+     * @returns {boolean} Можно открыть выбор файла
+     */
+    function handleImportClick() {
+        return validateImportFilters();
+    }
+
+    /**
+     * @param {File} file
+     */
+    async function handleImportFile(file) {
+        importSuccessMessage.value = '';
+        importError.value = '';
+
+        const extension = file.name.split('.').pop()?.toLowerCase();
+
+        if (extension !== 'xls' && extension !== 'xlsx') {
+            importError.value = 'Выберите файл в формате .xls или .xlsx';
+
+            return;
+        }
+
+        const restaurantId = Number(filterRestaurantId.value);
+        const categoryId = resolveCategoryId(
+            categories.value,
+            restaurantId,
+            filterCategoryName.value,
+        );
+
+        if (categoryId === null) {
+            importError.value = 'Категория не найдена';
+
+            return;
+        }
+
+        importLoading.value = true;
+
+        try {
+            const result = await importDishesSpreadsheet(file, categoryId);
+            await loadDishes();
+            importSuccessMessage.value = `Загружено ${result.imported_count} блюд`;
+        } catch (error) {
+            importError.value = formatImportError(error);
+        } finally {
+            importLoading.value = false;
+        }
+    }
+
+    /**
+     * @param {unknown} error
+     * @returns {string}
+     */
+    function formatImportError(error) {
+        if (error && typeof error === 'object' && 'response' in error) {
+            const response = error.response;
+            const responseErrors = response?.data?.errors;
+
+            if (Array.isArray(responseErrors) && responseErrors.length > 0) {
+                return responseErrors
+                    .map((item) => {
+                        if (item && typeof item === 'object' && 'row' in item && 'message' in item) {
+                            return `Строка ${item.row}: ${item.message}`;
+                        }
+
+                        return String(item);
+                    })
+                    .join('\n');
+            }
+        }
+
+        return extractErrorMessage(error);
+    }
+
+    /**
      * @param {object} dish
      */
     async function handleDeleteDish(dish) {
@@ -341,6 +449,9 @@ export function useDishAdmin() {
         formFieldErrors,
         deleteLoadingId,
         deleteError,
+        importLoading,
+        importError,
+        importSuccessMessage,
         initDishAdminSession,
         loadDishes,
         handleFilterRestaurantChange,
@@ -352,5 +463,7 @@ export function useDishAdmin() {
         handleFormRestaurantChange,
         submitDishForm,
         handleDeleteDish,
+        handleImportClick,
+        handleImportFile,
     };
 }

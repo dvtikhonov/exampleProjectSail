@@ -8,10 +8,12 @@ use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\DTO\Food\AdminDishDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
 use App\Models\MenuCategory;
 use App\Services\Food\DishAdminService;
+use App\Services\Food\DishSpreadsheetImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -24,6 +26,7 @@ class AdminDishController extends Controller
     public function __construct(
         private readonly DishAdminService $dishAdminService,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
+        private readonly DishSpreadsheetImportService $dishSpreadsheetImportService,
     ) {}
 
     /**
@@ -74,6 +77,32 @@ class AdminDishController extends Controller
         return $this->respondDish(function () use ($dish) {
             return $this->dishAdminService->show($dish);
         });
+    }
+
+    /**
+     * Импорт блюд из XLS/XLSX (multipart/form-data).
+     */
+    public function import(ImportDishesSpreadsheetRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->dishSpreadsheetImportService->import(
+                $request->spreadsheetFile(),
+                $request->menuCategoryId(),
+            );
+        } catch (FoodDomainException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $exception->statusCode());
+        }
+
+        if ($result->errors !== []) {
+            return response()->json([
+                'message' => 'Ошибки в файле импорта.',
+                ...$result->toArray(),
+            ], 422);
+        }
+
+        return response()->json($result->toArray());
     }
 
     /**

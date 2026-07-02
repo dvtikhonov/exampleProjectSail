@@ -27,6 +27,17 @@ class EloquentDishRepository implements DishRepositoryInterface
     /**
      * {@inheritDoc}
      */
+    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?Dish
+    {
+        return Dish::query()
+            ->where('menu_category_id', $menuCategoryId)
+            ->where('name', $name)
+            ->first();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function paginateForAdmin(
         ?int $restaurantId,
         ?int $categoryId,

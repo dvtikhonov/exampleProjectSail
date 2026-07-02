@@ -10,6 +10,7 @@ use App\Contracts\Food\DishRepositoryInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\DTO\Food\AdminDishDto;
 use App\DTO\Food\CreateDishDto;
+use App\DTO\Food\ImportDishRowDto;
 use App\DTO\Food\UpdateDishDto;
 use App\Enums\Food\DishVatRate;
 use App\Enums\Food\DishWeightUnit;
@@ -29,6 +30,7 @@ class DishAdminService
         private readonly DishImageUploadInterface $dishImageUpload,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly DishDefaultImageProvider $defaultImageProvider,
     ) {}
 
     /**
@@ -64,6 +66,53 @@ class DishAdminService
         return DB::transaction(function () use ($dto, $photo): AdminDishDto {
             $dish = $this->dishRepository->create($this->attributesFromCreateDto($dto));
             $imagePath = $this->dishImageUpload->upload($dish->id, $photo);
+            $dish = $this->dishRepository->update($dish, ['image_url' => $imagePath]);
+
+            return $this->mapToAdminDto($dish);
+        });
+    }
+
+    /**
+     * Импорт строки из таблицы: при точном совпадении названия обновляет только цену.
+     *
+     * @throws FoodDomainException
+     */
+    public function importSpreadsheetRow(ImportDishRowDto $row, int $menuCategoryId): void
+    {
+        $this->assertMenuCategoryExists($menuCategoryId);
+
+        $existing = $this->dishRepository->findByNameAndMenuCategoryId($row->name, $menuCategoryId);
+
+        if ($existing !== null) {
+            $this->dishRepository->update($existing, ['price' => $row->price]);
+
+            return;
+        }
+
+        $this->createWithDefaultImage(new CreateDishDto(
+            name: $row->name,
+            menuCategoryId: $menuCategoryId,
+            description: $row->description,
+            weight: $row->weight,
+            weightUnit: $row->weightUnit,
+            price: $row->price,
+            vatRate: $row->vatRate,
+            isAvailable: $row->isAvailable,
+        ));
+    }
+
+    /**
+     * Создание блюда с placeholder-изображением (импорт из таблицы).
+     *
+     * @throws FoodDomainException
+     */
+    public function createWithDefaultImage(CreateDishDto $dto): AdminDishDto
+    {
+        $this->assertMenuCategoryExists($dto->menuCategoryId);
+
+        return DB::transaction(function () use ($dto): AdminDishDto {
+            $dish = $this->dishRepository->create($this->attributesFromCreateDto($dto));
+            $imagePath = $this->defaultImageProvider->copyForDish($dish->id);
             $dish = $this->dishRepository->update($dish, ['image_url' => $imagePath]);
 
             return $this->mapToAdminDto($dish);

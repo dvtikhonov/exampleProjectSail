@@ -364,6 +364,21 @@ export async function deleteDish(dishId) {
 }
 
 /**
+ * @param {File} file
+ * @param {number} menuCategoryId
+ * @returns {Promise<{ imported_count: number, errors: object[] }>}
+ */
+export async function importDishesSpreadsheet(file, menuCategoryId) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('menu_category_id', String(menuCategoryId));
+
+    const { data } = await client.post('/food/admin/dishes/import', formData);
+
+    return data;
+}
+
+/**
  * @param {object} fields
  * @param {File|null} photoFile
  * @returns {FormData}
