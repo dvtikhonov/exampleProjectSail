@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\FoodOrderAdminReadRepositoryInterface;
+use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\AdminOrderDetailDto;
 use App\DTO\Food\AdminOrderListItemDto;

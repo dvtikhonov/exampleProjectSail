@@ -11,9 +11,7 @@ use App\Models\Restaurant;
 /**
  * Eloquent-реализация репозитория ресторанов и чтения меню.
  */
-class EloquentRestaurantRepository implements
-    RestaurantRepositoryInterface,
-    MenuReadRepositoryInterface
+class EloquentRestaurantRepository implements MenuReadRepositoryInterface, RestaurantRepositoryInterface
 {
     /**
      * {@inheritDoc}

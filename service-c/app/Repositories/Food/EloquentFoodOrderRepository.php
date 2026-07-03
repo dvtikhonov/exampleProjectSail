@@ -14,10 +14,7 @@ use App\Models\FoodOrder;
 /**
  * Eloquent-реализация репозитория заказов еды.
  */
-class EloquentFoodOrderRepository implements
-    FoodOrderWriteRepositoryInterface,
-    FoodOrderCustomerReadRepositoryInterface,
-    FoodOrderAdminReadRepositoryInterface
+class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterface, FoodOrderCustomerReadRepositoryInterface, FoodOrderWriteRepositoryInterface
 {
     /**
      * {@inheritDoc}
