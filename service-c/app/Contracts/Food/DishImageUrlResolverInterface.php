@@ -11,6 +11,7 @@ interface DishImageUrlResolverInterface
 {
     /**
      * Same-origin URL для img: WebView MAX не грузит внешние CDN напрямую.
+     * Содержит ?v= — хеш пути в storage; меняется при замене файла и сбрасывает кеш браузера.
      */
     public function resolvePublicUrl(int $dishId, ?string $imageUrl): ?string;
 }

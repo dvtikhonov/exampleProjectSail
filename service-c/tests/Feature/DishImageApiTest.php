@@ -51,4 +51,17 @@ class DishImageApiTest extends TestCase
         $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
             ->assertOk();
     }
+
+    public function test_dish_image_endpoint_serves_image_for_soft_deleted_dish(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('dishes/deleted.jpg', 'deleted-dish-image');
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['image_url' => 'dishes/deleted.jpg']);
+        $fixture['dish']->delete();
+
+        $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
+            ->assertOk();
+    }
 }

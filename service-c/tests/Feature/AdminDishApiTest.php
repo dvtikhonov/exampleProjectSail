@@ -16,6 +16,7 @@ use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\DishPhotoTestImageFactory;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
+use Tests\Support\ResolvesDishImageUrl;
 use Tests\TestCase;
 
 class AdminDishApiTest extends TestCase
@@ -23,6 +24,7 @@ class AdminDishApiTest extends TestCase
     use AuthenticatesMaxMiniAppUser;
     use RefreshDatabase;
     use ResetsFoodDomainTables;
+    use ResolvesDishImageUrl;
 
     protected function setUp(): void
     {
@@ -129,13 +131,13 @@ class AdminDishApiTest extends TestCase
 
         $this->assertNotNull($imagePath);
         Storage::disk('public')->assertExists($imagePath);
-        $createResponse->assertJsonPath('dish.image_url', '/api/food/dishes/'.$dishId.'/image');
+        $createResponse->assertJsonPath('dish.image_url', $this->expectedDishImageUrl($dishId, $imagePath));
 
         $this->getJson("/api/food/admin/dishes/{$dishId}", $auth['headers'])
             ->assertOk()
             ->assertJsonPath('dish.id', $dishId)
             ->assertJsonPath('dish.name', 'Admin Created Dish')
-            ->assertJsonPath('dish.image_url', '/api/food/dishes/'.$dishId.'/image');
+            ->assertJsonPath('dish.image_url', $this->expectedDishImageUrl($dishId, $imagePath));
 
         $this->postMultipart("/api/food/admin/dishes/{$dishId}", [
             'name' => 'Renamed Dish',
@@ -144,7 +146,7 @@ class AdminDishApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('dish.name', 'Renamed Dish')
             ->assertJsonPath('dish.price', '450.00')
-            ->assertJsonPath('dish.image_url', '/api/food/dishes/'.$dishId.'/image');
+            ->assertJsonPath('dish.image_url', $this->expectedDishImageUrl($dishId, $imagePath));
 
         $this->assertSame($imagePath, Dish::query()->findOrFail($dishId)->image_url);
 
@@ -339,6 +341,32 @@ class AdminDishApiTest extends TestCase
 
         $this->assertSame($originalImagePath, Dish::query()->findOrFail($dishId)->image_url);
         Storage::disk('public')->assertExists($originalImagePath);
+    }
+
+    public function test_update_with_photo_changes_public_image_url_version(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $auth = $this->menuManagerAuth();
+
+        $createResponse = $this->postMultipart('/api/food/admin/dishes', $this->validStorePayload(
+            menuCategoryId: $fixture['category']->id,
+            name: 'Photo Version Dish',
+        ), $auth['headers'])->assertCreated();
+
+        $dishId = (int) $createResponse->json('dish.id');
+        $originalPublicUrl = (string) $createResponse->json('dish.image_url');
+
+        $updateResponse = $this->postMultipart("/api/food/admin/dishes/{$dishId}", [
+            'name' => 'Photo Version Dish',
+            'photo' => DishPhotoTestImageFactory::jpeg(800, 600, 'updated.jpg'),
+        ], $auth['headers'])->assertOk();
+
+        $updatedDish = Dish::query()->findOrFail($dishId);
+        $updatedPublicUrl = (string) $updateResponse->json('dish.image_url');
+
+        $this->assertNotSame($originalPublicUrl, $updatedPublicUrl);
+        $this->assertSame($this->expectedDishImageUrl($dishId, $updatedDish->image_url), $updatedPublicUrl);
+        Storage::disk('public')->assertExists((string) $updatedDish->image_url);
     }
 
     /**

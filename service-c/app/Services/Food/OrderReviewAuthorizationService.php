@@ -6,8 +6,7 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Enums\Food\FoodOrderAdminRole;
-use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
+use App\Enums\Food\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
@@ -24,54 +23,18 @@ class OrderReviewAuthorizationService
     /**
      * @throws FoodDomainException
      */
-    public function assertCanApproveAddress(MaxUser $admin, FoodOrder $order): void
+    public function assertCanApprove(MaxUser $admin, FoodOrder $order, OrderReviewStep $step): void
     {
-        $this->assertHasRole($admin, FoodOrderAdminRole::AddressReviewer);
-        $this->assertAddressReviewPending($order);
+        $this->assertHasRole($admin, $step->requiredRole());
+        $step->assertPending($order);
     }
 
     /**
      * @throws FoodDomainException
      */
-    public function assertCanRejectAddress(MaxUser $admin, FoodOrder $order, string $comment): void
+    public function assertCanReject(MaxUser $admin, FoodOrder $order, OrderReviewStep $step, string $comment): void
     {
-        $this->assertCanApproveAddress($admin, $order);
-        $this->assertRejectionCommentPresent($comment);
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    public function assertCanApproveComposition(MaxUser $admin, FoodOrder $order): void
-    {
-        $this->assertHasRole($admin, FoodOrderAdminRole::CompositionReviewer);
-        $this->assertCompositionReviewPending($order);
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    public function assertCanRejectComposition(MaxUser $admin, FoodOrder $order, string $comment): void
-    {
-        $this->assertCanApproveComposition($admin, $order);
-        $this->assertRejectionCommentPresent($comment);
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    public function assertCanApprovePayment(MaxUser $admin, FoodOrder $order): void
-    {
-        $this->assertHasRole($admin, FoodOrderAdminRole::AddressReviewer);
-        $this->assertPaymentReviewPending($order);
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    public function assertCanRejectPayment(MaxUser $admin, FoodOrder $order, string $comment): void
-    {
-        $this->assertCanApprovePayment($admin, $order);
+        $this->assertCanApprove($admin, $order, $step);
         $this->assertRejectionCommentPresent($comment);
     }
 
@@ -83,49 +46,6 @@ class OrderReviewAuthorizationService
         if (! $this->foodOrderAdminRepository->hasActiveRole($admin->max_user_id, $role)) {
             throw new FoodDomainException('Forbidden.', 403);
         }
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    private function assertAddressReviewPending(FoodOrder $order): void
-    {
-        if ($order->address_review_status !== OrderReviewStatus::Pending) {
-            throw new FoodDomainException('Address review already completed.', 422);
-        }
-
-        if ($this->isReviewClosed($order->status)) {
-            throw new FoodDomainException('Order is not awaiting address review.', 422);
-        }
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    private function assertCompositionReviewPending(FoodOrder $order): void
-    {
-        if (! $order->isInCompositionReviewQueue()) {
-            throw new FoodDomainException('Composition review already completed.', 422);
-        }
-    }
-
-    /**
-     * @throws FoodDomainException
-     */
-    private function assertPaymentReviewPending(FoodOrder $order): void
-    {
-        if ($order->payment_review_status !== OrderReviewStatus::Pending) {
-            throw new FoodDomainException('Payment review already completed.', 422);
-        }
-
-        if ($this->isReviewClosed($order->status)) {
-            throw new FoodDomainException('Order is not awaiting payment review.', 422);
-        }
-    }
-
-    private function isReviewClosed(OrderStatus $status): bool
-    {
-        return in_array($status, [OrderStatus::Rejected, OrderStatus::Confirmed], true);
     }
 
     /**

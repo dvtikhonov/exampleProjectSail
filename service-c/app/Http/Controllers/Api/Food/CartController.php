@@ -10,8 +10,8 @@ use App\Http\Requests\Food\AddCartItemRequest;
 use App\Http\Requests\Food\UpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\UpdateCartItemRequest;
 use App\Models\MaxUser;
+use App\Contracts\Food\CartServiceInterface;
 use App\Services\Food\CartDeliveryAddressService;
-use App\Services\Food\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,7 +21,7 @@ use Illuminate\Http\Request;
 class CartController extends Controller
 {
     public function __construct(
-        private readonly CartService $cartService,
+        private readonly CartServiceInterface $cartService,
         private readonly CartDeliveryAddressService $cartDeliveryAddressService,
     ) {}
 

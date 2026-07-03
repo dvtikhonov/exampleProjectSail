@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
+use Tests\Support\ResolvesDishImageUrl;
 use Tests\TestCase;
 
 class FoodRestaurantApiTest extends TestCase
@@ -17,6 +18,7 @@ class FoodRestaurantApiTest extends TestCase
     use AuthenticatesMaxMiniAppUser;
     use RefreshDatabase;
     use ResetsFoodDomainTables;
+    use ResolvesDishImageUrl;
 
     protected function setUp(): void
     {
@@ -65,7 +67,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonPath('menu.categories.0.dishes.0.id', $fixture['dish']->id)
             ->assertJsonPath('menu.categories.0.dishes.0.name', 'Test Pasta')
             ->assertJsonPath('menu.categories.0.dishes.0.price', '250.00')
-            ->assertJsonPath('menu.categories.0.dishes.0.image_url', '/api/food/dishes/'.$fixture['dish']->id.'/image');
+            ->assertJsonPath('menu.categories.0.dishes.0.image_url', $this->expectedDishImageUrlForModel($fixture['dish']));
     }
 
     public function test_menu_endpoint_returns_not_found_for_inactive_restaurant(): void

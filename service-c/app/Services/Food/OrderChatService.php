@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
-use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderMessageAuthorType;
@@ -23,7 +23,7 @@ class OrderChatService
     private const int DEFAULT_LIST_LIMIT = 50;
 
     public function __construct(
-        private readonly FoodOrderRepositoryInterface $foodOrderRepository,
+        private readonly FoodOrderCustomerReadRepositoryInterface $foodOrderReadRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
         private readonly OrderChatAuthorizationService $orderChatAuthorizationService,
     ) {}
@@ -84,7 +84,7 @@ class OrderChatService
      */
     private function findOrderOrFail(int $orderId): FoodOrder
     {
-        $order = $this->foodOrderRepository->findById($orderId);
+        $order = $this->foodOrderReadRepository->findById($orderId);
 
         if ($order === null) {
             throw new FoodDomainException('Order not found.', 404);

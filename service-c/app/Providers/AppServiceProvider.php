@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserContextInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
+use App\Contracts\Food\CartRepositoryInterface;
+use App\Contracts\Food\CartServiceInterface;
 use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\Contracts\Food\DishImageDeliveryInterface;
@@ -14,29 +16,38 @@ use App\Contracts\Food\DishRepositoryInterface;
 use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\FoodOrderAdminReadRepositoryInterface;
+use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
+use App\Contracts\Food\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
+use App\Contracts\Food\MenuReadRepositoryInterface;
+use App\Contracts\Food\RestaurantRepositoryInterface;
 use App\Contracts\Food\OrderChatNotifierInterface;
+use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
+use App\Repositories\Food\EloquentCartRepository;
 use App\Repositories\Food\EloquentCustomerCategoryRepository;
 use App\Repositories\Food\EloquentDeliveryTierRepository;
 use App\Repositories\Food\EloquentDishRepository;
 use App\Repositories\Food\EloquentFoodOrderAdminRepository;
 use App\Repositories\Food\EloquentFoodOrderRepository;
 use App\Repositories\Food\EloquentMenuCategoryRepository;
+use App\Repositories\Food\EloquentRestaurantRepository;
 use App\Repositories\Food\EloquentOrderMessageRepository;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
+use App\Services\Food\CartService;
 use App\Services\Food\DishImageDeliveryService;
 use App\Services\Food\DishImageUploadService;
 use App\Services\Food\DishImageUrlResolver;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Services\Food\LaravelOrderChatNotifier;
+use App\Services\Food\OrderSubmissionService;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
@@ -66,9 +77,20 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DishImageDeliveryInterface::class, DishImageDeliveryService::class);
         $this->app->bind(DishImageUploadInterface::class, DishImageUploadService::class);
         $this->app->bind(DishRepositoryInterface::class, EloquentDishRepository::class);
+        $this->app->bind(CartRepositoryInterface::class, EloquentCartRepository::class);
+        $this->app->bind(CartServiceInterface::class, CartService::class);
+        $this->app->bind(OrderSubmissionServiceInterface::class, OrderSubmissionService::class);
         $this->app->bind(
             MenuCategoryRepositoryInterface::class,
             EloquentMenuCategoryRepository::class,
+        );
+        $this->app->bind(
+            RestaurantRepositoryInterface::class,
+            EloquentRestaurantRepository::class,
+        );
+        $this->app->bind(
+            MenuReadRepositoryInterface::class,
+            EloquentRestaurantRepository::class,
         );
         $this->app->bind(
             DeliveryTierRepositoryInterface::class,
@@ -79,7 +101,15 @@ class AppServiceProvider extends ServiceProvider
             EloquentCustomerCategoryRepository::class,
         );
         $this->app->bind(
-            FoodOrderRepositoryInterface::class,
+            FoodOrderWriteRepositoryInterface::class,
+            EloquentFoodOrderRepository::class,
+        );
+        $this->app->bind(
+            FoodOrderCustomerReadRepositoryInterface::class,
+            EloquentFoodOrderRepository::class,
+        );
+        $this->app->bind(
+            FoodOrderAdminReadRepositoryInterface::class,
             EloquentFoodOrderRepository::class,
         );
         $this->app->bind(
