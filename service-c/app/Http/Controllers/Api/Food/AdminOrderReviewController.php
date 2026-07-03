@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Enums\Food\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use App\Services\Food\AdminOrderQueryService;
-use App\Services\Food\OrderAddressReviewService;
-use App\Services\Food\OrderCompositionReviewService;
-use App\Services\Food\OrderPaymentReviewService;
+use App\Services\Food\OrderReviewStepHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,9 +22,7 @@ class AdminOrderReviewController extends Controller
 {
     public function __construct(
         private readonly AdminOrderQueryService $adminOrderQueryService,
-        private readonly OrderAddressReviewService $orderAddressReviewService,
-        private readonly OrderCompositionReviewService $orderCompositionReviewService,
-        private readonly OrderPaymentReviewService $orderPaymentReviewService,
+        private readonly OrderReviewStepHandler $orderReviewStepHandler,
     ) {}
 
     /**
@@ -94,7 +91,11 @@ class AdminOrderReviewController extends Controller
     public function approveAddress(Request $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
-            return $this->orderAddressReviewService->approve($order, $this->maxUser($request));
+            return $this->orderReviewStepHandler->approve(
+                OrderReviewStep::Address,
+                $order,
+                $this->maxUser($request),
+            );
         });
     }
 
@@ -104,7 +105,8 @@ class AdminOrderReviewController extends Controller
     public function rejectAddress(RejectOrderReviewRequest $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
-            return $this->orderAddressReviewService->reject(
+            return $this->orderReviewStepHandler->reject(
+                OrderReviewStep::Address,
                 $order,
                 $this->maxUser($request),
                 $request->comment(),
@@ -118,7 +120,11 @@ class AdminOrderReviewController extends Controller
     public function approveComposition(Request $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
-            return $this->orderCompositionReviewService->approve($order, $this->maxUser($request));
+            return $this->orderReviewStepHandler->approve(
+                OrderReviewStep::Composition,
+                $order,
+                $this->maxUser($request),
+            );
         });
     }
 
@@ -128,7 +134,8 @@ class AdminOrderReviewController extends Controller
     public function rejectComposition(RejectOrderReviewRequest $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
-            return $this->orderCompositionReviewService->reject(
+            return $this->orderReviewStepHandler->reject(
+                OrderReviewStep::Composition,
                 $order,
                 $this->maxUser($request),
                 $request->comment(),
@@ -142,7 +149,11 @@ class AdminOrderReviewController extends Controller
     public function approvePayment(Request $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
-            return $this->orderPaymentReviewService->approve($order, $this->maxUser($request));
+            return $this->orderReviewStepHandler->approve(
+                OrderReviewStep::Payment,
+                $order,
+                $this->maxUser($request),
+            );
         });
     }
 
@@ -152,7 +163,8 @@ class AdminOrderReviewController extends Controller
     public function rejectPayment(RejectOrderReviewRequest $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($request, $order) {
-            return $this->orderPaymentReviewService->reject(
+            return $this->orderReviewStepHandler->reject(
+                OrderReviewStep::Payment,
                 $order,
                 $this->maxUser($request),
                 $request->comment(),

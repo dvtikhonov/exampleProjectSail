@@ -6,7 +6,8 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\FoodOrderWriteRepositoryInterface;
+use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
 use App\Enums\Food\OrderReviewStatus;
@@ -20,14 +21,14 @@ use Illuminate\Support\Facades\DB;
 /**
  * Оформление заказа из черновика корзины и уведомление MAX.
  */
-class OrderSubmissionService
+class OrderSubmissionService implements OrderSubmissionServiceInterface
 {
     public function __construct(
         private readonly FoodMoneyFormatter $moneyFormatter,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
-        private readonly FoodOrderRepositoryInterface $foodOrderRepository,
+        private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
     ) {}
 
@@ -86,7 +87,7 @@ class OrderSubmissionService
 
             $this->maxUserDeliveryAddressService->persist($maxUser, $cart->delivery_address);
 
-            $order = $this->foodOrderRepository->create([
+            $order = $this->foodOrderWriteRepository->create([
                 'cart_id' => $cart->id,
                 'max_user_id' => $maxUser->max_user_id,
                 'restaurant_id' => $cart->restaurant_id,

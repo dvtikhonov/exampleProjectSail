@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\CartServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\AddCartItemRequest;
@@ -11,7 +12,6 @@ use App\Http\Requests\Food\UpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\UpdateCartItemRequest;
 use App\Models\MaxUser;
 use App\Services\Food\CartDeliveryAddressService;
-use App\Services\Food\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,7 +21,7 @@ use Illuminate\Http\Request;
 class CartController extends Controller
 {
     public function __construct(
-        private readonly CartService $cartService,
+        private readonly CartServiceInterface $cartService,
         private readonly CartDeliveryAddressService $cartDeliveryAddressService,
     ) {}
 

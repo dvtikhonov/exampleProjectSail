@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repositories\Food;
 
-use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\FoodOrderAdminReadRepositoryInterface;
+use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
+use App\Contracts\Food\FoodOrderWriteRepositoryInterface;
 use App\Enums\Food\OrderReviewStatus;
 use App\Enums\Food\OrderStatus;
 use App\Models\FoodOrder;
@@ -12,7 +14,7 @@ use App\Models\FoodOrder;
 /**
  * Eloquent-реализация репозитория заказов еды.
  */
-class EloquentFoodOrderRepository implements FoodOrderRepositoryInterface
+class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterface, FoodOrderCustomerReadRepositoryInterface, FoodOrderWriteRepositoryInterface
 {
     /**
      * {@inheritDoc}

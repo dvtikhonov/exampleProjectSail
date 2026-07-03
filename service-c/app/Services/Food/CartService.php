@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\CartRepositoryInterface;
+use App\Contracts\Food\CartServiceInterface;
+use App\Contracts\Food\DishRepositoryInterface;
 use App\DTO\Food\CartDto;
 use App\Enums\Food\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Models\Dish;
 use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +19,13 @@ use Illuminate\Support\Facades\DB;
 /**
  * Управление корзиной пользователя MAX mini-app.
  */
-class CartService
+class CartService implements CartServiceInterface
 {
     public function __construct(
         private readonly CartDtoFactory $cartDtoFactory,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
+        private readonly CartRepositoryInterface $cartRepository,
+        private readonly DishRepositoryInterface $dishRepository,
     ) {}
 
     /**
@@ -46,9 +50,7 @@ class CartService
     public function addItem(MaxUser $maxUser, int $dishId, int $quantity): CartDto
     {
         return DB::transaction(function () use ($maxUser, $dishId, $quantity): CartDto {
-            $dish = Dish::query()
-                ->with('menuCategory.restaurant')
-                ->find($dishId);
+            $dish = $this->dishRepository->findAvailableWithRestaurant($dishId);
 
             if ($dish === null) {
                 throw new FoodDomainException('Dish not found.', 404);
@@ -67,7 +69,7 @@ class CartService
             $cart = $this->findDraftCart($maxUser);
 
             if ($cart === null) {
-                $cart = Cart::query()->create([
+                $cart = $this->cartRepository->createDraft([
                     'max_user_id' => $maxUser->max_user_id,
                     'restaurant_id' => $restaurant->id,
                     'status' => CartStatus::Draft,
@@ -79,23 +81,20 @@ class CartService
                 );
             }
 
-            $cartItem = CartItem::query()
-                ->where('cart_id', $cart->id)
-                ->where('dish_id', $dish->id)
-                ->first();
+            $cartItem = $this->cartRepository->findItemByCartAndDish($cart->id, $dish->id);
 
             if ($cartItem === null) {
-                CartItem::query()->create([
+                $this->cartRepository->createItem([
                     'cart_id' => $cart->id,
                     'dish_id' => $dish->id,
                     'quantity' => $quantity,
                 ]);
             } else {
-                $cartItem->increment('quantity', $quantity);
+                $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
             }
 
             return $this->cartDtoFactory->fromModel(
-                $cart->fresh(['restaurant', 'items.dish']),
+                $this->cartRepository->refreshForDto($cart),
                 $maxUser,
             );
         });
@@ -111,10 +110,10 @@ class CartService
         return DB::transaction(function () use ($maxUser, $cartItemId, $quantity): CartDto {
             $cartItem = $this->findOwnedCartItem($maxUser, $cartItemId);
 
-            $cartItem->update(['quantity' => $quantity]);
+            $this->cartRepository->updateItemQuantity($cartItem, $quantity);
 
             return $this->cartDtoFactory->fromModel(
-                $cartItem->cart->fresh(['restaurant', 'items.dish']),
+                $this->cartRepository->refreshForDto($cartItem->cart),
                 $maxUser,
             );
         });
@@ -130,12 +129,12 @@ class CartService
         return DB::transaction(function () use ($maxUser, $cartItemId): ?CartDto {
             $cartItem = $this->findOwnedCartItem($maxUser, $cartItemId);
             $cart = $cartItem->cart;
-            $cartItem->delete();
+            $this->cartRepository->deleteItem($cartItem);
 
-            $cart = $cart->fresh(['restaurant', 'items.dish']);
+            $cart = $this->cartRepository->refreshForDto($cart);
 
             if ($cart->items->isEmpty()) {
-                $cart->delete();
+                $this->cartRepository->delete($cart);
 
                 return null;
             }
@@ -156,24 +155,18 @@ class CartService
                 return;
             }
 
-            $cart->delete();
+            $this->cartRepository->delete($cart);
         });
     }
 
     private function findDraftCart(MaxUser $maxUser): ?Cart
     {
-        return Cart::query()
-            ->where('max_user_id', $maxUser->max_user_id)
-            ->where('status', CartStatus::Draft)
-            ->with(['restaurant', 'items.dish'])
-            ->first();
+        return $this->cartRepository->findDraftByMaxUserId($maxUser->max_user_id);
     }
 
     private function findOwnedCartItem(MaxUser $maxUser, int $cartItemId): CartItem
     {
-        $cartItem = CartItem::query()
-            ->with(['cart.restaurant', 'cart.items.dish', 'dish'])
-            ->find($cartItemId);
+        $cartItem = $this->cartRepository->findItemById($cartItemId);
 
         if ($cartItem === null) {
             throw new FoodDomainException('Cart item not found.', 404);

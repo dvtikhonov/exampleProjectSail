@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Models\MaxUser;
 use App\Services\Food\CustomerOrderQueryService;
-use App\Services\Food\OrderSubmissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +18,7 @@ use Illuminate\Http\Request;
 class OrderController extends Controller
 {
     public function __construct(
-        private readonly OrderSubmissionService $orderSubmissionService,
+        private readonly OrderSubmissionServiceInterface $orderSubmissionService,
         private readonly CustomerOrderQueryService $customerOrderQueryService,
     ) {}
 

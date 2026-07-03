@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\DishImageDeliveryInterface;
+use App\Contracts\Food\DishRepositoryInterface;
 use App\Models\Dish;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,6 +15,24 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class DishImageDeliveryService implements DishImageDeliveryInterface
 {
+    public function __construct(
+        private readonly DishRepositoryInterface $dishRepository,
+    ) {}
+
+    /**
+     * {@inheritDoc}
+     */
+    public function deliverById(int $dishId): Response
+    {
+        $dish = $this->dishRepository->findByIdWithTrashed($dishId);
+
+        if ($dish === null) {
+            abort(404);
+        }
+
+        return $this->deliver($dish);
+    }
+
     /**
      * {@inheritDoc}
      */

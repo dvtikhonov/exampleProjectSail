@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
-use App\Contracts\Food\FoodOrderRepositoryInterface;
+use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\OrderDto;
 use App\DTO\Food\OrderListItemDto;
@@ -18,7 +18,7 @@ use App\Models\MaxUser;
 class CustomerOrderQueryService
 {
     public function __construct(
-        private readonly FoodOrderRepositoryInterface $foodOrderRepository,
+        private readonly FoodOrderCustomerReadRepositoryInterface $foodOrderReadRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
         private readonly FoodMoneyFormatter $moneyFormatter,
     ) {}
@@ -28,7 +28,7 @@ class CustomerOrderQueryService
      */
     public function list(MaxUser $customer): array
     {
-        $orders = $this->foodOrderRepository->findByMaxUserId($customer->max_user_id);
+        $orders = $this->foodOrderReadRepository->findByMaxUserId($customer->max_user_id);
         $orderIds = array_map(
             static fn (FoodOrder $order): int => $order->id,
             $orders,
@@ -65,7 +65,7 @@ class CustomerOrderQueryService
      */
     public function show(MaxUser $customer, int $orderId): OrderDto
     {
-        $order = $this->foodOrderRepository->findById($orderId);
+        $order = $this->foodOrderReadRepository->findById($orderId);
 
         if ($order === null) {
             throw new FoodDomainException('Order not found.', 404);

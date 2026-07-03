@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\DishImageDeliveryInterface;
 use App\Http\Controllers\Controller;
-use App\Models\Dish;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -25,8 +24,6 @@ class DishImageController extends Controller
      */
     public function show(int $dish): Response
     {
-        $dishModel = Dish::query()->withTrashed()->findOrFail($dish);
-
-        return $this->dishImageDelivery->deliver($dishModel);
+        return $this->dishImageDelivery->deliverById($dish);
     }
 }

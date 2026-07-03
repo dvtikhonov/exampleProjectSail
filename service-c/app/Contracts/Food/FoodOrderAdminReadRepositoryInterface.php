@@ -8,23 +8,11 @@ use App\Enums\Food\OrderReviewStatus;
 use App\Models\FoodOrder;
 
 /**
- * Репозиторий заказов еды MAX mini-app.
+ * Чтение заказов еды для административного API проверки.
  */
-interface FoodOrderRepositoryInterface
+interface FoodOrderAdminReadRepositoryInterface
 {
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    public function create(array $attributes): FoodOrder;
-
     public function findById(int $id): ?FoodOrder;
-
-    public function findByIdForUpdate(int $id): ?FoodOrder;
-
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    public function update(FoodOrder $order, array $attributes): FoodOrder;
 
     /**
      * Заказы для проверки адреса с указанным статусом этапа.
@@ -39,13 +27,6 @@ interface FoodOrderRepositoryInterface
      * @return list<FoodOrder>
      */
     public function findForCompositionReview(OrderReviewStatus $reviewStatus): array;
-
-    /**
-     * Заказы клиента в хронологическом порядке (новые первыми).
-     *
-     * @return list<FoodOrder>
-     */
-    public function findByMaxUserId(int $maxUserId): array;
 
     /**
      * Все заказы в хронологическом порядке (новые первыми).

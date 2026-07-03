@@ -27,6 +27,16 @@ class EloquentDishRepository implements DishRepositoryInterface
     /**
      * {@inheritDoc}
      */
+    public function findByIdWithTrashed(int $id): ?Dish
+    {
+        return Dish::query()
+            ->withTrashed()
+            ->find($id);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?Dish
     {
         return Dish::query()
@@ -104,5 +114,15 @@ class EloquentDishRepository implements DishRepositoryInterface
                 static fn ($cartQuery) => $cartQuery->where('status', CartStatus::Draft->value),
             )
             ->exists();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findAvailableWithRestaurant(int $id): ?Dish
+    {
+        return Dish::query()
+            ->with('menuCategory.restaurant')
+            ->find($id);
     }
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\MenuReadRepositoryInterface;
+use App\Contracts\Food\RestaurantRepositoryInterface;
 use App\DTO\Food\DishDto;
 use App\DTO\Food\MenuCategoryDto;
 use App\DTO\Food\MenuDto;
@@ -18,6 +20,8 @@ use App\Models\Restaurant;
 class MenuQueryService
 {
     public function __construct(
+        private readonly RestaurantRepositoryInterface $restaurantRepository,
+        private readonly MenuReadRepositoryInterface $menuReadRepository,
         private readonly FoodMoneyFormatter $moneyFormatter,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
     ) {}
@@ -29,16 +33,14 @@ class MenuQueryService
      */
     public function listActiveRestaurants(): array
     {
-        return Restaurant::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get()
-            ->map(static fn (Restaurant $restaurant): RestaurantSummaryDto => new RestaurantSummaryDto(
+        return array_map(
+            static fn (Restaurant $restaurant): RestaurantSummaryDto => new RestaurantSummaryDto(
                 id: $restaurant->id,
                 name: $restaurant->name,
                 address: $restaurant->address,
-            ))
-            ->all();
+            ),
+            $this->restaurantRepository->findAllActive(),
+        );
     }
 
     /**
@@ -48,12 +50,7 @@ class MenuQueryService
      */
     public function getRestaurantMenu(int $restaurantId): MenuDto
     {
-        $restaurant = Restaurant::query()
-            ->where('is_active', true)
-            ->with([
-                'menuCategories.dishes' => static fn ($query) => $query->orderBy('name'),
-            ])
-            ->find($restaurantId);
+        $restaurant = $this->menuReadRepository->findActiveWithMenu($restaurantId);
 
         if ($restaurant === null) {
             throw new FoodDomainException('Restaurant not found.', 404);

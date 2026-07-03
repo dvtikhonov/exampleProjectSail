@@ -15,6 +15,7 @@ use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
+use Tests\Support\ResolvesDishImageUrl;
 use Tests\TestCase;
 
 class FoodOrderApiTest extends TestCase
@@ -22,6 +23,7 @@ class FoodOrderApiTest extends TestCase
     use AuthenticatesMaxMiniAppUser;
     use RefreshDatabase;
     use ResetsFoodDomainTables;
+    use ResolvesDishImageUrl;
 
     protected function setUp(): void
     {
@@ -122,7 +124,7 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('order.delivery_address', $address)
             ->assertJsonPath('order.items_snapshot.0.dish_name', 'Steak')
             ->assertJsonPath('order.items_snapshot.0.quantity', 2)
-            ->assertJsonPath('order.items_snapshot.0.image_url', '/api/food/dishes/'.$fixture['dish']->id.'/image');
+            ->assertJsonPath('order.items_snapshot.0.image_url', $this->expectedDishImageUrlForModel($fixture['dish']));
 
         $this->assertDatabaseHas('max_food_orders', [
             'max_user_id' => $auth['user']->max_user_id,

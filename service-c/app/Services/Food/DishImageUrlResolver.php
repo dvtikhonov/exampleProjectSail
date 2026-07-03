@@ -20,6 +20,18 @@ class DishImageUrlResolver implements DishImageUrlResolverInterface
             return null;
         }
 
-        return '/api/food/dishes/'.$dishId.'/image';
+        return sprintf(
+            '/api/food/dishes/%d/image?v=%s',
+            $dishId,
+            $this->storageVersion($imageUrl),
+        );
+    }
+
+    /**
+     * Короткий хеш пути в storage: меняется только при замене файла, сбрасывает кеш <img>.
+     */
+    private function storageVersion(string $storagePath): string
+    {
+        return substr(hash('sha256', $storagePath), 0, 12);
     }
 }

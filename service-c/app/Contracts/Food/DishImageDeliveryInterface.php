@@ -13,6 +13,11 @@ use Symfony\Component\HttpFoundation\Response;
 interface DishImageDeliveryInterface
 {
     /**
+     * Отдаёт изображение блюда по id, включая soft-deleted записи.
+     */
+    public function deliverById(int $dishId): Response;
+
+    /**
      * Отдаёт изображение блюда клиенту из локального public disk.
      */
     public function deliver(Dish $dish): Response;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\FoodOrderAdminReadRepositoryInterface;
 use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Contracts\Food\FoodOrderRepositoryInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\AdminOrderDetailDto;
 use App\DTO\Food\AdminOrderListItemDto;
@@ -21,7 +21,7 @@ use App\Models\MaxUser;
 class AdminOrderQueryService
 {
     public function __construct(
-        private readonly FoodOrderRepositoryInterface $foodOrderRepository,
+        private readonly FoodOrderAdminReadRepositoryInterface $foodOrderReadRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
         private readonly FoodMoneyFormatter $moneyFormatter,
@@ -49,11 +49,11 @@ class AdminOrderQueryService
 
         $orders = match ($status) {
             'pending' => match ($scope) {
-                'address' => $this->foodOrderRepository->findForAddressReview(OrderReviewStatus::Pending),
-                'composition' => $this->foodOrderRepository->findForCompositionReview(OrderReviewStatus::Pending),
+                'address' => $this->foodOrderReadRepository->findForAddressReview(OrderReviewStatus::Pending),
+                'composition' => $this->foodOrderReadRepository->findForCompositionReview(OrderReviewStatus::Pending),
                 default => throw new FoodDomainException('Invalid scope. Use address or composition.', 422),
             },
-            'all' => $this->foodOrderRepository->findAll(),
+            'all' => $this->foodOrderReadRepository->findAll(),
             default => throw new FoodDomainException('Invalid status. Use pending or all.', 422),
         };
 
@@ -67,7 +67,7 @@ class AdminOrderQueryService
     {
         $this->assertScopeAccess($admin, $scope);
 
-        $order = $this->foodOrderRepository->findById($orderId);
+        $order = $this->foodOrderReadRepository->findById($orderId);
 
         if ($order === null) {
             throw new FoodDomainException('Order not found.', 404);
@@ -81,7 +81,7 @@ class AdminOrderQueryService
      */
     public function detailFromModel(FoodOrder $order): AdminOrderDetailDto
     {
-        $order = $this->foodOrderRepository->findById($order->id);
+        $order = $this->foodOrderReadRepository->findById($order->id);
 
         if ($order === null) {
             throw new FoodDomainException('Order not found.', 404);
