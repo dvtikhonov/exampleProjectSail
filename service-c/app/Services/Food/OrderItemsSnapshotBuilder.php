@@ -22,7 +22,7 @@ class OrderItemsSnapshotBuilder
     /**
      * Формирует items_snapshot и сумму блюд.
      *
-     * @param Collection<int, CartItem> $items
+     * @param  Collection<int, CartItem>  $items
      */
     public function build(Collection $items): OrderItemsSnapshotDto
     {

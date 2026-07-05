@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\OrderChatServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\ListOrderMessagesRequest;
 use App\Http\Requests\Food\SendOrderMessageRequest;
 use App\Models\MaxUser;
-use App\Contracts\Food\OrderChatServiceInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

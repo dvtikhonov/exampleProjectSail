@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
-use App\Contracts\Food\DishImageDeliveryInterface;
 use App\Contracts\Food\DishCatalogRepositoryInterface;
+use App\Contracts\Food\DishImageDeliveryInterface;
 use App\Models\Dish;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
