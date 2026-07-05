@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Food;
 
-use App\Contracts\Food\DishRepositoryInterface;
+use App\Contracts\Food\DishAdminRepositoryInterface;
+use App\Contracts\Food\DishCatalogRepositoryInterface;
 use App\Enums\Food\CartStatus;
 use App\Models\Dish;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -12,7 +13,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 /**
  * Eloquent-реализация репозитория блюд.
  */
-class EloquentDishRepository implements DishRepositoryInterface
+class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalogRepositoryInterface
 {
     /**
      * {@inheritDoc}

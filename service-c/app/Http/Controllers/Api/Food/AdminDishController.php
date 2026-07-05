@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\DishAdminServiceInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\DTO\Food\AdminDishDto;
 use App\Exceptions\Food\FoodDomainException;
@@ -12,7 +13,6 @@ use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
 use App\Models\MenuCategory;
-use App\Services\Food\DishAdminService;
 use App\Services\Food\DishSpreadsheetImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
 class AdminDishController extends Controller
 {
     public function __construct(
-        private readonly DishAdminService $dishAdminService,
+        private readonly DishAdminServiceInterface $dishAdminService,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly DishSpreadsheetImportService $dishSpreadsheetImportService,
     ) {}

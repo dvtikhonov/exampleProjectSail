@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\DishAdminServiceInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\DTO\Food\DishImportResultDto;
 use App\Exceptions\Food\FoodDomainException;
@@ -18,7 +19,7 @@ class DishSpreadsheetImportService
 {
     public function __construct(
         private readonly DishSpreadsheetRowParser $rowParser,
-        private readonly DishAdminService $dishAdminService,
+        private readonly DishAdminServiceInterface $dishAdminService,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
     ) {}
 

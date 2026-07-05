@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\DishAdminRepositoryInterface;
+use App\Contracts\Food\DishAdminServiceInterface;
 use App\Contracts\Food\DishImageUploadInterface;
 use App\Contracts\Food\DishImageUrlResolverInterface;
-use App\Contracts\Food\DishRepositoryInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\DTO\Food\AdminDishDto;
 use App\DTO\Food\CreateDishDto;
@@ -22,10 +23,10 @@ use Illuminate\Support\Facades\DB;
 /**
  * Административный CRUD блюд меню.
  */
-class DishAdminService
+class DishAdminService implements DishAdminServiceInterface
 {
     public function __construct(
-        private readonly DishRepositoryInterface $dishRepository,
+        private readonly DishAdminRepositoryInterface $dishRepository,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly DishImageUploadInterface $dishImageUpload,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,

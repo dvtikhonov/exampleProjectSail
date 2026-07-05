@@ -8,16 +8,11 @@ use App\Models\Dish;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
- * Репозиторий блюд меню для административного CRUD.
+ * Репозиторий блюд для административного CRUD.
  */
-interface DishRepositoryInterface
+interface DishAdminRepositoryInterface
 {
     public function findById(int $id): ?Dish;
-
-    /**
-     * Ищет блюдо по id, включая soft-deleted (для истории заказов и отдачи изображений).
-     */
-    public function findByIdWithTrashed(int $id): ?Dish;
 
     /**
      * Ищет блюдо по точному совпадению названия в категории меню.
@@ -52,9 +47,4 @@ interface DishRepositoryInterface
      * Проверяет, есть ли блюдо в черновых корзинах пользователей.
      */
     public function existsInDraftCarts(int $dishId): bool;
-
-    /**
-     * Доступное блюдо с категорией меню и рестораном для добавления в корзину.
-     */
-    public function findAvailableWithRestaurant(int $id): ?Dish;
 }

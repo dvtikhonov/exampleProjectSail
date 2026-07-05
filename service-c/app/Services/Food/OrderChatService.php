@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
+use App\Contracts\Food\OrderChatServiceInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderMessageAuthorType;
@@ -16,7 +17,7 @@ use App\Models\MaxUser;
 /**
  * Чтение и отправка сообщений в чате по заказу еды.
  */
-class OrderChatService
+class OrderChatService implements OrderChatServiceInterface
 {
     private const int MAX_BODY_LENGTH = 2000;
 

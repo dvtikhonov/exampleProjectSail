@@ -6,7 +6,7 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\CartRepositoryInterface;
 use App\Contracts\Food\CartServiceInterface;
-use App\Contracts\Food\DishRepositoryInterface;
+use App\Contracts\Food\DishCatalogRepositoryInterface;
 use App\DTO\Food\CartDto;
 use App\Enums\Food\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
@@ -25,7 +25,7 @@ class CartService implements CartServiceInterface
         private readonly CartDtoFactory $cartDtoFactory,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
         private readonly CartRepositoryInterface $cartRepository,
-        private readonly DishRepositoryInterface $dishRepository,
+        private readonly DishCatalogRepositoryInterface $dishRepository,
     ) {}
 
     /**

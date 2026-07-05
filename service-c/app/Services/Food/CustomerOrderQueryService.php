@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
+use App\Contracts\Food\CustomerOrderQueryServiceInterface;
 use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\OrderDto;
@@ -15,7 +16,7 @@ use App\Models\MaxUser;
 /**
  * Выборка заказов клиента для API MAX mini-app.
  */
-class CustomerOrderQueryService
+class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
 {
     public function __construct(
         private readonly FoodOrderCustomerReadRepositoryInterface $foodOrderReadRepository,
