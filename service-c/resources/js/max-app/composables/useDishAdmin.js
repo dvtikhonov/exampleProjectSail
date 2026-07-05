@@ -255,13 +255,19 @@ export function useDishAdmin() {
         }
     }
 
-    function closeDishForm() {
+    /**
+     * @param {{ reload?: boolean }} [options]
+     */
+    async function closeDishForm({ reload = false } = {}) {
         dishAdminView.value = ADMIN_DISH_VIEWS.list;
         editingDish.value = null;
         formRestaurantId.value = '';
         formError.value = '';
         formFieldErrors.value = {};
-        loadDishes();
+
+        if (reload) {
+            await loadDishes();
+        }
     }
 
     /**
@@ -291,7 +297,7 @@ export function useDishAdmin() {
                 await createDish(fields, photoFile);
             }
 
-            closeDishForm();
+            await closeDishForm({ reload: true });
         } catch (error) {
             const validationErrors = extractValidationErrors(error);
 

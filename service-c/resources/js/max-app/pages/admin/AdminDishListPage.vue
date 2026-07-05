@@ -2,7 +2,7 @@
 /**
  * Список блюд для администратора: фильтры, добавление, редактирование, удаление.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
 import DishImage from '../../components/DishImage.vue';
 
@@ -83,6 +83,8 @@ const pullDistance = ref(0);
 const isPulling = ref(false);
 let touchStartY = 0;
 let scrollContainer = null;
+/** Сохранённая позиция прокрутки при переходе к форме редактирования */
+let savedScrollTop = 0;
 
 /** Порог смещения пальца (px) для срабатывания обновления списка */
 const PULL_THRESHOLD = 72;
@@ -139,6 +141,57 @@ function onTouchEnd() {
     pullDistance.value = 0;
 }
 
+function readEffectiveScrollTop() {
+    const container = scrollContainer ?? document.getElementById('admin-dish-list-scroll');
+
+    if (!container) {
+        return window.scrollY || document.documentElement.scrollTop || 0;
+    }
+
+    if (container.scrollHeight > container.clientHeight + 1) {
+        return container.scrollTop;
+    }
+
+    return window.scrollY || document.documentElement.scrollTop || 0;
+}
+
+function applyEffectiveScrollTop(value) {
+    const container = scrollContainer ?? document.getElementById('admin-dish-list-scroll');
+
+    if (container && container.scrollHeight > container.clientHeight + 1) {
+        container.scrollTop = value;
+
+        return;
+    }
+
+    window.scrollTo(0, value);
+}
+
+function captureScrollPosition() {
+    const container = scrollContainer ?? document.getElementById('admin-dish-list-scroll');
+    const canMeasureScroll = (container?.clientHeight ?? 0) > 0;
+
+    if (canMeasureScroll) {
+        savedScrollTop = readEffectiveScrollTop();
+    }
+}
+
+function restoreScrollPosition() {
+    const apply = () => {
+        if (savedScrollTop > 0) {
+            applyEffectiveScrollTop(savedScrollTop);
+        }
+    };
+
+    nextTick(() => {
+        apply();
+
+        requestAnimationFrame(() => {
+            apply();
+        });
+    });
+}
+
 onMounted(() => {
     scrollContainer = document.getElementById('admin-dish-list-scroll');
 });
@@ -146,6 +199,22 @@ onMounted(() => {
 onUnmounted(() => {
     scrollContainer = null;
 });
+
+onActivated(() => {
+    restoreScrollPosition();
+});
+
+watch(
+    () => [props.loading, props.refreshing],
+    ([loading, refreshing], [prevLoading, prevRefreshing]) => {
+        const wasBusy = prevLoading || prevRefreshing;
+        const isBusy = loading || refreshing;
+
+        if (wasBusy && !isBusy && savedScrollTop > 0) {
+            restoreScrollPosition();
+        }
+    },
+);
 
 function onImportButtonClick() {
     emit('import-click');
@@ -166,11 +235,16 @@ function openFilePicker() {
     fileInputRef.value?.click();
 }
 
+function onEditClick(dish) {
+    captureScrollPosition();
+    emit('edit', dish);
+}
+
 defineExpose({ openFilePicker });
 </script>
 
 <template>
-    <div class="flex min-h-0 flex-1 flex-col">
+    <div class="flex h-full min-h-0 flex-col">
         <div class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-center justify-between gap-3">
                 <div>
@@ -331,7 +405,7 @@ defineExpose({ openFilePicker });
                                 <button
                                     type="button"
                                     class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary"
-                                    @click="emit('edit', dish)"
+                                    @click="onEditClick(dish)"
                                 >
                                     Редактировать
                                 </button>

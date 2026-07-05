@@ -20,7 +20,7 @@ class OrderReviewStepHandler
     public function __construct(
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly OrderReviewAuthorizationService $orderReviewAuthorizationService,
-        private readonly OrderStatusResolver $orderStatusResolver,
+        private readonly OrderReviewUpdateFactory $orderReviewUpdateFactory,
         private readonly OrderReviewCompletionService $orderReviewCompletionService,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
     ) {}
@@ -40,7 +40,7 @@ class OrderReviewStepHandler
 
             return $this->foodOrderWriteRepository->update(
                 $order,
-                $step->buildApprovalUpdate($order, $admin->max_user_id, $this->orderStatusResolver),
+                $this->orderReviewUpdateFactory->buildApprovalUpdate($step, $order, $admin->max_user_id),
             );
         });
 
@@ -61,7 +61,7 @@ class OrderReviewStepHandler
 
             return $this->foodOrderWriteRepository->update(
                 $order,
-                $step->buildRejectionUpdate($order, $admin->max_user_id, $comment, $this->orderStatusResolver),
+                $this->orderReviewUpdateFactory->buildRejectionUpdate($step, $order, $admin->max_user_id, $comment),
             );
         });
 

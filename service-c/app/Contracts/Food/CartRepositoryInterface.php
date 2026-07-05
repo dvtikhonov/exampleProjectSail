@@ -18,9 +18,18 @@ interface CartRepositoryInterface
     public function findDraftByMaxUserId(int $maxUserId): ?Cart;
 
     /**
+     * Черновик корзины с блокировкой строки для обновления (SELECT … FOR UPDATE).
+     */
+    public function findDraftForUpdate(int $maxUserId): ?Cart;
+
+    /**
      * @param  array<string, mixed>  $attributes
      */
     public function createDraft(array $attributes): Cart;
+
+    public function updateDeliveryAddress(Cart $cart, string $deliveryAddress): void;
+
+    public function markAsSubmitted(Cart $cart): void;
 
     public function refreshForDto(Cart $cart): Cart;
 

@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
-use App\Contracts\Food\DishImageUrlResolverInterface;
+use App\Contracts\Food\CartRepositoryInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Food\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\DTO\Food\OrderDto;
-use App\Enums\Food\CartStatus;
 use App\Enums\Food\OrderReviewStatus;
 use App\Enums\Food\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Cart;
 use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
@@ -25,9 +23,10 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
 {
     public function __construct(
         private readonly FoodMoneyFormatter $moneyFormatter,
-        private readonly DishImageUrlResolverInterface $imageUrlResolver,
+        private readonly OrderItemsSnapshotBuilder $orderItemsSnapshotBuilder,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
+        private readonly CartRepositoryInterface $cartRepository,
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
     ) {}
@@ -40,12 +39,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
     public function submit(MaxUser $maxUser): OrderDto
     {
         $orderDto = DB::transaction(function () use ($maxUser): OrderDto {
-            $cart = Cart::query()
-                ->where('max_user_id', $maxUser->max_user_id)
-                ->where('status', CartStatus::Draft)
-                ->with(['restaurant', 'items.dish'])
-                ->lockForUpdate()
-                ->first();
+            $cart = $this->cartRepository->findDraftForUpdate($maxUser->max_user_id);
 
             if ($cart === null || $cart->items->isEmpty()) {
                 throw new FoodDomainException('Cart is empty.');
@@ -55,28 +49,12 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 throw new FoodDomainException('Укажите адрес доставки.');
             }
 
-            $itemsSnapshot = [];
-            $itemsTotal = 0.0;
-
-            foreach ($cart->items as $item) {
-                $unitPrice = (float) $item->dish->price;
-                $lineTotal = $unitPrice * $item->quantity;
-                $itemsTotal += $lineTotal;
-
-                $itemsSnapshot[] = [
-                    'dish_id' => $item->dish_id,
-                    'dish_name' => $item->dish->name,
-                    'unit_price' => $this->moneyFormatter->format($unitPrice),
-                    'quantity' => $item->quantity,
-                    'line_total' => $this->moneyFormatter->format($lineTotal),
-                    'image_url' => $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
-                ];
-            }
+            $snapshot = $this->orderItemsSnapshotBuilder->build($cart->items);
 
             $totals = $this->cartTotalsCalculator->calculate(
                 restaurantId: $cart->restaurant_id,
                 maxUser: $maxUser,
-                itemsTotal: $itemsTotal,
+                itemsTotal: $snapshot->itemsTotal,
             );
 
             $formattedItemsTotal = $this->moneyFormatter->format($totals->itemsTotal);
@@ -99,10 +77,10 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 'delivery_address' => $cart->delivery_address,
                 'delivery_cost' => $formattedDeliveryCost,
                 'items_total' => $formattedItemsTotal,
-                'items_snapshot' => $itemsSnapshot,
+                'items_snapshot' => $snapshot->itemsSnapshot,
             ]);
 
-            $cart->update(['status' => CartStatus::Submitted]);
+            $this->cartRepository->markAsSubmitted($cart);
 
             return new OrderDto(
                 id: $order->id,
@@ -114,7 +92,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 deliveryCost: $formattedDeliveryCost,
                 total: $formattedTotal,
                 deliveryAddress: $cart->delivery_address,
-                itemsSnapshot: $itemsSnapshot,
+                itemsSnapshot: $snapshot->itemsSnapshot,
                 createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             );
         });

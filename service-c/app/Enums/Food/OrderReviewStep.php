@@ -6,7 +6,6 @@ namespace App\Enums\Food;
 
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\FoodOrder;
-use App\Services\Food\OrderStatusResolver;
 
 /**
  * Конфигурация этапа проверки заказа: поля БД, роль администратора и область отклонения.
@@ -92,68 +91,6 @@ enum OrderReviewStep: string
                 'Order is not awaiting payment review.',
             ),
             self::Composition => $this->assertCompositionPending($order),
-        };
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function buildApprovalUpdate(
-        FoodOrder $order,
-        int $adminId,
-        OrderStatusResolver $orderStatusResolver,
-    ): array {
-        $stepStatus = OrderReviewStatus::Approved;
-
-        return [
-            $this->statusField() => $stepStatus,
-            $this->reviewedByField() => $adminId,
-            $this->reviewedAtField() => now(),
-            'status' => $this->resolveOrderStatus($order, $stepStatus, $orderStatusResolver),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function buildRejectionUpdate(
-        FoodOrder $order,
-        int $adminId,
-        string $comment,
-        OrderStatusResolver $orderStatusResolver,
-    ): array {
-        $stepStatus = OrderReviewStatus::Rejected;
-
-        return [
-            $this->statusField() => $stepStatus,
-            $this->rejectionCommentField() => $comment,
-            $this->reviewedByField() => $adminId,
-            $this->reviewedAtField() => now(),
-            'status' => $this->resolveOrderStatus($order, $stepStatus, $orderStatusResolver),
-        ];
-    }
-
-    private function resolveOrderStatus(
-        FoodOrder $order,
-        OrderReviewStatus $stepStatus,
-        OrderStatusResolver $orderStatusResolver,
-    ): OrderStatus {
-        return match ($this) {
-            self::Address => $orderStatusResolver->resolve(
-                $stepStatus,
-                $order->composition_review_status,
-                $order->payment_review_status,
-            ),
-            self::Composition => $orderStatusResolver->resolve(
-                $order->address_review_status,
-                $stepStatus,
-                $order->payment_review_status,
-            ),
-            self::Payment => $orderStatusResolver->resolve(
-                $order->address_review_status,
-                $order->composition_review_status,
-                $stepStatus,
-            ),
         };
     }
 

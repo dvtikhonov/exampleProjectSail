@@ -29,9 +29,38 @@ class EloquentCartRepository implements CartRepositoryInterface
     /**
      * {@inheritDoc}
      */
+    public function findDraftForUpdate(int $maxUserId): ?Cart
+    {
+        return Cart::query()
+            ->where('max_user_id', $maxUserId)
+            ->where('status', CartStatus::Draft)
+            ->with(['restaurant', 'items.dish'])
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function createDraft(array $attributes): Cart
     {
         return Cart::query()->create($attributes);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateDeliveryAddress(Cart $cart, string $deliveryAddress): void
+    {
+        $cart->update(['delivery_address' => $deliveryAddress]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markAsSubmitted(Cart $cart): void
+    {
+        $cart->update(['status' => CartStatus::Submitted]);
     }
 
     /**

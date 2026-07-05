@@ -272,39 +272,41 @@ onMounted(async () => {
 
         <template v-else>
             <template v-if="hasAdminRoles">
-                <header
-                    v-if="showAdminSectionSwitcher"
-                    class="sticky top-0 z-20 border-b border-gray-200 bg-white safe-area-top"
-                >
-                    <nav class="flex" aria-label="Разделы админки">
-                        <button
-                            type="button"
-                            class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
-                            :class="
-                                adminSection === ADMIN_SECTIONS.orders
-                                    ? 'border-max-primary text-max-primary'
-                                    : 'border-transparent text-max-muted hover:text-gray-700'
-                            "
-                            @click="handleAdminSectionChange(ADMIN_SECTIONS.orders)"
-                        >
-                            Заказы
-                        </button>
-                        <button
-                            type="button"
-                            class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
-                            :class="
-                                adminSection === ADMIN_SECTIONS.menu
-                                    ? 'border-max-primary text-max-primary'
-                                    : 'border-transparent text-max-muted hover:text-gray-700'
-                            "
-                            @click="handleAdminSectionChange(ADMIN_SECTIONS.menu)"
-                        >
-                            Меню
-                        </button>
-                    </nav>
-                </header>
+                <div class="flex h-dvh flex-col overflow-hidden">
+                    <header
+                        v-if="showAdminSectionSwitcher"
+                        class="z-20 shrink-0 border-b border-gray-200 bg-white safe-area-top"
+                    >
+                        <nav class="flex" aria-label="Разделы админки">
+                            <button
+                                type="button"
+                                class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
+                                :class="
+                                    adminSection === ADMIN_SECTIONS.orders
+                                        ? 'border-max-primary text-max-primary'
+                                        : 'border-transparent text-max-muted hover:text-gray-700'
+                                "
+                                @click="handleAdminSectionChange(ADMIN_SECTIONS.orders)"
+                            >
+                                Заказы
+                            </button>
+                            <button
+                                type="button"
+                                class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
+                                :class="
+                                    adminSection === ADMIN_SECTIONS.menu
+                                        ? 'border-max-primary text-max-primary'
+                                        : 'border-transparent text-max-muted hover:text-gray-700'
+                                "
+                                @click="handleAdminSectionChange(ADMIN_SECTIONS.menu)"
+                            >
+                                Меню
+                            </button>
+                        </nav>
+                    </header>
 
-                <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
+                    <div class="min-h-0 flex-1 overflow-hidden">
+                        <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
                     <AdminDishFormPage
                         v-if="dishAdminView === ADMIN_DISH_VIEWS.form"
                         :dish="editingDish"
@@ -320,11 +322,9 @@ onMounted(async () => {
                         @submit="handleDishFormSubmit"
                     />
 
-                    <div
-                        v-else
-                        class="flex min-h-dvh flex-col"
-                    >
+                    <KeepAlive>
                         <AdminDishListPage
+                            v-if="dishAdminView === ADMIN_DISH_VIEWS.list"
                             ref="dishListPageRef"
                             :dishes="dishes"
                             :loading="dishesLoading"
@@ -350,10 +350,10 @@ onMounted(async () => {
                             @import-click="onDishImportClick"
                             @import="onDishImportFile"
                         />
-                    </div>
-                </template>
+                        </KeepAlive>
+                        </template>
 
-                <template v-else-if="hasOrderReviewRoles">
+                        <template v-else-if="hasOrderReviewRoles">
                     <AdminOrderDetailPage
                         v-if="adminView === ADMIN_VIEWS.detail && selectedAdminOrder"
                         :order="adminOrderDetail ?? selectedAdminOrder"
@@ -384,8 +384,10 @@ onMounted(async () => {
                         @change-scope="handleAdminScopeChange"
                         @select-order="openAdminOrder"
                         @refresh="loadAdminOrders({ refreshing: true })"
-                    />
-                </template>
+                        />
+                        </template>
+                    </div>
+                </div>
             </template>
 
             <template v-else>

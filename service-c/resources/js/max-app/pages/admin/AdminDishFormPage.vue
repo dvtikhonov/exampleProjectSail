@@ -389,7 +389,7 @@ function handleSubmit() {
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col">
+    <div class="flex h-full min-h-0 flex-col">
         <header class="sticky top-0 z-10 border-b border-gray-200 bg-white safe-area-top">
             <div class="flex items-center gap-3 px-4 py-3">
                 <button
@@ -409,7 +409,7 @@ function handleSubmit() {
             </div>
         </header>
 
-        <main class="flex-1 px-4 py-4">
+        <main class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
