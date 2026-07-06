@@ -234,25 +234,27 @@ function onCellClick(dishId, date) {
             </div>
         </div>
 
-        <div class="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-3">
-            <div
-                v-if="!filtersReady"
-                class="flex h-full items-center justify-center py-16 text-center text-sm text-max-muted"
-            >
+        <div
+            v-if="!filtersReady"
+            class="px-4 pb-4 pt-3 text-center text-sm text-max-muted"
+        >
+            <div class="flex items-center justify-center py-16">
                 Выберите ресторан и категорию для просмотра графика
             </div>
+        </div>
 
-            <div
-                v-else-if="loading && dishes.length === 0"
-                class="flex items-center justify-center py-16"
-            >
-                <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
-            </div>
+        <div
+            v-else-if="loading && dishes.length === 0"
+            class="flex flex-1 items-center justify-center px-4 pb-4 pt-3"
+        >
+            <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
+        </div>
 
-            <div
-                v-else-if="error"
-                class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-            >
+        <div
+            v-else-if="error"
+            class="px-4 pb-4 pt-3"
+        >
+            <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {{ error }}
                 <button
                     type="button"
@@ -262,31 +264,33 @@ function onCellClick(dishId, date) {
                     Повторить
                 </button>
             </div>
+        </div>
 
-            <div
-                v-else-if="dishes.length === 0 && filterNameSearch.trim()"
-                class="py-16 text-center text-sm text-max-muted"
-            >
-                По запросу «{{ filterNameSearch.trim() }}» ничего не найдено
+        <div
+            v-else-if="dishes.length === 0"
+            class="px-4 pb-4 pt-3 text-center text-sm text-max-muted"
+        >
+            <div class="py-16">
+                <template v-if="filterNameSearch.trim()">
+                    По запросу «{{ filterNameSearch.trim() }}» ничего не найдено
+                </template>
+                <template v-else>
+                    Блюда не найдены
+                </template>
             </div>
+        </div>
 
-            <div
-                v-else-if="dishes.length === 0"
-                class="py-16 text-center text-sm text-max-muted"
-            >
-                Блюда не найдены
-            </div>
-
-            <div
-                v-else
-                class="h-full overflow-auto rounded-2xl border border-gray-100 bg-white shadow-sm"
-            >
-                <table class="min-w-full border-collapse text-sm">
+        <div
+            v-else
+            class="min-h-0 flex-1 overflow-auto px-4 pb-4 pt-3 touch-pan-x touch-pan-y"
+        >
+            <div class="w-max rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <table class="border-collapse text-sm">
                     <thead class="sticky top-0 z-10 bg-gray-50">
                         <tr>
                             <th
                                 scope="col"
-                                class="sticky left-0 z-20 min-w-[9rem] border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-700"
+                                class="sticky left-0 z-20 w-[9rem] border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-700"
                             >
                                 Блюдо
                             </th>
@@ -294,7 +298,7 @@ function onCellClick(dishId, date) {
                                 v-for="date in visibleDates"
                                 :key="date"
                                 scope="col"
-                                class="min-w-[3.25rem] border-b border-gray-200 px-1 py-2 text-center text-xs font-medium text-gray-700"
+                                class="w-[3.25rem] whitespace-nowrap border-b border-gray-200 px-1 py-2 text-center text-xs font-medium text-gray-700"
                             >
                                 <span class="block leading-tight">{{ formatDateLabel(date) }}</span>
                                 <span class="block text-[10px] font-normal uppercase leading-tight text-max-muted">
@@ -311,14 +315,14 @@ function onCellClick(dishId, date) {
                         >
                             <th
                                 scope="row"
-                                class="sticky left-0 z-10 border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
+                                class="sticky left-0 z-10 w-[9rem] border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
                             >
                                 <span class="line-clamp-2">{{ dish.name }}</span>
                             </th>
                             <td
                                 v-for="date in visibleDates"
                                 :key="`${dish.id}-${date}`"
-                                class="px-1 py-2 text-center"
+                                class="w-[3.25rem] px-1 py-2 text-center"
                             >
                                 <button
                                     type="button"
