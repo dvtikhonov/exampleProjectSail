@@ -99,3 +99,15 @@ export function closeMaxApp() {
 export function getPlatform() {
     return getWebApp()?.platform ?? 'web';
 }
+
+/**
+ * Отключает системные вертикальные свайпы MAX (закрытие/сворачивание mini-app),
+ * чтобы жесты доходили до внутренних scroll-контейнеров.
+ */
+export function disableVerticalSwipes() {
+    const webApp = getWebApp();
+
+    if (typeof webApp?.disableVerticalSwipes === 'function') {
+        webApp.disableVerticalSwipes();
+    }
+}

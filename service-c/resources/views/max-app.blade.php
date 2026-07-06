@@ -26,6 +26,11 @@
                 function invokeReady(job) {
                     window.WebApp.ready();
                     window.__MAX_SHELL_READY_SENT__ = true;
+
+                    if (typeof window.WebApp.disableVerticalSwipes === 'function') {
+                        window.WebApp.disableVerticalSwipes();
+                    }
+
                     activeReadyJob = null;
                 }
 
