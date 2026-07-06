@@ -16,8 +16,21 @@
 
 body.max-app-body {
     margin: 0;
+    height: 100dvh;
+    overflow: hidden;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+}
+
+#max-app {
+    height: 100dvh;
+    overflow: hidden;
+}
+
+.max-app-scroll-panel {
+    -webkit-overflow-scrolling: touch;
+    overflow: auto;
+    touch-action: pan-x pan-y;
 }
 
 .safe-area-top {
