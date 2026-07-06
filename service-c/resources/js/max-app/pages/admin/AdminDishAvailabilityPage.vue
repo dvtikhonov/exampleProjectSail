@@ -2,8 +2,9 @@
 /**
  * График доступности блюд: таблица дата × блюдо с редактированием будущих дат.
  */
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
+import { useScrollViewport } from '../../composables/useScrollViewport';
 
 const props = defineProps({
     dishes: {
@@ -80,6 +81,9 @@ const emit = defineEmits([
     'save',
     'refresh',
 ]);
+
+const gridViewportRef = ref(null);
+const { refreshViewport } = useScrollViewport(gridViewportRef, { autoFocus: true });
 
 const restaurantSelectOptions = computed(() => [
     { value: '', label: 'Выберите ресторан', disabled: true },
@@ -167,11 +171,30 @@ function onCellClick(dishId, date) {
 
     emit('toggle', dishId, date);
 }
+
+/**
+ * @param {FocusEvent} event
+ */
+function onGridFocusIn(event) {
+    const target = event.target;
+
+    if (target instanceof HTMLButtonElement) {
+        target.blur();
+        gridViewportRef.value?.focus({ preventScroll: true });
+    }
+}
+
+watch(
+    () => [props.dishes.length, props.loading, props.filtersReady, visibleDates.value.length],
+    () => {
+        refreshViewport();
+    },
+);
 </script>
 
 <template>
-    <div class="flex flex-1 flex-col">
-        <div class="space-y-3 border-b border-gray-100 px-4 py-3">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h1 class="text-lg font-semibold text-gray-900">График доступности</h1>
@@ -236,23 +259,21 @@ function onCellClick(dishId, date) {
 
         <div
             v-if="!filtersReady"
-            class="px-4 pb-8 pt-3 text-center text-sm text-max-muted"
+            class="px-4 py-16 text-center text-sm text-max-muted"
         >
-            <div class="flex items-center justify-center py-16">
-                Выберите ресторан и категорию для просмотра графика
-            </div>
+            Выберите ресторан и категорию для просмотра графика
         </div>
 
         <div
             v-else-if="loading && dishes.length === 0"
-            class="flex items-center justify-center px-4 py-16"
+            class="flex flex-1 items-center justify-center"
         >
             <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
         </div>
 
         <div
             v-else-if="error"
-            class="px-4 pb-8 pt-3"
+            class="px-4 py-3"
         >
             <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {{ error }}
@@ -268,80 +289,83 @@ function onCellClick(dishId, date) {
 
         <div
             v-else-if="dishes.length === 0"
-            class="px-4 pb-8 pt-3 text-center text-sm text-max-muted"
+            class="px-4 py-16 text-center text-sm text-max-muted"
         >
-            <div class="py-16">
-                <template v-if="filterNameSearch.trim()">
-                    По запросу «{{ filterNameSearch.trim() }}» ничего не найдено
-                </template>
-                <template v-else>
-                    Блюда не найдены
-                </template>
-            </div>
+            <template v-if="filterNameSearch.trim()">
+                По запросу «{{ filterNameSearch.trim() }}» ничего не найдено
+            </template>
+            <template v-else>
+                Блюда не найдены
+            </template>
         </div>
 
         <div
             v-else
-            class="px-4 pb-8 pt-3"
+            id="admin-dish-schedule-scroll"
+            ref="gridViewportRef"
+            class="max-app-scroll-viewport mx-4 mb-4 mt-3 rounded-2xl border border-gray-100 bg-white shadow-sm"
+            tabindex="0"
+            role="region"
+            aria-label="Таблица графика доступности. Используйте свайп или стрелки для прокрутки."
+            @focusin="onGridFocusIn"
         >
-            <div class="max-app-horizontal-scroll rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <table class="w-max border-collapse text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th
-                                scope="col"
-                                class="w-[9rem] border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-700"
-                            >
-                                Блюдо
-                            </th>
-                            <th
-                                v-for="date in visibleDates"
-                                :key="date"
-                                scope="col"
-                                class="w-[3.25rem] whitespace-nowrap border-b border-gray-200 px-1 py-2 text-center text-xs font-medium text-gray-700"
-                            >
-                                <span class="block leading-tight">{{ formatDateLabel(date) }}</span>
-                                <span class="block text-[10px] font-normal uppercase leading-tight text-max-muted">
-                                    {{ formatWeekdayLabel(date) }}
-                                </span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="dish in dishes"
-                            :key="dish.id"
-                            class="border-b border-gray-100 last:border-b-0"
+            <table class="schedule-grid-table w-max text-sm">
+                <thead>
+                    <tr>
+                        <th
+                            scope="col"
+                            class="sticky left-0 top-0 z-30 w-[9rem] border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-700"
                         >
-                            <th
-                                scope="row"
-                                class="w-[9rem] border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
+                            Блюдо
+                        </th>
+                        <th
+                            v-for="date in visibleDates"
+                            :key="date"
+                            scope="col"
+                            class="sticky top-0 z-20 w-[3.25rem] whitespace-nowrap border-b border-gray-200 bg-gray-50 px-1 py-2 text-center text-xs font-medium text-gray-700"
+                        >
+                            <span class="block leading-tight">{{ formatDateLabel(date) }}</span>
+                            <span class="block text-[10px] font-normal uppercase leading-tight text-max-muted">
+                                {{ formatWeekdayLabel(date) }}
+                            </span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr
+                        v-for="dish in dishes"
+                        :key="dish.id"
+                        class="border-b border-gray-100 last:border-b-0"
+                    >
+                        <th
+                            scope="row"
+                            class="sticky left-0 z-10 w-[9rem] border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
+                        >
+                            <span class="line-clamp-2">{{ dish.name }}</span>
+                        </th>
+                        <td
+                            v-for="date in visibleDates"
+                            :key="`${dish.id}-${date}`"
+                            class="w-[3.25rem] bg-white px-1 py-2 text-center"
+                        >
+                            <button
+                                type="button"
+                                tabindex="-1"
+                                class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg border transition active:scale-95"
+                                :class="
+                                    isAvailable(dish.id, date)
+                                        ? 'border-green-300 bg-green-50 text-green-700'
+                                        : 'border-gray-200 bg-white text-gray-300 hover:border-max-primary/30'
+                                "
+                                :aria-label="`${isAvailable(dish.id, date) ? 'Доступно' : 'Недоступно'}: ${dish.name}, ${date}`"
+                                @click="onCellClick(dish.id, date)"
                             >
-                                <span class="line-clamp-2">{{ dish.name }}</span>
-                            </th>
-                            <td
-                                v-for="date in visibleDates"
-                                :key="`${dish.id}-${date}`"
-                                class="w-[3.25rem] px-1 py-2 text-center"
-                            >
-                                <button
-                                    type="button"
-                                    class="mx-auto flex h-8 w-8 items-center justify-center rounded-lg border transition active:scale-95"
-                                    :class="
-                                        isAvailable(dish.id, date)
-                                            ? 'border-green-300 bg-green-50 text-green-700'
-                                            : 'border-gray-200 bg-white text-gray-300 hover:border-max-primary/30'
-                                    "
-                                    :aria-label="`${isAvailable(dish.id, date) ? 'Доступно' : 'Недоступно'}: ${dish.name}, ${date}`"
-                                    @click="onCellClick(dish.id, date)"
-                                >
-                                    <span v-if="isAvailable(dish.id, date)" aria-hidden="true">✓</span>
-                                </button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                                <span v-if="isAvailable(dish.id, date)" aria-hidden="true">✓</span>
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </template>

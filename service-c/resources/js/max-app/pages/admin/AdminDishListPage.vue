@@ -5,6 +5,7 @@
 import { computed, nextTick, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
 import DishImage from '../../components/DishImage.vue';
+import { useScrollViewport } from '../../composables/useScrollViewport';
 
 const props = defineProps({
     dishes: {
@@ -78,6 +79,13 @@ const emit = defineEmits([
 ]);
 
 const fileInputRef = ref(null);
+const listViewportRef = ref(null);
+
+const {
+    refreshViewport,
+    readScrollTop,
+    applyScrollTop,
+} = useScrollViewport(listViewportRef, { enableTouchScroll: true });
 
 const pullDistance = ref(0);
 const isPulling = ref(false);
@@ -106,12 +114,8 @@ const categorySelectOptions = computed(() => [
     })),
 ]);
 
-function readWindowScrollTop() {
-    return window.scrollY || document.documentElement.scrollTop || 0;
-}
-
 function onTouchStart(event) {
-    if (readWindowScrollTop() > 0 || props.loading || props.refreshing) {
+    if (readScrollTop() > 0 || props.loading || props.refreshing) {
         isPulling.value = false;
 
         return;
@@ -146,22 +150,14 @@ function onTouchEnd() {
     pullDistance.value = 0;
 }
 
-function readEffectiveScrollTop() {
-    return readWindowScrollTop();
-}
-
-function applyEffectiveScrollTop(value) {
-    window.scrollTo(0, value);
-}
-
 function captureScrollPosition() {
-    savedScrollTop = readWindowScrollTop();
+    savedScrollTop = readScrollTop();
 }
 
 function restoreScrollPosition() {
     const apply = () => {
         if (savedScrollTop > 0) {
-            applyEffectiveScrollTop(savedScrollTop);
+            applyScrollTop(savedScrollTop);
         }
     };
 
@@ -178,25 +174,29 @@ function restoreScrollPosition() {
 let pullListenersBound = false;
 
 function bindPullToRefreshListeners() {
-    if (pullListenersBound) {
+    const element = listViewportRef.value;
+
+    if (pullListenersBound || !element) {
         return;
     }
 
     pullListenersBound = true;
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: true });
+    element.addEventListener('touchend', onTouchEnd, { passive: true });
 }
 
 function unbindPullToRefreshListeners() {
-    if (!pullListenersBound) {
+    const element = listViewportRef.value;
+
+    if (!pullListenersBound || !element) {
         return;
     }
 
     pullListenersBound = false;
-    window.removeEventListener('touchstart', onTouchStart);
-    window.removeEventListener('touchmove', onTouchMove);
-    window.removeEventListener('touchend', onTouchEnd);
+    element.removeEventListener('touchstart', onTouchStart);
+    element.removeEventListener('touchmove', onTouchMove);
+    element.removeEventListener('touchend', onTouchEnd);
 }
 
 onUnmounted(() => {
@@ -204,6 +204,7 @@ onUnmounted(() => {
 });
 
 onActivated(() => {
+    refreshViewport();
     bindPullToRefreshListeners();
     restoreScrollPosition();
 });
@@ -213,6 +214,18 @@ onDeactivated(() => {
     isPulling.value = false;
     pullDistance.value = 0;
 });
+
+watch(listViewportRef, () => {
+    bindPullToRefreshListeners();
+    refreshViewport();
+});
+
+watch(
+    () => [props.loading, props.refreshing, props.dishes.length],
+    () => {
+        refreshViewport();
+    },
+);
 
 watch(
     () => [props.loading, props.refreshing],
@@ -254,8 +267,8 @@ defineExpose({ openFilePicker });
 </script>
 
 <template>
-    <div class="flex flex-1 flex-col">
-        <div class="space-y-3 border-b border-gray-100 px-4 py-3">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <h1 class="text-lg font-semibold text-gray-900">Меню</h1>
@@ -339,7 +352,11 @@ defineExpose({ openFilePicker });
 
         <div
             id="admin-dish-list-scroll"
-            class="px-4 pb-8"
+            ref="listViewportRef"
+            class="max-app-scroll-viewport px-4 pb-4"
+            tabindex="0"
+            role="region"
+            aria-label="Список блюд"
         >
             <div
                 v-if="deleteError"
