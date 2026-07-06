@@ -26,10 +26,23 @@ body.max-app-body {
     min-height: 100dvh;
 }
 
-.max-app-horizontal-scroll {
+.max-app-scroll-viewport {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
     -webkit-overflow-scrolling: touch;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
+    overscroll-behavior: contain;
+    touch-action: none;
+    outline: none;
+}
+
+.max-app-scroll-viewport:focus {
+    outline: none;
+}
+
+.schedule-grid-table {
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .safe-area-top {
