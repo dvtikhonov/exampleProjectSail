@@ -2,7 +2,7 @@
 /**
  * Список блюд для администратора: фильтры, добавление, редактирование, удаление.
  */
-import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
 import DishImage from '../../components/DishImage.vue';
 
@@ -82,7 +82,6 @@ const fileInputRef = ref(null);
 const pullDistance = ref(0);
 const isPulling = ref(false);
 let touchStartY = 0;
-let scrollContainer = null;
 /** Сохранённая позиция прокрутки при переходе к форме редактирования */
 let savedScrollTop = 0;
 
@@ -107,8 +106,12 @@ const categorySelectOptions = computed(() => [
     })),
 ]);
 
+function readWindowScrollTop() {
+    return window.scrollY || document.documentElement.scrollTop || 0;
+}
+
 function onTouchStart(event) {
-    if (!scrollContainer || scrollContainer.scrollTop > 0 || props.loading || props.refreshing) {
+    if (readWindowScrollTop() > 0 || props.loading || props.refreshing) {
         isPulling.value = false;
 
         return;
@@ -144,38 +147,15 @@ function onTouchEnd() {
 }
 
 function readEffectiveScrollTop() {
-    const container = scrollContainer ?? document.getElementById('admin-dish-list-scroll');
-
-    if (!container) {
-        return window.scrollY || document.documentElement.scrollTop || 0;
-    }
-
-    if (container.scrollHeight > container.clientHeight + 1) {
-        return container.scrollTop;
-    }
-
-    return window.scrollY || document.documentElement.scrollTop || 0;
+    return readWindowScrollTop();
 }
 
 function applyEffectiveScrollTop(value) {
-    const container = scrollContainer ?? document.getElementById('admin-dish-list-scroll');
-
-    if (container && container.scrollHeight > container.clientHeight + 1) {
-        container.scrollTop = value;
-
-        return;
-    }
-
     window.scrollTo(0, value);
 }
 
 function captureScrollPosition() {
-    const container = scrollContainer ?? document.getElementById('admin-dish-list-scroll');
-    const canMeasureScroll = (container?.clientHeight ?? 0) > 0;
-
-    if (canMeasureScroll) {
-        savedScrollTop = readEffectiveScrollTop();
-    }
+    savedScrollTop = readWindowScrollTop();
 }
 
 function restoreScrollPosition() {
@@ -194,16 +174,44 @@ function restoreScrollPosition() {
     });
 }
 
-onMounted(() => {
-    scrollContainer = document.getElementById('admin-dish-list-scroll');
-});
+/** @type {boolean} */
+let pullListenersBound = false;
+
+function bindPullToRefreshListeners() {
+    if (pullListenersBound) {
+        return;
+    }
+
+    pullListenersBound = true;
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+}
+
+function unbindPullToRefreshListeners() {
+    if (!pullListenersBound) {
+        return;
+    }
+
+    pullListenersBound = false;
+    window.removeEventListener('touchstart', onTouchStart);
+    window.removeEventListener('touchmove', onTouchMove);
+    window.removeEventListener('touchend', onTouchEnd);
+}
 
 onUnmounted(() => {
-    scrollContainer = null;
+    unbindPullToRefreshListeners();
 });
 
 onActivated(() => {
+    bindPullToRefreshListeners();
     restoreScrollPosition();
+});
+
+onDeactivated(() => {
+    unbindPullToRefreshListeners();
+    isPulling.value = false;
+    pullDistance.value = 0;
 });
 
 watch(
@@ -246,8 +254,8 @@ defineExpose({ openFilePicker });
 </script>
 
 <template>
-    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3">
+    <div class="flex flex-1 flex-col">
+        <div class="space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <h1 class="text-lg font-semibold text-gray-900">Меню</h1>
@@ -331,10 +339,7 @@ defineExpose({ openFilePicker });
 
         <div
             id="admin-dish-list-scroll"
-            class="min-h-0 flex-1 overflow-y-auto px-4 pb-4"
-            @touchstart.passive="onTouchStart"
-            @touchmove.passive="onTouchMove"
-            @touchend="onTouchEnd"
+            class="px-4 pb-8"
         >
             <div
                 v-if="deleteError"

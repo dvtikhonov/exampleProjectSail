@@ -5,8 +5,5 @@
 import '../../css/max-app.css';
 import { createApp } from 'vue';
 import App from './App.vue';
-import { disableVerticalSwipes } from './bridge/maxBridge';
-
-disableVerticalSwipes();
 
 createApp(App).mount('#max-app');

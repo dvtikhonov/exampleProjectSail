@@ -9,6 +9,7 @@
  * вложенные ref (auth.authLoading) в template не разворачиваются Vue.
  */
 import { onMounted, ref } from 'vue';
+import { disableVerticalSwipes } from './bridge/maxBridge';
 import { useAdminFlow } from './composables/useAdminFlow';
 import { useAuth } from './composables/useAuth';
 import { useCart } from './composables/useCart';
@@ -218,6 +219,8 @@ async function bootstrapApp() {
     await initAuth();
 
     if (!authError.value) {
+        disableVerticalSwipes();
+
         if (hasAdminRoles.value) {
             if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 initDishAdminSession();
@@ -328,7 +331,7 @@ onMounted(async () => {
 
         <template v-else>
             <template v-if="hasAdminRoles">
-                <div class="flex h-dvh flex-col overflow-hidden">
+                <div class="flex min-h-dvh flex-col">
                     <header
                         v-if="showAdminSectionSwitcher"
                         class="z-20 shrink-0 border-b border-gray-200 bg-white safe-area-top"
@@ -361,9 +364,9 @@ onMounted(async () => {
                         </nav>
                     </header>
 
-                    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
                     <div class="flex min-h-0 flex-1 flex-col">
+                        <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
+                    <div class="flex flex-1 flex-col">
                     <nav
                         v-if="dishAdminView !== ADMIN_DISH_VIEWS.form"
                         class="z-10 shrink-0 border-b border-gray-100 bg-white"
@@ -416,7 +419,6 @@ onMounted(async () => {
                         <AdminDishListPage
                             v-if="dishAdminView === ADMIN_DISH_VIEWS.list"
                             ref="dishListPageRef"
-                            class="min-h-0 flex-1"
                             :dishes="dishes"
                             :loading="dishesLoading"
                             :error="dishesError"
@@ -445,7 +447,6 @@ onMounted(async () => {
 
                     <AdminDishAvailabilityPage
                         v-if="dishAdminView === ADMIN_DISH_VIEWS.schedule"
-                        class="min-h-0 flex-1"
                         :dishes="scheduleFilteredDishes"
                         :dates="scheduleDates"
                         :editable-from="scheduleEditableFrom"
