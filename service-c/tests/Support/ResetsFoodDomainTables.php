@@ -8,6 +8,7 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\CustomerCategory;
 use App\Models\Dish;
+use App\Models\DishAvailabilityDate;
 use App\Models\FoodOrder;
 use App\Models\FoodOrderAdmin;
 use App\Models\MaxUser;
@@ -24,6 +25,7 @@ trait ResetsFoodDomainTables
         FoodOrderAdmin::query()->delete();
         CartItem::query()->delete();
         Cart::query()->delete();
+        DishAvailabilityDate::query()->delete();
         Dish::query()->forceDelete();
         MenuCategory::query()->forceDelete();
         RestaurantCategoryDeliveryTier::query()->delete();

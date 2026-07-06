@@ -14,6 +14,8 @@ import { useAuth } from './composables/useAuth';
 import { useCart } from './composables/useCart';
 import { useClientNavigation } from './composables/useClientNavigation';
 import { useDishAdmin } from './composables/useDishAdmin';
+import { useDishAdminFilters } from './composables/useDishAdminFilters';
+import { useDishAvailabilitySchedule } from './composables/useDishAvailabilitySchedule';
 import { createChatMessagesReadHandler, useMaxBackButton } from './composables/useMaxBackButton';
 import { useMyOrders } from './composables/useMyOrders';
 import { useRestaurantsMenu } from './composables/useRestaurantsMenu';
@@ -25,6 +27,7 @@ import OrderDetailPage from './pages/OrderDetailPage.vue';
 import OrderListPage from './pages/OrderListPage.vue';
 import RestaurantList from './pages/RestaurantList.vue';
 import AdminDishFormPage from './pages/admin/AdminDishFormPage.vue';
+import AdminDishAvailabilityPage from './pages/admin/AdminDishAvailabilityPage.vue';
 import AdminDishListPage from './pages/admin/AdminDishListPage.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
@@ -46,7 +49,8 @@ const {
 } = useAuth();
 
 const admin = useAdminFlow(adminScope);
-const dishAdmin = useDishAdmin();
+const dishFilters = useDishAdminFilters();
+const dishAdmin = useDishAdmin({ filters: dishFilters });
 const {
     adminView,
     adminOrders,
@@ -80,7 +84,7 @@ const {
     dishesRefreshing,
     dishesError,
     filterRestaurantId,
-    filterCategoryName,
+    filterCategoryId,
     filterNameSearch,
     formRestaurantId,
     restaurantOptions,
@@ -102,6 +106,8 @@ const {
     handleFilterNameSearchChange,
     openCreateForm,
     openEditForm,
+    openDishListView,
+    openDishScheduleView,
     closeDishForm,
     handleFormRestaurantChange,
     submitDishForm,
@@ -109,6 +115,28 @@ const {
     handleImportClick,
     handleImportFile,
 } = dishAdmin;
+
+const dishSchedule = useDishAvailabilitySchedule({ categories: dishAdmin.categories, filters: dishFilters });
+const {
+    categoryOptions: scheduleCategoryOptions,
+    filteredDishes: scheduleFilteredDishes,
+    dates: scheduleDates,
+    editableFrom: scheduleEditableFrom,
+    loading: scheduleLoading,
+    saving: scheduleSaving,
+    error: scheduleError,
+    saveError: scheduleSaveError,
+    filtersReady: scheduleFiltersReady,
+    hasUnsavedChanges: scheduleHasUnsavedChanges,
+    loadSchedule,
+    handleFilterRestaurantChange: handleScheduleFilterRestaurantChange,
+    handleFilterCategoryChange: handleScheduleFilterCategoryChange,
+    handleFilterNameSearchChange: handleScheduleFilterNameSearchChange,
+    isDateEditable: isScheduleDateEditable,
+    isAvailable: isScheduleDateAvailable,
+    toggleAvailability: toggleScheduleAvailability,
+    saveSchedule,
+} = dishSchedule;
 
 const dishListPageRef = ref(null);
 
@@ -244,6 +272,34 @@ function onDishImportFile(file) {
     handleImportFile(file);
 }
 
+function handleOpenDishListView() {
+    if (dishAdminView.value === ADMIN_DISH_VIEWS.list) {
+        return;
+    }
+
+    openDishListView();
+    loadDishes();
+    back.setupBackButton();
+}
+
+function handleOpenDishScheduleView() {
+    if (dishAdminView.value === ADMIN_DISH_VIEWS.schedule) {
+        return;
+    }
+
+    openDishScheduleView();
+    loadSchedule();
+    back.setupBackButton();
+}
+
+/**
+ * @param {number} dishId
+ * @param {string} date
+ */
+function handleScheduleToggle(dishId, date) {
+    toggleScheduleAvailability(dishId, date);
+}
+
 onMounted(async () => {
     await bootstrapApp();
 });
@@ -307,6 +363,40 @@ onMounted(async () => {
 
                     <div class="min-h-0 flex-1 overflow-hidden">
                         <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
+                    <div class="flex h-full min-h-0 flex-col">
+                    <nav
+                        v-if="dishAdminView !== ADMIN_DISH_VIEWS.form"
+                        class="z-10 shrink-0 border-b border-gray-100 bg-white"
+                        aria-label="Режим управления меню"
+                    >
+                        <div class="flex">
+                            <button
+                                type="button"
+                                class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition"
+                                :class="
+                                    dishAdminView === ADMIN_DISH_VIEWS.list
+                                        ? 'border-max-primary text-max-primary'
+                                        : 'border-transparent text-max-muted hover:text-gray-700'
+                                "
+                                @click="handleOpenDishListView"
+                            >
+                                Список
+                            </button>
+                            <button
+                                type="button"
+                                class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition"
+                                :class="
+                                    dishAdminView === ADMIN_DISH_VIEWS.schedule
+                                        ? 'border-max-primary text-max-primary'
+                                        : 'border-transparent text-max-muted hover:text-gray-700'
+                                "
+                                @click="handleOpenDishScheduleView"
+                            >
+                                График
+                            </button>
+                        </div>
+                    </nav>
+
                     <AdminDishFormPage
                         v-if="dishAdminView === ADMIN_DISH_VIEWS.form"
                         :dish="editingDish"
@@ -335,7 +425,7 @@ onMounted(async () => {
                             :restaurant-options="restaurantOptions"
                             :category-options="categoryFilterOptions"
                             :filter-restaurant-id="filterRestaurantId"
-                            :filter-category-name="filterCategoryName"
+                            :filter-category-id="filterCategoryId"
                             :filter-name-search="filterNameSearch"
                             :import-loading="importLoading"
                             :import-error="importError"
@@ -351,6 +441,34 @@ onMounted(async () => {
                             @import="onDishImportFile"
                         />
                         </KeepAlive>
+
+                    <AdminDishAvailabilityPage
+                        v-if="dishAdminView === ADMIN_DISH_VIEWS.schedule"
+                        class="min-h-0 flex-1"
+                        :dishes="scheduleFilteredDishes"
+                        :dates="scheduleDates"
+                        :editable-from="scheduleEditableFrom"
+                        :loading="scheduleLoading"
+                        :saving="scheduleSaving"
+                        :error="scheduleError"
+                        :save-error="scheduleSaveError"
+                        :filters-ready="scheduleFiltersReady"
+                        :has-unsaved-changes="scheduleHasUnsavedChanges"
+                        :restaurant-options="restaurantOptions"
+                        :category-options="scheduleCategoryOptions"
+                        :filter-restaurant-id="filterRestaurantId"
+                        :filter-category-id="filterCategoryId"
+                        :filter-name-search="filterNameSearch"
+                        :is-date-editable="isScheduleDateEditable"
+                        :is-available="isScheduleDateAvailable"
+                        @filter-restaurant="handleScheduleFilterRestaurantChange"
+                        @filter-category="handleScheduleFilterCategoryChange"
+                        @filter-name-search="handleScheduleFilterNameSearchChange"
+                        @toggle="handleScheduleToggle"
+                        @save="saveSchedule"
+                        @refresh="loadSchedule"
+                    />
+                    </div>
                         </template>
 
                         <template v-else-if="hasOrderReviewRoles">

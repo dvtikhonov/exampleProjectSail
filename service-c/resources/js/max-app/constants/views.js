@@ -38,4 +38,5 @@ export const ADMIN_VIEWS = {
 export const ADMIN_DISH_VIEWS = {
     list: 'dishList',
     form: 'dishForm',
+    schedule: 'dishSchedule',
 };

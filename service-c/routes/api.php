@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
 use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
@@ -83,6 +84,9 @@ Route::middleware('max.miniapp.auth')->group(function () {
                     ->whereNumber('dish');
                 Route::delete('/dishes/{dish}', [AdminDishController::class, 'destroy'])
                     ->whereNumber('dish');
+
+                Route::get('/dish-availability-schedule', [AdminDishAvailabilityController::class, 'show']);
+                Route::put('/dish-availability-schedule', [AdminDishAvailabilityController::class, 'sync']);
             });
         });
     });

@@ -6,6 +6,7 @@ use App\Http\Middleware\AuthenticateMaxMiniApp;
 use App\Http\Middleware\EnsureFoodOrderAdmin;
 use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -29,4 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })->create();
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('food:sync-dish-availability')
+            ->dailyAt('07:00')
+            ->timezone('Europe/Moscow');
+    })
+    ->create();
