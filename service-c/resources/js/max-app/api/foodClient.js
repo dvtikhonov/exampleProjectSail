@@ -3,9 +3,13 @@
  * Хранит Bearer-токен в sessionStorage между перезагрузками вкладки.
  */
 import axios from 'axios';
+import { getInitData } from '../bridge/maxBridge';
 
 /** @type {string|null} Токен авторизации после POST /max/auth */
 let authToken = sessionStorage.getItem('max_miniapp_token');
+
+/** @type {Promise<unknown>|null} */
+let reauthPromise = null;
 
 const client = axios.create({
     baseURL: '/api',
@@ -16,6 +20,10 @@ const client = axios.create({
 });
 
 client.interceptors.request.use((config) => {
+    if (!authToken) {
+        authToken = sessionStorage.getItem('max_miniapp_token');
+    }
+
     // Подставляем Bearer после authenticate(); без токена — только публичные эндпоинты
     if (authToken) {
         config.headers.Authorization = `Bearer ${authToken}`;
@@ -28,6 +36,53 @@ client.interceptors.request.use((config) => {
 
     return config;
 });
+
+client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const config = error.config;
+
+        if (
+            !axios.isAxiosError(error)
+            || error.response?.status !== 401
+            || !config
+            || config.url === '/max/auth'
+            || config.__isAuthRetry
+        ) {
+            return Promise.reject(error);
+        }
+
+        config.__isAuthRetry = true;
+
+        if (!reauthPromise) {
+            reauthPromise = reauthenticateFromBridge().finally(() => {
+                reauthPromise = null;
+            });
+        }
+
+        try {
+            await reauthPromise;
+        } catch (reauthError) {
+            return Promise.reject(reauthError);
+        }
+
+        return client(config);
+    },
+);
+
+/**
+ * Повторная авторизация по initData из MAX Bridge (после 401).
+ */
+async function reauthenticateFromBridge() {
+    const initData = getInitData();
+
+    if (!initData) {
+        clearAuthToken();
+        throw new Error('Сессия истекла. Перезапустите mini-app в MAX.');
+    }
+
+    await authenticate(initData);
+}
 
 /**
  * @param {string} token

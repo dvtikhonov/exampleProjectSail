@@ -16,24 +16,20 @@
 
 body.max-app-body {
     margin: 0;
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
+    overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
-    overscroll-behavior: none;
+    overscroll-behavior-y: contain;
 }
 
 #max-app {
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
 }
 
-.max-app-scroll-panel {
-    flex: 1 1 0;
-    min-height: 0;
+.max-app-horizontal-scroll {
     -webkit-overflow-scrolling: touch;
-    overflow: auto;
-    overscroll-behavior: contain;
-    touch-action: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
 }
 
 .safe-area-top {

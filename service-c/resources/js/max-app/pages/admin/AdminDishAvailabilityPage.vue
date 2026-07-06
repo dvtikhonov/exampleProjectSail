@@ -2,9 +2,8 @@
 /**
  * График доступности блюд: таблица дата × блюдо с редактированием будущих дат.
  */
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
-import { useManualTouchScroll } from '../../composables/useManualTouchScroll';
 
 const props = defineProps({
     dishes: {
@@ -81,10 +80,6 @@ const emit = defineEmits([
     'save',
     'refresh',
 ]);
-
-const scrollPanelRef = ref(null);
-
-useManualTouchScroll(scrollPanelRef);
 
 const restaurantSelectOptions = computed(() => [
     { value: '', label: 'Выберите ресторан', disabled: true },
@@ -175,11 +170,8 @@ function onCellClick(dishId, date) {
 </script>
 
 <template>
-    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div
-            data-schedule-header
-            class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3"
-        >
+    <div class="flex flex-1 flex-col">
+        <div class="space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h1 class="text-lg font-semibold text-gray-900">График доступности</h1>
@@ -244,7 +236,7 @@ function onCellClick(dishId, date) {
 
         <div
             v-if="!filtersReady"
-            class="px-4 pb-4 pt-3 text-center text-sm text-max-muted"
+            class="px-4 pb-8 pt-3 text-center text-sm text-max-muted"
         >
             <div class="flex items-center justify-center py-16">
                 Выберите ресторан и категорию для просмотра графика
@@ -253,14 +245,14 @@ function onCellClick(dishId, date) {
 
         <div
             v-else-if="loading && dishes.length === 0"
-            class="flex flex-1 items-center justify-center px-4 pb-4 pt-3"
+            class="flex items-center justify-center px-4 py-16"
         >
             <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
         </div>
 
         <div
             v-else-if="error"
-            class="px-4 pb-4 pt-3"
+            class="px-4 pb-8 pt-3"
         >
             <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {{ error }}
@@ -276,7 +268,7 @@ function onCellClick(dishId, date) {
 
         <div
             v-else-if="dishes.length === 0"
-            class="px-4 pb-4 pt-3 text-center text-sm text-max-muted"
+            class="px-4 pb-8 pt-3 text-center text-sm text-max-muted"
         >
             <div class="py-16">
                 <template v-if="filterNameSearch.trim()">
@@ -290,12 +282,10 @@ function onCellClick(dishId, date) {
 
         <div
             v-else
-            id="admin-dish-schedule-scroll"
-            ref="scrollPanelRef"
-            class="max-app-scroll-panel min-h-0 flex-1 basis-0 px-4 pb-4 pt-3"
+            class="px-4 pb-8 pt-3"
         >
-            <div class="w-max rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <table class="border-collapse text-sm">
+            <div class="max-app-horizontal-scroll rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <table class="w-max border-collapse text-sm">
                     <thead class="bg-gray-50">
                         <tr>
                             <th
