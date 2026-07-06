@@ -246,7 +246,7 @@ defineExpose({ openFilePicker });
 </script>
 
 <template>
-    <div class="flex h-full min-h-0 flex-col">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-center justify-between gap-3">
                 <div>

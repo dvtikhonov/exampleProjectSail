@@ -361,9 +361,9 @@ onMounted(async () => {
                         </nav>
                     </header>
 
-                    <div class="min-h-0 flex-1 overflow-hidden">
+                    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
                         <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
-                    <div class="flex h-full min-h-0 flex-col">
+                    <div class="flex min-h-0 flex-1 flex-col">
                     <nav
                         v-if="dishAdminView !== ADMIN_DISH_VIEWS.form"
                         class="z-10 shrink-0 border-b border-gray-100 bg-white"
@@ -416,6 +416,7 @@ onMounted(async () => {
                         <AdminDishListPage
                             v-if="dishAdminView === ADMIN_DISH_VIEWS.list"
                             ref="dishListPageRef"
+                            class="min-h-0 flex-1"
                             :dishes="dishes"
                             :loading="dishesLoading"
                             :error="dishesError"
