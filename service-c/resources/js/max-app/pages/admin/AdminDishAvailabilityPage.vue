@@ -2,8 +2,9 @@
 /**
  * График доступности блюд: таблица дата × блюдо с редактированием будущих дат.
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
+import { useManualTouchScroll } from '../../composables/useManualTouchScroll';
 
 const props = defineProps({
     dishes: {
@@ -82,102 +83,8 @@ const emit = defineEmits([
 ]);
 
 const scrollPanelRef = ref(null);
-/** @type {(() => void)[]} */
-const scrollPanelCleanups = [];
-let scrollPanelHeightSyncBound = false;
 
-/**
- * В MAX webview flex-цепочка часто не ограничивает высоту — задаём её явно от viewport.
- */
-function syncScrollPanelHeight() {
-    const panel = scrollPanelRef.value;
-
-    if (!panel) {
-        return;
-    }
-
-    const top = panel.getBoundingClientRect().top;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const height = Math.max(0, Math.floor(viewportHeight - top));
-
-    panel.style.height = `${height}px`;
-    panel.style.maxHeight = `${height}px`;
-}
-
-function bindScrollPanelHeightSync() {
-    if (!scrollPanelRef.value || scrollPanelHeightSyncBound) {
-        syncScrollPanelHeight();
-
-        return;
-    }
-
-    scrollPanelHeightSyncBound = true;
-    syncScrollPanelHeight();
-
-    window.addEventListener('resize', syncScrollPanelHeight);
-    window.visualViewport?.addEventListener('resize', syncScrollPanelHeight);
-    scrollPanelCleanups.push(() => {
-        window.removeEventListener('resize', syncScrollPanelHeight);
-        window.visualViewport?.removeEventListener('resize', syncScrollPanelHeight);
-    });
-
-    const header = panelHeaderElement();
-
-    if (header && typeof ResizeObserver !== 'undefined') {
-        const observer = new ResizeObserver(() => {
-            syncScrollPanelHeight();
-        });
-        observer.observe(header);
-        scrollPanelCleanups.push(() => observer.disconnect());
-    }
-}
-
-/**
- * @returns {HTMLElement|null}
- */
-function panelHeaderElement() {
-    const root = scrollPanelRef.value?.parentElement;
-
-    if (!(root instanceof HTMLElement)) {
-        return null;
-    }
-
-    return root.querySelector('[data-schedule-header]');
-}
-
-function ensureScrollPanelHeightSync() {
-    nextTick(() => {
-        bindScrollPanelHeightSync();
-    });
-}
-
-onMounted(() => {
-    ensureScrollPanelHeightSync();
-});
-
-onUnmounted(() => {
-    scrollPanelCleanups.forEach((cleanup) => cleanup());
-    scrollPanelCleanups.length = 0;
-    scrollPanelHeightSyncBound = false;
-});
-
-watch(scrollPanelRef, () => {
-    ensureScrollPanelHeightSync();
-});
-
-watch(
-    () => [
-        props.filtersReady,
-        props.loading,
-        props.dishes.length,
-        props.saveError,
-        props.hasUnsavedChanges,
-        props.filterNameSearch,
-    ],
-    () => {
-        ensureScrollPanelHeightSync();
-    },
-);
+useManualTouchScroll(scrollPanelRef);
 
 const restaurantSelectOptions = computed(() => [
     { value: '', label: 'Выберите ресторан', disabled: true },
@@ -383,16 +290,17 @@ function onCellClick(dishId, date) {
 
         <div
             v-else
+            id="admin-dish-schedule-scroll"
             ref="scrollPanelRef"
-            class="max-app-scroll-panel min-h-0 shrink-0 overflow-auto px-4 pb-4 pt-3"
+            class="max-app-scroll-panel min-h-0 flex-1 basis-0 px-4 pb-4 pt-3"
         >
             <div class="w-max rounded-2xl border border-gray-100 bg-white shadow-sm">
                 <table class="border-collapse text-sm">
-                    <thead class="sticky top-0 z-10 bg-gray-50">
+                    <thead class="bg-gray-50">
                         <tr>
                             <th
                                 scope="col"
-                                class="sticky left-0 z-20 w-[9rem] border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-700"
+                                class="w-[9rem] border-b border-r border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs font-semibold text-gray-700"
                             >
                                 Блюдо
                             </th>
@@ -417,7 +325,7 @@ function onCellClick(dishId, date) {
                         >
                             <th
                                 scope="row"
-                                class="sticky left-0 z-10 w-[9rem] border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
+                                class="w-[9rem] border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
                             >
                                 <span class="line-clamp-2">{{ dish.name }}</span>
                             </th>
