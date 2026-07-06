@@ -43,7 +43,7 @@ const props = defineProps({
         type: String,
         default: '',
     },
-    filterCategoryName: {
+    filterCategoryId: {
         type: String,
         default: '',
     },
@@ -100,8 +100,10 @@ const restaurantSelectOptions = computed(() => [
 const categorySelectOptions = computed(() => [
     { value: '', label: 'Все категории' },
     ...props.categoryOptions.map((category) => ({
-        value: category.name,
-        label: category.name,
+        value: String(category.id),
+        label: props.filterRestaurantId
+            ? category.name
+            : `${category.name} (${category.restaurantName})`,
     })),
 ]);
 
@@ -287,7 +289,7 @@ defineExpose({ openFilePicker });
                 />
 
                 <AppSelect
-                    :model-value="filterCategoryName"
+                    :model-value="filterCategoryId"
                     :options="categorySelectOptions"
                     size="sm"
                     @update:model-value="emit('filter-category', $event)"

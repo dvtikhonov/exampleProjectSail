@@ -84,7 +84,8 @@ export function useMaxBackButton({
         if (hasAdminRoles.value) {
             if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 if (
-                    dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
+                    (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
+                        || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule)
                     && getPlatform() === 'desktop'
                 ) {
                     unbindBackButton = bindBackButton(closeMaxApp);
@@ -92,7 +93,10 @@ export function useMaxBackButton({
                     return;
                 }
 
-                if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list) {
+                if (
+                    dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
+                    || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule
+                ) {
                     hideBackButton();
 
                     return;

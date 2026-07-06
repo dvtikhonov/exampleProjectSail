@@ -19,58 +19,10 @@ import { ADMIN_DISH_VIEWS } from '../constants/views';
 const NAME_SEARCH_DEBOUNCE_MS = 300;
 
 /**
- * Находит id категории по названию и опциональному ресторану.
- *
- * @param {object[]} items
- * @param {number|null} restaurantId
- * @param {string} categoryName
- * @returns {number|null}
- */
-function resolveCategoryId(items, restaurantId, categoryName) {
-    if (!categoryName) {
-        return null;
-    }
-
-    const matches = items.filter((item) => item.name === categoryName);
-
-    if (restaurantId !== null) {
-        const match = matches.find((item) => item.restaurant_id === restaurantId);
-
-        return match?.id ?? null;
-    }
-
-    if (matches.length === 1) {
-        return matches[0].id;
-    }
-
-    return null;
-}
-
-/**
- * Уникальные названия категорий.
- *
- * @param {object[]} items
- * @param {number|null} [restaurantId]
- * @returns {string[]}
- */
-function uniqueCategoryNames(items, restaurantId = null) {
-    const names = new Set();
-
-    for (const item of items) {
-        if (restaurantId !== null && item.restaurant_id !== restaurantId) {
-            continue;
-        }
-
-        names.add(item.name);
-    }
-
-    return [...names].sort((a, b) => a.localeCompare(b, 'ru'));
-}
-
-/**
+ * @param {{ filters: ReturnType<typeof import('./useDishAdminFilters').useDishAdminFilters> }} options
  * @returns {object} Состояние и обработчики управления блюдами
  */
-export function useDishAdmin() {
+export function useDishAdmin({ filters }) {
     const dishAdminView = ref(ADMIN_DISH_VIEWS.list);
 
     const dishes = ref([]);
@@ -79,9 +31,7 @@ export function useDishAdmin() {
     const dishesRefreshing = ref(false);
     const dishesError = ref('');
 
-    const filterRestaurantId = ref('');
-    const filterCategoryName = ref('');
-    const filterNameSearch = ref('');
+    const { filterRestaurantId, filterCategoryId, filterNameSearch } = filters;
     const formRestaurantId = ref('');
 
     /** Таймер debounce для поиска по названию */
@@ -115,8 +65,17 @@ export function useDishAdmin() {
 
     const categoryFilterOptions = computed(() => {
         const restaurantId = filterRestaurantId.value ? Number(filterRestaurantId.value) : null;
+        const items = restaurantId !== null
+            ? categories.value.filter((category) => category.restaurant_id === restaurantId)
+            : categories.value;
 
-        return uniqueCategoryNames(categories.value, restaurantId).map((name) => ({ name }));
+        return items
+            .map((category) => ({
+                id: category.id,
+                name: category.name,
+                restaurantName: category.restaurant_name,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
     });
 
     const categoryFormOptions = computed(() => {
@@ -179,11 +138,7 @@ export function useDishAdmin() {
 
         try {
             const restaurantId = filterRestaurantId.value ? Number(filterRestaurantId.value) : null;
-            const categoryId = resolveCategoryId(
-                categories.value,
-                restaurantId,
-                filterCategoryName.value,
-            );
+            const categoryId = filterCategoryId.value ? Number(filterCategoryId.value) : null;
             const nameSearch = filterNameSearch.value.trim();
 
             dishes.value = await fetchAdminDishes({
@@ -201,12 +156,12 @@ export function useDishAdmin() {
 
     function handleFilterRestaurantChange(value) {
         filterRestaurantId.value = value;
-        filterCategoryName.value = '';
+        filterCategoryId.value = '';
         loadDishes();
     }
 
     function handleFilterCategoryChange(value) {
-        filterCategoryName.value = value;
+        filterCategoryId.value = value;
         loadDishes();
     }
 
@@ -225,6 +180,14 @@ export function useDishAdmin() {
         formError.value = '';
         formFieldErrors.value = {};
         dishAdminView.value = ADMIN_DISH_VIEWS.form;
+    }
+
+    function openDishListView() {
+        dishAdminView.value = ADMIN_DISH_VIEWS.list;
+    }
+
+    function openDishScheduleView() {
+        dishAdminView.value = ADMIN_DISH_VIEWS.schedule;
     }
 
     /**
@@ -317,20 +280,15 @@ export function useDishAdmin() {
     function validateImportFilters() {
         importSuccessMessage.value = '';
 
-        if (filterRestaurantId.value === '' || filterCategoryName.value === '') {
+        if (filterRestaurantId.value === '' || filterCategoryId.value === '') {
             importError.value = 'Выберите ресторан и категорию перед загрузкой';
 
             return false;
         }
 
-        const restaurantId = Number(filterRestaurantId.value);
-        const categoryId = resolveCategoryId(
-            categories.value,
-            restaurantId,
-            filterCategoryName.value,
-        );
+        const categoryId = Number(filterCategoryId.value);
 
-        if (categoryId === null) {
+        if (!Number.isFinite(categoryId)) {
             importError.value = 'Категория не найдена';
 
             return false;
@@ -363,14 +321,9 @@ export function useDishAdmin() {
             return;
         }
 
-        const restaurantId = Number(filterRestaurantId.value);
-        const categoryId = resolveCategoryId(
-            categories.value,
-            restaurantId,
-            filterCategoryName.value,
-        );
+        const categoryId = Number(filterCategoryId.value);
 
-        if (categoryId === null) {
+        if (!Number.isFinite(categoryId)) {
             importError.value = 'Категория не найдена';
 
             return;
@@ -443,7 +396,7 @@ export function useDishAdmin() {
         dishesRefreshing,
         dishesError,
         filterRestaurantId,
-        filterCategoryName,
+        filterCategoryId,
         filterNameSearch,
         formRestaurantId,
         restaurantOptions,
@@ -465,6 +418,8 @@ export function useDishAdmin() {
         handleFilterNameSearchChange,
         openCreateForm,
         openEditForm,
+        openDishListView,
+        openDishScheduleView,
         closeDishForm,
         handleFormRestaurantChange,
         submitDishForm,

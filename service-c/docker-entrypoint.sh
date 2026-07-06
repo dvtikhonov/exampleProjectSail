@@ -17,4 +17,6 @@ if [ ! -f public/max-build/manifest.json ]; then
     npm run build
 fi
 
+php artisan schedule:work > storage/logs/schedule-work.log 2>&1 &
+
 exec "$@"

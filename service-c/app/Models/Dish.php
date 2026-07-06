@@ -65,4 +65,12 @@ class Dish extends Model
     {
         return $this->hasMany(CartItem::class);
     }
+
+    /**
+     * @return HasMany<DishAvailabilityDate, $this>
+     */
+    public function availabilityDates(): HasMany
+    {
+        return $this->hasMany(DishAvailabilityDate::class);
+    }
 }
