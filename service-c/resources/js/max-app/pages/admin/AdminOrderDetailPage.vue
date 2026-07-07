@@ -91,8 +91,8 @@ function formatCustomerName(customer) {
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col">
-        <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 safe-area-top">
+    <div class="flex h-full min-h-0 flex-col overflow-hidden">
+        <header class="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-4 py-3 safe-area-top">
             <div class="flex items-center gap-3">
                 <button
                     type="button"
@@ -121,7 +121,7 @@ function formatCustomerName(customer) {
             </div>
 
             <template v-else>
-                <div class="shrink-0 space-y-4 overflow-y-auto">
+                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto">
                 <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Клиент</p>
                     <p class="mt-1 text-sm text-gray-900">{{ formatCustomerName(order.customer) }}</p>
@@ -194,7 +194,7 @@ function formatCustomerName(customer) {
                 <OrderChatPanel
                     :order-id="order.id"
                     perspective="admin"
-                    class="min-h-[220px] flex-1"
+                    class="min-h-0 flex-1"
                     @messages-read="emit('messages-read')"
                 />
             </template>
@@ -202,7 +202,7 @@ function formatCustomerName(customer) {
 
         <footer
             v-if="!loading && isCompositionScope"
-            class="sticky bottom-0 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
+            class="shrink-0 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
         >
             <div class="flex gap-3">
                 <button
@@ -227,7 +227,7 @@ function formatCustomerName(customer) {
 
         <footer
             v-else-if="!loading && isAddressScope && (isAddressPending || isPaymentPending)"
-            class="sticky bottom-0 space-y-3 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
+            class="shrink-0 space-y-3 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
         >
             <div v-if="isAddressPending" class="space-y-2">
                 <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес</p>
