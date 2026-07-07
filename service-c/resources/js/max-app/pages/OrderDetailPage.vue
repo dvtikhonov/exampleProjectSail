@@ -25,12 +25,12 @@ const emit = defineEmits(['back', 'messages-read']);
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col">
-        <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 safe-area-top">
-            <div class="flex items-center gap-3">
+    <div class="flex h-dvh flex-col overflow-hidden">
+        <header class="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-3 py-2 safe-area-top">
+            <div class="flex items-center gap-2">
                 <button
                     type="button"
-                    class="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
                     aria-label="Назад"
                     @click="emit('back')"
                 >
@@ -39,16 +39,16 @@ const emit = defineEmits(['back', 'messages-read']);
                     </svg>
                 </button>
                 <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="truncate text-lg font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
-                        <OrderStatusBadge :order="order" size="md" />
+                    <div class="flex min-w-0 items-center gap-1.5">
+                        <h1 class="truncate text-base font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
+                        <OrderStatusBadge :order="order" size="sm" />
                     </div>
-                    <p class="truncate text-sm text-max-muted">{{ order.restaurant_name }}</p>
+                    <p class="truncate text-xs text-max-muted">{{ order.restaurant_name }}</p>
                 </div>
             </div>
         </header>
 
-        <main class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4">
+        <main class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-3 py-2">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
@@ -61,7 +61,7 @@ const emit = defineEmits(['back', 'messages-read']);
             </div>
 
             <template v-else>
-                <div class="shrink-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div class="min-h-0 flex-[3] overflow-y-auto rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
                     <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
 
@@ -104,6 +104,8 @@ const emit = defineEmits(['back', 'messages-read']);
                 <OrderChatPanel
                     :order-id="order.id"
                     perspective="customer"
+                    compact
+                    class="min-h-0 flex-[2]"
                     @messages-read="emit('messages-read')"
                 />
             </template>

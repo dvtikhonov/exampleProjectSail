@@ -339,7 +339,7 @@ onMounted(async () => {
                         <nav class="flex" aria-label="Разделы админки">
                             <button
                                 type="button"
-                                class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
+                                class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
                                 :class="
                                     adminSection === ADMIN_SECTIONS.orders
                                         ? 'border-max-primary text-max-primary'
@@ -351,7 +351,7 @@ onMounted(async () => {
                             </button>
                             <button
                                 type="button"
-                                class="flex-1 border-b-2 px-4 py-3 text-sm font-medium transition"
+                                class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
                                 :class="
                                     adminSection === ADMIN_SECTIONS.menu
                                         ? 'border-max-primary text-max-primary'
@@ -478,6 +478,7 @@ onMounted(async () => {
                         <template v-else-if="hasOrderReviewRoles">
                     <AdminOrderDetailPage
                         v-if="adminView === ADMIN_VIEWS.detail && selectedAdminOrder"
+                        class="min-h-0 flex-1"
                         :order="adminOrderDetail ?? selectedAdminOrder"
                         :scope="adminScope"
                         :loading="adminDetailLoading"
