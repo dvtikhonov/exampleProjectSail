@@ -40,7 +40,15 @@ interface CartRepositoryInterface
      */
     public function findItemById(int $cartItemId): ?CartItem;
 
-    public function findItemByCartAndDish(int $cartId, int $dishId): ?CartItem;
+    /**
+     * Обычная позиция (без комбо) с указанным блюдом.
+     */
+    public function findRegularItemByCartAndDish(int $cartId, int $dishId): ?CartItem;
+
+    /**
+     * Позиция комбо с указанным блюдом и combo_ref.
+     */
+    public function findComboItemByCartDishAndRef(int $cartId, int $dishId, string $comboRef): ?CartItem;
 
     /**
      * @param  array<string, mixed>  $attributes

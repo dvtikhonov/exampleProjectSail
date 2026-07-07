@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\DishAdminServiceInterface;
-use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\DTO\Food\AdminDishDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
-use App\Models\MenuCategory;
 use App\Services\Food\DishSpreadsheetImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,30 +23,8 @@ class AdminDishController extends Controller
 {
     public function __construct(
         private readonly DishAdminServiceInterface $dishAdminService,
-        private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly DishSpreadsheetImportService $dishSpreadsheetImportService,
     ) {}
-
-    /**
-     * Список категорий меню для select в админке.
-     */
-    public function menuCategories(Request $request): JsonResponse
-    {
-        $restaurantId = $this->optionalPositiveIntQuery($request, 'restaurant_id');
-        $categories = $this->menuCategoryRepository->listForAdmin($restaurantId);
-
-        return response()->json([
-            'categories' => array_map(
-                static fn (MenuCategory $category): array => [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'restaurant_id' => (int) $category->restaurant_id,
-                    'restaurant_name' => (string) $category->restaurant?->name,
-                ],
-                $categories,
-            ),
-        ]);
-    }
 
     /**
      * Список блюд для админки.

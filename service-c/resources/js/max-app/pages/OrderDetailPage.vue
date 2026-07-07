@@ -2,8 +2,8 @@
 /**
  * Карточка заказа клиента: снимок состава, адрес, итог и чат с оператором.
  */
-import DishImage from '../components/DishImage.vue';
 import OrderChatPanel from '../components/OrderChatPanel.vue';
+import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 
 defineProps({
@@ -66,15 +66,12 @@ const emit = defineEmits(['back', 'messages-read']);
                     <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
 
                     <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
-                        <li
+                        <OrderSnapshotItemRow
                             v-for="(item, index) in order.items_snapshot"
                             :key="index"
-                            class="flex items-center gap-3 text-sm"
-                        >
-                            <DishImage :image-url="item.image_url" :alt="item.dish_name" size="sm" />
-                            <span class="min-w-0 flex-1 text-gray-700">{{ item.dish_name }} × {{ item.quantity }}</span>
-                            <span class="shrink-0 font-medium text-gray-900">{{ item.line_total }} ₽</span>
-                        </li>
+                            :item="item"
+                            :items-snapshot="order.items_snapshot"
+                        />
                     </ul>
 
                     <div class="mt-3 border-t border-gray-100 pt-3 text-sm">

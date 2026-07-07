@@ -2,7 +2,7 @@
  * Клиентский поток: список ресторанов, меню, добавление в корзину.
  */
 import { ref } from 'vue';
-import { addToCart, extractErrorMessage, fetchMenu, fetchRestaurants } from '../api/foodClient';
+import { addComboToCart, addToCart, extractErrorMessage, fetchMenu, fetchRestaurants } from '../api/foodClient';
 import { VIEWS } from '../constants/views';
 
 /**
@@ -20,6 +20,7 @@ export function useRestaurantsMenu({ currentView, cart }) {
     const menuLoading = ref(false);
     const menuError = ref('');
     const addingDishId = ref(null);
+    const addingComboRef = ref(null);
 
     async function loadRestaurants() {
         restaurantsLoading.value = true;
@@ -59,6 +60,24 @@ export function useRestaurantsMenu({ currentView, cart }) {
             menuError.value = extractErrorMessage(error);
         } finally {
             addingDishId.value = null;
+        }
+    }
+
+    async function handleAddComboToCart(combo) {
+        addingComboRef.value = combo.comboRef;
+        menuError.value = '';
+
+        try {
+            cart.value = await addComboToCart(
+                combo.firstDish.id,
+                combo.secondDish.id,
+                combo.quantity,
+                combo.comboRef,
+            );
+        } catch (error) {
+            menuError.value = extractErrorMessage(error);
+        } finally {
+            addingComboRef.value = null;
         }
     }
 
@@ -114,9 +133,11 @@ export function useRestaurantsMenu({ currentView, cart }) {
         menuLoading,
         menuError,
         addingDishId,
+        addingComboRef,
         loadRestaurants,
         openRestaurant,
         handleAddToCart,
+        handleAddComboToCart,
         syncSelectedRestaurantFromCart,
         loadMenuForSelectedRestaurant,
         resetRestaurantSelection,

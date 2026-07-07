@@ -71,9 +71,14 @@ class MenuQueryService
                 );
             }
 
+            if ($dishes === []) {
+                continue;
+            }
+
             $categories[] = new MenuCategoryDto(
                 id: $category->id,
                 name: $category->name,
+                isComboAvailable: (bool) $category->is_combo_available,
                 dishes: $dishes,
             );
         }

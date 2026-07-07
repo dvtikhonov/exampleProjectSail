@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'restaurant_id',
     'name',
     'sort_order',
+    'is_combo_available',
 ])]
 /**
  * Категория меню ресторана (таблица max_menu_categories).
@@ -28,6 +29,16 @@ class MenuCategory extends Model
     use HasFactory;
 
     use SoftDeletes;
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_combo_available' => 'boolean',
+        ];
+    }
 
     /**
      * @return BelongsTo<Restaurant, $this>

@@ -134,14 +134,56 @@ export async function fetchCart() {
 /**
  * @param {number} dishId
  * @param {number} quantity
+ * @param {{ comboRef?: string|null, comboPartnerDishId?: number|null }} [options]
  */
-export async function addToCart(dishId, quantity = 1) {
-    const { data } = await client.post('/food/cart/items', {
+export async function addToCart(dishId, quantity = 1, { comboRef = null, comboPartnerDishId = null } = {}) {
+    const payload = {
         dish_id: dishId,
         quantity,
+    };
+
+    if (comboRef !== null && comboPartnerDishId !== null) {
+        payload.combo_ref = comboRef;
+        payload.combo_partner_dish_id = comboPartnerDishId;
+    }
+
+    const { data } = await client.post('/food/cart/items', {
+        ...payload,
     });
 
     return data.cart;
+}
+
+/**
+ * @param {number} firstDishId
+ * @param {number} secondDishId
+ * @param {number} quantity
+ * @param {string} comboRef
+ */
+export async function addComboToCart(firstDishId, secondDishId, quantity, comboRef) {
+    let firstCart = null;
+
+    try {
+        firstCart = await addToCart(firstDishId, quantity, {
+            comboRef,
+            comboPartnerDishId: secondDishId,
+        });
+
+        return await addToCart(secondDishId, quantity, {
+            comboRef,
+            comboPartnerDishId: firstDishId,
+        });
+    } catch (error) {
+        const firstComboItem = firstCart?.items?.find(
+            (item) => item.combo_ref === comboRef && item.dish_id === firstDishId,
+        );
+
+        if (firstComboItem) {
+            await removeCartItem(firstComboItem.id).catch(() => {});
+        }
+
+        throw error;
+    }
 }
 
 /**
@@ -348,6 +390,44 @@ export async function fetchAdminMenuCategories(restaurantId = null) {
     const { data } = await client.get('/food/admin/menu-categories', { params });
 
     return data.categories;
+}
+
+/**
+ * @param {number} categoryId
+ * @returns {Promise<object>}
+ */
+export async function fetchAdminMenuCategory(categoryId) {
+    const { data } = await client.get(`/food/admin/menu-categories/${categoryId}`);
+
+    return data.category;
+}
+
+/**
+ * @param {object} fields
+ * @returns {Promise<object>}
+ */
+export async function createMenuCategory(fields) {
+    const { data } = await client.post('/food/admin/menu-categories', fields);
+
+    return data.category;
+}
+
+/**
+ * @param {number} categoryId
+ * @param {object} fields
+ * @returns {Promise<object>}
+ */
+export async function updateMenuCategory(categoryId, fields) {
+    const { data } = await client.put(`/food/admin/menu-categories/${categoryId}`, fields);
+
+    return data.category;
+}
+
+/**
+ * @param {number} categoryId
+ */
+export async function deleteMenuCategory(categoryId) {
+    await client.delete(`/food/admin/menu-categories/${categoryId}`);
 }
 
 /**

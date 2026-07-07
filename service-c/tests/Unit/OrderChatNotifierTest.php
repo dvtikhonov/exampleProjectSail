@@ -11,6 +11,7 @@ use App\Models\FoodOrder;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelOrderChatNotifier;
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -29,7 +30,7 @@ class OrderChatNotifierTest extends TestCase
     {
         parent::setUp();
 
-        $this->messageBuilder = new FoodOrderMaxMessageBuilder;
+        $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
     public function test_build_order_chat_notification_formats_sender_and_body(): void

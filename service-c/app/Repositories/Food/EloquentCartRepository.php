@@ -22,7 +22,7 @@ class EloquentCartRepository implements CartRepositoryInterface
         return Cart::query()
             ->where('max_user_id', $maxUserId)
             ->where('status', CartStatus::Draft)
-            ->with(['restaurant', 'items.dish'])
+            ->with(['restaurant', 'items.dish', 'items.comboPartnerDish'])
             ->first();
     }
 
@@ -68,7 +68,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function refreshForDto(Cart $cart): Cart
     {
-        return $cart->fresh(['restaurant', 'items.dish']);
+        return $cart->fresh(['restaurant', 'items.dish', 'items.comboPartnerDish']);
     }
 
     /**
@@ -92,11 +92,24 @@ class EloquentCartRepository implements CartRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function findItemByCartAndDish(int $cartId, int $dishId): ?CartItem
+    public function findRegularItemByCartAndDish(int $cartId, int $dishId): ?CartItem
     {
         return CartItem::query()
             ->where('cart_id', $cartId)
             ->where('dish_id', $dishId)
+            ->whereNull('combo_ref')
+            ->first();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findComboItemByCartDishAndRef(int $cartId, int $dishId, string $comboRef): ?CartItem
+    {
+        return CartItem::query()
+            ->where('cart_id', $cartId)
+            ->where('dish_id', $dishId)
+            ->where('combo_ref', $comboRef)
             ->first();
     }
 

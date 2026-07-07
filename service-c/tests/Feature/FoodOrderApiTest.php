@@ -8,8 +8,10 @@ use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
 use App\Enums\Food\OrderStatus;
+use App\Models\Dish;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
+use App\Models\MenuCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -150,6 +152,152 @@ class FoodOrderApiTest extends TestCase
         ]);
 
         $this->assertSame(1, FoodOrder::query()->count());
+    }
+
+    public function test_submit_order_includes_combo_metadata_in_items_snapshot(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Combo Place',
+            'Burger',
+            320,
+        );
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Sides',
+            'sort_order' => 2,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Fries',
+            'price' => 180,
+        ]);
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+        $comboRef = '550e8400-e29b-41d4-a716-446655440000';
+
+        $this->addComboItemToCart($auth, $fixture['dish']->id, 3, $comboRef, $sideDish->id)
+            ->assertOk();
+        $this->addComboItemToCart($auth, $sideDish->id, 3, $comboRef, $fixture['dish']->id)
+            ->assertOk();
+        $this->setCartDeliveryAddress($auth);
+
+        $response = $this->postJson('/api/food/orders/submit', [], $auth['headers']);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('order.items_total', '1500.00')
+            ->assertJsonPath('order.items_snapshot.0.combo_ref', $comboRef)
+            ->assertJsonPath('order.items_snapshot.0.combo_partner_dish_ids.0', $sideDish->id)
+            ->assertJsonPath('order.items_snapshot.1.combo_ref', $comboRef)
+            ->assertJsonPath('order.items_snapshot.1.combo_partner_dish_ids.0', $fixture['dish']->id)
+            ->assertJsonPath('order.items_snapshot.0.quantity', 3)
+            ->assertJsonPath('order.items_snapshot.1.quantity', 3);
+
+        $order = FoodOrder::query()->firstOrFail();
+        $snapshot = $order->items_snapshot;
+
+        $this->assertSame($comboRef, $snapshot[0]['combo_ref']);
+        $this->assertSame([$sideDish->id], $snapshot[0]['combo_partner_dish_ids']);
+        $this->assertSame($comboRef, $snapshot[1]['combo_ref']);
+        $this->assertSame([$fixture['dish']->id], $snapshot[1]['combo_partner_dish_ids']);
+    }
+
+    public function test_submit_order_keeps_mutual_snapshot_links_for_multiple_combos(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Multi Combo Place',
+            'Burger',
+            320,
+        );
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Sides',
+            'sort_order' => 2,
+        ]);
+        $dessertCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Desserts',
+            'sort_order' => 3,
+        ]);
+        $drinkCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Drinks',
+            'sort_order' => 4,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Fries',
+            'price' => 180,
+        ]);
+        $dessertDish = Dish::factory()->create([
+            'menu_category_id' => $dessertCategory->id,
+            'name' => 'Cake',
+            'price' => 150,
+        ]);
+        $drinkDish = Dish::factory()->create([
+            'menu_category_id' => $drinkCategory->id,
+            'name' => 'Cola',
+            'price' => 90,
+        ]);
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+        $firstComboRef = '550e8400-e29b-41d4-a716-446655440000';
+        $secondComboRef = '550e8400-e29b-41d4-a716-446655440001';
+
+        $this->addComboItemToCart($auth, $fixture['dish']->id, 2, $firstComboRef, $sideDish->id)
+            ->assertOk();
+        $this->addComboItemToCart($auth, $sideDish->id, 2, $firstComboRef, $fixture['dish']->id)
+            ->assertOk();
+        $this->addComboItemToCart($auth, $dessertDish->id, 1, $secondComboRef, $drinkDish->id)
+            ->assertOk();
+        $this->addComboItemToCart($auth, $drinkDish->id, 1, $secondComboRef, $dessertDish->id)
+            ->assertOk();
+        $this->setCartDeliveryAddress($auth);
+
+        $response = $this->postJson('/api/food/orders/submit', [], $auth['headers']);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('order.items_total', '1240.00');
+
+        $snapshot = $response->json('order.items_snapshot');
+        $this->assertCount(4, $snapshot);
+
+        $itemsByDishId = collect($snapshot)->keyBy('dish_id');
+        $this->assertSame($firstComboRef, $itemsByDishId[$fixture['dish']->id]['combo_ref']);
+        $this->assertSame([$sideDish->id], $itemsByDishId[$fixture['dish']->id]['combo_partner_dish_ids']);
+        $this->assertSame(2, $itemsByDishId[$fixture['dish']->id]['quantity']);
+        $this->assertSame($firstComboRef, $itemsByDishId[$sideDish->id]['combo_ref']);
+        $this->assertSame([$fixture['dish']->id], $itemsByDishId[$sideDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(2, $itemsByDishId[$sideDish->id]['quantity']);
+        $this->assertSame($secondComboRef, $itemsByDishId[$dessertDish->id]['combo_ref']);
+        $this->assertSame([$drinkDish->id], $itemsByDishId[$dessertDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(1, $itemsByDishId[$dessertDish->id]['quantity']);
+        $this->assertSame($secondComboRef, $itemsByDishId[$drinkDish->id]['combo_ref']);
+        $this->assertSame([$dessertDish->id], $itemsByDishId[$drinkDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(1, $itemsByDishId[$drinkDish->id]['quantity']);
+
+        $orderSnapshot = FoodOrder::query()->firstOrFail()->items_snapshot;
+        $orderItemsByDishId = collect($orderSnapshot)->keyBy('dish_id');
+        $this->assertSame($firstComboRef, $orderItemsByDishId[$fixture['dish']->id]['combo_ref']);
+        $this->assertSame([$sideDish->id], $orderItemsByDishId[$fixture['dish']->id]['combo_partner_dish_ids']);
+        $this->assertSame(2, $orderItemsByDishId[$fixture['dish']->id]['quantity']);
+        $this->assertSame($firstComboRef, $orderItemsByDishId[$sideDish->id]['combo_ref']);
+        $this->assertSame([$fixture['dish']->id], $orderItemsByDishId[$sideDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(2, $orderItemsByDishId[$sideDish->id]['quantity']);
+        $this->assertSame($secondComboRef, $orderItemsByDishId[$dessertDish->id]['combo_ref']);
+        $this->assertSame([$drinkDish->id], $orderItemsByDishId[$dessertDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(1, $orderItemsByDishId[$dessertDish->id]['quantity']);
+        $this->assertSame($secondComboRef, $orderItemsByDishId[$drinkDish->id]['combo_ref']);
+        $this->assertSame([$dessertDish->id], $orderItemsByDishId[$drinkDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(1, $orderItemsByDishId[$drinkDish->id]['quantity']);
+
+        $this->assertSame(
+            collect($snapshot)->keyBy('dish_id')->sortKeys()->all(),
+            collect($orderSnapshot)->keyBy('dish_id')->sortKeys()->all(),
+        );
     }
 
     public function test_cart_is_empty_after_order_submission(): void
@@ -300,6 +448,24 @@ class FoodOrderApiTest extends TestCase
         return $this->postJson('/api/food/cart/items', [
             'dish_id' => $dishId,
             'quantity' => $quantity,
+        ], $auth['headers']);
+    }
+
+    /**
+     * @param  array{headers: array<string, string>, user: MaxUser}  $auth
+     */
+    private function addComboItemToCart(
+        array $auth,
+        int $dishId,
+        int $quantity,
+        string $comboRef,
+        int $comboPartnerDishId,
+    ): TestResponse {
+        return $this->postJson('/api/food/cart/items', [
+            'dish_id' => $dishId,
+            'quantity' => $quantity,
+            'combo_ref' => $comboRef,
+            'combo_partner_dish_id' => $comboPartnerDishId,
         ], $auth['headers']);
     }
 

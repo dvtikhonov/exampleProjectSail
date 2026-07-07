@@ -17,6 +17,7 @@ import { useClientNavigation } from './composables/useClientNavigation';
 import { useDishAdmin } from './composables/useDishAdmin';
 import { useDishAdminFilters } from './composables/useDishAdminFilters';
 import { useDishAvailabilitySchedule } from './composables/useDishAvailabilitySchedule';
+import { useMenuCategoryAdmin } from './composables/useMenuCategoryAdmin';
 import { createChatMessagesReadHandler, useMaxBackButton } from './composables/useMaxBackButton';
 import { useMyOrders } from './composables/useMyOrders';
 import { useRestaurantsMenu } from './composables/useRestaurantsMenu';
@@ -30,6 +31,8 @@ import RestaurantList from './pages/RestaurantList.vue';
 import AdminDishFormPage from './pages/admin/AdminDishFormPage.vue';
 import AdminDishAvailabilityPage from './pages/admin/AdminDishAvailabilityPage.vue';
 import AdminDishListPage from './pages/admin/AdminDishListPage.vue';
+import AdminMenuCategoryFormPage from './pages/admin/AdminMenuCategoryFormPage.vue';
+import AdminMenuCategoryListPage from './pages/admin/AdminMenuCategoryListPage.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
 
@@ -52,6 +55,10 @@ const {
 const admin = useAdminFlow(adminScope);
 const dishFilters = useDishAdminFilters();
 const dishAdmin = useDishAdmin({ filters: dishFilters });
+const categoryAdmin = useMenuCategoryAdmin({
+    filters: dishFilters,
+    onCategoriesChanged: () => dishAdmin.loadCategories(),
+});
 const {
     adminView,
     adminOrders,
@@ -117,6 +124,29 @@ const {
     handleImportFile,
 } = dishAdmin;
 
+const {
+    filteredCategories,
+    categoriesLoading,
+    categoriesRefreshing,
+    categoriesError,
+    restaurantOptions: categoryRestaurantOptions,
+    editingCategory,
+    categoryFormLoading,
+    categoryFormError,
+    categoryFormFieldErrors,
+    categoryDeleteLoadingId,
+    categoryDeleteError,
+    loadRestaurantOptions,
+    loadMenuCategories,
+    openCategoryListView,
+    openCreateCategoryForm,
+    openEditCategoryForm,
+    closeCategoryForm,
+    submitCategoryForm,
+    handleDeleteCategory,
+    handleCategoryFilterRestaurantChange,
+} = categoryAdmin;
+
 const dishSchedule = useDishAvailabilitySchedule({ categories: dishAdmin.categories, filters: dishFilters });
 const {
     categoryOptions: scheduleCategoryOptions,
@@ -171,8 +201,10 @@ const {
     menuLoading,
     menuError,
     addingDishId,
+    addingComboRef,
     openRestaurant,
     handleAddToCart,
+    handleAddComboToCart,
 } = restaurantsMenu;
 
 const orders = useMyOrders({ currentView });
@@ -202,6 +234,7 @@ const back = useMaxBackButton({
     hasMenuManagerRole,
     admin,
     dishAdmin,
+    categoryAdmin,
     nav,
     cart: cartFlow,
     orders,
@@ -275,6 +308,42 @@ function onDishImportFile(file) {
     handleImportFile(file);
 }
 
+/**
+ * @param {object} fields
+ */
+function handleCategoryFormSubmit(fields) {
+    submitCategoryForm(dishAdminView, fields);
+}
+
+function handleCloseCategoryForm() {
+    closeCategoryForm(dishAdminView);
+}
+
+function handleOpenCreateCategoryForm() {
+    openCreateCategoryForm(dishAdminView);
+}
+
+/**
+ * @param {object} category
+ */
+function handleOpenEditCategoryForm(category) {
+    openEditCategoryForm(dishAdminView, category);
+}
+
+/**
+ * @param {object} category
+ */
+function handleDeleteMenuCategory(category) {
+    handleDeleteCategory(dishAdminView, category);
+}
+
+/**
+ * @param {string} value
+ */
+function handleCategoryFilterRestaurant(value) {
+    handleCategoryFilterRestaurantChange(value, dishAdminView);
+}
+
 function handleOpenDishListView() {
     if (dishAdminView.value === ADMIN_DISH_VIEWS.list) {
         return;
@@ -282,6 +351,17 @@ function handleOpenDishListView() {
 
     openDishListView();
     loadDishes();
+    back.setupBackButton();
+}
+
+function handleOpenCategoryListView() {
+    if (dishAdminView.value === ADMIN_DISH_VIEWS.categoryList) {
+        return;
+    }
+
+    openCategoryListView(dishAdminView);
+    loadRestaurantOptions();
+    loadMenuCategories();
     back.setupBackButton();
 }
 
@@ -368,7 +448,7 @@ onMounted(async () => {
                         <template v-if="adminSection === ADMIN_SECTIONS.menu && hasMenuManagerRole">
                     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <nav
-                        v-if="dishAdminView !== ADMIN_DISH_VIEWS.form"
+                        v-if="dishAdminView !== ADMIN_DISH_VIEWS.form && dishAdminView !== ADMIN_DISH_VIEWS.categoryForm"
                         class="z-10 shrink-0 border-b border-gray-100 bg-white"
                         aria-label="Режим управления меню"
                     >
@@ -383,7 +463,20 @@ onMounted(async () => {
                                 "
                                 @click="handleOpenDishListView"
                             >
-                                Список
+                                Блюда
+                            </button>
+                            <button
+                                type="button"
+                                class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition"
+                                :class="
+                                    dishAdminView === ADMIN_DISH_VIEWS.categoryList
+                                        || dishAdminView === ADMIN_DISH_VIEWS.categoryForm
+                                        ? 'border-max-primary text-max-primary'
+                                        : 'border-transparent text-max-muted hover:text-gray-700'
+                                "
+                                @click="handleOpenCategoryListView"
+                            >
+                                Категории
                             </button>
                             <button
                                 type="button"
@@ -399,6 +492,38 @@ onMounted(async () => {
                             </button>
                         </div>
                     </nav>
+
+                    <AdminMenuCategoryFormPage
+                        v-if="dishAdminView === ADMIN_DISH_VIEWS.categoryForm"
+                        :category="editingCategory"
+                        :restaurant-options="categoryRestaurantOptions"
+                        :loading="categoryFormLoading && !editingCategory"
+                        :submit-loading="categoryFormLoading"
+                        :error="categoryFormError"
+                        :server-field-errors="categoryFormFieldErrors"
+                        @back="handleCloseCategoryForm"
+                        @submit="handleCategoryFormSubmit"
+                    />
+
+                    <KeepAlive>
+                        <AdminMenuCategoryListPage
+                            v-if="dishAdminView === ADMIN_DISH_VIEWS.categoryList"
+                            class="min-h-0 flex-1"
+                            :categories="filteredCategories"
+                            :loading="categoriesLoading"
+                            :error="categoriesError"
+                            :refreshing="categoriesRefreshing"
+                            :delete-error="categoryDeleteError"
+                            :delete-loading-id="categoryDeleteLoadingId"
+                            :restaurant-options="categoryRestaurantOptions"
+                            :filter-restaurant-id="filterRestaurantId"
+                            @add="handleOpenCreateCategoryForm"
+                            @edit="handleOpenEditCategoryForm"
+                            @delete="handleDeleteMenuCategory"
+                            @refresh="loadMenuCategories({ refreshing: true })"
+                            @filter-restaurant="handleCategoryFilterRestaurant"
+                        />
+                    </KeepAlive>
 
                     <AdminDishFormPage
                         v-if="dishAdminView === ADMIN_DISH_VIEWS.form"
@@ -532,10 +657,12 @@ onMounted(async () => {
                     :loading="menuLoading"
                     :error="menuError"
                     :adding-dish-id="addingDishId"
+                    :adding-combo-ref="addingComboRef"
                     :cart-item-count="cartItemCount"
                     :cart-total="cartTotal"
                     :orders-unread-count="ordersUnreadCount"
                     @add-to-cart="handleAddToCart"
+                    @add-combo-to-cart="handleAddComboToCart"
                     @open-cart="goToCart"
                     @open-orders="goToMyOrders"
                 />

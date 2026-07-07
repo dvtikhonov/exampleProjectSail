@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Dish;
 use App\Models\MenuCategory;
 use App\Models\Restaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,21 +89,81 @@ class FoodRestaurantApiTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_menu_endpoint_excludes_unavailable_dishes(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+
+        Dish::factory()->unavailable()->create([
+            'menu_category_id' => $fixture['category']->id,
+            'name' => 'Hidden Soup',
+            'price' => 180.00,
+        ]);
+
+        $response = $this->getJson(
+            '/api/food/restaurants/'.$fixture['restaurant']->id.'/menu',
+            $auth['headers'],
+        );
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(1, 'menu.categories.0.dishes')
+            ->assertJsonPath('menu.categories.0.dishes.0.id', $fixture['dish']->id)
+            ->assertJsonMissing(['name' => 'Hidden Soup']);
+    }
+
+    public function test_menu_endpoint_hides_categories_without_available_dishes(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+
+        $fixture['dish']->update(['is_available' => false]);
+
+        $emptyCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Empty Category',
+            'sort_order' => 2,
+        ]);
+
+        Dish::factory()->unavailable()->create([
+            'menu_category_id' => $emptyCategory->id,
+            'name' => 'Also Hidden',
+            'price' => 99.00,
+        ]);
+
+        $this->getJson(
+            '/api/food/restaurants/'.$fixture['restaurant']->id.'/menu',
+            $auth['headers'],
+        )
+            ->assertOk()
+            ->assertJsonCount(0, 'menu.categories');
+    }
+
     public function test_menu_endpoint_sorts_categories_by_sort_order(): void
     {
         $auth = $this->authenticateMaxUser();
         $restaurant = Restaurant::factory()->create();
 
-        MenuCategory::factory()->create([
+        $desserts = MenuCategory::factory()->create([
             'restaurant_id' => $restaurant->id,
             'name' => 'Desserts',
             'sort_order' => 2,
         ]);
 
-        MenuCategory::factory()->create([
+        $starters = MenuCategory::factory()->create([
             'restaurant_id' => $restaurant->id,
             'name' => 'Starters',
             'sort_order' => 1,
+        ]);
+
+        Dish::factory()->create([
+            'menu_category_id' => $starters->id,
+            'name' => 'Soup',
+        ]);
+
+        Dish::factory()->create([
+            'menu_category_id' => $desserts->id,
+            'name' => 'Cake',
         ]);
 
         $response = $this->getJson('/api/food/restaurants/'.$restaurant->id.'/menu', $auth['headers']);

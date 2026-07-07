@@ -14,7 +14,7 @@ readonly class DishImportResultDto
      */
     public function __construct(
         public int $importedCount,
-        public array $errors = [],
+        public array $errors,
     ) {}
 
     /**

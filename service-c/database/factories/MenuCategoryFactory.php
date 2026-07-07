@@ -24,6 +24,7 @@ class MenuCategoryFactory extends Factory
             'restaurant_id' => Restaurant::factory(),
             'name' => fake()->words(2, true),
             'sort_order' => fake()->numberBetween(1, 10),
+            'is_combo_available' => true,
         ];
     }
 }

@@ -9,12 +9,17 @@ use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
+use App\Support\OrderSnapshotComboResolver;
 
 /**
  * Формирование текста уведомления о заказе для MAX с усечением по лимиту.
  */
 class FoodOrderMaxMessageBuilder
 {
+    public function __construct(
+        private readonly OrderSnapshotComboResolver $comboResolver,
+    ) {}
+
     private const DEFAULT_MAX_TEXT_LENGTH = 4000;
 
     private const TRUNCATION_SUFFIX_TEMPLATE = '…и ещё %d позиций';
@@ -210,18 +215,32 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
-     * @return list<array{dish_name: string, quantity: int, line_total: string}>
+     * @return list<array<string, mixed>>
      */
     private function extractItems(OrderDto $order): array
     {
         $items = [];
 
         foreach ($order->itemsSnapshot as $snapshot) {
-            $items[] = [
+            if (! is_array($snapshot)) {
+                continue;
+            }
+
+            $item = [
+                'dish_id' => (int) ($snapshot['dish_id'] ?? 0),
                 'dish_name' => (string) ($snapshot['dish_name'] ?? ''),
                 'quantity' => (int) ($snapshot['quantity'] ?? 0),
                 'line_total' => (string) ($snapshot['line_total'] ?? '0.00'),
             ];
+
+            if (isset($snapshot['combo_ref']) && $snapshot['combo_ref'] !== null && $snapshot['combo_ref'] !== '') {
+                $item['combo_ref'] = (string) $snapshot['combo_ref'];
+                $item['combo_partner_dish_ids'] = is_array($snapshot['combo_partner_dish_ids'] ?? null)
+                    ? $snapshot['combo_partner_dish_ids']
+                    : [];
+            }
+
+            $items[] = $item;
         }
 
         return $items;
@@ -246,7 +265,7 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
-     * @param  list<array{dish_name: string, quantity: int, line_total: string}>  $items
+     * @param  list<array<string, mixed>>  $items
      * @return list<string>
      */
     private function formatItemsLines(array $items): array
@@ -256,10 +275,16 @@ class FoodOrderMaxMessageBuilder
         foreach ($items as $item) {
             $lines[] = sprintf(
                 '• %s × %d — %s ₽',
-                $item['dish_name'],
-                $item['quantity'],
-                $item['line_total'],
+                (string) $item['dish_name'],
+                (int) $item['quantity'],
+                (string) $item['line_total'],
             );
+
+            $comboLabel = $this->comboResolver->formatComboLabel($item, $items);
+
+            if ($comboLabel !== null) {
+                $lines[] = '  '.$comboLabel;
+            }
         }
 
         return $lines;

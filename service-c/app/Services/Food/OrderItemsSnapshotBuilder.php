@@ -34,14 +34,23 @@ class OrderItemsSnapshotBuilder
             $lineTotal = $unitPrice * $item->quantity;
             $itemsTotal += $lineTotal;
 
-            $itemsSnapshot[] = [
-                'dish_id' => $item->dish_id,
+            $snapshotItem = [
+                'dish_id' => (int) $item->dish_id,
                 'dish_name' => $item->dish->name,
                 'unit_price' => $this->moneyFormatter->format($unitPrice),
-                'quantity' => $item->quantity,
+                'quantity' => (int) $item->quantity,
                 'line_total' => $this->moneyFormatter->format($lineTotal),
                 'image_url' => $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
             ];
+
+            if ($item->combo_ref !== null) {
+                $snapshotItem['combo_ref'] = $item->combo_ref;
+                $snapshotItem['combo_partner_dish_ids'] = $item->combo_partner_dish_id !== null
+                    ? [(int) $item->combo_partner_dish_id]
+                    : [];
+            }
+
+            $itemsSnapshot[] = $snapshotItem;
         }
 
         return new OrderItemsSnapshotDto(

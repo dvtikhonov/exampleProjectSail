@@ -7,7 +7,9 @@ namespace Tests\Feature;
 use App\Enums\Food\CartStatus;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\Dish;
 use App\Models\MaxUser;
+use App\Models\MenuCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -67,6 +69,63 @@ class FoodCartApiTest extends TestCase
             'max_user_id' => $auth['user']->max_user_id,
             'restaurant_id' => $fixture['restaurant']->id,
             'status' => CartStatus::Draft->value,
+        ]);
+    }
+
+    public function test_add_combo_items_returns_and_persists_combo_metadata(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Combo Place', 'Burger', 320);
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Sides',
+            'sort_order' => 2,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Fries',
+            'price' => 180,
+        ]);
+        $comboRef = '550e8400-e29b-41d4-a716-446655440000';
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 2,
+            'combo_ref' => $comboRef,
+            'combo_partner_dish_id' => $sideDish->id,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.items.0.dish_id', $fixture['dish']->id)
+            ->assertJsonPath('cart.items.0.quantity', 2)
+            ->assertJsonPath('cart.items.0.combo_ref', $comboRef)
+            ->assertJsonPath('cart.items.0.combo_partner_dish_id', $sideDish->id)
+            ->assertJsonPath('cart.items.0.combo_partner_dish_name', 'Fries');
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $sideDish->id,
+            'quantity' => 2,
+            'combo_ref' => $comboRef,
+            'combo_partner_dish_id' => $fixture['dish']->id,
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.items.0.combo_ref', $comboRef)
+            ->assertJsonPath('cart.items.0.combo_partner_dish_id', $sideDish->id)
+            ->assertJsonPath('cart.items.1.combo_ref', $comboRef)
+            ->assertJsonPath('cart.items.1.combo_partner_dish_id', $fixture['dish']->id)
+            ->assertJsonPath('cart.items.1.combo_partner_dish_name', 'Burger')
+            ->assertJsonPath('cart.items_total', '1000.00');
+
+        $this->assertDatabaseHas('max_cart_items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 2,
+            'combo_ref' => $comboRef,
+            'combo_partner_dish_id' => $sideDish->id,
+        ]);
+        $this->assertDatabaseHas('max_cart_items', [
+            'dish_id' => $sideDish->id,
+            'quantity' => 2,
+            'combo_ref' => $comboRef,
+            'combo_partner_dish_id' => $fixture['dish']->id,
         ]);
     }
 

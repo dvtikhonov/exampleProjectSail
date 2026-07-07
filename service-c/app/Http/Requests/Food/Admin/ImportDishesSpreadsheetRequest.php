@@ -12,7 +12,7 @@ use Illuminate\Http\UploadedFile;
  */
 class ImportDishesSpreadsheetRequest extends FormRequest
 {
-    private const int MAX_FILE_SIZE_KILOBYTES = 5120;
+    private const int MAX_FILE_KILOBYTES = 5120;
 
     public function authorize(): bool
     {
@@ -30,7 +30,7 @@ class ImportDishesSpreadsheetRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'mimes:xls,xlsx', 'max:'.self::MAX_FILE_SIZE_KILOBYTES],
+            'file' => ['required', 'file', 'mimes:xls,xlsx', 'max:'.self::MAX_FILE_KILOBYTES],
             'menu_category_id' => ['required', 'integer', 'min:1'],
         ];
     }
@@ -41,12 +41,10 @@ class ImportDishesSpreadsheetRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required' => 'Выберите файл для импорта.',
+            'file.required' => 'Выберите файл таблицы.',
             'file.mimes' => 'Допустимы только файлы .xls и .xlsx.',
             'file.max' => 'Размер файла не должен превышать 5 МБ.',
             'menu_category_id.required' => 'Выберите категорию меню.',
-            'menu_category_id.integer' => 'Категория меню указана неверно.',
-            'menu_category_id.min' => 'Категория меню указана неверно.',
         ];
     }
 

@@ -8,6 +8,7 @@
 import { computed, ref, watch } from 'vue';
 import DishImage from '../components/DishImage.vue';
 import MyOrdersButton from '../components/MyOrdersButton.vue';
+import { buildCartGroups, getCartGroupTitle } from '../utils/cartGroups';
 
 const props = defineProps({
     cart: {
@@ -27,7 +28,7 @@ const props = defineProps({
         default: false,
     },
     updatingItemId: {
-        type: Number,
+        type: [Number, String],
         default: null,
     },
     savingAddress: {
@@ -78,7 +79,9 @@ watch(
     { immediate: true },
 );
 
-const isEmpty = computed(() => !props.cart || props.cart.items.length === 0);
+const cartGroups = computed(() => buildCartGroups(props.cart));
+
+const isEmpty = computed(() => !props.cart || cartGroups.value.length === 0);
 
 const deliveryApplicable = computed(() => props.cart?.delivery_applicable === true);
 
@@ -103,20 +106,20 @@ function handleAddressBlur() {
 
 /** Черновик количества в input до blur/Enter — не шлём API на каждый символ */
 function getQuantityDisplay(item) {
-    if (focusedQuantityItemId.value === item.id && quantityDrafts.value[item.id] !== undefined) {
-        return quantityDrafts.value[item.id];
+    if (focusedQuantityItemId.value === item.key && quantityDrafts.value[item.key] !== undefined) {
+        return quantityDrafts.value[item.key];
     }
 
     return String(item.quantity);
 }
 
 function handleQuantityFocus(item) {
-    focusedQuantityItemId.value = item.id;
-    quantityDrafts.value[item.id] = String(item.quantity);
+    focusedQuantityItemId.value = item.key;
+    quantityDrafts.value[item.key] = String(item.quantity);
 }
 
 function handleQuantityInput(item, event) {
-    quantityDrafts.value[item.id] = event.target.value.replace(/\D/g, '');
+    quantityDrafts.value[item.key] = event.target.value.replace(/\D/g, '');
 }
 
 function clampQuantity(value) {
@@ -126,8 +129,8 @@ function clampQuantity(value) {
 function commitQuantity(item) {
     focusedQuantityItemId.value = null;
 
-    const raw = quantityDrafts.value[item.id] ?? String(item.quantity);
-    delete quantityDrafts.value[item.id];
+    const raw = quantityDrafts.value[item.key] ?? String(item.quantity);
+    delete quantityDrafts.value[item.key];
 
     const parsed = Number.parseInt(raw, 10);
     const quantity = Number.isNaN(parsed) ? item.quantity : clampQuantity(parsed);
@@ -256,21 +259,39 @@ watch(
 
                 <ul class="space-y-3">
                     <li
-                        v-for="item in cart.items"
-                        :key="item.id"
+                        v-for="item in cartGroups"
+                        :key="item.key"
                         class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
                     >
                         <div class="flex items-start gap-3">
-                            <DishImage :image-url="item.image_url" :alt="item.dish_name" />
+                            <DishImage
+                                :image-url="item.type === 'combo' ? item.items[0]?.image_url : item.item.image_url"
+                                :alt="getCartGroupTitle(item)"
+                            />
                             <div class="min-w-0 flex-1">
-                                <p class="font-medium text-gray-900">{{ item.dish_name }}</p>
-                                <p class="mt-0.5 text-sm text-max-muted">{{ item.unit_price }} ₽ × {{ item.quantity }}</p>
-                                <p class="mt-1 text-sm font-semibold text-gray-900">{{ item.line_total }} ₽</p>
+                                <p class="font-medium text-gray-900">{{ getCartGroupTitle(item) }}</p>
+                                <template v-if="item.type === 'combo'">
+                                    <p class="mt-0.5 text-sm text-max-muted">{{ item.quantity }} шт.</p>
+                                    <ul class="mt-2 space-y-1 text-xs text-max-muted">
+                                        <li
+                                            v-for="component in item.items"
+                                            :key="component.id"
+                                            class="flex justify-between gap-2"
+                                        >
+                                            <span class="min-w-0 truncate">{{ component.dish_name }}</span>
+                                            <span class="shrink-0">{{ component.unit_price }} ₽ × {{ component.quantity }}</span>
+                                        </li>
+                                    </ul>
+                                </template>
+                                <p v-else class="mt-0.5 text-sm text-max-muted">
+                                    {{ item.item.unit_price }} ₽ × {{ item.quantity }}
+                                </p>
+                                <p class="mt-1 text-sm font-semibold text-gray-900">{{ item.lineTotal }} ₽</p>
                             </div>
                             <button
                                 type="button"
                                 class="text-sm text-red-500 transition hover:text-red-700"
-                                :disabled="updatingItemId === item.id"
+                                :disabled="updatingItemId === item.key"
                                 @click="emit('remove-item', item)"
                             >
                                 Удалить
@@ -280,7 +301,7 @@ watch(
                             <button
                                 type="button"
                                 class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
-                                :disabled="item.quantity <= MIN_QUANTITY || updatingItemId === item.id"
+                                :disabled="item.quantity <= MIN_QUANTITY || updatingItemId === item.key"
                                 @click="emit('update-quantity', item, item.quantity - 1)"
                             >
                                 −
@@ -292,8 +313,8 @@ watch(
                                 autocomplete="off"
                                 class="h-9 w-12 rounded-xl border border-gray-200 bg-gray-50 text-center text-sm font-medium text-gray-900 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-40"
                                 :value="getQuantityDisplay(item)"
-                                :disabled="updatingItemId === item.id"
-                                :aria-label="`Количество: ${item.dish_name}`"
+                                :disabled="updatingItemId === item.key"
+                                :aria-label="`Количество: ${getCartGroupTitle(item)}`"
                                 @focus="handleQuantityFocus(item)"
                                 @input="handleQuantityInput(item, $event)"
                                 @blur="commitQuantity(item)"
@@ -302,7 +323,7 @@ watch(
                             <button
                                 type="button"
                                 class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
-                                :disabled="item.quantity >= MAX_QUANTITY || updatingItemId === item.id"
+                                :disabled="item.quantity >= MAX_QUANTITY || updatingItemId === item.key"
                                 @click="emit('update-quantity', item, item.quantity + 1)"
                             >
                                 +
@@ -388,12 +409,12 @@ watch(
                 <div class="mt-4 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <ul class="space-y-2 text-sm">
                         <li
-                            v-for="item in cart.items"
-                            :key="item.id"
+                            v-for="item in cartGroups"
+                            :key="item.key"
                             class="flex items-center justify-between gap-3"
                         >
-                            <span class="min-w-0 text-gray-700">{{ item.dish_name }} × {{ item.quantity }}</span>
-                            <span class="shrink-0 font-medium text-gray-900">{{ item.line_total }} ₽</span>
+                            <span class="min-w-0 text-gray-700">{{ getCartGroupTitle(item) }} × {{ item.quantity }}</span>
+                            <span class="shrink-0 font-medium text-gray-900">{{ item.lineTotal }} ₽</span>
                         </li>
                     </ul>
                 </div>

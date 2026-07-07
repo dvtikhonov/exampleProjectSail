@@ -8,6 +8,7 @@ use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
+use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -24,7 +25,7 @@ class FoodOrderCustomerNotifierTest extends TestCase
     {
         parent::setUp();
 
-        $this->messageBuilder = new FoodOrderMaxMessageBuilder;
+        $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
     public function test_build_customer_confirmed_message(): void

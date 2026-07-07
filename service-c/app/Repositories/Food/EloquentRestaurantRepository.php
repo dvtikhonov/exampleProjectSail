@@ -28,12 +28,24 @@ class EloquentRestaurantRepository implements MenuReadRepositoryInterface, Resta
     /**
      * {@inheritDoc}
      */
+    public function findActiveById(int $restaurantId): ?Restaurant
+    {
+        return Restaurant::query()
+            ->where('is_active', true)
+            ->find($restaurantId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function findActiveWithMenu(int $restaurantId): ?Restaurant
     {
         return Restaurant::query()
             ->where('is_active', true)
             ->with([
-                'menuCategories.dishes' => static fn ($query) => $query->orderBy('name'),
+                'menuCategories.dishes' => static fn ($query) => $query
+                    ->where('is_available', true)
+                    ->orderBy('name'),
             ])
             ->find($restaurantId);
     }

@@ -39,4 +39,6 @@ export const ADMIN_DISH_VIEWS = {
     list: 'dishList',
     form: 'dishForm',
     schedule: 'dishSchedule',
+    categoryList: 'categoryList',
+    categoryForm: 'categoryForm',
 };

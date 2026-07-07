@@ -12,6 +12,7 @@ import {
     updateCartItem,
 } from '../api/foodClient';
 import { VIEWS } from '../constants/views';
+import { buildCartGroups, countCartGroupsQuantity } from '../utils/cartGroups';
 
 /** Задержка debounce автосохранения адреса (мс) */
 const ADDRESS_DEBOUNCE_MS = 500;
@@ -35,11 +36,7 @@ export function useCart({ currentView }) {
     let addressDebounceTimer = null;
 
     const cartItemCount = computed(() => {
-        if (!cart.value?.items) {
-            return 0;
-        }
-
-        return cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
+        return countCartGroupsQuantity(cart.value);
     });
 
     const cartTotal = computed(() => cart.value?.total ?? '0.00');
@@ -65,10 +62,13 @@ export function useCart({ currentView }) {
     }
 
     async function handleUpdateQuantity(item, quantity) {
-        updatingItemId.value = item.id;
+        const items = item.items ?? [item];
+        updatingItemId.value = item.key ?? item.id;
 
         try {
-            cart.value = await updateCartItem(item.id, quantity);
+            for (const cartItem of items) {
+                cart.value = await updateCartItem(cartItem.id, quantity);
+            }
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -77,10 +77,13 @@ export function useCart({ currentView }) {
     }
 
     async function handleRemoveItem(item) {
-        updatingItemId.value = item.id;
+        const items = item.items ?? [item];
+        updatingItemId.value = item.key ?? item.id;
 
         try {
-            cart.value = await removeCartItem(item.id);
+            for (const cartItem of items) {
+                cart.value = await removeCartItem(cartItem.id);
+            }
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -182,6 +185,7 @@ export function useCart({ currentView }) {
         savingAddress,
         submittedOrder,
         cartPageRef,
+        cartGroups: computed(() => buildCartGroups(cart.value)),
         cartItemCount,
         cartTotal,
         loadCart,

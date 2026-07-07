@@ -23,6 +23,7 @@ class CartService implements CartServiceInterface
 {
     public function __construct(
         private readonly CartDtoFactory $cartDtoFactory,
+        private readonly ComboPairValidator $comboPairValidator,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
         private readonly CartRepositoryInterface $cartRepository,
         private readonly DishCatalogRepositoryInterface $dishRepository,
@@ -47,9 +48,14 @@ class CartService implements CartServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function addItem(MaxUser $maxUser, int $dishId, int $quantity): CartDto
-    {
-        return DB::transaction(function () use ($maxUser, $dishId, $quantity): CartDto {
+    public function addItem(
+        MaxUser $maxUser,
+        int $dishId,
+        int $quantity,
+        ?string $comboRef = null,
+        ?int $comboPartnerDishId = null,
+    ): CartDto {
+        return DB::transaction(function () use ($maxUser, $dishId, $quantity, $comboRef, $comboPartnerDishId): CartDto {
             $dish = $this->dishRepository->findAvailableWithRestaurant($dishId);
 
             if ($dish === null) {
@@ -81,16 +87,11 @@ class CartService implements CartServiceInterface
                 );
             }
 
-            $cartItem = $this->cartRepository->findItemByCartAndDish($cart->id, $dish->id);
-
-            if ($cartItem === null) {
-                $this->cartRepository->createItem([
-                    'cart_id' => $cart->id,
-                    'dish_id' => $dish->id,
-                    'quantity' => $quantity,
-                ]);
+            if ($comboRef !== null && $comboPartnerDishId !== null) {
+                $this->comboPairValidator->validatePair($dish, $comboPartnerDishId);
+                $this->upsertComboCartItem($cart, $dish->id, $quantity, $comboRef, $comboPartnerDishId);
             } else {
-                $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
+                $this->upsertRegularCartItem($cart, $dish->id, $quantity);
             }
 
             return $this->cartDtoFactory->fromModel(
@@ -157,6 +158,47 @@ class CartService implements CartServiceInterface
 
             $this->cartRepository->delete($cart);
         });
+    }
+
+    private function upsertRegularCartItem(Cart $cart, int $dishId, int $quantity): void
+    {
+        $cartItem = $this->cartRepository->findRegularItemByCartAndDish($cart->id, $dishId);
+
+        if ($cartItem === null) {
+            $this->cartRepository->createItem([
+                'cart_id' => $cart->id,
+                'dish_id' => $dishId,
+                'quantity' => $quantity,
+            ]);
+
+            return;
+        }
+
+        $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
+    }
+
+    private function upsertComboCartItem(
+        Cart $cart,
+        int $dishId,
+        int $quantity,
+        string $comboRef,
+        int $comboPartnerDishId,
+    ): void {
+        $cartItem = $this->cartRepository->findComboItemByCartDishAndRef($cart->id, $dishId, $comboRef);
+
+        if ($cartItem === null) {
+            $this->cartRepository->createItem([
+                'cart_id' => $cart->id,
+                'dish_id' => $dishId,
+                'quantity' => $quantity,
+                'combo_ref' => $comboRef,
+                'combo_partner_dish_id' => $comboPartnerDishId,
+            ]);
+
+            return;
+        }
+
+        $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
     }
 
     private function findDraftCart(MaxUser $maxUser): ?Cart

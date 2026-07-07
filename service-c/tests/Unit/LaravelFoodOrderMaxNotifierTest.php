@@ -11,6 +11,7 @@ use App\Models\MaxUser;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -190,7 +191,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         return new LaravelFoodOrderMaxNotifier(
             client: $client,
             configProvider: $this->makeConfigProvider($config),
-            messageBuilder: new FoodOrderMaxMessageBuilder,
+            messageBuilder: new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver),
             openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
             config: $this->app->make('config'),
         );

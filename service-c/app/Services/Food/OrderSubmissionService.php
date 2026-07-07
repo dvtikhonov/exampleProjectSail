@@ -79,6 +79,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 'items_total' => $formattedItemsTotal,
                 'items_snapshot' => $snapshot->itemsSnapshot,
             ]);
+            $order->refresh();
 
             $this->cartRepository->markAsSubmitted($cart);
 
@@ -92,7 +93,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 deliveryCost: $formattedDeliveryCost,
                 total: $formattedTotal,
                 deliveryAddress: $cart->delivery_address,
-                itemsSnapshot: $snapshot->itemsSnapshot,
+                itemsSnapshot: $order->items_snapshot ?? [],
                 createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             );
         });

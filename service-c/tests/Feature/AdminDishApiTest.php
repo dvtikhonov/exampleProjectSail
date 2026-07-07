@@ -172,7 +172,7 @@ class AdminDishApiTest extends TestCase
 
         $this->getJson('/api/food/restaurants/'.$fixture['restaurant']->id.'/menu', $clientAuth['headers'])
             ->assertOk()
-            ->assertJsonCount(0, 'menu.categories.0.dishes');
+            ->assertJsonCount(0, 'menu.categories');
     }
 
     public function test_store_rejects_disallowed_extension(): void
