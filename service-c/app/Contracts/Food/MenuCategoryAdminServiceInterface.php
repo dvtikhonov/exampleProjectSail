@@ -7,7 +7,7 @@ namespace App\Contracts\Food;
 use App\DTO\Food\AdminMenuCategoryDto;
 use App\DTO\Food\CreateMenuCategoryDto;
 use App\DTO\Food\UpdateMenuCategoryDto;
-use App\Models\MenuCategory;
+use App\Exceptions\Food\FoodDomainException;
 
 /**
  * Сервис административного CRUD категорий меню.
@@ -20,22 +20,22 @@ interface MenuCategoryAdminServiceInterface
     public function list(?int $restaurantId = null): array;
 
     /**
-     * @throws \App\Exceptions\Food\FoodDomainException
+     * @throws FoodDomainException
      */
     public function show(int $categoryId): AdminMenuCategoryDto;
 
     /**
-     * @throws \App\Exceptions\Food\FoodDomainException
+     * @throws FoodDomainException
      */
     public function create(CreateMenuCategoryDto $dto): AdminMenuCategoryDto;
 
     /**
-     * @throws \App\Exceptions\Food\FoodDomainException
+     * @throws FoodDomainException
      */
     public function update(int $categoryId, UpdateMenuCategoryDto $dto): AdminMenuCategoryDto;
 
     /**
-     * @throws \App\Exceptions\Food\FoodDomainException
+     * @throws FoodDomainException
      */
     public function delete(int $categoryId): void;
 }

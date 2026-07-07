@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\MenuCategoryAdminServiceInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
+use App\DTO\Food\AdminMenuCategoryDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\StoreMenuCategoryRequest;
@@ -95,7 +96,7 @@ class AdminMenuCategoryController extends Controller
     }
 
     /**
-     * @param  callable(): \App\DTO\Food\AdminMenuCategoryDto  $action
+     * @param  callable(): AdminMenuCategoryDto  $action
      */
     private function respondCategory(callable $action, int $status = 200): JsonResponse
     {
