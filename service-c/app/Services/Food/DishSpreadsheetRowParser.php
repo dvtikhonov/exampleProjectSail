@@ -7,101 +7,69 @@ namespace App\Services\Food;
 use App\DTO\Food\ImportDishRowDto;
 use App\Enums\Food\DishVatRate;
 use App\Enums\Food\DishWeightUnit;
+use App\Exceptions\Food\FoodDomainException;
 
 /**
- * Парсер строк XLS/XLSX для импорта блюд (колонки A — «Название. 100г», B — цена).
+ * Парсер строки импорта блюд: колонка A — «Название. {вес}г», колонка B — цена.
  */
 class DishSpreadsheetRowParser
 {
-    private const string NAME_WEIGHT_PATTERN = '/^(.*)\.\s*(\d+)\s*г\s*$/ui';
+    public function __construct(
+        private readonly FoodMoneyFormatter $moneyFormatter,
+    ) {}
 
     /**
-     * @param  list<list<mixed>>  $rows
-     * @return array{rows: list<ImportDishRowDto>, errors: list<array{row: int, message: string}>}
+     * @throws FoodDomainException
      */
-    public function parseRows(array $rows): array
+    public function parse(mixed $nameCell, mixed $priceCell): ImportDishRowDto
     {
-        $parsedRows = [];
-        $errors = [];
+        $nameRaw = trim((string) $nameCell);
 
-        foreach ($rows as $index => $row) {
-            $rowNumber = $index + 1;
-
-            if ($rowNumber === 1) {
-                continue;
-            }
-
-            $columnA = $this->cellToString($row[0] ?? null);
-            $columnB = $this->cellToString($row[1] ?? null);
-
-            if ($columnA === '' && $columnB === '') {
-                continue;
-            }
-
-            $nameWeightMatch = preg_match(self::NAME_WEIGHT_PATTERN, $columnA, $matches);
-
-            if ($nameWeightMatch !== 1) {
-                $errors[] = [
-                    'row' => $rowNumber,
-                    'message' => 'Неверный формат колонки A. Ожидается «Название. 100г».',
-                ];
-
-                continue;
-            }
-
-            $price = $this->parsePrice($columnB);
-
-            if ($price === null) {
-                $errors[] = [
-                    'row' => $rowNumber,
-                    'message' => 'Неверный формат колонки B. Ожидается цена в рублях.',
-                ];
-
-                continue;
-            }
-
-            $parsedRows[] = new ImportDishRowDto(
-                name: trim($matches[1]),
-                weight: (string) (int) $matches[2],
-                weightUnit: DishWeightUnit::Gram,
-                price: $price,
-                vatRate: DishVatRate::Exempt,
-                isAvailable: true,
-                description: null,
-            );
+        if ($nameRaw === '') {
+            throw new FoodDomainException('Укажите название блюда в колонке A.');
         }
 
-        return [
-            'rows' => $parsedRows,
-            'errors' => $errors,
-        ];
+        if (! preg_match('/^(.+?)\.\s*(\d+)\s*г$/u', $nameRaw, $matches)) {
+            throw new FoodDomainException('Колонка A должна быть в формате «Название. 300г».');
+        }
+
+        $price = $this->parsePrice($priceCell);
+
+        return new ImportDishRowDto(
+            name: trim($matches[1]),
+            description: null,
+            weight: (string) (int) $matches[2],
+            weightUnit: DishWeightUnit::Gram,
+            price: $this->moneyFormatter->format($price),
+            vatRate: DishVatRate::Ten,
+            isAvailable: true,
+        );
     }
 
-    private function cellToString(mixed $value): string
+    /**
+     * @throws FoodDomainException
+     */
+    private function parsePrice(mixed $priceCell): float
     {
-        if ($value === null) {
-            return '';
+        $priceRaw = trim((string) $priceCell);
+
+        if ($priceRaw === '') {
+            throw new FoodDomainException('Укажите цену в колонке B.');
         }
 
-        if (is_string($value)) {
-            return trim($value);
+        $normalized = str_replace([' ', "\xc2\xa0"], '', $priceRaw);
+        $normalized = str_replace(',', '.', $normalized);
+
+        if (! is_numeric($normalized)) {
+            throw new FoodDomainException('Цена в колонке B должна быть числом.');
         }
 
-        if (is_int($value) || is_float($value)) {
-            return trim((string) $value);
+        $price = (float) $normalized;
+
+        if ($price < 0) {
+            throw new FoodDomainException('Цена не может быть отрицательной.');
         }
 
-        return trim((string) $value);
-    }
-
-    private function parsePrice(string $rawValue): ?string
-    {
-        $normalized = str_replace([' ', ','], ['', '.'], trim($rawValue));
-
-        if ($normalized === '' || ! is_numeric($normalized)) {
-            return null;
-        }
-
-        return number_format((float) $normalized, 2, '.', '');
+        return $price;
     }
 }

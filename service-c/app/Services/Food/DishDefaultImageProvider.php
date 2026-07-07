@@ -10,39 +10,31 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Копирует placeholder-изображение блюда в публичное хранилище при импорте.
+ * Копирует placeholder-изображение блюда в public storage.
  */
 class DishDefaultImageProvider
 {
-    private const string PLACEHOLDER_RELATIVE_PATH = 'database/seeders/assets/dishes/placeholder-1.jpg';
+    private const string SOURCE_ASSET = 'database/seeders/assets/dishes/placeholder-1.jpg';
 
     /**
-     * Копирует placeholder в storage/app/public/dishes/{dishId}/{uuid}.jpg.
+     * Копирует placeholder в каталог блюда и возвращает относительный путь в storage.
      *
      * @throws FoodDomainException
      */
     public function copyForDish(int $dishId): string
     {
-        $sourcePath = base_path(self::PLACEHOLDER_RELATIVE_PATH);
+        $sourcePath = base_path(self::SOURCE_ASSET);
 
-        if (! File::isFile($sourcePath)) {
-            throw new FoodDomainException('Placeholder-изображение для импорта не найдено.');
+        if (! is_file($sourcePath)) {
+            throw new FoodDomainException('Placeholder-изображение блюда не найдено.');
         }
 
         $relativePath = sprintf('dishes/%d/%s.jpg', $dishId, (string) Str::uuid());
-        $destinationDirectory = dirname($relativePath);
 
-        if (! Storage::disk('public')->exists($destinationDirectory)) {
-            Storage::disk('public')->makeDirectory($destinationDirectory);
-        }
-
-        $stored = Storage::disk('public')->put(
-            $relativePath,
-            File::get($sourcePath),
-        );
+        $stored = Storage::disk('public')->put($relativePath, File::get($sourcePath));
 
         if ($stored === false) {
-            throw new FoodDomainException('Не удалось сохранить изображение блюда.');
+            throw new FoodDomainException('Не удалось сохранить placeholder-изображение.');
         }
 
         return $relativePath;

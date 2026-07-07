@@ -280,7 +280,24 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame(1, $itemsByDishId[$drinkDish->id]['quantity']);
 
         $orderSnapshot = FoodOrder::query()->firstOrFail()->items_snapshot;
-        $this->assertSame($snapshot, $orderSnapshot);
+        $orderItemsByDishId = collect($orderSnapshot)->keyBy('dish_id');
+        $this->assertSame($firstComboRef, $orderItemsByDishId[$fixture['dish']->id]['combo_ref']);
+        $this->assertSame([$sideDish->id], $orderItemsByDishId[$fixture['dish']->id]['combo_partner_dish_ids']);
+        $this->assertSame(2, $orderItemsByDishId[$fixture['dish']->id]['quantity']);
+        $this->assertSame($firstComboRef, $orderItemsByDishId[$sideDish->id]['combo_ref']);
+        $this->assertSame([$fixture['dish']->id], $orderItemsByDishId[$sideDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(2, $orderItemsByDishId[$sideDish->id]['quantity']);
+        $this->assertSame($secondComboRef, $orderItemsByDishId[$dessertDish->id]['combo_ref']);
+        $this->assertSame([$drinkDish->id], $orderItemsByDishId[$dessertDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(1, $orderItemsByDishId[$dessertDish->id]['quantity']);
+        $this->assertSame($secondComboRef, $orderItemsByDishId[$drinkDish->id]['combo_ref']);
+        $this->assertSame([$dessertDish->id], $orderItemsByDishId[$drinkDish->id]['combo_partner_dish_ids']);
+        $this->assertSame(1, $orderItemsByDishId[$drinkDish->id]['quantity']);
+
+        $this->assertSame(
+            collect($snapshot)->keyBy('dish_id')->sortKeys()->all(),
+            collect($orderSnapshot)->keyBy('dish_id')->sortKeys()->all(),
+        );
     }
 
     public function test_cart_is_empty_after_order_submission(): void
