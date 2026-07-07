@@ -104,11 +104,11 @@ function formatCustomerName(customer) {
 
 <template>
     <div class="flex h-full min-h-0 flex-col overflow-hidden">
-        <header class="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-4 py-3 safe-area-top">
-            <div class="flex items-center gap-3">
+        <header class="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-3 py-2">
+            <div class="flex items-center gap-2">
                 <button
                     type="button"
-                    class="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
                     aria-label="Назад"
                     @click="emit('back')"
                 >
@@ -117,30 +117,33 @@ function formatCustomerName(customer) {
                     </svg>
                 </button>
                 <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="truncate text-lg font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
-                        <OrderStatusBadge :order="order" size="md" />
+                    <div class="flex min-w-0 items-center gap-1.5">
+                        <h1 class="truncate text-base font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
+                        <OrderStatusBadge :order="order" size="sm" />
+                        <span class="hidden min-w-0 truncate text-xs text-max-muted sm:inline">{{ order.restaurant_name }}</span>
                     </div>
-                    <p class="truncate text-sm text-max-muted">{{ order.restaurant_name }}</p>
-                    <OrderReviewStageBadges class="mt-1.5" :order="order" />
+                    <div class="mt-0.5 flex min-w-0 items-center gap-1.5">
+                        <p class="truncate text-xs text-max-muted sm:hidden">{{ order.restaurant_name }}</p>
+                        <OrderReviewStageBadges :order="order" />
+                    </div>
                 </div>
             </div>
         </header>
 
-        <main class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3">
+        <main class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-3 py-2">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
 
             <template v-else>
-                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto">
-                <div class="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div class="min-h-0 flex-[3] space-y-2 overflow-y-auto">
+                <div class="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Клиент</p>
                     <p class="mt-1 text-sm text-gray-900">{{ formatCustomerName(order.customer) }}</p>
                 </div>
 
                 <div
-                    class="rounded-2xl border bg-white p-4 shadow-sm"
+                    class="rounded-2xl border bg-white p-3 shadow-sm"
                     :class="isAddressScope && isAddressPending ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
@@ -149,18 +152,18 @@ function formatCustomerName(customer) {
 
                 <div
                     v-if="isAddressScope"
-                    class="rounded-2xl border bg-white p-4 shadow-sm"
+                    class="rounded-2xl border bg-white p-3 shadow-sm"
                     :class="isPaymentPending ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Оплата</p>
-                    <p class="mt-1 text-2xl font-bold text-gray-900">{{ order.total }} ₽</p>
+                    <p class="mt-1 text-xl font-bold text-gray-900">{{ order.total }} ₽</p>
                     <p class="mt-1 text-sm text-max-muted">
                         Подтвердите, что оплата от клиента получена
                     </p>
                 </div>
 
                 <div
-                    class="rounded-2xl border bg-white p-4 shadow-sm"
+                    class="rounded-2xl border bg-white p-3 shadow-sm"
                     :class="isCompositionScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Состав заказа</p>
@@ -208,7 +211,7 @@ function formatCustomerName(customer) {
                     perspective="admin"
                     compact
                     :safe-area-bottom="!hasBottomActions"
-                    class="min-h-0 flex-1"
+                    class="min-h-0 flex-[2]"
                     @messages-read="emit('messages-read')"
                 />
             </template>
