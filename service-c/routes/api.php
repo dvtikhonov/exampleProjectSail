@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
+use App\Http\Controllers\Api\Food\AdminMenuCategoryController;
 use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
 use App\Http\Controllers\Api\Food\DishImageController;
@@ -74,7 +75,15 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 ->whereNumber('order');
 
             Route::middleware('food.order.admin:menu_manager')->group(function () {
-                Route::get('/menu-categories', [AdminDishController::class, 'menuCategories']);
+                Route::get('/menu-categories', [AdminMenuCategoryController::class, 'index']);
+                Route::get('/menu-categories/{menuCategory}', [AdminMenuCategoryController::class, 'show'])
+                    ->whereNumber('menuCategory');
+                Route::post('/menu-categories', [AdminMenuCategoryController::class, 'store']);
+                Route::put('/menu-categories/{menuCategory}', [AdminMenuCategoryController::class, 'update'])
+                    ->whereNumber('menuCategory');
+                Route::delete('/menu-categories/{menuCategory}', [AdminMenuCategoryController::class, 'destroy'])
+                    ->whereNumber('menuCategory');
+
                 Route::get('/dishes', [AdminDishController::class, 'index']);
                 Route::get('/dishes/{dish}', [AdminDishController::class, 'show'])
                     ->whereNumber('dish');

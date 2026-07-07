@@ -4,8 +4,8 @@
  * В разделе «Адреса» проверяющий подтверждает адрес и оплату независимо.
  */
 import { computed } from 'vue';
-import DishImage from '../../components/DishImage.vue';
 import OrderChatPanel from '../../components/OrderChatPanel.vue';
+import OrderSnapshotItemRow from '../../components/OrderSnapshotItemRow.vue';
 import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 import RejectOrderModal from './RejectOrderModal.vue';
@@ -168,15 +168,12 @@ function formatCustomerName(customer) {
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Состав заказа</p>
                     <ul class="mt-3 space-y-2">
-                        <li
+                        <OrderSnapshotItemRow
                             v-for="(item, index) in order.items_snapshot"
                             :key="index"
-                            class="flex items-center gap-3 text-sm"
-                        >
-                            <DishImage :image-url="item.image_url" :alt="item.dish_name" size="sm" />
-                            <span class="min-w-0 flex-1 text-gray-700">{{ item.dish_name }} × {{ item.quantity }}</span>
-                            <span class="shrink-0 font-medium text-gray-900">{{ item.line_total }} ₽</span>
-                        </li>
+                            :item="item"
+                            :items-snapshot="order.items_snapshot"
+                        />
                     </ul>
 
                     <div class="mt-4 border-t border-gray-100 pt-3 text-sm">

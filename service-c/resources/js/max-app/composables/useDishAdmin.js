@@ -412,6 +412,7 @@ export function useDishAdmin({ filters }) {
         importError,
         importSuccessMessage,
         initDishAdminSession,
+        loadCategories,
         loadDishes,
         handleFilterRestaurantChange,
         handleFilterCategoryChange,

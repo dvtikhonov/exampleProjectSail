@@ -68,6 +68,8 @@ class CartController extends Controller
                 $this->maxUser($request),
                 $request->dishId(),
                 $request->quantity(),
+                $request->comboRef(),
+                $request->comboPartnerDishId(),
             );
         } catch (FoodDomainException $exception) {
             return response()->json([

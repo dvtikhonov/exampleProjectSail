@@ -23,7 +23,13 @@ interface CartServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function addItem(MaxUser $maxUser, int $dishId, int $quantity): CartDto;
+    public function addItem(
+        MaxUser $maxUser,
+        int $dishId,
+        int $quantity,
+        ?string $comboRef = null,
+        ?int $comboPartnerDishId = null,
+    ): CartDto;
 
     /**
      * Обновляет количество позиции корзины.

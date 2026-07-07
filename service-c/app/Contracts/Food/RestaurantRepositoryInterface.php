@@ -17,4 +17,6 @@ interface RestaurantRepositoryInterface
      * @return list<Restaurant>
      */
     public function findAllActive(): array;
+
+    public function findActiveById(int $restaurantId): ?Restaurant;
 }

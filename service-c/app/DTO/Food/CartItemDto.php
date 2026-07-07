@@ -17,6 +17,9 @@ readonly class CartItemDto
         public int $quantity,
         public string $lineTotal,
         public ?string $imageUrl = null,
+        public ?string $comboRef = null,
+        public ?int $comboPartnerDishId = null,
+        public ?string $comboPartnerDishName = null,
     ) {}
 
     /**
@@ -26,7 +29,7 @@ readonly class CartItemDto
      */
     public function toArray(): array
     {
-        return [
+        $data = [
             'id' => $this->id,
             'dish_id' => $this->dishId,
             'dish_name' => $this->dishName,
@@ -35,5 +38,13 @@ readonly class CartItemDto
             'line_total' => $this->lineTotal,
             'image_url' => $this->imageUrl,
         ];
+
+        if ($this->comboRef !== null) {
+            $data['combo_ref'] = $this->comboRef;
+            $data['combo_partner_dish_id'] = $this->comboPartnerDishId;
+            $data['combo_partner_dish_name'] = $this->comboPartnerDishName;
+        }
+
+        return $data;
     }
 }

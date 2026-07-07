@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\DTO\Food\OrderDto;
 use App\Models\MaxUser;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
+use App\Support\OrderSnapshotComboResolver;
 use Tests\TestCase;
 
 class FoodOrderMaxMessageBuilderTest extends TestCase
@@ -17,7 +18,7 @@ class FoodOrderMaxMessageBuilderTest extends TestCase
     {
         parent::setUp();
 
-        $this->builder = new FoodOrderMaxMessageBuilder;
+        $this->builder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
     public function test_builds_message_with_delivery(): void
@@ -174,6 +175,47 @@ TEXT,
 
         $this->assertStringContainsString('Клиент: Пётр Петров (id 42)', $text);
         $this->assertStringNotContainsString('@', $text);
+    }
+
+    public function test_builds_message_with_combo_labels(): void
+    {
+        $order = $this->makeOrder(
+            id: 15,
+            restaurantName: 'Бургерная',
+            itemsTotal: '1500.00',
+            deliveryApplicable: false,
+            deliveryCost: null,
+            total: '1500.00',
+            deliveryAddress: 'ул. Центральная, 5',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 10,
+                    'dish_name' => 'Бургер',
+                    'quantity' => 3,
+                    'line_total' => '960.00',
+                    'combo_ref' => '550e8400-e29b-41d4-a716-446655440000',
+                    'combo_partner_dish_ids' => [11],
+                ],
+                [
+                    'dish_id' => 11,
+                    'dish_name' => 'Картофель фри',
+                    'quantity' => 3,
+                    'line_total' => '540.00',
+                    'combo_ref' => '550e8400-e29b-41d4-a716-446655440000',
+                    'combo_partner_dish_ids' => [10],
+                ],
+            ],
+        );
+
+        $maxUser = $this->makeMaxUser(
+            maxUserId: 100,
+            firstName: 'Иван',
+        );
+
+        $text = $this->builder->build($order, $maxUser);
+
+        $this->assertStringContainsString("• Бургер × 3 — 960.00 ₽\n  Входит в комбо: Картофель фри", $text);
+        $this->assertStringContainsString("• Картофель фри × 3 — 540.00 ₽\n  Входит в комбо: Бургер", $text);
     }
 
     /**

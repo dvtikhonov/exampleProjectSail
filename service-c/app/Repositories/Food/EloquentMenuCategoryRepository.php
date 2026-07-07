@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Food;
 
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
+use App\Models\Dish;
 use App\Models\MenuCategory;
 
 /**
@@ -40,5 +41,53 @@ class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
         }
 
         return $query->get()->all();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function create(array $attributes): MenuCategory
+    {
+        return MenuCategory::query()->create($attributes);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function update(MenuCategory $category, array $attributes): MenuCategory
+    {
+        $category->update($attributes);
+
+        return $category->fresh(['restaurant']) ?? $category;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function delete(MenuCategory $category): void
+    {
+        $category->delete();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function countDishes(int $categoryId): int
+    {
+        return Dish::query()
+            ->where('menu_category_id', $categoryId)
+            ->count();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function nextSortOrderForRestaurant(int $restaurantId): int
+    {
+        $maxSortOrder = MenuCategory::query()
+            ->where('restaurant_id', $restaurantId)
+            ->max('sort_order');
+
+        return ((int) $maxSortOrder) + 1;
     }
 }

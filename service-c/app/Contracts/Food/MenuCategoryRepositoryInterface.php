@@ -19,4 +19,20 @@ interface MenuCategoryRepositoryInterface
      * @return list<MenuCategory>
      */
     public function listForAdmin(?int $restaurantId = null): array;
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function create(array $attributes): MenuCategory;
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(MenuCategory $category, array $attributes): MenuCategory;
+
+    public function delete(MenuCategory $category): void;
+
+    public function countDishes(int $categoryId): int;
+
+    public function nextSortOrderForRestaurant(int $restaurantId): int;
 }

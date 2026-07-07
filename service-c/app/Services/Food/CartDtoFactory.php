@@ -26,7 +26,7 @@ class CartDtoFactory
      */
     public function fromModel(Cart $cart, MaxUser $maxUser): CartDto
     {
-        $cart->loadMissing(['restaurant', 'items.dish']);
+        $cart->loadMissing(['restaurant', 'items.dish', 'items.comboPartnerDish']);
 
         $items = [];
         $itemsTotal = 0.0;
@@ -44,6 +44,9 @@ class CartDtoFactory
                 quantity: $item->quantity,
                 lineTotal: $this->moneyFormatter->format($lineTotal),
                 imageUrl: $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
+                comboRef: $item->combo_ref,
+                comboPartnerDishId: $item->combo_partner_dish_id,
+                comboPartnerDishName: $item->comboPartnerDish?->name,
             );
         }
 

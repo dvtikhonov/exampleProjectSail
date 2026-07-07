@@ -11,12 +11,15 @@
 | `service-e` | Symfony 8 API: торговые точки через `/api/e/` (общая таблица `sales_outlets` с `service-a`) |
 | `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
-| `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды», webhook MAX, UI Stand |
-| `service-d` | Laravel + Vue 3 SPA: Sanctum на субдомене `yandexmaps.*`, привязка организации Яндекс.Карт и синхронизация отзывов (`yandex-parser`, `service-d-queue`) |
+| `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды» (корзина, комбо, проверка заказов, чат), webhook MAX, UI Stand — см. [service-c/README.md](service-c/README.md) |
+| `service-d` | Laravel + Vue 3 SPA: Sanctum на субдомене `yandexmaps.*`, привязка организации Яндекс.Карт и синхронизация отзывов — см. [service-d/README.md](service-d/README.md) |
+| `service-d-queue` | Worker очереди `service-d` (`queue:work`) — фоновая синхронизация отзывов |
+| `yandex-parser` | Node/Playwright: headless-парсер Яндекс.Карт для `service-d` (`POST /resolve`, `/sync-reviews`); внутренний URL `http://yandex-parser:3000` — см. [yandex-parser/README.md](yandex-parser/README.md) |
 | `service-f` | Laravel 13 + Filament 3: URL shortener на субдомене `urlshort.*`, админка `/admin`, публичный редирект `GET /{code}` — см. [service-f/README.md](service-f/README.md) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
-| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/`, `/api/b/` и `/api/e/` |
+| `shared/max-messenger` | Локальный Composer-пакет `example/max-messenger`: HTTP-клиент MAX Bot API (`service-b`, `service-c`) |
+| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/`, `/api/b/`, `/api/c/` и `/api/e/` |
 | `docker-compose.yml` | Основной compose-файл для локального запуска |
 | `docker-compose.ci.yml` | Overlay для CI: внутренний MySQL и `depends_on` с healthcheck |
 | `scripts/` | Вспомогательные скрипты: тесты, VPS, MAX-туннели, диагностика — см. [docs/scripts.md](docs/scripts.md) |
@@ -108,18 +111,20 @@ SERVICE_F_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `service-d`, `service-e`, `service-f`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
 `main-app` создаёт `.env` из `.env.example` при сборке образа; при старте `entrypoint.sh` генерирует `APP_KEY` и Passport-ключи, если они отсутствуют.
 
-Для `service-a` и `service-b` при пустом `.env`:
+Для `service-a`, `service-b`, `service-c`, `service-d` и `service-f` при пустом `.env`:
 
 ```bash
 docker compose exec service-a php artisan key:generate
 docker compose exec service-b php artisan key:generate
+docker compose exec service-c php artisan key:generate
 docker compose exec service-d php artisan key:generate
+docker compose exec service-f php artisan key:generate
 ```
 
 ### 4. Миграции
@@ -130,13 +135,23 @@ docker compose exec service-d php artisan key:generate
 docker compose exec main-app php artisan migrate
 docker compose exec service-a php artisan migrate
 docker compose exec service-b php artisan migrate
+docker compose exec service-c php artisan migrate
 docker compose exec service-d php artisan migrate
+docker compose exec service-f php artisan migrate
 ```
+
+Для `service-e` отдельные миграции не нужны — используется общая таблица `sales_outlets` из `service-a`.
 
 Для отчётов `service-b` нужны worker и Reverb (в compose уже описаны):
 
 ```bash
 docker compose up -d service-b-queue reverb
+```
+
+Для синхронизации отзывов `service-d` нужны `yandex-parser` и worker очереди:
+
+```bash
+docker compose up -d yandex-parser service-d-queue
 ```
 
 Письма `html_email` в dev перехватывает MailHog (`http://localhost:8025`). Отчёты `max_message` уходят в [MAX Bot API](https://dev.max.ru/docs-api) — токен и получатели только в `.env` `service-b` (см. [service-b/README.md](service-b/README.md)).
@@ -208,7 +223,7 @@ docker compose up -d main-app
 
 Gateway переписывает префиксы `/api/a/`, `/api/b/` и `/api/e/` в `/api/` перед проксированием в соответствующий сервис.
 
-Для `/api/a/...` и `/api/b/...` в gateway настроен CORS:
+Для `/api/a/...`, `/api/b/...`, `/api/c/...` и `/api/e/...` в gateway настроен CORS:
 
 - `OPTIONS` preflight обрабатывается на стороне `nginx-gateway` и возвращает `204`.
 - Разрешены методы `GET, POST, PUT, PATCH, DELETE, OPTIONS`.
@@ -299,6 +314,19 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 
 Ответ `GET /sales-outlets/reports/stats` — JSON с полями `by_type` (счётчики `pending`, `processing`, `completed`, `failed`, `total` по каждому типу, включая `max_message`) и `generated_at`.
 
+### `service-e`
+
+Напрямую (`/api/...`):
+
+| Метод | Путь | Auth |
+|---|---|---|
+| `GET` | `/sales-outlets` | `X-User-Id` (gateway) |
+| `PATCH` | `/sales-outlets/{id}` | `X-User-Id` (gateway) |
+| `POST` | `/sales-outlets/{id}/head-organization` | `X-User-Id` (gateway) |
+| `DELETE` | `/sales-outlets/{id}` | `X-User-Id` (gateway) |
+
+Через gateway — префикс `/api/e`, например `GET /api/e/sales-outlets`. Формат ответов совместим с `service-a`. Подробнее: [service-e/README.md](service-e/README.md).
+
 ### Live-статистика отчётов: термины и поток
 
 | Термин | Значение |
@@ -356,8 +384,9 @@ EloquentSalesOutletsReportJobRepository (create / updateStatus)
 - `/api/a/...`
 - `/api/b/...`
 - `/api/c/...` (кроме webhook MAX)
+- `/api/e/...`
 
-Остальные пути через gateway идут в `main-app` без проверки Bearer на уровне nginx.
+Остальные пути через gateway идут в `main-app` без проверки Bearer на уровне nginx. `service-d` и `service-f` — host-based routing на субдоменах без `auth_request`.
 
 В `main-app` после web-login создаётся Passport-токен и сохраняется в сессии. Текущий токен:
 
@@ -458,7 +487,13 @@ docker compose exec service-a composer update example/sales-outlets-domain
 docker compose exec service-b composer update example/sales-outlets-domain
 ```
 
+### `shared/max-messenger`
+
+Локальный Composer-пакет `example/max-messenger` с namespace `Shared\MaxMessenger\`. HTTP-клиент MAX Bot API, DTO сообщений и inline-клавиатур, retry-конфиг. Подключён в `service-b/composer.json` и `service-c/composer.json` через тот же `path` repository (`../shared/max-messenger`). В Docker каталог `shared` монтируется в `/var/www/shared`.
+
 Eloquent-модели, контроллеры, FormRequest, Report API (Strategy, jobs, domain/broadcast events) и миграции остаются внутри конкретных Laravel-сервисов.
+
+Кросс-сервисные связки PHP ↔ JavaScript: комбо в `service-c` — [service-c/README.md](service-c/README.md#связки-php--javascript); обход JSON Яндекс.Карт (`JsonTreeWalker` / `walkJson`) — [service-d/README.md](service-d/README.md).
 
 ## Полезные команды
 
@@ -519,9 +554,9 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 
 | Job | Что проверяет |
 |---|---|
-| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d`; PHP-CS-Fixer (`@Symfony`) для `service-e` (PHP 8.4) |
+| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-f`; PHP-CS-Fixer (`@Symfony`) для `service-e` (PHP 8.4) |
 | `frontend-build` | `npm ci` + `npm run build` в `main-app` и `service-d` (Node 22) |
-| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` |
+| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` (включая `service-e`, `service-f`) |
 
 Локально воспроизвести CI-контур тестов:
 
@@ -532,12 +567,24 @@ export TEST_DB_HOST=mysql
 export SERVICE_B_DB_HOST=mysql
 export SERVICE_B_DB_DATABASE=sail_db_testing
 export SERVICE_B_DB_PASSWORD=12345678
+export SERVICE_C_DB_HOST=mysql
+export SERVICE_C_DB_DATABASE=sail_db_testing
+export SERVICE_C_DB_PASSWORD=12345678
+export SERVICE_D_DB_HOST=mysql
+export SERVICE_D_DB_DATABASE=service_d_db_testing
+export SERVICE_D_DB_PASSWORD=12345678
+export SERVICE_F_DB_HOST=mysql
+export SERVICE_F_DB_DATABASE=service_f_db_testing
+export SERVICE_F_DB_PASSWORD=12345678
 
-docker compose build main-app service-a service-b service-c service-d
+docker compose build main-app service-a service-b service-c service-d service-e service-f
 docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
+docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
-docker compose up -d mysql redis main-app service-a service-b service-c service-d
+docker compose run --rm --no-deps service-e composer install --no-interaction --prefer-dist --no-progress --no-scripts
+docker compose run --rm --no-deps service-f composer install --no-interaction --prefer-dist --no-progress
+docker compose up -d mysql redis main-app service-a service-b service-c service-d service-e service-f
 ./scripts/test-services.sh all
 ```
 
@@ -702,7 +749,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -725,6 +772,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 ./scripts/test-services.sh service-c
 ./scripts/test-services.sh service-d
 ./scripts/test-services.sh service-e
+./scripts/test-services.sh service-f
 ```
 
 Быстрый повторный запуск без пересоздания БД:
@@ -743,6 +791,8 @@ TEST_DB_PASSWORD=<your-local-password>
 
 ```bash
 TEST_DATABASE=sail_db_testing \
+SERVICE_D_TEST_DATABASE=service_d_db_testing \
+SERVICE_F_TEST_DATABASE=service_f_db_testing \
 TEST_DB_HOST=host.docker.internal \
 TEST_DB_PORT=3306 \
 TEST_DB_USERNAME=root \
@@ -766,9 +816,11 @@ TEST_DB_PASSWORD=<your-local-password> \
 
 - `main-app` — Nginx + PHP-FPM 8.4 Alpine + Supervisor, внутренний порт `8000`; для hot-reload смонтированы `app`, `routes`, `config`, `database`, `resources`, `tests`, `public`, `storage`.
 - `service-a` — `php artisan serve` на порту `8000`, полный bind-mount каталога сервиса и `shared`.
-- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; live-stats идут через domain event `SalesOutletReportJobMutated` и listeners; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`.
-- `service-c` — MAX mini-app, webhook, Vite entry `max-app`, сборка в `public/max-build/`; см. [service-c/README.md](service-c/README.md).
-- `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; resolve/confirm организации, отзывы, очередь `service-d-queue`; host-based routing без `auth_request`; БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
+- `service-b` — selective bind-mount (без перезаписи `vendor`); `service-b-queue` использует тот же образ; live-stats идут через domain event `SalesOutletReportJobMutated` и listeners; broadcast и очередь зависят от `reverb`, `redis`, `mailhog`; MAX-отчёты через `shared/max-messenger`.
+- `service-c` — MAX mini-app «Заказ еды», webhook, Vite entry `max-app`, сборка в `public/max-build/`; комбо в корзине и `items_snapshot`; PHP/JS-паритет — см. [service-c/README.md → Связки PHP ↔ JavaScript](service-c/README.md#связки-php--javascript).
+- `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; resolve/confirm организации, отзывы, очередь `service-d-queue`, headless-парсер `yandex-parser`; host-based routing без `auth_request`; БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
+- `service-e` — Symfony 8 API торговых точек через `/api/e/`; общая таблица `sales_outlets` с `service-a`; см. [service-e/README.md](service-e/README.md).
+- `service-f` — URL shortener на субдомене `urlshort.*`, Filament `/admin`; БД `service_f_db`; см. [service-f/README.md](service-f/README.md).
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.

@@ -12,6 +12,7 @@ import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from '../constan
  * @param {import('vue').ComputedRef<boolean>} deps.hasMenuManagerRole
  * @param {ReturnType<import('./useAdminFlow').useAdminFlow>} deps.admin
  * @param {ReturnType<import('./useDishAdmin').useDishAdmin>} deps.dishAdmin
+ * @param {ReturnType<import('./useMenuCategoryAdmin').useMenuCategoryAdmin>} deps.categoryAdmin
  * @param {ReturnType<import('./useClientNavigation').useClientNavigation>} deps.nav
  * @param {ReturnType<import('./useCart').useCart>} deps.cart
  * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders
@@ -22,6 +23,7 @@ export function useMaxBackButton({
     hasMenuManagerRole,
     admin,
     dishAdmin,
+    categoryAdmin,
     nav,
     cart,
     orders,
@@ -38,6 +40,14 @@ export function useMaxBackButton({
             if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.form) {
                     dishAdmin.closeDishForm();
+
+                    return;
+                }
+
+                if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.categoryForm) {
+                    categoryAdmin.closeCategoryForm(dishAdmin.dishAdminView);
+
+                    return;
                 }
 
                 return;
@@ -85,7 +95,8 @@ export function useMaxBackButton({
             if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 if (
                     (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
-                        || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule)
+                        || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule
+                        || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.categoryList)
                     && getPlatform() === 'desktop'
                 ) {
                     unbindBackButton = bindBackButton(closeMaxApp);
@@ -96,6 +107,7 @@ export function useMaxBackButton({
                 if (
                     dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
                     || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule
+                    || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.categoryList
                 ) {
                     hideBackButton();
 
