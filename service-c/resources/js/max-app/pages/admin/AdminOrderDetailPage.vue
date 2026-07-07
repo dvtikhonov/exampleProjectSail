@@ -60,6 +60,18 @@ const isCompositionScope = computed(() => props.scope === 'composition');
 const isAddressPending = computed(() => props.order.address_review_status === 'pending');
 const isPaymentPending = computed(() => props.order.payment_review_status === 'pending');
 
+const hasBottomActions = computed(() => {
+    if (props.loading) {
+        return false;
+    }
+
+    if (isCompositionScope.value) {
+        return true;
+    }
+
+    return isAddressScope.value && (isAddressPending.value || isPaymentPending.value);
+});
+
 const rejectModalTitle = computed(() => {
     if (props.rejectTarget === 'payment') {
         return 'Отклонить оплату';
@@ -115,7 +127,7 @@ function formatCustomerName(customer) {
             </div>
         </header>
 
-        <main class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4">
+        <main class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
@@ -194,6 +206,8 @@ function formatCustomerName(customer) {
                 <OrderChatPanel
                     :order-id="order.id"
                     perspective="admin"
+                    compact
+                    :safe-area-bottom="!hasBottomActions"
                     class="min-h-0 flex-1"
                     @messages-read="emit('messages-read')"
                 />
@@ -202,12 +216,12 @@ function formatCustomerName(customer) {
 
         <footer
             v-if="!loading && isCompositionScope"
-            class="shrink-0 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
+            class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
         >
-            <div class="flex gap-3">
+            <div class="flex gap-2">
                 <button
                     type="button"
-                    class="flex-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3.5 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                    class="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                     :disabled="loading || actionLoading"
                     @click="emit('open-reject', 'composition')"
                 >
@@ -215,7 +229,7 @@ function formatCustomerName(customer) {
                 </button>
                 <button
                     type="button"
-                    class="flex-1 rounded-2xl bg-max-primary px-4 py-3.5 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                    class="flex-1 rounded-xl bg-max-primary px-3 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                     :disabled="loading || actionLoading"
                     @click="emit('approve-composition')"
                 >
@@ -227,14 +241,14 @@ function formatCustomerName(customer) {
 
         <footer
             v-else-if="!loading && isAddressScope && (isAddressPending || isPaymentPending)"
-            class="shrink-0 space-y-3 border-t border-gray-200 bg-white px-4 py-4 safe-area-bottom"
+            class="shrink-0 space-y-1.5 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
         >
-            <div v-if="isAddressPending" class="space-y-2">
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес</p>
-                <div class="flex gap-3">
+            <div v-if="isAddressPending" class="flex items-center gap-2">
+                <span class="w-12 shrink-0 text-[10px] font-medium uppercase leading-tight tracking-wide text-max-muted">Адрес</span>
+                <div class="flex min-w-0 flex-1 gap-2">
                     <button
                         type="button"
-                        class="flex-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                        class="flex-1 rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('open-reject', 'address')"
                     >
@@ -242,22 +256,22 @@ function formatCustomerName(customer) {
                     </button>
                     <button
                         type="button"
-                        class="flex-1 rounded-2xl bg-max-primary px-4 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                        class="flex-1 rounded-xl bg-max-primary px-2 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('approve-address')"
                     >
-                        <span v-if="actionLoading">Обработка…</span>
-                        <span v-else>Подтвердить адрес</span>
+                        <span v-if="actionLoading">…</span>
+                        <span v-else>Подтвердить</span>
                     </button>
                 </div>
             </div>
 
-            <div v-if="isPaymentPending" class="space-y-2">
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Оплата</p>
-                <div class="flex gap-3">
+            <div v-if="isPaymentPending" class="flex items-center gap-2">
+                <span class="w-12 shrink-0 text-[10px] font-medium uppercase leading-tight tracking-wide text-max-muted">Оплата</span>
+                <div class="flex min-w-0 flex-1 gap-2">
                     <button
                         type="button"
-                        class="flex-1 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                        class="flex-1 rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('open-reject', 'payment')"
                     >
@@ -265,12 +279,12 @@ function formatCustomerName(customer) {
                     </button>
                     <button
                         type="button"
-                        class="flex-1 rounded-2xl bg-max-primary px-4 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                        class="flex-1 rounded-xl bg-max-primary px-2 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('approve-payment')"
                     >
-                        <span v-if="actionLoading">Обработка…</span>
-                        <span v-else>Оплата получена</span>
+                        <span v-if="actionLoading">…</span>
+                        <span v-else>Получена</span>
                     </button>
                 </div>
             </div>

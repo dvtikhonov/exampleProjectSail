@@ -17,6 +17,16 @@ const props = defineProps({
         default: 'customer',
         validator: (value) => ['customer', 'admin'].includes(value),
     },
+    /** Компактный режим для админки: меньше шапка и поле ввода */
+    compact: {
+        type: Boolean,
+        default: false,
+    },
+    /** safe-area только на самом нижнем элементе страницы */
+    safeAreaBottom: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const emit = defineEmits(['messages-read']);
@@ -150,9 +160,12 @@ onUnmounted(() => {
 
 <template>
     <div class="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-100 bg-gray-50">
-        <div class="shrink-0 border-b border-gray-100 bg-white px-4 py-3">
+        <div
+            class="shrink-0 border-b border-gray-100 bg-white"
+            :class="compact ? 'px-3 py-2' : 'px-4 py-3'"
+        >
             <h2 class="text-sm font-semibold text-gray-900">Чат по заказу</h2>
-            <p class="text-xs text-max-muted">Уточнения и вопросы по заявке</p>
+            <p v-if="!compact" class="text-xs text-max-muted">Уточнения и вопросы по заявке</p>
         </div>
 
         <div
@@ -193,7 +206,10 @@ onUnmounted(() => {
             />
         </div>
 
-        <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-3 safe-area-bottom">
+        <div
+            class="shrink-0 border-t border-gray-200 bg-white px-3"
+            :class="[compact ? 'py-2' : 'py-3', safeAreaBottom ? 'safe-area-bottom' : '']"
+        >
             <div
                 v-if="sendError"
                 class="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
@@ -204,16 +220,18 @@ onUnmounted(() => {
             <div class="flex items-end gap-2">
                 <textarea
                     v-model="body"
-                    rows="2"
+                    :rows="compact ? 1 : 2"
                     :maxlength="MAX_BODY_LENGTH"
                     :disabled="loading || !!loadError || sending"
                     placeholder="Ваше сообщение…"
-                    class="min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-max-muted focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-50"
+                    class="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 placeholder:text-max-muted focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-50"
+                    :class="compact ? 'min-h-[36px] py-2' : 'min-h-[44px] py-2.5'"
                     @keydown="handleKeydown"
                 />
                 <button
                     type="button"
-                    class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-max-primary text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                    class="flex shrink-0 items-center justify-center rounded-xl bg-max-primary text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                    :class="compact ? 'h-9 w-9' : 'h-11 w-11'"
                     :disabled="loading || !!loadError || sending || body.trim() === ''"
                     aria-label="Отправить"
                     @click="handleSend"
