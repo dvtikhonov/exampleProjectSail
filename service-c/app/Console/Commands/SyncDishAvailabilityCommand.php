@@ -4,34 +4,32 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Contracts\Food\DishAvailabilityRepositoryInterface;
-use Carbon\CarbonImmutable;
+use App\Services\Food\DishAvailabilitySyncService;
+use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use Illuminate\Console\Command;
 
 /**
- * Синхронизирует max_dishes.is_available по графику доступности на сегодня (MSK).
+ * Artisan-команда синхронизации is_available по графику доступности блюд.
  */
 class SyncDishAvailabilityCommand extends Command
 {
-    private const string TIMEZONE = 'Europe/Moscow';
-
     protected $signature = 'food:sync-dish-availability';
 
-    protected $description = 'Синхронизировать is_available блюд по графику на сегодня (Europe/Moscow)';
+    protected $description = 'Синхронизировать is_available блюд по графику на сегодня (MSK) и уведомить UI Stand';
 
     /**
-     * Обновляет флаг доступности всех активных блюд по записям графика на текущую дату.
+     * Синхронизирует доступность блюд и отправляет уведомление в MAX.
      */
-    public function handle(DishAvailabilityRepositoryInterface $availabilityRepository): int
-    {
-        $today = CarbonImmutable::now(self::TIMEZONE)->toDateString();
-        $updated = $availabilityRepository->syncDishesIsAvailableForDate($today);
+    public function handle(
+        DishAvailabilitySyncService $syncService,
+        MaxMenuAvailabilityNotifier $notifier,
+    ): int {
+        $updatedCount = $syncService->syncForToday();
 
-        $this->info(sprintf(
-            'Синхронизация доступности блюд на %s: обновлено %d.',
-            $today,
-            $updated,
-        ));
+        $this->info("Обновлено блюд: {$updatedCount}");
+
+        $notifier->notify();
+        $this->info('Уведомление о доступности меню отправлено в MAX UI Stand.');
 
         return self::SUCCESS;
     }
