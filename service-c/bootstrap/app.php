@@ -33,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('food:sync-dish-availability')
-            ->dailyAt('07:00')
+            ->dailyAt('03:00')
             ->timezone('Europe/Moscow');
     })
     ->create();
