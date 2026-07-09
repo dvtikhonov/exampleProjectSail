@@ -3,7 +3,9 @@
 namespace Tests\Unit;
 
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
+use App\Support\MaxUiStandRecipientRegistry;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -15,6 +17,8 @@ class MaxWebhookUpdateRouterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
 
         config([
             'max.bot_access_token' => self::TOKEN,
@@ -54,5 +58,34 @@ class MaxWebhookUpdateRouterTest extends TestCase
         ));
         $this->assertCount(1, $webhookLogs);
         $this->assertSame('bot_started', $webhookLogs[0]->context['update_type'] ?? null);
+
+        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $this->assertSame([777], $registry->userIds());
+    }
+
+    public function test_message_callback_registers_group_chat_id_for_ui_stand_test(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response([], 200),
+        ]);
+
+        $this->app->make(MaxWebhookUpdateRouter::class)->handle([
+            'update_type' => 'message_callback',
+            'callback' => [
+                'callback_id' => 'cb-group-1',
+                'payload' => 'yes',
+                'user' => ['user_id' => 42],
+            ],
+            'message' => [
+                'recipient' => [
+                    'chat_id' => -100500,
+                    'user_id' => 42,
+                ],
+            ],
+        ]);
+
+        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $this->assertSame([-100500], $registry->chatIds());
+        $this->assertSame([], $registry->userIds());
     }
 }

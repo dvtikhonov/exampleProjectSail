@@ -11,6 +11,8 @@ import {
     fetchAdminDishes,
     fetchAdminMenuCategories,
     importDishesSpreadsheet,
+    sendAdminTestBotMessage,
+    sendAdminTestBot2Message,
     updateDish,
 } from '../api/foodClient';
 import { ADMIN_DISH_VIEWS } from '../constants/views';
@@ -48,6 +50,14 @@ export function useDishAdmin({ filters }) {
     const importLoading = ref(false);
     const importError = ref('');
     const importSuccessMessage = ref('');
+
+    const testBotLoading = ref(false);
+    const testBotError = ref('');
+    const testBotSuccessMessage = ref('');
+
+    const testBot2Loading = ref(false);
+    const testBot2Error = ref('');
+    const testBot2SuccessMessage = ref('');
 
     const restaurantOptions = computed(() => {
         const map = new Map();
@@ -306,9 +316,6 @@ export function useDishAdmin({ filters }) {
         return validateImportFilters();
     }
 
-    /**
-     * @param {File} file
-     */
     async function handleImportFile(file) {
         importSuccessMessage.value = '';
         importError.value = '';
@@ -367,6 +374,42 @@ export function useDishAdmin({ filters }) {
         return extractErrorMessage(error);
     }
 
+    async function handleTestBotClick() {
+        testBotSuccessMessage.value = '';
+        testBotError.value = '';
+        testBot2SuccessMessage.value = '';
+        testBot2Error.value = '';
+        testBotLoading.value = true;
+
+        try {
+            const result = await sendAdminTestBotMessage();
+            const botUsername = result.bot_username ? `@${result.bot_username}` : 'боту MAX';
+            testBotSuccessMessage.value = `${result.message} (${botUsername})`;
+        } catch (error) {
+            testBotError.value = extractErrorMessage(error);
+        } finally {
+            testBotLoading.value = false;
+        }
+    }
+
+    async function handleTestBot2Click() {
+        testBot2SuccessMessage.value = '';
+        testBot2Error.value = '';
+        testBotSuccessMessage.value = '';
+        testBotError.value = '';
+        testBot2Loading.value = true;
+
+        try {
+            const result = await sendAdminTestBot2Message();
+            const botUsername = result.bot_username ? `@${result.bot_username}` : 'боту MAX';
+            testBot2SuccessMessage.value = `${result.message} (${botUsername})`;
+        } catch (error) {
+            testBot2Error.value = extractErrorMessage(error);
+        } finally {
+            testBot2Loading.value = false;
+        }
+    }
+
     /**
      * @param {object} dish
      */
@@ -411,6 +454,12 @@ export function useDishAdmin({ filters }) {
         importLoading,
         importError,
         importSuccessMessage,
+        testBotLoading,
+        testBotError,
+        testBotSuccessMessage,
+        testBot2Loading,
+        testBot2Error,
+        testBot2SuccessMessage,
         initDishAdminSession,
         loadCategories,
         loadDishes,
@@ -427,5 +476,7 @@ export function useDishAdmin({ filters }) {
         handleDeleteDish,
         handleImportClick,
         handleImportFile,
+        handleTestBotClick,
+        handleTestBot2Click,
     };
 }

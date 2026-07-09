@@ -11,6 +11,7 @@ use App\Models\MaxUser;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\MaxUiStandRecipientResolver;
 use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
@@ -39,11 +40,12 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
             });
         $client->expects($this->never())->method('sendMessage');
 
-        $notifier = $this->makeNotifier($client, new MaxOrderNotificationConfig(
+        $notifier = $this->makeNotifier(
+            $client,
+            new MaxOrderNotificationConfig(chatIds: [], userIds: [], maxTextLength: 4000),
             chatIds: [111, 222],
             userIds: [333],
-            maxTextLength: 4000,
-        ));
+        );
 
         $notifier->notify($this->makeOrder(), $this->makeMaxUser());
 
@@ -86,11 +88,12 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
             });
         $client->expects($this->never())->method('sendInlineKeyboardMessage');
 
-        $notifier = $this->makeNotifier($client, new MaxOrderNotificationConfig(
+        $notifier = $this->makeNotifier(
+            $client,
+            new MaxOrderNotificationConfig(chatIds: [], userIds: [], maxTextLength: 4000),
             chatIds: [111],
             userIds: [],
-            maxTextLength: 4000,
-        ));
+        );
 
         $notifier->notify($this->makeOrder(), $this->makeMaxUser());
 
@@ -119,11 +122,12 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
                 }
             });
 
-        $notifier = $this->makeNotifier($client, new MaxOrderNotificationConfig(
+        $notifier = $this->makeNotifier(
+            $client,
+            new MaxOrderNotificationConfig(chatIds: [], userIds: [], maxTextLength: 4000),
             chatIds: [111, 222],
             userIds: [],
-            maxTextLength: 4000,
-        ));
+        );
 
         $notifier->notify($this->makeOrder(), $this->makeMaxUser());
 
@@ -147,15 +151,19 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $client->expects($this->never())->method('sendMessage');
         $client->expects($this->never())->method('sendInlineKeyboardMessage');
 
-        $notifier = $this->makeNotifier($client, new MaxOrderNotificationConfig(
+        $notifier = $this->makeNotifier(
+            $client,
+            new MaxOrderNotificationConfig(chatIds: [], userIds: [], maxTextLength: 4000),
             chatIds: [],
             userIds: [],
-            maxTextLength: 4000,
-        ));
+        );
 
         $notifier->notify($this->makeOrder(), $this->makeMaxUser());
 
-        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX order notification skipped: recipients are not configured');
+        $log = MessMaxLogTestHelper::assertSingleMessage(
+            $captured,
+            'MAX order notification skipped: UI Stand recipients are not configured',
+        );
         $this->assertSame('warning', $log->level);
         $this->assertSame(42, $log->context['order_id']);
     }
@@ -173,11 +181,12 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
                 $callOrder[] = $message->chatId ?? $message->userId;
             });
 
-        $notifier = $this->makeNotifier($client, new MaxOrderNotificationConfig(
+        $notifier = $this->makeNotifier(
+            $client,
+            new MaxOrderNotificationConfig(chatIds: [], userIds: [], maxTextLength: 4000),
             chatIds: [10, 20],
             userIds: [],
-            maxTextLength: 4000,
-        ));
+        );
 
         $notifier->notify($this->makeOrder(), $this->makeMaxUser());
 
@@ -187,10 +196,16 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
     private function makeNotifier(
         MaxMessengerClientInterface $client,
         MaxOrderNotificationConfig $config,
+        array $chatIds = [],
+        array $userIds = [],
     ): LaravelFoodOrderMaxNotifier {
+        Config::set('max.ui_stand.recipient_chat_ids', $chatIds);
+        Config::set('max.ui_stand.recipient_user_ids', $userIds);
+
         return new LaravelFoodOrderMaxNotifier(
             client: $client,
             configProvider: $this->makeConfigProvider($config),
+            uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolver::class),
             messageBuilder: new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver),
             openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
             config: $this->app->make('config'),

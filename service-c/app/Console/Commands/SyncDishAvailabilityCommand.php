@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Services\Food\DishAvailabilitySyncService;
-use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use Illuminate\Console\Command;
 
 /**
@@ -15,21 +15,26 @@ class SyncDishAvailabilityCommand extends Command
 {
     protected $signature = 'food:sync-dish-availability';
 
-    protected $description = 'Синхронизировать is_available блюд по графику на сегодня (MSK) и уведомить UI Stand';
+    protected $description = 'Синхронизировать is_available блюд по графику на сегодня (MSK) и уведомить MAX_REPORT_* и клиентов с адресом доставки';
 
     /**
      * Синхронизирует доступность блюд и отправляет уведомление в MAX.
      */
     public function handle(
         DishAvailabilitySyncService $syncService,
-        MaxMenuAvailabilityNotifier $notifier,
+        MaxMenuAvailabilityNotifierInterface $notifier,
     ): int {
         $updatedCount = $syncService->syncForToday();
 
         $this->info("Обновлено блюд: {$updatedCount}");
 
-        $notifier->notify();
-        $this->info('Уведомление о доступности меню отправлено в MAX UI Stand.');
+        $sentCount = $notifier->notify();
+
+        if ($sentCount > 0) {
+            $this->info("Уведомление о доступности меню отправлено в MAX ({$sentCount}).");
+        } else {
+            $this->warn('Уведомление о доступности меню не отправлено (бот, получатели или MAX API).');
+        }
 
         return self::SUCCESS;
     }

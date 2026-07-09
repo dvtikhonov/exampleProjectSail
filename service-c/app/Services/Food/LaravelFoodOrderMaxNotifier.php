@@ -9,6 +9,7 @@ use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\DTO\Food\OrderDto;
 use App\Models\MaxUser;
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -19,13 +20,15 @@ use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
 /**
- * Отправка уведомлений о новом заказе еды в чаты и пользователям MAX.
+ * Отправка уведомлений о новом заказе еды в чаты и пользователей MAX
+ * (получатели UI Stand: MAX_UI_STAND_* и кэш webhook — как у «тест бот 2»).
  */
 class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
 {
     public function __construct(
         private readonly MaxMessengerClientInterface $client,
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
+        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
         private readonly Repository $config,
@@ -36,24 +39,29 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
      */
     public function notify(OrderDto $order, MaxUser $maxUser): void
     {
-        $config = $this->configProvider->config();
+        $chatIds = $this->uiStandRecipientResolver->chatIds();
+        $userIds = $this->uiStandRecipientResolver->userIds();
 
-        if ($config->chatIds === [] && $config->userIds === []) {
-            Log::channel('messMax')->warning('MAX order notification skipped: recipients are not configured', [
-                'order_id' => $order->id,
-            ]);
+        if ($chatIds === [] && $userIds === []) {
+            Log::channel('messMax')->warning(
+                'MAX order notification skipped: UI Stand recipients are not configured',
+                [
+                    'order_id' => $order->id,
+                ],
+            );
 
             return;
         }
 
+        $config = $this->configProvider->config();
         $text = $this->messageBuilder->build($order, $maxUser, $config->maxTextLength);
         $buttonRows = $this->buildOpenAppButtonRows();
 
-        foreach ($config->chatIds as $chatId) {
+        foreach ($chatIds as $chatId) {
             $this->trySendNotification($text, $buttonRows, orderId: $order->id, chatId: $chatId);
         }
 
-        foreach ($config->userIds as $userId) {
+        foreach ($userIds as $userId) {
             $this->trySendNotification($text, $buttonRows, orderId: $order->id, userId: $userId);
         }
     }

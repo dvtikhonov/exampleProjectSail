@@ -107,6 +107,12 @@ const {
     importLoading,
     importError,
     importSuccessMessage,
+    testBotLoading,
+    testBotError,
+    testBotSuccessMessage,
+    testBot2Loading,
+    testBot2Error,
+    testBot2SuccessMessage,
     initDishAdminSession,
     loadDishes,
     handleFilterRestaurantChange,
@@ -122,6 +128,8 @@ const {
     handleDeleteDish,
     handleImportClick,
     handleImportFile,
+    handleTestBotClick,
+    handleTestBot2Click,
 } = dishAdmin;
 
 const {
@@ -559,6 +567,12 @@ onMounted(async () => {
                             :import-loading="importLoading"
                             :import-error="importError"
                             :import-success-message="importSuccessMessage"
+                            :test-bot-loading="testBotLoading"
+                            :test-bot-error="testBotError"
+                            :test-bot-success-message="testBotSuccessMessage"
+                            :test-bot2-loading="testBot2Loading"
+                            :test-bot2-error="testBot2Error"
+                            :test-bot2-success-message="testBot2SuccessMessage"
                             @add="openCreateForm"
                             @edit="openEditForm"
                             @delete="handleDeleteDish"
@@ -568,6 +582,8 @@ onMounted(async () => {
                             @filter-name-search="handleFilterNameSearchChange"
                             @import-click="onDishImportClick"
                             @import="onDishImportFile"
+                            @test-bot="handleTestBotClick"
+                            @test-bot-2="handleTestBot2Click"
                         />
                         </KeepAlive>
 

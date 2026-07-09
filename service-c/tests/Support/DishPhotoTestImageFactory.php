@@ -29,11 +29,46 @@ final class DishPhotoTestImageFactory
      */
     public static function oversizedPng(int $width = 800, int $height = 600): UploadedFile
     {
+        $path = tempnam(sys_get_temp_dir(), 'dish_photo_oversized_');
+
+        if ($path === false) {
+            throw new \RuntimeException('Failed to create temp file.');
+        }
+
         $small = self::pngBinary($width, $height);
         $targetSize = DishPhotoAllowedExtensions::MAX_SIZE_BYTES + 1024;
-        $padding = str_repeat("\x00", max(0, $targetSize - strlen($small)));
+        $remaining = max(0, $targetSize - strlen($small));
 
-        return self::fromBinary($small.$padding, 'oversized.png', 'image/png');
+        file_put_contents($path, $small);
+
+        if ($remaining > 0) {
+            $handle = fopen($path, 'ab');
+
+            if ($handle === false) {
+                throw new \RuntimeException('Failed to open temp file for writing.');
+            }
+
+            $chunkSize = 1024 * 1024;
+            $chunk = str_repeat("\x00", $chunkSize);
+
+            try {
+                while ($remaining > 0) {
+                    if ($remaining >= $chunkSize) {
+                        fwrite($handle, $chunk);
+                        $remaining -= $chunkSize;
+
+                        continue;
+                    }
+
+                    fwrite($handle, str_repeat("\x00", $remaining));
+                    $remaining = 0;
+                }
+            } finally {
+                fclose($handle);
+            }
+        }
+
+        return new UploadedFile($path, 'oversized.png', 'image/png', null, true);
     }
 
     /**

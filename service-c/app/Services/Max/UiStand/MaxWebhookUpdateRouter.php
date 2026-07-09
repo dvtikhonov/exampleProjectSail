@@ -6,6 +6,7 @@ namespace App\Services\Max\UiStand;
 
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
+use App\Support\MaxUiStandRecipientRegistry;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,6 +17,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
     public function __construct(
         private readonly MaxCallbackHandler $callbackHandler,
         private readonly MaxUiStandGreetingSender $greetingSender,
+        private readonly MaxUiStandRecipientRegistry $recipientRegistry,
     ) {}
 
     /**
@@ -57,9 +59,17 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
         }
 
         $userId = isset($callback['user']['user_id']) ? (int) $callback['user']['user_id'] : null;
-        $chatId = isset($payload['message']['recipient']['chat_id'])
-            ? (int) $payload['message']['recipient']['chat_id']
+        $message = $payload['message'] ?? [];
+        $recipient = is_array($message) ? ($message['recipient'] ?? []) : [];
+        $chatId = is_array($recipient) && isset($recipient['chat_id'])
+            ? (int) $recipient['chat_id']
             : null;
+
+        if ($chatId !== null && $chatId !== 0) {
+            $this->recipientRegistry->rememberChatId($chatId);
+        } elseif ($userId !== null && $userId > 0) {
+            $this->recipientRegistry->rememberUserId($userId);
+        }
 
         if ($userId !== null) {
             $this->callbackHandler->handle(new MaxCallbackUpdateDto(
@@ -96,6 +106,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
         Log::channel('messMax')->info('bot_started', ['user_id' => $userId]);
 
         if ($userId > 0) {
+            $this->recipientRegistry->rememberUserId($userId);
             $this->greetingSender->sendToUser($userId);
         }
     }

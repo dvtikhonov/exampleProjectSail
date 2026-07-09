@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Services\Food\DishAvailabilitySyncService;
-use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
@@ -19,13 +19,14 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->method('syncForToday')
             ->willReturn(5);
 
-        $notifier = $this->createMock(MaxMenuAvailabilityNotifier::class);
+        $notifier = $this->createMock(MaxMenuAvailabilityNotifierInterface::class);
         $notifier
             ->expects($this->once())
-            ->method('notify');
+            ->method('notify')
+            ->willReturn(1);
 
         $this->app->instance(DishAvailabilitySyncService::class, $syncService);
-        $this->app->instance(MaxMenuAvailabilityNotifier::class, $notifier);
+        $this->app->instance(MaxMenuAvailabilityNotifierInterface::class, $notifier);
 
         $exitCode = Artisan::call('food:sync-dish-availability');
 
