@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\Food;
 use App\Contracts\Food\DishAdminServiceInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\DTO\Food\AdminDishDto;
+use App\DTO\Max\MaxAdminBotTestSendResultDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
@@ -149,7 +150,7 @@ class AdminDishController extends Controller
     }
 
     /**
-     * @param  callable(): \App\DTO\Max\MaxAdminBotTestSendResultDto  $action
+     * @param  callable(): MaxAdminBotTestSendResultDto  $action
      */
     private function respondTestBotSend(callable $action): JsonResponse
     {

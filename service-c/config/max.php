@@ -32,7 +32,7 @@ return [
 
     // Каким демо-пользователем открывать /max-app в браузере (профили — local_dev_demo_users).
     // 'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1003),
-     'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1002),
+    'local_dev_user_id' => (int) env('MAX_LOCAL_DEV_USER_ID', 1002),
 
     /**
      * Профили демо-пользователей MAX (синхронизированы с Database\Seeders).

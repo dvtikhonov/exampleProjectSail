@@ -91,8 +91,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         array $userIds,
         string $text,
         string $recipientScope = 'order_notifications',
-    ): MaxAdminBotTestSendResultDto
-    {
+    ): MaxAdminBotTestSendResultDto {
         $sentCount = 0;
         $failureMessages = [];
 

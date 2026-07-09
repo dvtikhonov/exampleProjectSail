@@ -108,7 +108,6 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
-     * @param  mixed  $ids
      * @return list<int>
      */
     private function normalizeIds(mixed $ids): array

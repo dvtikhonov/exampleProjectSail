@@ -71,7 +71,6 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
 
     /**
      * @param  list<int>  $configuredUserIds
-     *
      * @return list<int>
      */
     private function resolveRecipientUserIds(array $configuredUserIds): array
