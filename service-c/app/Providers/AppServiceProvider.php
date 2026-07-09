@@ -32,7 +32,10 @@ use App\Contracts\Food\OrderChatServiceInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\Contracts\Food\RestaurantRepositoryInterface;
+use App\Contracts\Max\MaxAdminBotTestSenderInterface;
+use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\Repositories\Food\EloquentCartRepository;
@@ -45,6 +48,7 @@ use App\Repositories\Food\EloquentFoodOrderRepository;
 use App\Repositories\Food\EloquentMenuCategoryRepository;
 use App\Repositories\Food\EloquentOrderMessageRepository;
 use App\Repositories\Food\EloquentRestaurantRepository;
+use App\Repositories\Max\EloquentMaxUserRepository;
 use App\Services\Auth\EloquentGatewayUserResolver;
 use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
@@ -64,6 +68,8 @@ use App\Services\Food\OrderSubmissionService;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
+use App\Services\Max\LaravelMaxAdminBotTestSender;
+use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use App\Services\Max\MaxWebAppInitDataValidator;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Support\MaxAppRequestContext;
@@ -141,6 +147,9 @@ class AppServiceProvider extends ServiceProvider
             EloquentOrderMessageRepository::class,
         );
 
+        $this->app->bind(MaxAdminBotTestSenderInterface::class, LaravelMaxAdminBotTestSender::class);
+        $this->app->bind(MaxUserRepositoryInterface::class, EloquentMaxUserRepository::class);
+        $this->app->bind(MaxMenuAvailabilityNotifierInterface::class, MaxMenuAvailabilityNotifier::class);
         $this->app->bind(MaxBotTokenProviderInterface::class, EnvMaxBotTokenProvider::class);
         $this->app->bind(MaxMessengerClientInterface::class, function ($app): HttpMaxMessengerClient {
             return new HttpMaxMessengerClient(

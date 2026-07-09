@@ -514,6 +514,24 @@ export async function importDishesSpreadsheet(file, menuCategoryId) {
 }
 
 /**
+ * @returns {Promise<{ message: string, bot_username: string }>}
+ */
+export async function sendAdminTestBotMessage() {
+    const { data } = await client.post('/food/admin/dishes/test-bot');
+
+    return data;
+}
+
+/**
+ * @returns {Promise<{ message: string, bot_username: string }>}
+ */
+export async function sendAdminTestBot2Message() {
+    const { data } = await client.post('/food/admin/dishes/test-bot-2');
+
+    return data;
+}
+
+/**
  * @param {{ restaurantId: number, categoryId: number, dateFrom?: string|null, dateTo?: string|null }} params
  * @returns {Promise<{ dishes: object[], dates: string[], schedule: Record<string, string[]>, editable_from: string }>}
  */

@@ -8,8 +8,10 @@ use App\Enums\Food\DishWeightUnit;
 use App\Enums\Food\FoodOrderAdminRole;
 use App\Models\Dish;
 use App\Models\MaxUser;
+use App\Services\Max\LaravelMaxAdminBotTestSender;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -48,6 +50,60 @@ class AdminDishApiTest extends TestCase
         $this->getJson('/api/food/admin/dishes', $auth['headers'])
             ->assertForbidden()
             ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    public function test_menu_manager_can_send_test_bot_message(): void
+    {
+        config([
+            'max.bot_access_token' => 'secret-max-token-for-admin-dish-api-test',
+            'max.bot_username' => 'food_test_bot',
+            'max.order_notifications.chat_ids' => [555],
+            'max.order_notifications.user_ids' => [],
+            'max.rate_limit_retry_max' => 0,
+            'max.rate_limit_retry_delay_ms' => 0,
+        ]);
+
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $auth = $this->menuManagerAuth();
+
+        $this->postJson('/api/food/admin/dishes/test-bot', [], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('message', 'Тестовое сообщение отправлено.')
+            ->assertJsonPath('sent_count', 1)
+            ->assertJsonPath('bot_username', 'food_test_bot');
+
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://platform-api.max.ru/messages?chat_id=555'
+                && $request['text'] === LaravelMaxAdminBotTestSender::TEST_MESSAGE_TEXT;
+        });
+    }
+
+    public function test_test_bot_endpoint_returns_forbidden_without_menu_manager_role(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->postJson('/api/food/admin/dishes/test-bot', [], $auth['headers'])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    public function test_test_bot_endpoint_returns_service_unavailable_when_recipients_missing(): void
+    {
+        config([
+            'max.bot_access_token' => 'secret-max-token-for-admin-dish-api-test',
+            'max.bot_username' => 'food_test_bot',
+            'max.order_notifications.chat_ids' => [],
+            'max.order_notifications.user_ids' => [],
+        ]);
+
+        $auth = $this->menuManagerAuth();
+
+        $this->postJson('/api/food/admin/dishes/test-bot', [], $auth['headers'])
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'Получатели не настроены. Укажите MAX_REPORT_CHAT_IDS или MAX_REPORT_USER_IDS в .env.');
     }
 
     public function test_menu_manager_can_list_menu_categories(): void

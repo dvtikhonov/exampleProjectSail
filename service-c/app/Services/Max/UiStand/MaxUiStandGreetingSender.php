@@ -3,6 +3,7 @@
 namespace App\Services\Max\UiStand;
 
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -21,6 +22,7 @@ class MaxUiStandGreetingSender
         private readonly MaxMessengerClientInterface $client,
         private readonly Repository $config,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
+        private readonly MaxUiStandRecipientResolver $recipientResolver,
     ) {}
 
     /**
@@ -30,8 +32,8 @@ class MaxUiStandGreetingSender
      */
     public function send(): void
     {
-        $chatIds = $this->recipientChatIds();
-        $userIds = $this->recipientUserIds();
+        $chatIds = $this->recipientResolver->configuredChatIds();
+        $userIds = $this->recipientResolver->configuredUserIds();
 
         if ($chatIds === [] && $userIds === []) {
             throw new RuntimeException('MAX UI stand recipients are not configured.');
@@ -149,27 +151,5 @@ class MaxUiStandGreetingSender
         ];
 
         return $rows;
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function recipientChatIds(): array
-    {
-        return array_values(array_map(
-            intval(...),
-            (array) $this->config->get('max.ui_stand.recipient_chat_ids', []),
-        ));
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function recipientUserIds(): array
-    {
-        return array_values(array_map(
-            intval(...),
-            (array) $this->config->get('max.ui_stand.recipient_user_ids', []),
-        ));
     }
 }

@@ -4,123 +4,149 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use Carbon\CarbonImmutable;
-use Illuminate\Log\Events\MessageLogged;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
-use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
-use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
-use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
-use Tests\Support\MessMaxLogTestHelper;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class MaxMenuAvailabilityNotifierTest extends TestCase
 {
+    private const TOKEN = 'secret-max-token-for-menu-availability-test';
+
     protected function setUp(): void
     {
         parent::setUp();
 
+        config([
+            'max.bot_access_token' => self::TOKEN,
+            'max.bot_username' => 'food_test_bot',
+            'max.order_notifications.chat_ids' => [111],
+            'max.order_notifications.user_ids' => [222],
+            'max.rate_limit_retry_max' => 0,
+            'max.rate_limit_retry_delay_ms' => 0,
+        ]);
+
+        $maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $maxUserRepository
+            ->method('listMaxUserIdsWithDeliveryAddress')
+            ->willReturn([]);
+
+        $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
+    }
+
+    public function test_notify_posts_to_order_notification_recipients_like_test_bot(): void
+    {
         CarbonImmutable::setTestNow(
-            CarbonImmutable::parse('2026-01-01 10:00:00', 'Europe/Moscow'),
+            CarbonImmutable::parse('2026-07-09 03:00:00', 'Europe/Moscow'),
         );
-    }
 
-    protected function tearDown(): void
-    {
-        CarbonImmutable::setTestNow();
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
 
-        parent::tearDown();
-    }
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
 
-    public function test_notify_sends_message_with_order_button_to_ui_stand_chat_ids(): void
-    {
-        Config::set('max.ui_stand.recipient_chat_ids', [111, 222]);
-        Config::set('max.ui_stand.recipient_user_ids', [333]);
-        Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
-        Config::set('max.bot_user_id', 421816864057);
-        Config::set('max.ui_stand.mini_app_button_text', 'Заказ еды');
+        $this->assertSame(2, $sentCount);
 
-        $sentMessages = [];
-        $client = $this->createMock(MaxMessengerClientInterface::class);
-        $client
-            ->expects($this->exactly(2))
-            ->method('sendInlineKeyboardMessage')
-            ->willReturnCallback(function (MaxInlineKeyboardMessageDto $message) use (&$sentMessages): void {
-                $sentMessages[] = $message;
-            });
-        $client->expects($this->never())->method('sendMessage');
+        $expectedText = MaxMenuAvailabilityNotifier::messageTextForDate(
+            CarbonImmutable::parse('2026-07-09', 'Europe/Moscow'),
+        );
+        $this->assertSame('Доступно для заказов меню на 09.07.2026', $expectedText);
 
-        $this->app->instance(MaxMessengerClientInterface::class, $client);
-        $this->app->make(MaxMenuAvailabilityNotifier::class)->notify();
-
-        $this->assertCount(2, $sentMessages);
-        $this->assertSame([111, 222], array_map(
-            static fn (MaxInlineKeyboardMessageDto $dto): ?int => $dto->chatId,
-            $sentMessages,
-        ));
-        $this->assertSame('Доступно для заказов меню на 2.01.2026', $sentMessages[0]->text);
-        $this->assertSame($sentMessages[0]->text, $sentMessages[1]->text);
-
-        $button = $sentMessages[0]->buttonRows[0][0];
-        $this->assertSame('Заказ еды', $button->text);
-        $this->assertSame('open_app', $button->type);
-        $this->assertSame('https://example.test/max-app', $button->webApp);
-        $this->assertSame(421816864057, $button->contactId);
-    }
-
-    public function test_notify_skips_send_when_chat_recipients_are_not_configured(): void
-    {
-        Config::set('max.ui_stand.recipient_chat_ids', []);
-
-        $captured = [];
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
-            $captured[] = $event;
+        Http::assertSentCount(2);
+        Http::assertSent(function ($request) use ($expectedText): bool {
+            return $request->url() === 'https://platform-api.max.ru/messages?chat_id=111'
+                && $request['text'] === $expectedText;
         });
-
-        $client = $this->createMock(MaxMessengerClientInterface::class);
-        $client->expects($this->never())->method('sendInlineKeyboardMessage');
-        $client->expects($this->never())->method('sendMessage');
-
-        $this->app->instance(MaxMessengerClientInterface::class, $client);
-        $this->app->make(MaxMenuAvailabilityNotifier::class)->notify();
-
-        $log = MessMaxLogTestHelper::assertSingleMessage(
-            $captured,
-            'MAX menu availability notification skipped: chat recipients are not configured',
-        );
-        $this->assertSame('warning', $log->level);
+        Http::assertSent(function ($request) use ($expectedText): bool {
+            return $request->url() === 'https://platform-api.max.ru/messages?user_id=222'
+                && $request['text'] === $expectedText;
+        });
     }
 
-    public function test_notify_logs_warning_and_continues_when_one_chat_fails(): void
+    public function test_notify_posts_to_users_with_delivery_address(): void
     {
-        Config::set('max.ui_stand.recipient_chat_ids', [111, 222]);
-        Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
-
-        $captured = [];
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
-            $captured[] = $event;
-        });
-
-        $client = $this->createMock(MaxMessengerClientInterface::class);
-        $client
-            ->expects($this->exactly(2))
-            ->method('sendInlineKeyboardMessage')
-            ->willReturnCallback(function (MaxInlineKeyboardMessageDto $message): void {
-                if ($message->chatId === 111) {
-                    throw new MaxMessengerRequestException('Chat not found');
-                }
-            });
-
-        $this->app->instance(MaxMessengerClientInterface::class, $client);
-        $this->app->make(MaxMenuAvailabilityNotifier::class)->notify();
-
-        $log = MessMaxLogTestHelper::assertSingleMessage(
-            $captured,
-            'MAX menu availability notification send failed',
+        CarbonImmutable::setTestNow(
+            CarbonImmutable::parse('2026-07-09 03:00:00', 'Europe/Moscow'),
         );
-        $this->assertSame('warning', $log->level);
-        $this->assertSame(111, $log->context['chat_id']);
-        $this->assertSame('Chat not found', $log->context['error']);
+
+        config([
+            'max.order_notifications.chat_ids' => [],
+            'max.order_notifications.user_ids' => [],
+        ]);
+
+        $maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $maxUserRepository
+            ->method('listMaxUserIdsWithDeliveryAddress')
+            ->willReturn([333]);
+        $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
+
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+
+        $this->assertSame(1, $sentCount);
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://platform-api.max.ru/messages?user_id=333';
+        });
+    }
+
+    public function test_notify_deduplicates_configured_and_delivery_address_users(): void
+    {
+        CarbonImmutable::setTestNow(
+            CarbonImmutable::parse('2026-07-09 03:00:00', 'Europe/Moscow'),
+        );
+
+        config([
+            'max.order_notifications.chat_ids' => [],
+            'max.order_notifications.user_ids' => [222],
+        ]);
+
+        $maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $maxUserRepository
+            ->method('listMaxUserIdsWithDeliveryAddress')
+            ->willReturn([222, 333]);
+        $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
+
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+
+        $this->assertSame(2, $sentCount);
+        Http::assertSentCount(2);
+    }
+
+    public function test_notify_skips_when_recipients_are_missing(): void
+    {
+        config([
+            'max.order_notifications.chat_ids' => [],
+            'max.order_notifications.user_ids' => [],
+        ]);
+
+        Http::fake();
+
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+
+        $this->assertSame(0, $sentCount);
+        Http::assertNothingSent();
+    }
+
+    public function test_notify_skips_when_bot_is_not_configured(): void
+    {
+        config(['max.bot_username' => '']);
+
+        Http::fake();
+
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+
+        $this->assertSame(0, $sentCount);
+        Http::assertNothingSent();
     }
 }

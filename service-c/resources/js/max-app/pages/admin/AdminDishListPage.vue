@@ -64,6 +64,30 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    testBotLoading: {
+        type: Boolean,
+        default: false,
+    },
+    testBotError: {
+        type: String,
+        default: '',
+    },
+    testBotSuccessMessage: {
+        type: String,
+        default: '',
+    },
+    testBot2Loading: {
+        type: Boolean,
+        default: false,
+    },
+    testBot2Error: {
+        type: String,
+        default: '',
+    },
+    testBot2SuccessMessage: {
+        type: String,
+        default: '',
+    },
 });
 
 const emit = defineEmits([
@@ -76,6 +100,8 @@ const emit = defineEmits([
     'filter-name-search',
     'import-click',
     'import',
+    'test-bot',
+    'test-bot-2',
 ]);
 
 const fileInputRef = ref(null);
@@ -278,7 +304,23 @@ defineExpose({ openFilePicker });
                     <button
                         type="button"
                         class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary active:scale-[0.98] disabled:opacity-50"
-                        :disabled="importLoading"
+                        :disabled="testBotLoading || testBot2Loading || importLoading"
+                        @click="emit('test-bot')"
+                    >
+                        {{ testBotLoading ? 'Отправка…' : 'тест бот' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary active:scale-[0.98] disabled:opacity-50"
+                        :disabled="testBotLoading || testBot2Loading || importLoading"
+                        @click="emit('test-bot-2')"
+                    >
+                        {{ testBot2Loading ? 'Отправка…' : 'тест бот 2' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary active:scale-[0.98] disabled:opacity-50"
+                        :disabled="importLoading || testBotLoading || testBot2Loading"
                         @click="onImportButtonClick"
                     >
                         {{ importLoading ? 'Загрузка…' : 'Загрузить' }}
@@ -325,6 +367,34 @@ defineExpose({ openFilePicker });
                 class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
                 @input="emit('filter-name-search', ($event.target).value)"
             >
+
+            <div
+                v-if="testBotError"
+                class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+                {{ testBotError }}
+            </div>
+
+            <div
+                v-if="testBotSuccessMessage"
+                class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+            >
+                {{ testBotSuccessMessage }}
+            </div>
+
+            <div
+                v-if="testBot2Error"
+                class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+                {{ testBot2Error }}
+            </div>
+
+            <div
+                v-if="testBot2SuccessMessage"
+                class="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+            >
+                {{ testBot2SuccessMessage }}
+            </div>
 
             <div
                 v-if="importError"
