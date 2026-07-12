@@ -670,6 +670,7 @@ onMounted(async () => {
                 <MenuPage
                     v-else-if="currentView === VIEWS.menu"
                     :menu="menu"
+                    :delivery-address="cart?.delivery_address ?? ''"
                     :loading="menuLoading"
                     :error="menuError"
                     :adding-dish-id="addingDishId"

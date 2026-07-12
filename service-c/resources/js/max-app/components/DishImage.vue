@@ -16,7 +16,7 @@ const props = defineProps({
     size: {
         type: String,
         default: 'md',
-        validator: (value) => ['sm', 'md'].includes(value),
+        validator: (value) => ['sm', 'md', 'lg'].includes(value),
     },
 });
 
@@ -24,9 +24,31 @@ const broken = ref(false);
 
 const showImage = computed(() => Boolean(props.imageUrl) && !broken.value);
 
-const sizeClasses = computed(() => (props.size === 'sm' ? 'h-12 w-12' : 'h-16 w-16'));
+const sizeClasses = computed(() => {
+    if (props.size === 'sm') {
+        return 'h-12 w-12';
+    }
 
-const emojiSizeClass = computed(() => (props.size === 'sm' ? 'text-xl' : 'text-2xl'));
+    if (props.size === 'lg') {
+        return 'aspect-square w-full';
+    }
+
+    return 'h-16 w-16';
+});
+
+const imageObjectFitClass = computed(() => (props.size === 'lg' ? 'object-contain' : 'object-cover'));
+
+const emojiSizeClass = computed(() => {
+    if (props.size === 'sm') {
+        return 'text-xl';
+    }
+
+    if (props.size === 'lg') {
+        return 'text-4xl';
+    }
+
+    return 'text-2xl';
+});
 
 watch(
     () => props.imageUrl,
@@ -42,14 +64,19 @@ function onError() {
 
 <template>
     <div
-        class="shrink-0 overflow-hidden rounded-xl bg-gray-100"
-        :class="[sizeClasses, !showImage && 'flex items-center justify-center', !showImage && emojiSizeClass]"
+        class="overflow-hidden rounded-xl bg-gray-100"
+        :class="[
+            sizeClasses,
+            size !== 'lg' && 'shrink-0',
+            !showImage && 'flex items-center justify-center',
+            !showImage && emojiSizeClass,
+        ]"
     >
         <img
             v-if="showImage"
             :src="imageUrl"
             :alt="alt"
-            class="h-full w-full object-cover"
+            :class="['h-full w-full', imageObjectFitClass]"
             loading="lazy"
             @error="onError"
         >
