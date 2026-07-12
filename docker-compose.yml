@@ -451,6 +451,62 @@ services:
     depends_on:
       - redis
 
+  service-g:
+    build:
+      context: .
+      dockerfile: service-g/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SERVICE_G_PORT:-8088}:8000"
+    environment:
+      - APP_ENV=local
+      - CACHE_STORE=file
+      - DB_CONNECTION=mysql
+      - DB_HOST=${SERVICE_G_DB_HOST:-host.docker.internal}
+      - DB_PORT=${SERVICE_G_DB_PORT:-3306}
+      - DB_DATABASE=${SERVICE_G_DB_DATABASE:-service_g_db}
+      - DB_USERNAME=${SERVICE_G_DB_USERNAME:-root}
+      - DB_PASSWORD=${SERVICE_G_DB_PASSWORD:-12345678AS}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./service-g/app:/var/www/html/app
+      - ./service-g/routes:/var/www/html/routes
+      - ./service-g/resources:/var/www/html/resources
+      - ./service-g/config:/var/www/html/config
+      - ./service-g/database:/var/www/html/database
+      - ./service-g/tests:/var/www/html/tests
+      - ./service-g/bootstrap:/var/www/html/bootstrap
+      - ./service-g/public:/var/www/html/public
+      - ./service-g/phpunit.xml:/var/www/html/phpunit.xml:ro
+      - ./service-g/storage:/var/www/html/storage
+      - ./service-g/vendor:/var/www/html/vendor
+      - ./service-g/composer.json:/var/www/html/composer.json
+      - ./service-g/composer.lock:/var/www/html/composer.lock
+      - ./service-g/.env:/var/www/html/.env
+      - ./service-g/.env.testing:/var/www/html/.env.testing:ro
+    networks:
+      - internal
+    depends_on:
+      - redis
+
+  service-g-nuxt:
+    build:
+      context: ./service-g/nuxt-app
+      dockerfile: Dockerfile
+    ports:
+      - "${SERVICE_G_NUXT_PORT:-3000}:3000"
+    environment:
+      - NUXT_PUBLIC_API_BASE=
+    volumes:
+      - ./service-g/nuxt-app:/app
+      - service-g-nuxt-node-modules:/app/node_modules
+    networks:
+      - internal
+    depends_on:
+      - service-g
+
   reverb:
     build:
       context: ./main-app
@@ -538,8 +594,13 @@ services:
       - service-d
       - service-e
       - service-f
+      - service-g
+      - service-g-nuxt
     networks:
       - internal
+
+volumes:
+  service-g-nuxt-node-modules:
 
 networks:
   internal:
