@@ -9,7 +9,7 @@
 # Gateway слушает только 127.0.0.1:8080 — см. scripts/vps-nginx-ssl.sh
 #
 # Переменные на VPS (корневой .env или export):
-#   MYSQL_ROOT_PASSWORD, SERVICE_B_DB_PASSWORD, SERVICE_C_DB_PASSWORD, SERVICE_D_DB_PASSWORD, SERVICE_F_DB_PASSWORD
+#   MYSQL_ROOT_PASSWORD, SERVICE_B_DB_PASSWORD, SERVICE_C_DB_PASSWORD, SERVICE_D_DB_PASSWORD, SERVICE_F_DB_PASSWORD, SERVICE_G_DB_PASSWORD
 #   PASSPORT_CLIENT_SECRET, MAIL_HOST, MAIL_FROM_ADDRESS, REVERB_ALLOWED_ORIGINS
 #   REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io
 #   GATEWAY_HTTP_PORT (по умолчанию 8080 — upstream для host nginx)
@@ -243,6 +243,30 @@ services:
         condition: service_started
     restart: unless-stopped
     mem_limit: 512m
+
+  service-g:
+    ports: !override
+      - "127.0.0.1:${SERVICE_G_PORT:-8088}:8000"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${SERVICE_G_DB_PASSWORD:?set SERVICE_G_DB_PASSWORD}
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 512m
+
+  service-g-nuxt:
+    ports: !override []
+    depends_on:
+      service-g:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 256m
 
   yandex-parser:
     restart: unless-stopped

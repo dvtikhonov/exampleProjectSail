@@ -16,6 +16,7 @@
 | `service-d-queue` | Worker очереди `service-d` (`queue:work`) — фоновая синхронизация отзывов |
 | `yandex-parser` | Node/Playwright: headless-парсер Яндекс.Карт для `service-d` (`POST /resolve`, `/sync-reviews`); внутренний URL `http://yandex-parser:3000` — см. [yandex-parser/README.md](yandex-parser/README.md) |
 | `service-f` | Laravel 13 + Filament 3: URL shortener на субдомене `urlshort.*`, админка `/admin`, публичный редирект `GET /{code}` — см. [service-f/README.md](service-f/README.md) |
+| `service-g` | Laravel 13 API + Nuxt 3: каркас To-Do List на `listtodo.localhost`, Sanctum, фронтенд в `nuxt-app/` — см. [service-g/README.md](service-g/README.md) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `shared/max-messenger` | Локальный Composer-пакет `example/max-messenger`: HTTP-клиент MAX Bot API (`service-b`, `service-c`) |
@@ -101,6 +102,16 @@ SERVICE_F_DB_PASSWORD=<your-local-password>
 
 Создайте `service_f_db` и `service_f_db_testing` во внешнем MySQL (см. [service-f/README.md](service-f/README.md)).
 
+Для `service-g` — отдельная база (не `sail_db`):
+
+```env
+SERVICE_G_DB_HOST=host.docker.internal
+SERVICE_G_DB_DATABASE=service_g_db
+SERVICE_G_DB_PASSWORD=<your-local-password>
+```
+
+Создайте `service_g_db` и `service_g_db_testing` во внешнем MySQL (см. [service-g/README.md](service-g/README.md)).
+
 Для `service-a` задайте `DB_*` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
 
 Стандартные `.env.example` у сервисов по умолчанию настроены на SQLite — для Docker-запуска через корневой compose их нужно перевести на MySQL.
@@ -111,13 +122,13 @@ SERVICE_F_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `service-g`, `service-g-nuxt`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
 `main-app` создаёт `.env` из `.env.example` при сборке образа; при старте `entrypoint.sh` генерирует `APP_KEY` и Passport-ключи, если они отсутствуют.
 
-Для `service-a`, `service-b`, `service-c`, `service-d` и `service-f` при пустом `.env`:
+Для `service-a`, `service-b`, `service-c`, `service-d`, `service-f` и `service-g` при пустом `.env`:
 
 ```bash
 docker compose exec service-a php artisan key:generate
@@ -125,6 +136,7 @@ docker compose exec service-b php artisan key:generate
 docker compose exec service-c php artisan key:generate
 docker compose exec service-d php artisan key:generate
 docker compose exec service-f php artisan key:generate
+docker compose exec service-g php artisan key:generate
 ```
 
 ### 4. Миграции
@@ -138,6 +150,7 @@ docker compose exec service-b php artisan migrate
 docker compose exec service-c php artisan migrate
 docker compose exec service-d php artisan migrate
 docker compose exec service-f php artisan migrate
+docker compose exec service-g php artisan migrate
 ```
 
 Для `service-e` отдельные миграции не нужны — используется общая таблица `sales_outlets` из `service-a`.
@@ -207,8 +220,11 @@ docker compose up -d main-app
 | `service-d` напрямую | `http://localhost:8084` |
 | `service-e` напрямую | `http://localhost:8086` |
 | `service-f` напрямую | `http://localhost:8087` |
+| `service-g` напрямую (Laravel API) | `http://localhost:8088` |
+| `service-g-nuxt` напрямую | `http://localhost:3000` |
 | `service-d` через gateway (субдомен) | `http://yandexmaps.localhost:8080` (нужна запись в `/etc/hosts`) |
 | `service-f` через gateway (субдомен) | `http://urlshort.localhost:8080` (Host-based routing в gateway) |
+| `service-g` через gateway (субдомен) | `http://listtodo.localhost:8080` (Nuxt UI + `/api` → Laravel) |
 | Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
 | Vite dev server | `http://localhost:5173` (`main-app`), `5174` (`service-c`), `5175` (`service-d`) |
 | MailHog | `http://localhost:8025` |
@@ -554,9 +570,9 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 
 | Job | Что проверяет |
 |---|---|
-| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-f`; PHP-CS-Fixer (`@Symfony`) для `service-e` (PHP 8.4) |
-| `frontend-build` | `npm ci` + `npm run build` в `main-app` и `service-d` (Node 22) |
-| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` (включая `service-e`, `service-f`) |
+| `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-f`, `service-g`; PHP-CS-Fixer (`@Symfony`) для `service-e` (PHP 8.4) |
+| `frontend-build` | `npm ci` + `npm run build` в `main-app`, `service-d` и `service-g/nuxt-app` (Node 22) |
+| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` (включая `service-e`, `service-f`, `service-g`) |
 
 Локально воспроизвести CI-контур тестов:
 
@@ -576,15 +592,19 @@ export SERVICE_D_DB_PASSWORD=12345678
 export SERVICE_F_DB_HOST=mysql
 export SERVICE_F_DB_DATABASE=service_f_db_testing
 export SERVICE_F_DB_PASSWORD=12345678
+export SERVICE_G_DB_HOST=mysql
+export SERVICE_G_DB_DATABASE=service_g_db_testing
+export SERVICE_G_DB_PASSWORD=12345678
 
-docker compose build main-app service-a service-b service-c service-d service-e service-f
+docker compose build main-app service-a service-b service-c service-d service-e service-f service-g
 docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-b composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-c composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-d composer install --no-interaction --prefer-dist --no-progress
 docker compose run --rm --no-deps service-e composer install --no-interaction --prefer-dist --no-progress --no-scripts
 docker compose run --rm --no-deps service-f composer install --no-interaction --prefer-dist --no-progress
-docker compose up -d mysql redis main-app service-a service-b service-c service-d service-e service-f
+docker compose run --rm --no-deps service-g composer install --no-interaction --prefer-dist --no-progress
+docker compose up -d mysql redis main-app service-a service-b service-c service-d service-e service-f service-g
 ./scripts/test-services.sh all
 ```
 
@@ -749,7 +769,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`, `service_g_db_testing` для `service-g`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` → `service-g` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -773,6 +793,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 ./scripts/test-services.sh service-d
 ./scripts/test-services.sh service-e
 ./scripts/test-services.sh service-f
+./scripts/test-services.sh service-g
 ```
 
 Быстрый повторный запуск без пересоздания БД:
@@ -793,6 +814,7 @@ TEST_DB_PASSWORD=<your-local-password>
 TEST_DATABASE=sail_db_testing \
 SERVICE_D_TEST_DATABASE=service_d_db_testing \
 SERVICE_F_TEST_DATABASE=service_f_db_testing \
+SERVICE_G_TEST_DATABASE=service_g_db_testing \
 TEST_DB_HOST=host.docker.internal \
 TEST_DB_PORT=3306 \
 TEST_DB_USERNAME=root \
@@ -821,6 +843,7 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; resolve/confirm организации, отзывы, очередь `service-d-queue`, headless-парсер `yandex-parser`; host-based routing без `auth_request`; БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
 - `service-e` — Symfony 8 API торговых точек через `/api/e/`; общая таблица `sales_outlets` с `service-a`; см. [service-e/README.md](service-e/README.md).
 - `service-f` — URL shortener на субдомене `urlshort.*`, Filament `/admin`; БД `service_f_db`; см. [service-f/README.md](service-f/README.md).
+- `service-g` — To-Do List (каркас): Laravel API + Nuxt 3 на `listtodo.localhost`, Sanctum; БД `service_g_db`; см. [service-g/README.md](service-g/README.md).
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.
