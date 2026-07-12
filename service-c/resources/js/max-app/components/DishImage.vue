@@ -44,7 +44,7 @@ const emojiSizeClass = computed(() => {
     }
 
     if (props.size === 'lg') {
-        return 'text-4xl';
+        return 'text-3xl';
     }
 
     return 'text-2xl';
