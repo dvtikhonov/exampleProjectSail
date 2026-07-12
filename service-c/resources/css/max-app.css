@@ -12,6 +12,12 @@
     --color-max-card: #ffffff;
     --color-max-text: #1a1a1a;
     --color-max-muted: #6b7280;
+
+    /* Menu page */
+    --color-menu-card: #f3f3f5;
+    --color-menu-chip-active: #1a1a1a;
+    --radius-menu-card: 1.25rem;
+    --radius-menu-sheet: 1.5rem;
 }
 
 body.max-app-body {
