@@ -18,6 +18,8 @@ YANDEXMAPS_SUBDOMAIN="${YANDEXMAPS_SUBDOMAIN:-yandexmaps}"
 YANDEXMAPS_DOMAIN="${YANDEXMAPS_DOMAIN:-}"
 URLSHORT_SUBDOMAIN="${URLSHORT_SUBDOMAIN:-urlshort}"
 URLSHORT_DOMAIN="${URLSHORT_DOMAIN:-}"
+LISTTODO_SUBDOMAIN="${LISTTODO_SUBDOMAIN:-listtodo}"
+LISTTODO_DOMAIN="${LISTTODO_DOMAIN:-}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
 GATEWAY_HTTP_PORT="${GATEWAY_HTTP_PORT:-8080}"
 NGINX_SITE_NAME="${NGINX_SITE_NAME:-exampleprojectsail}"
@@ -37,7 +39,7 @@ usage() {
   nginx-config  — вывести конфиг для /etc/nginx/sites-available/
   apply-nginx   — записать конфиг и reload nginx (нужен sudo)
   issue-cert    — certbot certonly --standalone (освобождает 80/443)
-  issue-cert-maps — расширить существующий сертификат для субдоменов yandexmaps.* и urlshort.*
+  issue-cert-maps — расширить существующий сертификат для субдоменов yandexmaps.*, urlshort.* и listtodo.*
   all           — install → issue-cert → apply-nginx → check
 
 Переменные:
@@ -46,6 +48,8 @@ usage() {
   YANDEXMAPS_DOMAIN   полный субдомен (по умолчанию: \${YANDEXMAPS_SUBDOMAIN}.\${VPS_DOMAIN})
   URLSHORT_SUBDOMAIN    префикс субдомена service-f (по умолчанию: urlshort)
   URLSHORT_DOMAIN     полный субдомен (по умолчанию: \${URLSHORT_SUBDOMAIN}.\${VPS_DOMAIN})
+  LISTTODO_SUBDOMAIN    префикс субдомена service-g (по умолчанию: listtodo)
+  LISTTODO_DOMAIN     полный субдомен (по умолчанию: \${LISTTODO_SUBDOMAIN}.\${VPS_DOMAIN})
   CERTBOT_EMAIL       email для Let's Encrypt (обязательно для issue-cert/all)
   GATEWAY_HTTP_PORT   upstream Docker gateway (по умолчанию: 8080)
   NGINX_SITE_NAME     имя файла в sites-available (по умолчанию: exampleprojectsail)
@@ -54,6 +58,7 @@ usage() {
 Перед выпуском сертификата добавьте DNS A-записи для субдоменов:
   \${YANDEXMAPS_SUBDOMAIN}.\${VPS_DOMAIN} → IP VPS (тот же, что и у \${VPS_DOMAIN})
   \${URLSHORT_SUBDOMAIN}.\${VPS_DOMAIN} → IP VPS (тот же, что и у \${VPS_DOMAIN})
+  \${LISTTODO_SUBDOMAIN}.\${VPS_DOMAIN} → IP VPS (тот же, что и у \${VPS_DOMAIN})
 
 Пример:
   cd ~/apps/exampleProjectSail
@@ -120,6 +125,7 @@ ensure_domain() {
     require_domain
     resolve_yandexmaps_domain
     resolve_urlshort_domain
+    resolve_listtodo_domain
 }
 
 resolve_yandexmaps_domain() {
@@ -131,6 +137,12 @@ resolve_yandexmaps_domain() {
 resolve_urlshort_domain() {
     if [[ -z "${URLSHORT_DOMAIN}" ]]; then
         URLSHORT_DOMAIN="${URLSHORT_SUBDOMAIN}.${VPS_DOMAIN}"
+    fi
+}
+
+resolve_listtodo_domain() {
+    if [[ -z "${LISTTODO_DOMAIN}" ]]; then
+        LISTTODO_DOMAIN="${LISTTODO_SUBDOMAIN}.${VPS_DOMAIN}"
     fi
 }
 
@@ -160,14 +172,15 @@ print_nginx_config() {
     require_domain
     resolve_yandexmaps_domain
     resolve_urlshort_domain
+    resolve_listtodo_domain
     cat <<EOF
 # ${NGINX_AVAILABLE}
 # Host nginx: TLS + proxy → Docker gateway
-# Основной домен → main-app; ${YANDEXMAPS_DOMAIN} → service-d; ${URLSHORT_DOMAIN} → service-f (Host-based routing в nginx-gateway)
+# Основной домен → main-app; ${YANDEXMAPS_DOMAIN} → service-d; ${URLSHORT_DOMAIN} → service-f; ${LISTTODO_DOMAIN} → service-g (Host-based routing в nginx-gateway)
 
 server {
     listen 80;
-    server_name ${VPS_DOMAIN} ${YANDEXMAPS_DOMAIN} ${URLSHORT_DOMAIN};
+    server_name ${VPS_DOMAIN} ${YANDEXMAPS_DOMAIN} ${URLSHORT_DOMAIN} ${LISTTODO_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -180,7 +193,7 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name ${VPS_DOMAIN} ${YANDEXMAPS_DOMAIN} ${URLSHORT_DOMAIN};
+    server_name ${VPS_DOMAIN} ${YANDEXMAPS_DOMAIN} ${URLSHORT_DOMAIN} ${LISTTODO_DOMAIN};
 
     ssl_certificate     /etc/letsencrypt/live/${VPS_DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${VPS_DOMAIN}/privkey.pem;
@@ -250,6 +263,7 @@ cmd_check() {
 
         resolve_yandexmaps_domain 2>/dev/null || true
         resolve_urlshort_domain 2>/dev/null || true
+        resolve_listtodo_domain 2>/dev/null || true
 
         echo
         echo "=== Субдомен service-d (${YANDEXMAPS_DOMAIN:-—}) ==="
@@ -264,6 +278,14 @@ cmd_check() {
         if [[ -n "${URLSHORT_DOMAIN:-}" ]]; then
             echo "DNS: A-запись ${URLSHORT_DOMAIN} → IP VPS (тот же, что ${VPS_DOMAIN})"
             curl -s -o /dev/null -w "HTTPS ${URLSHORT_DOMAIN} → %{http_code}\n" --connect-timeout 2 "https://${URLSHORT_DOMAIN}/" 2>/dev/null \
+                || echo "HTTPS субдомена недоступен (DNS / cert / nginx-gateway Host routing)"
+        fi
+
+        echo
+        echo "=== Субдомен service-g (${LISTTODO_DOMAIN:-—}) ==="
+        if [[ -n "${LISTTODO_DOMAIN:-}" ]]; then
+            echo "DNS: A-запись ${LISTTODO_DOMAIN} → IP VPS (тот же, что ${VPS_DOMAIN})"
+            curl -s -o /dev/null -w "HTTPS ${LISTTODO_DOMAIN} → %{http_code}\n" --connect-timeout 2 "https://${LISTTODO_DOMAIN}/" 2>/dev/null \
                 || echo "HTTPS субдомена недоступен (DNS / cert / nginx-gateway Host routing)"
         fi
 
@@ -351,9 +373,9 @@ run_certbot_standalone() {
     local expand_flag=()
     if cert_exists; then
         expand_flag=(--expand)
-        echo "Расширение существующего сертификата для ${YANDEXMAPS_DOMAIN} и ${URLSHORT_DOMAIN}..."
+        echo "Расширение существующего сертификата для ${YANDEXMAPS_DOMAIN}, ${URLSHORT_DOMAIN} и ${LISTTODO_DOMAIN}..."
     else
-        echo "Получение сертификата (standalone) для ${VPS_DOMAIN}, ${YANDEXMAPS_DOMAIN} и ${URLSHORT_DOMAIN}..."
+        echo "Получение сертификата (standalone) для ${VPS_DOMAIN}, ${YANDEXMAPS_DOMAIN}, ${URLSHORT_DOMAIN} и ${LISTTODO_DOMAIN}..."
     fi
 
     run_root certbot certonly --standalone \
@@ -361,6 +383,7 @@ run_certbot_standalone() {
         -d "${VPS_DOMAIN}" \
         -d "${YANDEXMAPS_DOMAIN}" \
         -d "${URLSHORT_DOMAIN}" \
+        -d "${LISTTODO_DOMAIN}" \
         --non-interactive \
         --agree-tos \
         -m "${CERTBOT_EMAIL}"
@@ -371,6 +394,7 @@ cmd_issue_cert() {
     require_domain
     resolve_yandexmaps_domain
     resolve_urlshort_domain
+    resolve_listtodo_domain
     require_email
 
     stop_docker_public_ports
@@ -379,6 +403,7 @@ cmd_issue_cert() {
     echo "  ${VPS_DOMAIN}"
     echo "  ${YANDEXMAPS_DOMAIN}"
     echo "  ${URLSHORT_DOMAIN}"
+    echo "  ${LISTTODO_DOMAIN}"
 
     if cert_exists; then
         echo "Сертификат для ${VPS_DOMAIN} уже существует."
@@ -396,6 +421,7 @@ cmd_issue_cert_maps() {
     require_domain
     resolve_yandexmaps_domain
     resolve_urlshort_domain
+    resolve_listtodo_domain
     require_email
 
     if ! cert_exists; then
@@ -405,7 +431,7 @@ cmd_issue_cert_maps() {
 
     stop_docker_public_ports
 
-    echo "DNS: A-записи ${YANDEXMAPS_DOMAIN} и ${URLSHORT_DOMAIN} → IP VPS"
+    echo "DNS: A-записи ${YANDEXMAPS_DOMAIN}, ${URLSHORT_DOMAIN} и ${LISTTODO_DOMAIN} → IP VPS"
     run_certbot_standalone
 
     start_docker_prod
@@ -449,11 +475,13 @@ cmd_apply_nginx() {
 
     resolve_yandexmaps_domain
     resolve_urlshort_domain
+    resolve_listtodo_domain
 
     echo "Nginx настроен:"
     echo "  https://${VPS_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT} (main-app)"
     echo "  https://${YANDEXMAPS_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT} (service-d, Host routing в gateway)"
     echo "  https://${URLSHORT_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT} (service-f, Host routing в gateway)"
+    echo "  https://${LISTTODO_DOMAIN} → 127.0.0.1:${GATEWAY_HTTP_PORT} (service-g, Host routing в gateway)"
     echo
     echo "Обновите main-app/.env:"
     echo "  APP_URL=https://${VPS_DOMAIN}"
@@ -465,6 +493,11 @@ cmd_apply_nginx() {
     echo
     echo "Обновите service-f/.env (production):"
     echo "  APP_URL=https://${URLSHORT_DOMAIN}"
+    echo
+    echo "Обновите service-g/.env (production):"
+    echo "  APP_URL=https://${LISTTODO_DOMAIN}"
+    echo "  SANCTUM_STATEFUL_DOMAINS=${LISTTODO_DOMAIN}"
+    echo "  SESSION_DOMAIN=${LISTTODO_DOMAIN}"
 }
 
 cmd_repair() {
