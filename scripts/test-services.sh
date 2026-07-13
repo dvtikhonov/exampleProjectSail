@@ -223,8 +223,12 @@ run_tests_for() {
     fi
 
     if [[ "$service" == "service-g" ]]; then
-        echo "Running tests for service-g..."
-        compose_exec -e APP_ENV=testing service-g php artisan test --env=testing
+        echo "Running tests for service-g (SQLite in-memory)..."
+        compose_exec \
+            -e APP_ENV=testing \
+            -e DB_CONNECTION=sqlite \
+            -e DB_DATABASE=:memory: \
+            service-g php artisan test --env=testing
 
         return
     fi
