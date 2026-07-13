@@ -496,8 +496,9 @@ cmd_apply_nginx() {
     echo
     echo "Обновите service-g/.env (production):"
     echo "  APP_URL=https://${LISTTODO_DOMAIN}"
-    echo "  SANCTUM_STATEFUL_DOMAINS=${LISTTODO_DOMAIN}"
-    echo "  SESSION_DOMAIN=${LISTTODO_DOMAIN}"
+    echo "  FRONTEND_URL=https://${LISTTODO_DOMAIN}"
+    echo "  SANCTUM_STATEFUL_DOMAINS=${LISTTODO_DOMAIN},__SANCTUM_CURRENT_REQUEST_HOST__"
+    echo "  CORS_ALLOWED_ORIGINS=https://${LISTTODO_DOMAIN}"
 }
 
 cmd_repair() {

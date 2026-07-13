@@ -619,9 +619,9 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 Этапы:
 
 1. **`deploy-via-ssh`** (окружение GitHub `production`) — `git checkout`, `docker compose build`, `docker compose up -d --remove-orphans` с overlay `docker-compose.prod.yml`. При ошибке выполняется откат к предыдущему коммиту.
-2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех сервисах (`main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-f`) через SSH. Для `service-f` применяются миграции к отдельной БД `service_f_db`.
+2. **`run-migrations`** (окружение `production-migrations`, только если `run_migrations=true`) — миграции во всех сервисах (`main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-f`, `service-g`) через SSH. Для `service-f` и `service-g` применяются миграции к отдельным БД `service_f_db` и `service_g_db`.
 
-На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` — сертификат на основной домен и субдомены `yandexmaps.*` (service-d) и `urlshort.*` (service-f); см. [service-d/README.md](service-d/README.md) и [service-f/README.md](service-f/README.md). Overlay: `docker-compose.prod.yml`.
+На VPS порты **80/443** занимает системный nginx (Let's Encrypt). Docker gateway слушает только `127.0.0.1:8080`. Первичная настройка SSL: `scripts/vps-nginx-ssl.sh` — сертификат на основной домен и субдомены `yandexmaps.*` (service-d), `urlshort.*` (service-f) и `listtodo.*` (service-g); см. [service-d/README.md](service-d/README.md), [service-f/README.md](service-f/README.md) и [service-g/README.md](service-g/README.md). Overlay: `docker-compose.prod.yml`.
 
 **Production-домен VPS:** `94-228-117-27.sslip.io` (sslip.io — отдельная A-запись не нужна, домен привязан к IP `94.228.117.27`).
 
@@ -632,6 +632,7 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 | `service-c` (webhook) | `https://94-228-117-27.sslip.io/api/webhooks/max` |
 | `service-d` | `https://yandexmaps.94-228-117-27.sslip.io/` |
 | `service-f` | `https://urlshort.94-228-117-27.sslip.io/` |
+| `service-g` | `https://listtodo.94-228-117-27.sslip.io/` |
 | phpMyAdmin (только после настройки) | `https://pma.94-228-117-27.sslip.io/` |
 
 В `.env` на VPS: `main-app` → `APP_URL=https://94-228-117-27.sslip.io`; `REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io` (см. `docker-compose.prod.yml`).
