@@ -3,7 +3,7 @@
         <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur">
             <div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
                 <NuxtLink
-                    to="/listtodos"
+                    to="/tasks"
                     class="text-lg font-semibold tracking-tight text-white"
                 >
                     service-g · To-Do
@@ -11,7 +11,7 @@
 
                 <nav class="flex items-center gap-3 text-sm">
                     <NuxtLink
-                        to="/listtodos"
+                        to="/tasks"
                         class="rounded-md px-3 py-1.5 text-slate-300 transition hover:bg-slate-800 hover:text-white"
                     >
                         Задачи

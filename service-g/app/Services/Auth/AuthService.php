@@ -4,75 +4,83 @@ declare(strict_types=1);
 
 namespace App\Services\Auth;
 
+use App\Contracts\AuthServiceInterface;
+use App\Contracts\LoginRateLimiterInterface;
+use App\Contracts\SessionManagerInterface;
 use App\Contracts\UserRepositoryInterface;
+use App\Contracts\WebAuthenticatorInterface;
+use App\DTO\Auth\CreateUserPersistenceDto;
 use App\DTO\Auth\LoginUserDto;
 use App\DTO\Auth\RegisterUserDto;
+use App\DTO\Auth\UserDto;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 /**
  * Аутентификация SPA через Sanctum (cookie + session).
  */
-class AuthService
+class AuthService implements AuthServiceInterface
 {
-    /** Внедряет репозиторий пользователей и rate limiter входа. */
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
-        private readonly LoginRateLimiter $loginRateLimiter,
+        private readonly LoginRateLimiterInterface $loginRateLimiter,
+        private readonly WebAuthenticatorInterface $authenticator,
+        private readonly SessionManagerInterface $sessionManager,
     ) {}
 
-    /** Регистрирует пользователя и открывает сессию. */
-    public function register(RegisterUserDto $dto, Request $request): User
+    public function register(RegisterUserDto $dto): UserDto
     {
-        $user = $this->userRepository->create([
-            'name' => $dto->name,
-            'email' => $dto->email,
-            'password' => $dto->password,
-        ]);
+        $user = $this->userRepository->create(
+            CreateUserPersistenceDto::fromRegister($dto),
+        );
 
-        Auth::login($user);
-        $request->session()->regenerate();
+        $this->authenticator->login($user);
+        $this->sessionManager->regenerate();
 
-        return $user;
+        return UserDto::fromModel($user);
     }
 
     /**
-     * Выполняет вход по email/password.
-     *
      * @throws ValidationException
      */
-    public function login(LoginUserDto $dto, Request $request): User
+    public function login(LoginUserDto $dto, ?string $clientIp): UserDto
     {
-        $this->loginRateLimiter->ensureIsNotRateLimited($dto->email, $request->ip(), $request);
+        $this->loginRateLimiter->ensureIsNotRateLimited($dto->email, $clientIp);
 
-        if (! Auth::attempt(
+        if (! $this->authenticator->attempt(
             ['email' => $dto->email, 'password' => $dto->password],
             $dto->remember,
         )) {
-            $this->loginRateLimiter->hit($dto->email, $request->ip());
+            $this->loginRateLimiter->hit($dto->email, $clientIp);
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
         }
 
-        $this->loginRateLimiter->clear($dto->email, $request->ip());
-        $request->session()->regenerate();
+        $this->loginRateLimiter->clear($dto->email, $clientIp);
+        $this->sessionManager->regenerate();
 
-        /** @var User $user */
-        $user = Auth::user();
+        $user = $this->authenticator->currentUser();
 
-        return $user;
+        if ($user === null) {
+            throw ValidationException::withMessages([
+                'email' => trans('auth.failed'),
+            ]);
+        }
+
+        return UserDto::fromModel($user);
     }
 
-    /** Завершает сессию пользователя. */
-    public function logout(Request $request): void
+    public function logout(): void
     {
-        Auth::guard('web')->logout();
+        $this->authenticator->logout();
+        $this->sessionManager->invalidate();
+        $this->sessionManager->regenerateToken();
+    }
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+    public function currentUser(User $user): UserDto
+    {
+        return UserDto::fromModel($user);
     }
 }

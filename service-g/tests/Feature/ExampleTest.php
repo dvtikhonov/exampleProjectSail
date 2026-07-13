@@ -23,7 +23,7 @@ class ExampleTest extends TestCase
             ->assertJson([
                 'service' => 'service-g',
                 'api' => '/api',
-                'login' => '/api/login',
+                'login' => '/api/auth/login',
             ])
             ->assertJsonStructure([
                 'service',
@@ -32,11 +32,23 @@ class ExampleTest extends TestCase
                 'login',
                 'register',
                 'user',
+                'tasks',
+                'openapi',
                 'login_page',
                 'register_page',
                 'test_login_page',
                 'test_register_page',
             ]);
+    }
+
+    /** OpenAPI-спецификация доступна по публичному маршруту. */
+    public function test_openapi_spec_is_available(): void
+    {
+        $response = $this->get('/api/docs/openapi.yaml');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/yaml');
+        $this->assertStringContainsString('openapi: 3.0.3', $response->getContent());
     }
 
     /** Тестовая Blade-страница входа отдаётся без ошибок. */

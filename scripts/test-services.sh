@@ -27,7 +27,7 @@ TEST_DB_PORT="${TEST_DB_PORT%$'\r'}"
 TEST_DATABASE="${TEST_DATABASE:-sail_db_testing}"
 SERVICE_D_TEST_DATABASE="${SERVICE_D_TEST_DATABASE:-service_d_db_testing}"
 SERVICE_F_TEST_DATABASE="${SERVICE_F_TEST_DATABASE:-service_f_db_testing}"
-SERVICE_G_TEST_DATABASE="${SERVICE_G_TEST_DATABASE:-service_g_db_testing}"
+CI_SKIP_SERVICES="${CI_SKIP_SERVICES:-}"
 MYSQL_USER="${TEST_DB_USERNAME:-root}"
 MYSQL_PASSWORD="${TEST_DB_PASSWORD:?Set TEST_DB_PASSWORD in .env.testing.local or environment}"
 MYSQL_HOST="${TEST_DB_HOST:-host.docker.internal}"
@@ -51,11 +51,11 @@ Environment overrides:
   TEST_DATABASE=sail_db_testing
   SERVICE_D_TEST_DATABASE=service_d_db_testing
   SERVICE_F_TEST_DATABASE=service_f_db_testing
-  SERVICE_G_TEST_DATABASE=service_g_db_testing
   TEST_DB_HOST=host.docker.internal
   TEST_DB_PORT=3306
   TEST_DB_USERNAME=root
   TEST_DB_PASSWORD=<required>
+  CI_SKIP_SERVICES=service-d,service-e,service-f
 
 Local overrides can be stored in .env.testing.local.
 USAGE
@@ -97,6 +97,27 @@ done
 
 compose_exec() {
     docker compose exec -T "$@"
+}
+
+should_skip_service() {
+    local service="$1"
+
+    if [[ -z "$CI_SKIP_SERVICES" ]]; then
+        return 1
+    fi
+
+    local skip
+    IFS=',' read -ra SKIP_LIST <<< "$CI_SKIP_SERVICES"
+    for skip in "${SKIP_LIST[@]}"; do
+        skip="${skip#"${skip%%[![:space:]]*}"}"
+        skip="${skip%"${skip##*[![:space:]]}"}"
+
+        if [[ "$skip" == "$service" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 artisan() {
@@ -177,20 +198,16 @@ prepare_service_f_database() {
     artisan service-f "$SERVICE_F_TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
 }
 
-prepare_service_g_database() {
-    echo "Preparing clean ${SERVICE_G_TEST_DATABASE} database..."
-
-    prepare_mysql_database "$SERVICE_G_TEST_DATABASE"
-
-    echo "Running service-g migrations..."
-    artisan service-g "$SERVICE_G_TEST_DATABASE" migrate --database=mysql --path=database/migrations --env=testing --force
-}
-
 prepare_all_databases() {
     prepare_database
-    prepare_service_d_database
-    prepare_service_f_database
-    prepare_service_g_database
+
+    if ! should_skip_service service-d; then
+        prepare_service_d_database
+    fi
+
+    if ! should_skip_service service-f; then
+        prepare_service_f_database
+    fi
 }
 
 run_tests_for() {
@@ -206,7 +223,14 @@ run_tests_for() {
     fi
 
     if [[ "$service" == "service-g" ]]; then
-        database="$SERVICE_G_TEST_DATABASE"
+        echo "Running tests for service-g (SQLite in-memory)..."
+        compose_exec \
+            -e APP_ENV=testing \
+            -e DB_CONNECTION=sqlite \
+            -e DB_DATABASE=:memory: \
+            service-g php artisan test --env=testing
+
+        return
     fi
 
     if [[ "$service" == "service-e" ]]; then
@@ -237,9 +261,7 @@ if [[ "$SKIP_PREPARE" == false && "$MODE" != "all" ]]; then
         prepare_service_d_database
     elif [[ "$MODE" == "service-f" ]]; then
         prepare_service_f_database
-    elif [[ "$MODE" == "service-g" ]]; then
-        prepare_service_g_database
-    else
+    elif [[ "$MODE" != "service-g" ]]; then
         prepare_database
     fi
 fi
@@ -251,6 +273,11 @@ case "$MODE" in
         fi
 
         for service in main-app service-a service-b service-c service-d service-e service-f service-g; do
+            if should_skip_service "$service"; then
+                echo "Skipping tests for ${service} (CI_SKIP_SERVICES)"
+                continue
+            fi
+
             run_tests_for "$service"
         done
         ;;

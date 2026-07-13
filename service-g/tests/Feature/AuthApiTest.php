@@ -22,10 +22,10 @@ class AuthApiTest extends TestCase
         $response->assertUnauthorized();
     }
 
-    /** POST /api/register создаёт пользователя и возвращает 201. */
+    /** POST /api/auth/register создаёт пользователя и возвращает 201. */
     public function test_user_can_register(): void
     {
-        $response = $this->postStatefulJson('/api/register', [
+        $response = $this->postStatefulJson('/api/auth/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
@@ -48,12 +48,12 @@ class AuthApiTest extends TestCase
         ]);
     }
 
-    /** POST /api/login с верными credentials открывает сессию. */
+    /** POST /api/auth/login с верными credentials открывает сессию. */
     public function test_user_can_login_with_valid_credentials(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->postStatefulJson('/api/login', [
+        $response = $this->postStatefulJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
@@ -74,7 +74,7 @@ class AuthApiTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->postStatefulJson('/api/login', [
+        $response = $this->postStatefulJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
@@ -102,12 +102,12 @@ class AuthApiTest extends TestCase
             ]);
     }
 
-    /** POST /api/logout завершает сессию авторизованного пользователя. */
+    /** POST /api/auth/logout завершает сессию авторизованного пользователя. */
     public function test_authenticated_user_can_logout(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAsStateful($user)->postStatefulJson('/api/logout');
+        $response = $this->actingAsStateful($user)->postStatefulJson('/api/auth/logout');
 
         $response->assertOk()
             ->assertJson([
@@ -121,14 +121,14 @@ class AuthApiTest extends TestCase
         $user = User::factory()->create();
 
         for ($attempt = 0; $attempt < 5; $attempt++) {
-            $this->postStatefulJson('/api/login', [
+            $this->postStatefulJson('/api/auth/login', [
                 'email' => $user->email,
                 'password' => 'wrong-password',
             ])->assertUnprocessable()
                 ->assertJsonValidationErrors(['email']);
         }
 
-        $response = $this->postStatefulJson('/api/login', [
+        $response = $this->postStatefulJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);

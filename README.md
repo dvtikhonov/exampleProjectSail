@@ -110,7 +110,7 @@ SERVICE_G_DB_DATABASE=service_g_db
 SERVICE_G_DB_PASSWORD=<your-local-password>
 ```
 
-Создайте `service_g_db` и `service_g_db_testing` во внешнем MySQL (см. [service-g/README.md](service-g/README.md)).
+Создайте `service_g_db` во внешнем MySQL (см. [service-g/README.md](service-g/README.md)). Для PHPUnit backend-тестов `service-g` использует SQLite `:memory:` — отдельную тестовую MySQL-базу создавать не нужно.
 
 Для `service-a` задайте `DB_*` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
 
@@ -592,9 +592,6 @@ export SERVICE_D_DB_PASSWORD=12345678
 export SERVICE_F_DB_HOST=mysql
 export SERVICE_F_DB_DATABASE=service_f_db_testing
 export SERVICE_F_DB_PASSWORD=12345678
-export SERVICE_G_DB_HOST=mysql
-export SERVICE_G_DB_DATABASE=service_g_db_testing
-export SERVICE_G_DB_PASSWORD=12345678
 
 docker compose build main-app service-a service-b service-c service-d service-e service-f service-g
 docker compose run --rm --no-deps service-a composer install --no-interaction --prefer-dist --no-progress
@@ -769,7 +766,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose, пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`, `service_g_db_testing` для `service-g`), затем применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` → `service-g` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). В режиме `all` подготовка выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose. Для сервисов на MySQL он пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`) и применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). **`service-g`** backend-тесты идут на SQLite `:memory:` без подготовки MySQL — достаточно `php artisan test --env=testing`. В режиме `all` подготовка MySQL выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -814,7 +811,6 @@ TEST_DB_PASSWORD=<your-local-password>
 TEST_DATABASE=sail_db_testing \
 SERVICE_D_TEST_DATABASE=service_d_db_testing \
 SERVICE_F_TEST_DATABASE=service_f_db_testing \
-SERVICE_G_TEST_DATABASE=service_g_db_testing \
 TEST_DB_HOST=host.docker.internal \
 TEST_DB_PORT=3306 \
 TEST_DB_USERNAME=root \

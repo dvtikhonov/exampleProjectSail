@@ -1,10 +1,13 @@
 /**
  * Пользователь API (Sanctum session).
  */
+export type UserRole = 'user' | 'admin';
+
 export interface AuthUser {
     id: number;
     name: string;
     email: string;
+    role?: UserRole;
     email_verified_at?: string | null;
     created_at?: string;
     updated_at?: string;
