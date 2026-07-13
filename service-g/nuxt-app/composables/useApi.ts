@@ -14,6 +14,26 @@ type ApiFetchOptions = Omit<FetchOptions, 'credentials' | 'headers'> & {
 export function useApi() {
     const config = useRuntimeConfig();
     const apiBase = String(config.public.apiBase ?? '');
+    const nuxtApp = useNuxtApp();
+    const { handleUnauthorized } = useUnauthorizedHandler();
+
+    /** Клиент $fetch с перехватом 401 (из plugins/api-auth.client.ts). */
+    function resolveFetchClient(): typeof $fetch {
+        return nuxtApp.$sanctumFetch ?? $fetch;
+    }
+
+    /**
+     * Пробрасывает 401 в централизованный обработчик (fallback, если плагин не подключён).
+     */
+    function rethrowWithUnauthorizedHandling(error: unknown, requestUrl: string): never {
+        const status = (error as { status?: number })?.status;
+
+        if (status === 401) {
+            handleUnauthorized(requestUrl);
+        }
+
+        throw error;
+    }
 
     /**
      * Читает XSRF-TOKEN из document.cookie (только на клиенте).
@@ -53,27 +73,39 @@ export function useApi() {
     /**
      * Запрос к Laravel API (префикс /api).
      */
-    function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+    async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        const requestUrl = `${apiBase}/api${normalizedPath}`;
 
-        return $fetch<T>(`${apiBase}/api${normalizedPath}`, {
-            ...options,
-            credentials: 'include',
-            headers: buildHeaders(options.headers),
-        });
+        try {
+            return await resolveFetchClient()<T>(requestUrl, {
+                ...options,
+                credentials: 'include',
+                headers: buildHeaders(options.headers),
+                timeout: 15_000,
+            });
+        } catch (error: unknown) {
+            rethrowWithUnauthorizedHandling(error, requestUrl);
+        }
     }
 
     /**
      * Запрос вне /api (например GET /sanctum/csrf-cookie).
      */
-    function rootFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+    async function rootFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
         const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+        const requestUrl = `${apiBase}${normalizedPath}`;
 
-        return $fetch<T>(`${apiBase}${normalizedPath}`, {
-            ...options,
-            credentials: 'include',
-            headers: buildHeaders(options.headers),
-        });
+        try {
+            return await resolveFetchClient()<T>(requestUrl, {
+                ...options,
+                credentials: 'include',
+                headers: buildHeaders(options.headers),
+                timeout: 15_000,
+            });
+        } catch (error: unknown) {
+            rethrowWithUnauthorizedHandling(error, requestUrl);
+        }
     }
 
     /**

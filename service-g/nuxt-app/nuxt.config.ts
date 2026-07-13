@@ -2,6 +2,10 @@
 export default defineNuxtConfig({
     compatibilityDate: '2025-07-15',
     devtools: { enabled: true },
+    routeRules: {
+        '/': { redirect: '/login' },
+    },
+    // @nuxt/test-utils/module только для Vitest (vitest.config.ts), не в dev-сервере Docker.
     modules: ['@nuxtjs/tailwindcss'],
     css: ['~/assets/css/main.css'],
     runtimeConfig: {

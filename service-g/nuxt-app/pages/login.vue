@@ -2,19 +2,10 @@
 import { reactive, ref } from 'vue';
 import type { LoginCredentials, RegisterPayload } from '~/types/auth';
 
-const { user, fetchUser, hasCheckedSession, login, register, isLoading, error } = useAuth();
-
-if (import.meta.client) {
-    if (!hasCheckedSession.value) {
-        await fetchUser();
-    }
-
-    if (user.value) {
-        await navigateTo('/listtodos');
-    }
-}
+const { user, fetchUser, login, register, isLoading, error } = useAuth();
 
 const route = useRoute();
+const isBootstrapping = ref(import.meta.client);
 const isRegisterMode = ref(route.query.register === '1');
 
 const form = reactive({
@@ -24,14 +15,14 @@ const form = reactive({
     password_confirmation: '',
 });
 
-/** Отправляет форму входа или регистрации и перенаправляет на /listtodos при успехе. */
+/** Отправляет форму входа или регистрации и перенаправляет на /tasks при успехе. */
 async function onSubmit(): Promise<void> {
     const ok = isRegisterMode.value
         ? await register(form as RegisterPayload)
         : await login(form as LoginCredentials);
 
     if (ok) {
-        await navigateTo('/listtodos');
+        await navigateTo('/tasks');
     }
 }
 
@@ -40,31 +31,51 @@ function toggleMode(): void {
     isRegisterMode.value = !isRegisterMode.value;
     error.value = null;
 }
+
+onMounted(async () => {
+    try {
+        await fetchUser();
+
+        if (user.value) {
+            await navigateTo('/tasks');
+        }
+    } finally {
+        isBootstrapping.value = false;
+    }
+});
 </script>
 
 <template>
     <div class="mx-auto max-w-md space-y-6">
-        <div class="space-y-2 text-center">
-            <h1 class="text-2xl font-semibold text-white">
-                {{ isRegisterMode ? 'Регистрация' : 'Вход' }}
-            </h1>
-            <p class="text-sm text-slate-400">
-                Sanctum cookie session · Nuxt 3
-            </p>
-        </div>
+        <AppSpinner
+            v-if="isBootstrapping"
+            centered
+            size="lg"
+            label="Проверка сессии…"
+        />
 
-        <div
-            v-if="error"
-            class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
-            role="alert"
-        >
-            {{ error }}
-        </div>
+        <template v-else>
+            <div class="space-y-2 text-center">
+                <h1 class="text-2xl font-semibold text-white">
+                    {{ isRegisterMode ? 'Регистрация' : 'Вход' }}
+                </h1>
+                <p class="text-sm text-slate-400">
+                    Sanctum cookie session · Nuxt 3
+                </p>
+            </div>
 
-        <form
-            class="space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl"
-            @submit.prevent="onSubmit"
-        >
+            <div
+                v-if="error"
+                class="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+                role="alert"
+            >
+                {{ error }}
+            </div>
+
+            <form
+                class="space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl"
+                @submit.prevent="onSubmit"
+            >
             <div
                 v-if="isRegisterMode"
                 class="space-y-1"
@@ -144,9 +155,14 @@ function toggleMode(): void {
             <button
                 type="submit"
                 :disabled="isLoading"
-                class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-                {{ isLoading ? 'Отправка…' : (isRegisterMode ? 'Зарегистрироваться' : 'Войти') }}
+                <AppSpinner
+                    v-if="isLoading"
+                    size="sm"
+                    variant="on-primary"
+                />
+                <span>{{ isLoading ? 'Отправка…' : (isRegisterMode ? 'Зарегистрироваться' : 'Войти') }}</span>
             </button>
         </form>
 
@@ -159,5 +175,6 @@ function toggleMode(): void {
                 {{ isRegisterMode ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Зарегистрироваться' }}
             </button>
         </p>
+        </template>
     </div>
 </template>

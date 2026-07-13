@@ -4,19 +4,11 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
+use App\DTO\Auth\CreateUserPersistenceDto;
 use App\Models\User;
 
 interface UserRepositoryInterface
 {
-    /**
-     * Создаёт пользователя с переданными атрибутами.
-     *
-     * @param  array<string, mixed>  $attributes
-     */
-    public function create(array $attributes): User;
-
-    /**
-     * Ищет пользователя по email.
-     */
-    public function findByEmail(string $email): ?User;
+    /** Создаёт пользователя с переданными атрибутами. */
+    public function create(CreateUserPersistenceDto $dto): User;
 }

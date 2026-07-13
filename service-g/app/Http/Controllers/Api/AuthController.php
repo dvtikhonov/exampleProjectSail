@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\AuthServiceInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
-use App\Services\Auth\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,71 +17,44 @@ use Illuminate\Http\Request;
  */
 class AuthController extends Controller
 {
-    /** Внедряет сервис аутентификации через DI. */
     public function __construct(
-        private readonly AuthService $authService,
+        private readonly AuthServiceInterface $authService,
     ) {}
 
-    /**
-     * Регистрация нового пользователя.
-     */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = $this->authService->register($request->toDto(), $request);
+        $user = $this->authService->register($request->toDto());
 
         return response()->json([
-            'user' => $this->serializeUser($user),
+            'user' => $user->toArray(),
         ], 201);
     }
 
-    /**
-     * Вход по email и паролю.
-     */
     public function login(LoginRequest $request): JsonResponse
     {
-        $user = $this->authService->login($request->toDto(), $request);
+        $user = $this->authService->login($request->toDto(), $request->ip());
 
         return response()->json([
-            'user' => $this->serializeUser($user),
+            'user' => $user->toArray(),
         ]);
     }
 
-    /**
-     * Выход из сессии.
-     */
     public function logout(Request $request): JsonResponse
     {
-        $this->authService->logout($request);
+        $this->authService->logout();
 
         return response()->json([
             'message' => 'Logged out.',
         ]);
     }
 
-    /**
-     * Текущий аутентифицированный пользователь.
-     */
     public function user(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
 
         return response()->json([
-            'user' => $this->serializeUser($user),
+            'user' => $this->authService->currentUser($user)->toArray(),
         ]);
-    }
-
-    /**
-     * Сериализует пользователя для JSON-ответа (без чувствительных полей).
-     *
-     * @return array{id: int, name: string, email: string}
-     */
-    private function serializeUser(User $user): array
-    {
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-        ];
     }
 }

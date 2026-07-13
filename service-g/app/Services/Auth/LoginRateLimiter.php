@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Auth;
 
+use App\Contracts\LoginRateLimiterInterface;
 use Illuminate\Auth\Events\Lockout;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Rate limit при неудачных попытках входа.
  */
-class LoginRateLimiter
+class LoginRateLimiter implements LoginRateLimiterInterface
 {
     private const MAX_ATTEMPTS = 5;
 
@@ -28,13 +28,15 @@ class LoginRateLimiter
      *
      * @throws ValidationException
      */
-    public function ensureIsNotRateLimited(string $email, ?string $ip, ?Request $request = null): void
+    public function ensureIsNotRateLimited(string $email, ?string $ip): void
     {
         $key = $this->throttleKey($email, $ip);
 
         if (! RateLimiter::tooManyAttempts($key, self::MAX_ATTEMPTS)) {
             return;
         }
+
+        $request = request();
 
         if ($request !== null) {
             event(new Lockout($request));

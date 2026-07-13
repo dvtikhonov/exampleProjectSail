@@ -59,7 +59,7 @@ export function useAuth() {
     }
 
     /**
-     * POST /api/login после ensureCsrfCookie().
+     * POST /api/auth/login после ensureCsrfCookie().
      */
     async function login(credentials: LoginCredentials): Promise<boolean> {
         resetError();
@@ -67,7 +67,7 @@ export function useAuth() {
 
         try {
             await ensureCsrfCookie();
-            const data = await apiFetch<AuthUserResponse>('/login', {
+            const data = await apiFetch<AuthUserResponse>('/auth/login', {
                 method: 'POST',
                 body: credentials,
             });
@@ -84,7 +84,7 @@ export function useAuth() {
     }
 
     /**
-     * POST /api/register после ensureCsrfCookie().
+     * POST /api/auth/register после ensureCsrfCookie().
      */
     async function register(payload: RegisterPayload): Promise<boolean> {
         resetError();
@@ -92,7 +92,7 @@ export function useAuth() {
 
         try {
             await ensureCsrfCookie();
-            const data = await apiFetch<AuthUserResponse>('/register', {
+            const data = await apiFetch<AuthUserResponse>('/auth/register', {
                 method: 'POST',
                 body: payload,
             });
@@ -109,14 +109,14 @@ export function useAuth() {
     }
 
     /**
-     * POST /api/logout (auth:sanctum).
+     * POST /api/auth/logout (auth:sanctum).
      */
     async function logout(): Promise<boolean> {
         resetError();
         isLoading.value = true;
 
         try {
-            await apiFetch('/logout', { method: 'POST' });
+            await apiFetch('/auth/logout', { method: 'POST' });
             user.value = null;
 
             return true;

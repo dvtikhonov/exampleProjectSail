@@ -28,6 +28,22 @@ trait MakesStatefulApiRequests
         return $this->withStatefulApiHeaders()->getJson($uri);
     }
 
+    /**
+     * PATCH JSON с заголовками Sanctum stateful (Origin/Referer).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function patchStatefulJson(string $uri, array $data = []): TestResponse
+    {
+        return $this->withStatefulApiHeaders()->patchJson($uri, $data);
+    }
+
+    /** DELETE JSON с заголовками Sanctum stateful (Origin/Referer). */
+    protected function deleteStatefulJson(string $uri): TestResponse
+    {
+        return $this->withStatefulApiHeaders()->deleteJson($uri);
+    }
+
     /** Авторизует пользователя и добавляет stateful-заголовки. */
     protected function actingAsStateful(User $user): static
     {

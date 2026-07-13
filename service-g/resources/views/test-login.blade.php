@@ -158,7 +158,7 @@
     });
 
     form.addEventListener('submit', async (event) => {
-        // Отправляет форму через Sanctum: CSRF-cookie → POST /api/login|register.
+        // Отправляет форму через Sanctum: CSRF-cookie → POST /api/auth/login|register.
         event.preventDefault();
         submitBtn.disabled = true;
         errorBox.classList.add('hidden');
@@ -174,7 +174,7 @@
             });
 
             const xsrfToken = getCookie('XSRF-TOKEN');
-            const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+            const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
             const payload = isRegisterMode
                 ? {
                     name: form.name.value,

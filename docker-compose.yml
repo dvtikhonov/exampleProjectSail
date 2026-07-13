@@ -476,6 +476,7 @@ services:
       - ./service-g/resources:/var/www/html/resources
       - ./service-g/config:/var/www/html/config
       - ./service-g/database:/var/www/html/database
+      - ./service-g/docs:/var/www/html/docs
       - ./service-g/tests:/var/www/html/tests
       - ./service-g/bootstrap:/var/www/html/bootstrap
       - ./service-g/public:/var/www/html/public

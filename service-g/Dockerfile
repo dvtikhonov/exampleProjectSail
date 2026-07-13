@@ -6,9 +6,10 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libzip-dev \
     libicu-dev \
+    libsqlite3-dev \
     curl \
     ca-certificates \
-    && docker-php-ext-install zip pdo_mysql intl \
+    && docker-php-ext-install zip pdo_mysql pdo_sqlite intl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
