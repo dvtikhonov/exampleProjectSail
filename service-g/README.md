@@ -625,6 +625,29 @@ service-g/
 
 ---
 
+## Production (VPS)
+
+1. Создайте БД `service_g_db` на хостовом MySQL VPS (см. корневой [README.md](../README.md), раздел про `SERVICE_G_DB_*`).
+2. DNS: A-запись `listtodo.<VPS_DOMAIN>` → IP VPS (для sslip.io отдельная запись не нужна).
+3. SSL: `scripts/vps-nginx-ssl.sh` (расширяет сертификат для `listtodo.*` вместе с `yandexmaps.*` и `urlshort.*`).
+4. Обновить `service-g/.env`:
+
+```env
+APP_URL=https://listtodo.<VPS_DOMAIN>
+FRONTEND_URL=https://listtodo.<VPS_DOMAIN>
+APP_ENV=production
+APP_DEBUG=false
+
+SANCTUM_STATEFUL_DOMAINS=listtodo.<VPS_DOMAIN>,__SANCTUM_CURRENT_REQUEST_HOST__
+CORS_ALLOWED_ORIGINS=https://listtodo.<VPS_DOMAIN>
+```
+
+5. Поднять контейнеры: `docker compose up -d service-g service-g-nuxt gateway` (с overlay `docker-compose.prod.yml`).
+
+Деплой через GitHub Actions: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — `composer install` для `service-g` и параметр `run_migrations=true` для миграций `service_g_db`.
+
+---
+
 ## Полезные ссылки
 
 - [Laravel Sanctum SPA Authentication](https://laravel.com/docs/sanctum#spa-authentication)
