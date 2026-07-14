@@ -47,6 +47,21 @@ class CartTotalsCalculator
         );
 
         $deliveryCost = $this->deliveryCostResolver->resolve($itemsTotal, $tiers);
+        $nextTier = $this->deliveryCostResolver->resolveNextTier($itemsTotal, $tiers);
+        $nextTierMinTotal = null;
+        $nextTierDeliveryCost = null;
+        $amountToNextTier = null;
+
+        if ($nextTier !== null) {
+            $amountToNextTier = $nextTier->minItemsTotal - $itemsTotal;
+
+            if ($amountToNextTier > 0) {
+                $nextTierMinTotal = $nextTier->minItemsTotal;
+                $nextTierDeliveryCost = $nextTier->deliveryCost;
+            } else {
+                $amountToNextTier = null;
+            }
+        }
 
         return new CartTotalsDto(
             itemsTotal: $itemsTotal,
@@ -54,6 +69,9 @@ class CartTotalsCalculator
             total: $itemsTotal + $deliveryCost,
             deliveryApplicable: true,
             customerCategory: $categoryDto,
+            nextTierMinTotal: $nextTierMinTotal,
+            nextTierDeliveryCost: $nextTierDeliveryCost,
+            amountToNextTier: $amountToNextTier,
         );
     }
 }

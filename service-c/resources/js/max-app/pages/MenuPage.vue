@@ -1,10 +1,10 @@
 <script setup>
 /**
  * Меню ресторана: категории и блюда в сетке 3 колонки.
- * В категориях с is_combo_available — сборка комбо через bottom sheet.
+ * В категориях с is_combo_available — сборка комбо через панель под шапкой.
  * При непустой корзине показывает фиксированную панель внизу с итогом.
  */
-import { computed, ref, toRef } from 'vue';
+import { computed, nextTick, ref, toRef, watch } from 'vue';
 import MenuCategoryTabs from '../components/menu/MenuCategoryTabs.vue';
 import MenuComboBuilderSheet from '../components/menu/MenuComboBuilderSheet.vue';
 import MenuDishGrid from '../components/menu/MenuDishGrid.vue';
@@ -48,9 +48,52 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    savingAddress: {
+        type: Boolean,
+        default: false,
+    },
 });
 
-const emit = defineEmits(['add-to-cart', 'add-combo-to-cart', 'open-cart', 'open-orders']);
+const emit = defineEmits([
+    'add-to-cart',
+    'add-combo-to-cart',
+    'open-cart',
+    'open-orders',
+    'delivery-address-input',
+    'delivery-address-blur',
+    'delivery-address-focus',
+]);
+
+const localAddress = ref('');
+const isAddressFocused = ref(false);
+
+watch(
+    () => props.deliveryAddress,
+    (value) => {
+        if (isAddressFocused.value) {
+            return;
+        }
+
+        localAddress.value = value ?? '';
+    },
+    { immediate: true },
+);
+
+function handleAddressFocus() {
+    isAddressFocused.value = true;
+    emit('delivery-address-focus');
+}
+
+function handleAddressInput(value) {
+    localAddress.value = value;
+    emit('delivery-address-input', value);
+}
+
+function handleAddressBlur(value) {
+    isAddressFocused.value = false;
+    localAddress.value = value;
+    emit('delivery-address-blur', value);
+}
 
 const hasCart = computed(() => props.cartItemCount > 0);
 
@@ -58,6 +101,8 @@ const comboBuilderOpen = ref(false);
 const comboFirstDish = ref(null);
 const comboSecondDish = ref(null);
 const comboQuantity = ref(1);
+const stickyHeaderRef = ref(null);
+const categoryTabsRef = ref(null);
 
 const {
     activeCategoryId,
@@ -162,19 +207,70 @@ function generateComboRef() {
         return value.toString(16);
     });
 }
+
+/**
+ * Прокручивает страницу так, чтобы поиск и категории были видны под панелью «Собрать блюдо».
+ */
+async function scrollToCategoryTabs() {
+    await nextTick();
+
+    requestAnimationFrame(() => {
+        const stickyHeader = stickyHeaderRef.value;
+        const categoryTabs = categoryTabsRef.value;
+
+        if (!stickyHeader || !categoryTabs) {
+            return;
+        }
+
+        const stickyBottom = stickyHeader.getBoundingClientRect().bottom;
+        const tabsTop = categoryTabs.getBoundingClientRect().top;
+        const offset = tabsTop - stickyBottom - 8;
+
+        if (offset < 0) {
+            window.scrollBy({ top: offset, behavior: 'smooth' });
+        }
+    });
+}
+
+watch(comboBuilderOpen, (open) => {
+    if (open) {
+        scrollToCategoryTabs();
+    }
+});
 </script>
 
 <template>
     <div class="flex min-h-dvh flex-col bg-white pb-24">
-        <MenuHeader
-            :delivery-address="deliveryAddress"
-            :restaurant-name="menu?.restaurant_name ?? ''"
-            :orders-unread-count="ordersUnreadCount"
-            @open-cart="emit('open-cart')"
-            @open-orders="emit('open-orders')"
-        />
+        <div ref="stickyHeaderRef" class="sticky top-0 z-30 safe-area-top">
+            <MenuHeader
+                :delivery-address="localAddress"
+                :restaurant-name="menu?.restaurant_name ?? ''"
+                :orders-unread-count="ordersUnreadCount"
+                :saving-address="savingAddress"
+                @update:delivery-address="localAddress = $event"
+                @delivery-address-focus="handleAddressFocus"
+                @delivery-address-input="handleAddressInput"
+                @delivery-address-blur="handleAddressBlur"
+                @open-cart="emit('open-cart')"
+                @open-orders="emit('open-orders')"
+            />
 
-        <main class="flex-1 py-4">
+            <MenuComboBuilderSheet
+                :open="comboBuilderOpen"
+                :combo-first-dish="comboFirstDish"
+                :combo-second-dish="comboSecondDish"
+                :combo-quantity="comboQuantity"
+                :combo-total="comboTotal"
+                :can-add-combo="canAddCombo"
+                :adding-combo-ref="addingComboRef"
+                @close="closeComboBuilder"
+                @reset-second="resetSecondComboDish"
+                @change-quantity="changeComboQuantity"
+                @add-combo="addComboToCart"
+            />
+        </div>
+
+        <main class="relative flex-1 py-4">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
@@ -187,13 +283,15 @@ function generateComboRef() {
             </div>
 
             <div v-else-if="menu" class="space-y-4">
-                <MenuCategoryTabs
-                    :category-tabs="categoryTabs"
-                    :active-category-id="activeCategoryId"
-                    :search-query="searchQuery"
-                    @update:active-category-id="activeCategoryId = $event"
-                    @update:search-query="searchQuery = $event"
-                />
+                <div ref="categoryTabsRef">
+                    <MenuCategoryTabs
+                        :category-tabs="categoryTabs"
+                        :active-category-id="activeCategoryId"
+                        :search-query="searchQuery"
+                        @update:active-category-id="activeCategoryId = $event"
+                        @update:search-query="searchQuery = $event"
+                    />
+                </div>
 
                 <p
                     v-if="filteredDishes.length === 0"
@@ -217,23 +315,9 @@ function generateComboRef() {
             </div>
         </main>
 
-        <MenuComboBuilderSheet
-            :open="comboBuilderOpen"
-            :combo-first-dish="comboFirstDish"
-            :combo-second-dish="comboSecondDish"
-            :combo-quantity="comboQuantity"
-            :combo-total="comboTotal"
-            :can-add-combo="canAddCombo"
-            :adding-combo-ref="addingComboRef"
-            @close="closeComboBuilder"
-            @reset-second="resetSecondComboDish"
-            @change-quantity="changeComboQuantity"
-            @add-combo="addComboToCart"
-        />
-
         <div
             v-if="hasCart"
-            class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom"
+            class="max-app-shell-bottom fixed z-20 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom"
         >
             <button
                 type="button"

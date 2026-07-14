@@ -58,3 +58,12 @@ body.max-app-body {
 .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
 }
+
+/** Нижняя панель в пределах ширины shell (как max-w-lg в App.vue) */
+.max-app-shell-bottom {
+    inset-inline: 0;
+    bottom: 0;
+    margin-inline: auto;
+    width: 100%;
+    max-width: 32rem;
+}

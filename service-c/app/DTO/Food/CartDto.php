@@ -24,6 +24,9 @@ readonly class CartDto
         public ?string $deliveryAddress,
         public ?CustomerCategoryDto $customerCategory,
         public bool $deliveryApplicable,
+        public ?string $nextTierMinTotal = null,
+        public ?string $nextTierDeliveryCost = null,
+        public ?string $amountToNextTier = null,
     ) {}
 
     /**
@@ -48,6 +51,9 @@ readonly class CartDto
             'delivery_address' => $this->deliveryAddress,
             'customer_category' => $this->customerCategory?->toArray(),
             'delivery_applicable' => $this->deliveryApplicable,
+            'next_tier_min_total' => $this->nextTierMinTotal,
+            'next_tier_delivery_cost' => $this->nextTierDeliveryCost,
+            'amount_to_next_tier' => $this->amountToNextTier,
         ];
     }
 }

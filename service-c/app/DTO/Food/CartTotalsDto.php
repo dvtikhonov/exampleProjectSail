@@ -15,5 +15,8 @@ readonly class CartTotalsDto
         public float $total,
         public bool $deliveryApplicable,
         public ?CustomerCategoryDto $customerCategory,
+        public ?float $nextTierMinTotal = null,
+        public ?float $nextTierDeliveryCost = null,
+        public ?float $amountToNextTier = null,
     ) {}
 }

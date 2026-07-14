@@ -66,6 +66,9 @@ class CartTotalsCalculatorTest extends TestCase
         $this->assertTrue($belowThreshold->deliveryApplicable);
         $this->assertSame(200.0, $belowThreshold->deliveryCost);
         $this->assertSame(1199.0, $belowThreshold->total);
+        $this->assertSame(1000.0, $belowThreshold->nextTierMinTotal);
+        $this->assertSame(0.0, $belowThreshold->nextTierDeliveryCost);
+        $this->assertSame(1.0, $belowThreshold->amountToNextTier);
 
         $atThreshold = $calculator->calculate(
             restaurantId: $fixture['restaurant']->id,
@@ -75,6 +78,9 @@ class CartTotalsCalculatorTest extends TestCase
 
         $this->assertSame(0.0, $atThreshold->deliveryCost);
         $this->assertSame(1000.0, $atThreshold->total);
+        $this->assertNull($atThreshold->nextTierMinTotal);
+        $this->assertNull($atThreshold->nextTierDeliveryCost);
+        $this->assertNull($atThreshold->amountToNextTier);
     }
 
     public function test_calculate_with_category_and_no_tiers_sets_zero_delivery_cost(): void
