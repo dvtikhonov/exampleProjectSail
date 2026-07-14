@@ -7,6 +7,7 @@ namespace App\Services\Food;
 use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\DTO\Food\CartDto;
 use App\DTO\Food\CartItemDto;
+use App\Enums\Food\DishWeightUnit;
 use App\Models\Cart;
 use App\Models\MaxUser;
 
@@ -36,6 +37,8 @@ class CartDtoFactory
             $lineTotal = $unitPrice * $item->quantity;
             $itemsTotal += $lineTotal;
 
+            $weightUnit = $item->dish->weight_unit ?? DishWeightUnit::Gram;
+
             $items[] = new CartItemDto(
                 id: $item->id,
                 dishId: $item->dish_id,
@@ -44,6 +47,9 @@ class CartDtoFactory
                 quantity: $item->quantity,
                 lineTotal: $this->moneyFormatter->format($lineTotal),
                 imageUrl: $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
+                weight: $this->formatWeight($item->dish->weight),
+                weightUnit: $weightUnit->value,
+                weightUnitLabel: $weightUnit->label(),
                 comboRef: $item->combo_ref,
                 comboPartnerDishId: $item->combo_partner_dish_id,
                 comboPartnerDishName: $item->comboPartnerDish?->name,
@@ -70,6 +76,20 @@ class CartDtoFactory
             deliveryAddress: $cart->delivery_address,
             customerCategory: $totals->customerCategory,
             deliveryApplicable: $totals->deliveryApplicable,
+            nextTierMinTotal: $totals->nextTierMinTotal !== null
+                ? $this->moneyFormatter->format($totals->nextTierMinTotal)
+                : null,
+            nextTierDeliveryCost: $totals->nextTierDeliveryCost !== null
+                ? $this->moneyFormatter->format($totals->nextTierDeliveryCost)
+                : null,
+            amountToNextTier: $totals->amountToNextTier !== null
+                ? $this->moneyFormatter->format($totals->amountToNextTier)
+                : null,
         );
+    }
+
+    private function formatWeight(mixed $weight): string
+    {
+        return (string) (int) round((float) $weight);
     }
 }

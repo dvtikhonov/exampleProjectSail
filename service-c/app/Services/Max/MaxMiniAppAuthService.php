@@ -34,7 +34,6 @@ class MaxMiniAppAuthService
     public function issueToken(MaxWebAppInitDataDto $initData): array
     {
         $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $initData->maxUserId]);
-        $isNewUser = ! $maxUser->exists;
 
         $maxUser->fill([
             'first_name' => $initData->firstName,
@@ -44,7 +43,7 @@ class MaxMiniAppAuthService
             'photo_url' => $initData->photoUrl,
         ]);
 
-        if ($isNewUser) {
+        if ($maxUser->customer_category_id === null) {
             $maxUser->customer_category_id = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
         }
 

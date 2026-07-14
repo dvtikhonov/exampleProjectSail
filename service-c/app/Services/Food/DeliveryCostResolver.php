@@ -25,20 +25,50 @@ class DeliveryCostResolver
     /**
      * Подбирает стоимость доставки по сумме заказа и тарифам.
      *
-     * @param  list<DeliveryTierDto>  $tiers
+     * @param  list<DeliveryTierDto>  $tiers  отсортированы по убыванию min_items_total
      */
     public function resolve(float $itemsTotal, array $tiers): float
     {
+        $currentTier = $this->resolveCurrentTier($itemsTotal, $tiers);
+
+        return $currentTier?->deliveryCost ?? 0.0;
+    }
+
+    /**
+     * Возвращает следующий (более выгодный) тариф, до которого не хватает суммы заказа.
+     *
+     * @param  list<DeliveryTierDto>  $tiers  отсортированы по убыванию min_items_total
+     */
+    public function resolveNextTier(float $itemsTotal, array $tiers): ?DeliveryTierDto
+    {
         if ($tiers === []) {
-            return 0.0;
+            return null;
         }
 
-        foreach ($tiers as $tier) {
+        foreach ($tiers as $index => $tier) {
             if ($itemsTotal >= $tier->minItemsTotal) {
-                return $tier->deliveryCost;
+                if ($index === 0) {
+                    return null;
+                }
+
+                return $tiers[$index - 1];
             }
         }
 
-        return 0.0;
+        return $tiers[0];
+    }
+
+    /**
+     * @param  list<DeliveryTierDto>  $tiers
+     */
+    private function resolveCurrentTier(float $itemsTotal, array $tiers): ?DeliveryTierDto
+    {
+        foreach ($tiers as $tier) {
+            if ($itemsTotal >= $tier->minItemsTotal) {
+                return $tier;
+            }
+        }
+
+        return null;
     }
 }

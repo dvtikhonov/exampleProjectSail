@@ -73,4 +73,56 @@ class DeliveryCostResolverTest extends TestCase
 
         $this->assertSame(0.0, $resolver->resolve(500.0, $tiers));
     }
+
+    public function test_resolve_next_tier_returns_null_on_best_tier(): void
+    {
+        $resolver = new DeliveryCostResolver;
+
+        $tiers = [
+            new DeliveryTierDto(minItemsTotal: 1000.0, deliveryCost: 0.0),
+            new DeliveryTierDto(minItemsTotal: 0.0, deliveryCost: 200.0),
+        ];
+
+        $this->assertNull($resolver->resolveNextTier(1000.0, $tiers));
+        $this->assertNull($resolver->resolveNextTier(1500.0, $tiers));
+    }
+
+    public function test_resolve_next_tier_returns_higher_threshold_when_below_current_tier(): void
+    {
+        $resolver = new DeliveryCostResolver;
+
+        $tiers = [
+            new DeliveryTierDto(minItemsTotal: 1000.0, deliveryCost: 0.0),
+            new DeliveryTierDto(minItemsTotal: 0.0, deliveryCost: 200.0),
+        ];
+
+        $nextTier = $resolver->resolveNextTier(999.0, $tiers);
+
+        $this->assertNotNull($nextTier);
+        $this->assertSame(1000.0, $nextTier->minItemsTotal);
+        $this->assertSame(0.0, $nextTier->deliveryCost);
+    }
+
+    public function test_resolve_next_tier_returns_highest_tier_when_no_threshold_matched(): void
+    {
+        $resolver = new DeliveryCostResolver;
+
+        $tiers = [
+            new DeliveryTierDto(minItemsTotal: 1000.0, deliveryCost: 0.0),
+            new DeliveryTierDto(minItemsTotal: 0.0, deliveryCost: 200.0),
+        ];
+
+        $nextTier = $resolver->resolveNextTier(500.0, $tiers);
+
+        $this->assertNotNull($nextTier);
+        $this->assertSame(1000.0, $nextTier->minItemsTotal);
+        $this->assertSame(0.0, $nextTier->deliveryCost);
+    }
+
+    public function test_resolve_next_tier_returns_null_when_no_tiers_configured(): void
+    {
+        $resolver = new DeliveryCostResolver;
+
+        $this->assertNull($resolver->resolveNextTier(500.0, []));
+    }
 }

@@ -17,6 +17,9 @@ readonly class CartItemDto
         public int $quantity,
         public string $lineTotal,
         public ?string $imageUrl = null,
+        public ?string $weight = null,
+        public ?string $weightUnit = null,
+        public ?string $weightUnitLabel = null,
         public ?string $comboRef = null,
         public ?int $comboPartnerDishId = null,
         public ?string $comboPartnerDishName = null,
@@ -37,6 +40,9 @@ readonly class CartItemDto
             'quantity' => $this->quantity,
             'line_total' => $this->lineTotal,
             'image_url' => $this->imageUrl,
+            'weight' => $this->weight,
+            'weight_unit' => $this->weightUnit,
+            'weight_unit_label' => $this->weightUnitLabel,
         ];
 
         if ($this->comboRef !== null) {

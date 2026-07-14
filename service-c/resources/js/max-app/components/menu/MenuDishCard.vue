@@ -110,7 +110,7 @@ function handleSelectSecond() {
                 :disabled="addingComboRef !== null"
                 @click="handleSelectSecond"
             >
-                {{ isSelectedAsSecond ? 'Выбрано' : 'В комбо' }}
+                {{ isSelectedAsSecond ? 'Выбрано' : 'Добавить блюдо' }}
             </button>
 
             <button
@@ -133,7 +133,7 @@ function handleSelectSecond() {
                 :disabled="addingComboRef !== null"
                 @click="handleStartCombo"
             >
-                собрать комбо
+                собрать блюдо
             </button>
         </div>
     </article>

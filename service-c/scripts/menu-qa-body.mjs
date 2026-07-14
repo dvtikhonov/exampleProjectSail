@@ -52,7 +52,11 @@ assert(
     header.text().includes('Укажите адрес доставки'),
 );
 
-await header.find('button').trigger('click');
+await header.find('[aria-label="Редактировать адрес доставки"]').trigger('click');
+assert('pin click opens address editor', header.find('textarea').exists());
+
+const headerButtons = header.findAll('button');
+await headerButtons[1].trigger('click');
 assert('address click emits open-cart', header.emitted('open-cart')?.length === 1);
 
 await header.find('button[type="button"].rounded-full').trigger('click');
@@ -106,7 +110,7 @@ const priceButton = card.findAll('button').find((b) => b.text().includes('450.00
 await priceButton.trigger('click');
 assert('price click emits add-to-cart', card.emitted('add-to-cart')?.[0]?.[0]?.id === 101);
 
-const comboLink = card.findAll('button').find((b) => b.text().includes('собрать комбо'));
+const comboLink = card.findAll('button').find((b) => b.text().includes('собрать блюдо'));
 await comboLink.trigger('click');
 assert('combo link emits start-combo', card.emitted('start-combo')?.[0]?.[0]?.id === 101);
 
@@ -131,8 +135,8 @@ assert('cart bottom panel visible', page.text().includes('Корзина · 2 п
 assert('safe-area-top on header', page.html().includes('safe-area-top'));
 assert('safe-area-bottom on cart', page.html().includes('safe-area-bottom'));
 
-await page.findAll('button').find((b) => b.text().includes('собрать комбо')).trigger('click');
-assert('combo sheet opens', page.text().includes('Собрать комбо'));
+await page.findAll('button').find((b) => b.text().includes('собрать блюдо')).trigger('click');
+assert('combo sheet opens', page.text().includes('Собрать блюдо'));
 
 const failed = results.filter((r) => !r.ok);
 console.log('---');

@@ -64,6 +64,10 @@ class CustomerCategorySeeder extends Seeder
                 }
             });
 
+        MaxUser::query()
+            ->whereNull('customer_category_id')
+            ->update(['customer_category_id' => $standard->id]);
+
         MaxUser::query()->updateOrCreate(
             ['max_user_id' => 1001],
             [

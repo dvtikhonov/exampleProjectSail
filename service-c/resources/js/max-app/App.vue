@@ -678,10 +678,13 @@ onMounted(async () => {
                     :cart-item-count="cartItemCount"
                     :cart-total="cartTotal"
                     :orders-unread-count="ordersUnreadCount"
+                    :saving-address="savingAddress"
                     @add-to-cart="handleAddToCart"
                     @add-combo-to-cart="handleAddComboToCart"
                     @open-cart="goToCart"
                     @open-orders="goToMyOrders"
+                    @delivery-address-input="handleDeliveryAddressInput"
+                    @delivery-address-blur="handleDeliveryAddressBlur"
                 />
 
                 <CartPage

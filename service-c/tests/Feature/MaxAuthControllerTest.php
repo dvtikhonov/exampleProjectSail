@@ -140,7 +140,9 @@ class MaxAuthControllerTest extends TestCase
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 67_890,
             'first_name' => 'Max',
-            'customer_category_id' => null,
+            'customer_category_id' => CustomerCategory::query()
+                ->where('name', CustomerCategoryName::Standard->value)
+                ->value('id'),
         ]);
 
         $this->assertSame(1, MaxUser::query()->whereKey(67_890)->first()?->tokens()->count());
