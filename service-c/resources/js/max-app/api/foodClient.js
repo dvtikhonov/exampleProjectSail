@@ -590,9 +590,13 @@ function buildDishFormData(fields, photoFile = null) {
     formData.append('weight_unit', fields.weight_unit);
     formData.append('price', String(fields.price));
 
-    if (fields.vat_rate !== null && fields.vat_rate !== undefined && fields.vat_rate !== '') {
-        formData.append('vat_rate', String(fields.vat_rate));
-    }
+    // Пустая строка → null («Не облагается НДС»); ключ обязателен для partial update.
+    formData.append(
+        'vat_rate',
+        fields.vat_rate === null || fields.vat_rate === undefined || fields.vat_rate === ''
+            ? ''
+            : String(fields.vat_rate),
+    );
 
     formData.append('is_available', fields.is_available ? '1' : '0');
 

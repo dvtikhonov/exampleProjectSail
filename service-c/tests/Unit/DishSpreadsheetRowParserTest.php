@@ -30,8 +30,8 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->assertSame('350', $row->weight);
         $this->assertSame(DishWeightUnit::Gram, $row->weightUnit);
         $this->assertSame('150.00', $row->price);
-        $this->assertSame(DishVatRate::Ten, $row->vatRate);
-        $this->assertTrue($row->isAvailable);
+        $this->assertSame(DishVatRate::Exempt, $row->vatRate);
+        $this->assertFalse($row->isAvailable);
         $this->assertNull($row->description);
     }
 
