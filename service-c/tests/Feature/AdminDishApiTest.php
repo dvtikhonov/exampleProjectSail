@@ -212,6 +212,29 @@ class AdminDishApiTest extends TestCase
         $this->assertSoftDeleted('max_dishes', ['id' => $dishId]);
     }
 
+    public function test_menu_manager_can_update_vat_rate_and_clear_to_exempt(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'Vat Dish');
+        $auth = $this->menuManagerAuth();
+        $dishId = $fixture['dish']->id;
+
+        $this->postMultipart("/api/food/admin/dishes/{$dishId}", [
+            'vat_rate' => '22',
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('dish.vat_rate', 22)
+            ->assertJsonPath('dish.vat_rate_label', '22%');
+
+        $this->postMultipart("/api/food/admin/dishes/{$dishId}", [
+            'vat_rate' => '',
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('dish.vat_rate', null)
+            ->assertJsonPath('dish.vat_rate_label', 'Не облагается НДС');
+
+        $this->assertNull(Dish::query()->findOrFail($dishId)->vat_rate);
+    }
+
     public function test_deleted_dish_is_hidden_from_admin_list_and_client_menu(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'To Remove');

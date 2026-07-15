@@ -41,8 +41,8 @@ class DishSpreadsheetRowParser
             weight: (string) (int) $matches[2],
             weightUnit: DishWeightUnit::Gram,
             price: $this->moneyFormatter->format($price),
-            vatRate: DishVatRate::Ten,
-            isAvailable: true,
+            vatRate: DishVatRate::Exempt,
+            isAvailable: false,
         );
     }
 
