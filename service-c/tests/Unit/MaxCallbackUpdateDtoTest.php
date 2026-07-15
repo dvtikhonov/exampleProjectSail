@@ -8,6 +8,7 @@ use Tests\TestCase;
 
 class MaxCallbackUpdateDtoTest extends TestCase
 {
+    /** Callback-update требует ровно одного получателя. */
     public function test_callback_update_requires_exactly_one_recipient(): void
     {
         $this->expectException(InvalidArgumentException::class);

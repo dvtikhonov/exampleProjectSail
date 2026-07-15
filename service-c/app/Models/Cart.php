@@ -25,6 +25,8 @@ class Cart extends Model
     protected $table = 'max_carts';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -36,6 +38,8 @@ class Cart extends Model
     }
 
     /**
+     * Связь с пользователем MAX.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function maxUser(): BelongsTo
@@ -44,6 +48,8 @@ class Cart extends Model
     }
 
     /**
+     * Связь с рестораном.
+     *
      * @return BelongsTo<Restaurant, $this>
      */
     public function restaurant(): BelongsTo
@@ -52,6 +58,8 @@ class Cart extends Model
     }
 
     /**
+     * Связь с позициями корзины.
+     *
      * @return HasMany<CartItem, $this>
      */
     public function items(): HasMany
@@ -60,6 +68,8 @@ class Cart extends Model
     }
 
     /**
+     * Связь с оформленным заказом.
+     *
      * @return HasOne<FoodOrder, $this>
      */
     public function order(): HasOne

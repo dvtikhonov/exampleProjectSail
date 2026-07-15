@@ -146,6 +146,9 @@ class MaxMiniAppVerifyCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Определяет URL mini-app для проверки.
+     */
     private function resolveMiniAppUrl(): string
     {
         $explicit = trim((string) config('max.ui_stand.mini_app_url', ''));
@@ -169,6 +172,9 @@ class MaxMiniAppVerifyCommand extends Command
         return '';
     }
 
+    /**
+     * Определяет локальный URL MAX mini-app.
+     */
     private function resolveLocalMaxAppUrl(): string
     {
         $candidates = [
@@ -189,6 +195,9 @@ class MaxMiniAppVerifyCommand extends Command
         return $candidates[0];
     }
 
+    /**
+     * Проверяет доступность локального HTML mini-app.
+     */
     private function checkLocalHtml(string $localUrl): void
     {
         try {
@@ -206,6 +215,9 @@ class MaxMiniAppVerifyCommand extends Command
         }
     }
 
+    /**
+     * Выполняет только локальную проверку mini-app.
+     */
     private function verifyLocalOnly(string $localUrl): int
     {
         try {
@@ -237,11 +249,17 @@ class MaxMiniAppVerifyCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Проверяет, что ответ — страница предупреждения fx-туннеля.
+     */
     private function isFxTunnelWarningPage(string $body): bool
     {
         return str_contains($body, 'Dev Tunnel Warning');
     }
 
+    /**
+     * Выводит подсказку по настройке туннеля.
+     */
     private function warnTunnelHelp(): void
     {
         $this->warn('Обновите URL в кабинете MAX и проверьте, что туннель запущен:');

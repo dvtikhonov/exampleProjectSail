@@ -11,6 +11,7 @@ use Tests\TestCase;
 
 class MaxUiStandRecipientResolverTest extends TestCase
 {
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -18,6 +19,7 @@ class MaxUiStandRecipientResolverTest extends TestCase
         Cache::flush();
     }
 
+    /** Резолвит chat_id и user_id из конфига UI-стенда. */
     public function test_resolves_chat_and_user_ids_from_ui_stand_config(): void
     {
         config([
@@ -33,6 +35,7 @@ class MaxUiStandRecipientResolverTest extends TestCase
         $this->assertSame([333], $resolver->userIds());
     }
 
+    /** Объединяет настроенных и зарегистрированных получателей. */
     public function test_merges_configured_and_registered_recipients(): void
     {
         config([

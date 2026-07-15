@@ -37,6 +37,8 @@ class Dish extends Model
     use SoftDeletes;
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -51,6 +53,8 @@ class Dish extends Model
     }
 
     /**
+     * Связь с категорией меню.
+     *
      * @return BelongsTo<MenuCategory, $this>
      */
     public function menuCategory(): BelongsTo
@@ -59,6 +63,8 @@ class Dish extends Model
     }
 
     /**
+     * Связь с позициями корзин.
+     *
      * @return HasMany<CartItem, $this>
      */
     public function cartItems(): HasMany
@@ -67,6 +73,8 @@ class Dish extends Model
     }
 
     /**
+     * Связь с датами доступности блюда.
+     *
      * @return HasMany<DishAvailabilityDate, $this>
      */
     public function availabilityDates(): HasMany

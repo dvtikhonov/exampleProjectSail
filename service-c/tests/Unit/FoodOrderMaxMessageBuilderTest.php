@@ -14,6 +14,7 @@ class FoodOrderMaxMessageBuilderTest extends TestCase
 {
     private FoodOrderMaxMessageBuilder $builder;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -21,6 +22,7 @@ class FoodOrderMaxMessageBuilderTest extends TestCase
         $this->builder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
+    /** Собирает сообщение с секцией доставки. */
     public function test_builds_message_with_delivery(): void
     {
         $order = $this->makeOrder(
@@ -73,6 +75,7 @@ TEXT,
         $this->assertLessThanOrEqual(4000, mb_strlen($text));
     }
 
+    /** Собирает сообщение без секции доставки, если она не применима. */
     public function test_builds_message_without_delivery_section_when_not_applicable(): void
     {
         $order = $this->makeOrder(
@@ -106,6 +109,7 @@ TEXT,
         $this->assertStringNotContainsString('Доставка:', $text);
     }
 
+    /** Обрезает длинный список позиций с суффиксом числа оставшихся. */
     public function test_truncates_long_item_list_with_remaining_count_suffix(): void
     {
         $itemsSnapshot = [];
@@ -146,6 +150,7 @@ TEXT,
         $this->assertLessThan(120, substr_count($text, '• '));
     }
 
+    /** Форматирует клиента без username через имя и id. */
     public function test_formats_client_without_username_using_name_and_id(): void
     {
         $order = $this->makeOrder(
@@ -177,6 +182,7 @@ TEXT,
         $this->assertStringNotContainsString('@', $text);
     }
 
+    /** Собирает сообщение с метками комбо. */
     public function test_builds_message_with_combo_labels(): void
     {
         $order = $this->makeOrder(
@@ -246,6 +252,7 @@ TEXT,
         );
     }
 
+    /** Создаёт тестового пользователя MAX. */
     private function makeMaxUser(
         int $maxUserId,
         ?string $firstName = null,

@@ -12,13 +12,20 @@ use App\Models\FoodOrder;
 interface FoodOrderWriteRepositoryInterface
 {
     /**
+     * Создаёт заказ еды.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function create(array $attributes): FoodOrder;
 
+    /**
+     * Находит заказ по ID с блокировкой строки (SELECT … FOR UPDATE).
+     */
     public function findByIdForUpdate(int $id): ?FoodOrder;
 
     /**
+     * Обновляет заказ еды.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function update(FoodOrder $order, array $attributes): FoodOrder;

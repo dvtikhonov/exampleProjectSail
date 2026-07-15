@@ -23,6 +23,7 @@ class CustomerOrderListApiTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +32,7 @@ class CustomerOrderListApiTest extends TestCase
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
     }
 
+    /** Клиент получает список только своих заказов. */
     public function test_customer_order_list_returns_only_own_orders(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery('Place A', 'Dish A', 100);
@@ -50,6 +52,7 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonPath('orders.0.status', OrderStatus::PendingReview->value);
     }
 
+    /** Список заказов клиента включает статистику чата. */
     public function test_customer_order_list_includes_chat_stats(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery('Chat Stats', 'Ramen', 400);
@@ -88,6 +91,7 @@ class CustomerOrderListApiTest extends TestCase
         $this->assertNotNull($response->json('orders.0.last_message_at'));
     }
 
+    /** Список заказов пуст, если заказов нет. */
     public function test_customer_order_list_is_empty_without_orders(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -97,6 +101,7 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonPath('orders', []);
     }
 
+    /** Клиент может просмотреть детали своего заказа. */
     public function test_customer_can_view_own_order_details(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery('Detail Place', 'Steak', 700);
@@ -113,6 +118,7 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonPath('order.items_snapshot.0.dish_name', 'Steak');
     }
 
+    /** Клиент не может просмотреть чужой заказ. */
     public function test_customer_cannot_view_another_users_order(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery();
@@ -129,6 +135,7 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Список заказов возвращает несколько заказов, сначала новые. */
     public function test_customer_order_list_returns_multiple_orders_newest_first(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery('Multi', 'Pizza', 200);
@@ -153,6 +160,7 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonPath('orders.1.id', $firstOrderId);
     }
 
+    /** Отправляет заказ от имени пользователя. */
     private function submitOrderForUser(MaxUser $customer, int $dishId, int $quantity = 1): int
     {
         $auth = $this->authenticateMaxUser($customer);

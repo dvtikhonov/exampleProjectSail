@@ -22,6 +22,8 @@ class EnsureFoodOrderAdmin
     ) {}
 
     /**
+     * Проверяет активную роль администратора заказов у пользователя.
+     *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string $role): Response

@@ -25,6 +25,7 @@ class AdminOrderReviewApiTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,6 +34,7 @@ class AdminOrderReviewApiTest extends TestCase
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
     }
 
+    /** Admin/me возвращает активные роли. */
     public function test_admin_me_returns_active_roles(): void
     {
         $auth = $this->asFoodOrderAdmin(
@@ -48,6 +50,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('admin_roles', [FoodOrderAdminRole::AddressReviewer->value]);
     }
 
+    /** Адресный админ может получить список ожидающих заказов. */
     public function test_address_admin_can_list_pending_orders(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -66,6 +69,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('orders.0.address_review_status', OrderReviewStatus::Pending->value);
     }
 
+    /** Список заказов возвращает 403 без роли. */
     public function test_list_orders_returns_forbidden_without_role(): void
     {
         $this->createPendingReviewOrder();
@@ -76,6 +80,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Админ состава может видеть ожидающие заказы без одобрения адреса. */
     public function test_composition_admin_can_list_pending_orders_without_address_approval(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -94,6 +99,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('orders.0.composition_review_status', OrderReviewStatus::Pending->value);
     }
 
+    /** Админ состава может видеть legacy-заказы со статусом состава not_applicable. */
     public function test_composition_admin_can_list_legacy_orders_with_not_applicable_composition_status(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -124,6 +130,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.composition_review_status', OrderReviewStatus::Approved->value);
     }
 
+    /** Одобрение адреса оставляет заказ на проверке, пока состав не одобрен. */
     public function test_address_approve_keeps_order_in_review_until_composition_approved(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -162,6 +169,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('orders.0.id', $orderId);
     }
 
+    /** Полный цикл проверки подтверждает заказ и уведомляет клиента. */
     public function test_full_review_flow_confirms_order_and_notifies_customer(): void
     {
         $orderId = $this->createPendingReviewOrder(customerMaxUserId: 77_701);
@@ -209,6 +217,7 @@ class AdminOrderReviewApiTest extends TestCase
         ]);
     }
 
+    /** Одобрение состава до адреса уведомляет только после обоих одобрений. */
     public function test_composition_approve_before_address_notifies_only_after_both_approved(): void
     {
         $orderId = $this->createPendingReviewOrder(customerMaxUserId: 77_702);
@@ -251,6 +260,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.payment_review_status', OrderReviewStatus::Approved->value);
     }
 
+    /** Отклонение адреса требует комментарий. */
     public function test_address_reject_requires_comment(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -267,6 +277,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonValidationErrors(['comment']);
     }
 
+    /** Отклонение адреса с комментарием уведомляет клиента и помечает заказ отклонённым. */
     public function test_address_reject_with_comment_notifies_customer_and_marks_order_rejected(): void
     {
         $orderId = $this->createPendingReviewOrder(customerMaxUserId: 88_801);
@@ -303,6 +314,7 @@ class AdminOrderReviewApiTest extends TestCase
         ]);
     }
 
+    /** Отклонение состава требует роль админа. */
     public function test_composition_reject_requires_admin_role(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -315,6 +327,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Повторное одобрение адреса возвращает 422. */
     public function test_repeat_address_approve_returns_unprocessable(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -334,6 +347,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Address review already completed.');
     }
 
+    /** Одобрение адреса возвращает 403 без роли. */
     public function test_address_approve_returns_forbidden_without_role(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -344,6 +358,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Отклонение состава требует комментарий. */
     public function test_composition_reject_requires_comment(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -360,6 +375,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonValidationErrors(['comment']);
     }
 
+    /** Отклонение состава с комментарием уведомляет клиента и помечает заказ отклонённым. */
     public function test_composition_reject_with_comment_notifies_customer_and_marks_order_rejected(): void
     {
         $orderId = $this->createPendingReviewOrder(customerMaxUserId: 88_802);
@@ -396,6 +412,7 @@ class AdminOrderReviewApiTest extends TestCase
         ]);
     }
 
+    /** Повторное одобрение состава возвращает 422. */
     public function test_repeat_composition_approve_returns_unprocessable(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -417,6 +434,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Composition review already completed.');
     }
 
+    /** Просмотр деталей заказа требует scope и роль. */
     public function test_show_order_detail_requires_scope_and_role(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -438,6 +456,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.delivery_address', 'ул. Примерная, 1');
     }
 
+    /** Админ может видеть подтверждённый заказ по id. */
     public function test_admin_can_view_confirmed_order_by_id(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -470,6 +489,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.status', OrderStatus::Confirmed->value);
     }
 
+    /** Админ может видеть отклонённый заказ по id. */
     public function test_admin_can_view_rejected_order_by_id(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -494,6 +514,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.address_rejection_comment', 'Неверный адрес');
     }
 
+    /** Подтверждённый заказ нет в списке ожидания, но виден при status=all. */
     public function test_confirmed_order_not_in_pending_list_but_visible_with_status_all(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -530,6 +551,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('orders.0.status', OrderStatus::Confirmed->value);
     }
 
+    /** Отклонение оплаты требует комментарий. */
     public function test_payment_reject_requires_comment(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -546,6 +568,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonValidationErrors(['comment']);
     }
 
+    /** Отклонение оплаты с комментарием уведомляет клиента и помечает заказ отклонённым. */
     public function test_payment_reject_with_comment_notifies_customer_and_marks_order_rejected(): void
     {
         $orderId = $this->createPendingReviewOrder(customerMaxUserId: 88_803);
@@ -576,6 +599,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.payment_rejection_comment', $comment);
     }
 
+    /** Список ожидания адресного админа включает только заказы, ожидающие оплаты. */
     public function test_address_admin_pending_list_includes_orders_awaiting_payment_only(): void
     {
         $orderId = $this->createPendingReviewOrder();
@@ -599,6 +623,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('orders.0.payment_review_status', OrderReviewStatus::Pending->value);
     }
 
+    /** Список заказов отклоняет невалидный статус. */
     public function test_list_orders_rejects_invalid_status(): void
     {
         $auth = $this->asFoodOrderAdmin(
@@ -614,6 +639,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Invalid status. Use pending or all.');
     }
 
+    /** Создаёт заказ в статусе ожидания проверки. */
     private function createPendingReviewOrder(int $customerMaxUserId = 99_101): int
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(

@@ -35,6 +35,8 @@ class DishAdminService implements DishAdminServiceInterface
     ) {}
 
     /**
+     * Возвращает список блюд для админки.
+     *
      * @return list<AdminDishDto>
      */
     public function list(?int $restaurantId = null, ?int $categoryId = null, ?string $nameSearch = null): array
@@ -48,6 +50,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Возвращает блюдо по идентификатору для админки.
+     *
      * @throws FoodDomainException
      */
     public function show(int $dishId): AdminDishDto
@@ -58,6 +62,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Создаёт блюдо.
+     *
      * @throws FoodDomainException
      */
     public function create(CreateDishDto $dto, UploadedFile $photo): AdminDishDto
@@ -121,6 +127,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Обновляет блюдо.
+     *
      * @throws FoodDomainException
      */
     public function update(int $dishId, UpdateDishDto $dto, ?UploadedFile $photo = null): AdminDishDto
@@ -147,6 +155,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Удаляет блюдо.
+     *
      * @throws FoodDomainException
      */
     public function delete(int $dishId): void
@@ -166,6 +176,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Находит блюдо или выбрасывает доменное исключение.
+     *
      * @throws FoodDomainException
      */
     private function findDishOrFail(int $dishId): Dish
@@ -180,6 +192,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Проверяет существование категории меню.
+     *
      * @throws FoodDomainException
      */
     private function assertMenuCategoryExists(int $menuCategoryId): void
@@ -190,6 +204,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Собирает атрибуты модели из DTO создания блюда.
+     *
      * @return array<string, mixed>
      */
     private function attributesFromCreateDto(CreateDishDto $dto): array
@@ -201,6 +217,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Собирает атрибуты модели из DTO обновления блюда.
+     *
      * @return array<string, mixed>
      */
     private function attributesFromUpdateDto(UpdateDishDto $dto): array
@@ -209,6 +227,8 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
+     * Собирает базовые атрибуты блюда из DTO.
+     *
      * @return array<string, mixed>
      */
     private function baseAttributesFromDto(CreateDishDto|UpdateDishDto $dto): array
@@ -225,6 +245,9 @@ class DishAdminService implements DishAdminServiceInterface
         ];
     }
 
+    /**
+     * Преобразует модель блюда в админский DTO.
+     */
     private function mapToAdminDto(Dish $dish): AdminDishDto
     {
         $category = $dish->menuCategory;
@@ -251,6 +274,9 @@ class DishAdminService implements DishAdminServiceInterface
         );
     }
 
+    /**
+     * Форматирует вес блюда для ответа API.
+     */
     private function formatWeight(mixed $weight): string
     {
         return (string) (int) round((float) $weight);

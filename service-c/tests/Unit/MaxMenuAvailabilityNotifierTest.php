@@ -15,6 +15,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
 {
     private const TOKEN = 'secret-max-token-for-menu-availability-test';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -36,6 +37,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
     }
 
+    /** Notify шлёт получателям уведомлений о заказах, как тестовый бот. */
     public function test_notify_posts_to_order_notification_recipients_like_test_bot(): void
     {
         CarbonImmutable::setTestNow(
@@ -66,6 +68,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         });
     }
 
+    /** Notify шлёт пользователям с адресом доставки. */
     public function test_notify_posts_to_users_with_delivery_address(): void
     {
         CarbonImmutable::setTestNow(
@@ -96,6 +99,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         });
     }
 
+    /** Notify дедуплицирует настроенных и пользователей с адресом. */
     public function test_notify_deduplicates_configured_and_delivery_address_users(): void
     {
         CarbonImmutable::setTestNow(
@@ -123,6 +127,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    /** Notify пропускает отправку, если получатели отсутствуют. */
     public function test_notify_skips_when_recipients_are_missing(): void
     {
         config([
@@ -138,6 +143,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /** Notify пропускает отправку, если бот не настроен. */
     public function test_notify_skips_when_bot_is_not_configured(): void
     {
         config(['max.bot_username' => '']);

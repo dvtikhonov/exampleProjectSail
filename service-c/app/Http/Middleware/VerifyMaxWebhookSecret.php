@@ -15,6 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
 class VerifyMaxWebhookSecret
 {
     /**
+     * Проверяет секрет входящего webhook MAX.
+     *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response

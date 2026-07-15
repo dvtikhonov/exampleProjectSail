@@ -35,6 +35,8 @@ final class MaxMiniAppAccessLogger
     }
 
     /**
+     * Собирает базовый контекст для логов доступа mini-app.
+     *
      * @return array<string, mixed>
      */
     private function baseContext(Request $request): array

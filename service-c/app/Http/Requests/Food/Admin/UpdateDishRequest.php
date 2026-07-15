@@ -10,6 +10,8 @@ namespace App\Http\Requests\Food\Admin;
 class UpdateDishRequest extends BaseDishFormRequest
 {
     /**
+     * Правила валидации обновления блюда с опциональным фото.
+     *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array

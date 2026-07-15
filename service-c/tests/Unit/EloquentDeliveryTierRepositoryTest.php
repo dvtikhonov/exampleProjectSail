@@ -15,6 +15,7 @@ class EloquentDeliveryTierRepositoryTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -22,6 +23,7 @@ class EloquentDeliveryTierRepositoryTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** findTiersFor возвращает пустой список, если матрица отсутствует. */
     public function test_find_tiers_for_returns_empty_list_when_matrix_missing(): void
     {
         $repository = app(EloquentDeliveryTierRepository::class);
@@ -29,6 +31,7 @@ class EloquentDeliveryTierRepositoryTest extends TestCase
         $this->assertSame([], $repository->findTiersFor(1, 1));
     }
 
+    /** findTiersFor возвращает тарифы, отсортированные по min_items_total DESC. */
     public function test_find_tiers_for_returns_tiers_sorted_by_min_items_total_desc(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -52,6 +55,7 @@ class EloquentDeliveryTierRepositoryTest extends TestCase
         $this->assertSame(175.5, $tiers[1]->deliveryCost);
     }
 
+    /** findTiersFor различает пары ресторан–категория. */
     public function test_find_tiers_for_distinguishes_restaurant_and_category_pairs(): void
     {
         $first = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(

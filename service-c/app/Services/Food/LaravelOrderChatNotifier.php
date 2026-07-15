@@ -61,6 +61,8 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     }
 
     /**
+     * Определяет MAX user id получателей уведомления чата.
+     *
      * @return list<int>
      */
     private function resolveRecipientUserIds(
@@ -75,6 +77,8 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     }
 
     /**
+     * Строит ряды кнопок открытия mini-app для уведомления.
+     *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */
     private function buildOpenAppButtonRows(int $orderId): array
@@ -101,6 +105,8 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     }
 
     /**
+     * Пытается отправить уведомление о сообщении в чате заказа.
+     *
      * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
      */
     private function trySendNotification(

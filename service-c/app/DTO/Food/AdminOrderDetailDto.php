@@ -42,6 +42,8 @@ readonly class AdminOrderDetailDto
     ) {}
 
     /**
+     * Преобразует детальный админский заказ в массив.
+     *
      * @return array<string, bool|int|string|null|list<array<string, mixed>>|array<string, int|string|null>>
      */
     public function toArray(): array

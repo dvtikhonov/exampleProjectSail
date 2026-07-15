@@ -16,6 +16,7 @@ class CartTotalsCalculatorTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -23,6 +24,7 @@ class CartTotalsCalculatorTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Расчёт без категории помечает доставку как не применимую. */
     public function test_calculate_without_category_marks_delivery_not_applicable(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -44,6 +46,7 @@ class CartTotalsCalculatorTest extends TestCase
         $this->assertNull($totals->customerCategory);
     }
 
+    /** Расчёт с категорией применяет тарифную стоимость доставки. */
     public function test_calculate_with_category_applies_tier_delivery_cost(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -83,6 +86,7 @@ class CartTotalsCalculatorTest extends TestCase
         $this->assertNull($atThreshold->amountToNextTier);
     }
 
+    /** Расчёт с категорией без тарифов ставит нулевую стоимость доставки. */
     public function test_calculate_with_category_and_no_tiers_sets_zero_delivery_cost(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();

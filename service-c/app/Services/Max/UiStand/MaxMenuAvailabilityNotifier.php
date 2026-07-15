@@ -70,6 +70,8 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     }
 
     /**
+     * Определяет получателей уведомления о доступности меню.
+     *
      * @param  list<int>  $configuredUserIds
      * @return list<int>
      */
@@ -91,6 +93,9 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
         );
     }
 
+    /**
+     * Проверяет, настроен ли бот для отправки уведомлений.
+     */
     private function isBotConfigured(): bool
     {
         $botUsername = trim((string) $this->config->get('max.bot_username', ''));
@@ -99,6 +104,9 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
         return $botUsername !== '' && $botAccessToken !== '';
     }
 
+    /**
+     * Пытается отправить сообщение о доступности меню.
+     */
     private function trySendMessage(string $text, ?int $chatId = null, ?int $userId = null): bool
     {
         try {

@@ -18,6 +18,7 @@ class CartServiceTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -25,6 +26,7 @@ class CartServiceTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** getDraftCart возвращает null, если корзины нет. */
     public function test_get_draft_cart_returns_null_when_missing(): void
     {
         $maxUser = MaxUser::query()->create([
@@ -37,6 +39,7 @@ class CartServiceTest extends TestCase
         $this->assertNull($cart);
     }
 
+    /** addItem выбрасывает исключение, если блюдо не найдено. */
     public function test_add_item_throws_when_dish_not_found(): void
     {
         $maxUser = MaxUser::query()->create([
@@ -50,6 +53,7 @@ class CartServiceTest extends TestCase
         app(CartService::class)->addItem($maxUser, 99_999, 1);
     }
 
+    /** addItem создаёт корзину с ожидаемым итогом. */
     public function test_add_item_creates_cart_with_expected_total(): void
     {
         $maxUser = MaxUser::query()->create([
@@ -66,6 +70,7 @@ class CartServiceTest extends TestCase
         $this->assertCount(1, $cart->items);
     }
 
+    /** addItem подставляет адрес доставки из профиля MAX. */
     public function test_add_item_prefills_cart_delivery_address_from_max_user(): void
     {
         $address = 'ул. Домашняя, 3';
@@ -82,6 +87,7 @@ class CartServiceTest extends TestCase
         $this->assertSame($address, $cart->deliveryAddress);
     }
 
+    /** clear удаляет черновую корзину вместе с позициями. */
     public function test_clear_removes_draft_cart_with_items(): void
     {
         $maxUser = MaxUser::query()->create([

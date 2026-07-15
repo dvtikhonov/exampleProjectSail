@@ -23,6 +23,8 @@ class FoodOrderMessage extends Model
     protected $table = 'max_food_order_messages';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -35,6 +37,8 @@ class FoodOrderMessage extends Model
     }
 
     /**
+     * Связь с заказом.
+     *
      * @return BelongsTo<FoodOrder, $this>
      */
     public function foodOrder(): BelongsTo
@@ -43,6 +47,8 @@ class FoodOrderMessage extends Model
     }
 
     /**
+     * Связь с отправителем сообщения.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function sender(): BelongsTo

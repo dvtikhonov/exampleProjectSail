@@ -11,6 +11,9 @@ use App\Models\MenuCategory;
  */
 interface MenuCategoryRepositoryInterface
 {
+    /**
+     * Находит категорию меню по идентификатору.
+     */
     public function findById(int $id): ?MenuCategory;
 
     /**
@@ -21,18 +24,31 @@ interface MenuCategoryRepositoryInterface
     public function listForAdmin(?int $restaurantId = null): array;
 
     /**
+     * Создаёт категорию меню.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function create(array $attributes): MenuCategory;
 
     /**
+     * Обновляет категорию меню.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function update(MenuCategory $category, array $attributes): MenuCategory;
 
+    /**
+     * Удаляет категорию меню.
+     */
     public function delete(MenuCategory $category): void;
 
+    /**
+     * Возвращает число блюд в категории.
+     */
     public function countDishes(int $categoryId): int;
 
+    /**
+     * Следующий порядок сортировки для категории в ресторане.
+     */
     public function nextSortOrderForRestaurant(int $restaurantId): int;
 }

@@ -73,6 +73,9 @@ class OrderController extends Controller
         ], JsonResponse::HTTP_CREATED);
     }
 
+    /**
+     * Текущий аутентифицированный пользователь MAX из запроса.
+     */
     private function maxUser(Request $request): MaxUser
     {
         /** @var MaxUser $maxUser */

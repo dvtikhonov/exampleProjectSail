@@ -14,17 +14,25 @@ class ImportDishesSpreadsheetRequest extends FormRequest
 {
     private const int MAX_FILE_KILOBYTES = 5120;
 
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Всегда ожидает JSON-ответ.
+     */
     public function wantsJson(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации файла таблицы и категории меню.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -36,6 +44,8 @@ class ImportDishesSpreadsheetRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации импорта.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -49,6 +59,8 @@ class ImportDishesSpreadsheetRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -59,6 +71,9 @@ class ImportDishesSpreadsheetRequest extends FormRequest
         ];
     }
 
+    /**
+     * Возвращает загруженный файл таблицы.
+     */
     public function spreadsheetFile(): UploadedFile
     {
         /** @var UploadedFile $file */
@@ -67,6 +82,9 @@ class ImportDishesSpreadsheetRequest extends FormRequest
         return $file;
     }
 
+    /**
+     * Возвращает ID категории меню из валидированных данных.
+     */
     public function menuCategoryId(): int
     {
         return (int) $this->validated('menu_category_id');

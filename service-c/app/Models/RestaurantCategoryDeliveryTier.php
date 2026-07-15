@@ -22,6 +22,8 @@ class RestaurantCategoryDeliveryTier extends Model
     protected $table = 'max_restaurant_category_delivery_tiers';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -33,6 +35,8 @@ class RestaurantCategoryDeliveryTier extends Model
     }
 
     /**
+     * Связь с рестораном.
+     *
      * @return BelongsTo<Restaurant, $this>
      */
     public function restaurant(): BelongsTo
@@ -41,6 +45,8 @@ class RestaurantCategoryDeliveryTier extends Model
     }
 
     /**
+     * Связь с категорией клиента.
+     *
      * @return BelongsTo<CustomerCategory, $this>
      */
     public function customerCategory(): BelongsTo

@@ -59,11 +59,17 @@ final class DishPhotoAllowedExtensions
         return implode(',', [...$extensions, 'image/png', 'image/jpeg']);
     }
 
+    /**
+     * Входит ли расширение файла в whitelist.
+     */
     public static function isAllowedExtension(string $extension): bool
     {
         return in_array(strtolower($extension), self::EXTENSIONS, true);
     }
 
+    /**
+     * Входит ли MIME-тип в whitelist PNG/JPEG.
+     */
     public static function isAllowedMime(string $mime): bool
     {
         return in_array(strtolower($mime), self::MIME_TYPES, true);
@@ -119,6 +125,9 @@ final class DishPhotoAllowedExtensions
         ];
     }
 
+    /**
+     * Совпадает ли размер изображения с минимальными требованиями.
+     */
     public static function meetsMinDimensions(int $width, int $height): bool
     {
         return $width >= self::MIN_WIDTH && $height >= self::MIN_HEIGHT;

@@ -108,6 +108,8 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     }
 
     /**
+     * Проверяет, что категория принадлежит ресторану.
+     *
      * @throws FoodDomainException
      */
     private function assertCategoryBelongsToRestaurant(int $categoryId, int $restaurantId): void
@@ -120,6 +122,8 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     }
 
     /**
+     * Проверяет, что даты доступности можно редактировать.
+     *
      * @param  list<string>  $dates
      *
      * @throws FoodDomainException
@@ -148,6 +152,8 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     }
 
     /**
+     * Вычисляет диапазон дат сетки доступности.
+     *
      * @return array{0: string, 1: string}
      */
     private function resolveDateRange(?string $dateFrom, ?string $dateTo): array
@@ -174,12 +180,17 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
         return [$from, $to];
     }
 
+    /**
+     * Возвращает первую дату, доступную для редактирования.
+     */
     private function editableFrom(): string
     {
         return CarbonImmutable::now(self::TIMEZONE)->addDay()->toDateString();
     }
 
     /**
+     * Перечисляет даты в диапазоне включительно.
+     *
      * @return list<string>
      */
     private function enumerateDates(string $from, string $to): array

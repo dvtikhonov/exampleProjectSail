@@ -20,6 +20,7 @@ class MaxAuthControllerTest extends TestCase
 
     private const BOT_TOKEN = 'test-bot-token-for-init-data-validation';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +32,7 @@ class MaxAuthControllerTest extends TestCase
         ]);
     }
 
+    /** Store возвращает Bearer-токен за валидные initData. */
     public function test_store_returns_bearer_token_for_valid_init_data(): void
     {
         $captured = [];
@@ -75,6 +77,7 @@ class MaxAuthControllerTest extends TestCase
         $this->assertArrayNotHasKey('init_data', $log->context);
     }
 
+    /** Store возвращает 401 за невалидные initData. */
     public function test_store_returns_unauthorized_for_invalid_init_data(): void
     {
         $captured = [];
@@ -96,6 +99,7 @@ class MaxAuthControllerTest extends TestCase
         $this->assertNull($log->context['max_user_id']);
     }
 
+    /** Store валидирует обязательное поле initData. */
     public function test_store_validates_required_init_data_field(): void
     {
         $response = $this->postJson('/api/max/auth', []);
@@ -103,6 +107,7 @@ class MaxAuthControllerTest extends TestCase
         $response->assertUnprocessable();
     }
 
+    /** Защищённый маршрут принимает выданный токен. */
     public function test_protected_route_accepts_issued_token(): void
     {
         $initData = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN);
@@ -122,6 +127,7 @@ class MaxAuthControllerTest extends TestCase
             ->assertJsonPath('max_user_id', 67_890);
     }
 
+    /** Повторно выдаёт токен и обновляет существующего пользователя MAX. */
     public function test_re_issues_token_and_updates_existing_max_user(): void
     {
         MaxUser::query()->create([
@@ -148,6 +154,7 @@ class MaxAuthControllerTest extends TestCase
         $this->assertSame(1, MaxUser::query()->whereKey(67_890)->first()?->tokens()->count());
     }
 
+    /** Повторная аутентификация не перезаписывает существующую категорию клиента. */
     public function test_re_auth_does_not_overwrite_existing_customer_category(): void
     {
         $vipCategory = CustomerCategory::query()->create([

@@ -10,6 +10,8 @@ namespace App\Support;
 final class MaxWebAppInitDataSigner
 {
     /**
+     * Подписывает строку initData WebApp MAX.
+     *
      * @param  array<string, string>  $params  Параметры с декодированными значениями (без hash).
      */
     public static function sign(string $botToken, array $params): string

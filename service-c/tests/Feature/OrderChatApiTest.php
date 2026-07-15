@@ -25,6 +25,7 @@ class OrderChatApiTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,6 +34,7 @@ class OrderChatApiTest extends TestCase
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
     }
 
+    /** Клиент может получить список сообщений по своему заказу. */
     public function test_customer_can_list_messages_on_own_order(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_101);
@@ -43,6 +45,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('messages', []);
     }
 
+    /** Клиент может отправить сообщение по своему заказу. */
     public function test_customer_can_send_message_on_own_order(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_102);
@@ -68,6 +71,7 @@ class OrderChatApiTest extends TestCase
         ]);
     }
 
+    /** Клиент не может получить доступ к чужому чату заказа. */
     public function test_customer_cannot_access_another_users_order_chat(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_201);
@@ -87,6 +91,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Админ может читать и писать сообщения по любому заказу. */
     public function test_admin_can_read_and_write_messages_on_any_order(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_301);
@@ -113,6 +118,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('messages.0.author_type', OrderMessageAuthorType::Admin->value);
     }
 
+    /** Отправка сообщения валидирует body. */
     public function test_send_message_validates_body(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_401);
@@ -135,6 +141,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonValidationErrors(['body']);
     }
 
+    /** Список сообщений поддерживает пагинацию after_id по порядку. */
     public function test_list_messages_supports_after_id_pagination_in_order(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_501);
@@ -176,6 +183,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('messages.0.id', $third->id);
     }
 
+    /** Список сообщений помечает входящие как прочитанные. */
     public function test_list_messages_marks_incoming_messages_as_read(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_801);
@@ -224,6 +232,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('orders.0.unread_count', 1);
     }
 
+    /** Чат остаётся доступным для подтверждённых и отклонённых заказов. */
     public function test_chat_remains_available_for_confirmed_and_rejected_orders(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_601);
@@ -255,6 +264,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonCount(2, 'messages');
     }
 
+    /** Список сообщений возвращает 404 для отсутствующего заказа. */
     public function test_list_messages_returns_not_found_for_missing_order(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -264,6 +274,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('message', 'Order not found.');
     }
 
+    /** Не-админ и не-владелец не могут получить доступ к чату. */
     public function test_non_admin_non_owner_cannot_access_chat(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_701);
@@ -276,6 +287,7 @@ class OrderChatApiTest extends TestCase
             ->assertForbidden();
     }
 
+    /** Создаёт отправленный заказ для теста. */
     private function createSubmittedOrder(int $customerMaxUserId = 99_101): int
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(

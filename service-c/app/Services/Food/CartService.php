@@ -160,6 +160,9 @@ class CartService implements CartServiceInterface
         });
     }
 
+    /**
+     * Создаёт или увеличивает обычную позицию корзины.
+     */
     private function upsertRegularCartItem(Cart $cart, int $dishId, int $quantity): void
     {
         $cartItem = $this->cartRepository->findRegularItemByCartAndDish($cart->id, $dishId);
@@ -177,6 +180,9 @@ class CartService implements CartServiceInterface
         $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
     }
 
+    /**
+     * Создаёт или увеличивает комбо-позицию корзины.
+     */
     private function upsertComboCartItem(
         Cart $cart,
         int $dishId,
@@ -201,11 +207,17 @@ class CartService implements CartServiceInterface
         $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
     }
 
+    /**
+     * Находит черновик корзины пользователя.
+     */
     private function findDraftCart(MaxUser $maxUser): ?Cart
     {
         return $this->cartRepository->findDraftByMaxUserId($maxUser->max_user_id);
     }
 
+    /**
+     * Находит позицию черновика корзины, принадлежащую пользователю.
+     */
     private function findOwnedCartItem(MaxUser $maxUser, int $cartItemId): CartItem
     {
         $cartItem = $this->cartRepository->findItemById($cartItemId);

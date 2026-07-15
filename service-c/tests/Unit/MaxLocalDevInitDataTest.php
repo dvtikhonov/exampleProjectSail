@@ -14,6 +14,7 @@ class MaxLocalDevInitDataTest extends TestCase
 {
     private const BOT_TOKEN = 'local-dev-bot-token';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,6 +27,7 @@ class MaxLocalDevInitDataTest extends TestCase
         ]);
     }
 
+    /** Собирает валидные initData для демо VIP-пользователя на localhost. */
     public function test_builds_valid_init_data_for_demo_vip_user_on_localhost(): void
     {
         config(['max.local_dev_user_id' => 1002]);
@@ -49,6 +51,7 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertSame('demo_vip', $dto->username);
     }
 
+    /** Собирает initData для настроенного адресного админа. */
     public function test_builds_init_data_for_configured_address_admin_user(): void
     {
         config(['max.local_dev_user_id' => 1003]);
@@ -72,6 +75,7 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertSame('demo_address_admin', $dto->username);
     }
 
+    /** Возвращает null для неизвестного local-dev user_id. */
     public function test_returns_null_for_unknown_local_dev_user_id(): void
     {
         config(['max.local_dev_user_id' => 9999]);
@@ -85,6 +89,7 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertNull(MaxLocalDevInitData::build($request));
     }
 
+    /** Отключён, когда флаг выключен. */
     public function test_is_disabled_when_flag_is_off(): void
     {
         config(['max.local_dev_init_data' => false]);
@@ -99,6 +104,7 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertNull(MaxLocalDevInitData::build($request));
     }
 
+    /** Отключён на публичном туннель-хосте. */
     public function test_is_disabled_on_public_tunnel_host(): void
     {
         config([
@@ -118,6 +124,7 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertNull(MaxLocalDevInitData::build($request));
     }
 
+    /** Отключён вне локального окружения. */
     public function test_is_disabled_outside_local_environment(): void
     {
         config(['app.env' => 'production']);
@@ -131,6 +138,7 @@ class MaxLocalDevInitDataTest extends TestCase
         $this->assertFalse(MaxLocalDevInitData::isEnabled($request));
     }
 
+    /** Подписчик совпадает с валидатором для фикстурного payload. */
     public function test_signer_matches_validator_for_fixture_payload(): void
     {
         $userPayload = json_encode([

@@ -25,6 +25,8 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
     ) {}
 
     /**
+     * Возвращает список заказов клиента.
+     *
      * @return list<OrderListItemDto>
      */
     public function list(MaxUser $customer): array
@@ -62,6 +64,8 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
     }
 
     /**
+     * Возвращает заказ клиента по идентификатору.
+     *
      * @throws FoodDomainException
      */
     public function show(MaxUser $customer, int $orderId): OrderDto
@@ -79,6 +83,9 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
         return $this->mapOrder($order);
     }
 
+    /**
+     * Преобразует модель заказа в клиентский DTO.
+     */
     private function mapOrder(FoodOrder $order): OrderDto
     {
         return new OrderDto(
@@ -98,6 +105,9 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
         );
     }
 
+    /**
+     * Форматирует денежную сумму.
+     */
     private function formatMoney(mixed $value): string
     {
         return $this->moneyFormatter->format((float) $value);

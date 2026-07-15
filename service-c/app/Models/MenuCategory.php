@@ -31,6 +31,8 @@ class MenuCategory extends Model
     use SoftDeletes;
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -41,6 +43,8 @@ class MenuCategory extends Model
     }
 
     /**
+     * Связь с рестораном.
+     *
      * @return BelongsTo<Restaurant, $this>
      */
     public function restaurant(): BelongsTo
@@ -49,6 +53,8 @@ class MenuCategory extends Model
     }
 
     /**
+     * Связь с блюдами категории.
+     *
      * @return HasMany<Dish, $this>
      */
     public function dishes(): HasMany

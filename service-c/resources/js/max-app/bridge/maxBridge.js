@@ -68,6 +68,9 @@ export function bindBackButton(callback) {
     };
 }
 
+/**
+ * Скрывает системную кнопку «Назад» MAX Bridge.
+ */
 export function hideBackButton() {
     const webApp = getWebApp();
 

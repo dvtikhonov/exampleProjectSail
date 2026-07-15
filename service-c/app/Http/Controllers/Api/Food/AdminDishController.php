@@ -187,6 +187,9 @@ class AdminDishController extends Controller
         ], $status);
     }
 
+    /**
+     * Опциональный положительный int из query-параметра.
+     */
     private function optionalPositiveIntQuery(Request $request, string $key): ?int
     {
         $value = $request->query($key);
@@ -200,6 +203,9 @@ class AdminDishController extends Controller
         return $intValue >= 1 ? $intValue : null;
     }
 
+    /**
+     * Опциональная обрезанная строка из query-параметра.
+     */
     private function optionalTrimmedStringQuery(Request $request, string $key, int $maxLength): ?string
     {
         $value = $request->query($key);

@@ -24,6 +24,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     ) {}
 
     /**
+     * Возвращает список категорий меню для админки.
+     *
      * @return list<AdminMenuCategoryDto>
      */
     public function list(?int $restaurantId = null): array
@@ -35,6 +37,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
+     * Возвращает категорию меню по идентификатору.
+     *
      * @throws FoodDomainException
      */
     public function show(int $categoryId): AdminMenuCategoryDto
@@ -43,6 +47,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
+     * Создаёт категорию меню.
+     *
      * @throws FoodDomainException
      */
     public function create(CreateMenuCategoryDto $dto): AdminMenuCategoryDto
@@ -60,6 +66,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
+     * Обновляет категорию меню.
+     *
      * @throws FoodDomainException
      */
     public function update(int $categoryId, UpdateMenuCategoryDto $dto): AdminMenuCategoryDto
@@ -87,6 +95,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
+     * Удаляет категорию меню.
+     *
      * @throws FoodDomainException
      */
     public function delete(int $categoryId): void
@@ -104,6 +114,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
+     * Находит категорию меню или выбрасывает доменное исключение.
+     *
      * @throws FoodDomainException
      */
     private function findCategoryOrFail(int $categoryId): MenuCategory
@@ -118,6 +130,8 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
+     * Проверяет существование ресторана.
+     *
      * @throws FoodDomainException
      */
     private function assertRestaurantExists(int $restaurantId): void
@@ -127,6 +141,9 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
         }
     }
 
+    /**
+     * Преобразует модель категории в админский DTO.
+     */
     private function mapToAdminDto(MenuCategory $category): AdminMenuCategoryDto
     {
         return new AdminMenuCategoryDto(

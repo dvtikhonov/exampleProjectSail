@@ -12,6 +12,7 @@ use Tests\TestCase;
 
 class DeliveryCostResolverTest extends TestCase
 {
+    /** isApplicable возвращает false, если у пользователя нет категории. */
     public function test_is_applicable_returns_false_when_user_has_no_category(): void
     {
         $maxUser = MaxUser::query()->make([
@@ -24,6 +25,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertFalse($resolver->isApplicable($maxUser));
     }
 
+    /** isApplicable возвращает true, если у пользователя есть категория. */
     public function test_is_applicable_returns_true_when_user_has_category(): void
     {
         $category = CustomerCategory::query()->make([
@@ -42,6 +44,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertTrue($resolver->isApplicable($maxUser));
     }
 
+    /** resolve возвращает ноль, если тарифы не настроены. */
     public function test_resolve_returns_zero_when_no_tiers_configured(): void
     {
         $resolver = new DeliveryCostResolver;
@@ -49,6 +52,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertSame(0.0, $resolver->resolve(500.0, []));
     }
 
+    /** resolve выбирает тариф по убыванию min_items_total. */
     public function test_resolve_picks_tier_by_descending_min_items_total(): void
     {
         $resolver = new DeliveryCostResolver;
@@ -63,6 +67,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertSame(0.0, $resolver->resolve(1500.0, $tiers));
     }
 
+    /** resolve возвращает ноль, если ни один порог тарифа не подходит. */
     public function test_resolve_returns_zero_when_no_tier_threshold_matches(): void
     {
         $resolver = new DeliveryCostResolver;
@@ -74,6 +79,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertSame(0.0, $resolver->resolve(500.0, $tiers));
     }
 
+    /** resolveNextTier возвращает null на лучшем тарифе. */
     public function test_resolve_next_tier_returns_null_on_best_tier(): void
     {
         $resolver = new DeliveryCostResolver;
@@ -87,6 +93,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertNull($resolver->resolveNextTier(1500.0, $tiers));
     }
 
+    /** resolveNextTier возвращает более высокий порог, когда сумма ниже текущего тарифа. */
     public function test_resolve_next_tier_returns_higher_threshold_when_below_current_tier(): void
     {
         $resolver = new DeliveryCostResolver;
@@ -103,6 +110,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertSame(0.0, $nextTier->deliveryCost);
     }
 
+    /** resolveNextTier возвращает наивысший тариф, если порог не совпал. */
     public function test_resolve_next_tier_returns_highest_tier_when_no_threshold_matched(): void
     {
         $resolver = new DeliveryCostResolver;
@@ -119,6 +127,7 @@ class DeliveryCostResolverTest extends TestCase
         $this->assertSame(0.0, $nextTier->deliveryCost);
     }
 
+    /** resolveNextTier возвращает null, если тарифы не настроены. */
     public function test_resolve_next_tier_returns_null_when_no_tiers_configured(): void
     {
         $resolver = new DeliveryCostResolver;

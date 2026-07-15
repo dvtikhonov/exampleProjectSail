@@ -18,5 +18,8 @@ interface RestaurantRepositoryInterface
      */
     public function findAllActive(): array;
 
+    /**
+     * Находит активный ресторан по идентификатору.
+     */
     public function findActiveById(int $restaurantId): ?Restaurant;
 }

@@ -134,6 +134,9 @@ class CartController extends Controller
         ]);
     }
 
+    /**
+     * Текущий аутентифицированный пользователь MAX из запроса.
+     */
     private function maxUser(Request $request): MaxUser
     {
         /** @var MaxUser $maxUser */

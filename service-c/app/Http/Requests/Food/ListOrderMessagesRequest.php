@@ -11,12 +11,17 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class ListOrderMessagesRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации query-параметров списка сообщений.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -27,6 +32,9 @@ class ListOrderMessagesRequest extends FormRequest
         ];
     }
 
+    /**
+     * Курсор после какого ID возвращать сообщения или null.
+     */
     public function afterId(): ?int
     {
         if (! $this->filled('after_id')) {
@@ -36,6 +44,9 @@ class ListOrderMessagesRequest extends FormRequest
         return (int) $this->validated('after_id');
     }
 
+    /**
+     * Лимит сообщений в ответе (по умолчанию 50).
+     */
     public function limit(): int
     {
         return (int) ($this->validated('limit') ?? 50);

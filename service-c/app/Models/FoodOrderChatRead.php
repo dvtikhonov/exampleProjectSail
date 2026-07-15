@@ -23,6 +23,8 @@ class FoodOrderChatRead extends Model
     protected $table = 'max_food_order_chat_reads';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -36,6 +38,8 @@ class FoodOrderChatRead extends Model
     }
 
     /**
+     * Связь с заказом.
+     *
      * @return BelongsTo<FoodOrder, $this>
      */
     public function foodOrder(): BelongsTo
@@ -44,6 +48,8 @@ class FoodOrderChatRead extends Model
     }
 
     /**
+     * Связь с читателем чата.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function reader(): BelongsTo
@@ -52,6 +58,8 @@ class FoodOrderChatRead extends Model
     }
 
     /**
+     * Связь с последним прочитанным сообщением.
+     *
      * @return BelongsTo<FoodOrderMessage, $this>
      */
     public function lastReadMessage(): BelongsTo

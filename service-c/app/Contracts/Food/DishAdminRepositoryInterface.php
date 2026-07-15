@@ -12,6 +12,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
  */
 interface DishAdminRepositoryInterface
 {
+    /**
+     * Находит блюдо по идентификатору.
+     */
     public function findById(int $id): ?Dish;
 
     /**
@@ -32,15 +35,22 @@ interface DishAdminRepositoryInterface
     ): LengthAwarePaginator;
 
     /**
+     * Создаёт блюдо.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function create(array $attributes): Dish;
 
     /**
+     * Обновляет блюдо.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function update(Dish $dish, array $attributes): Dish;
 
+    /**
+     * Удаляет блюдо.
+     */
     public function delete(Dish $dish): void;
 
     /**

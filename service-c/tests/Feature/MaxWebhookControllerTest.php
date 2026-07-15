@@ -13,6 +13,7 @@ class MaxWebhookControllerTest extends TestCase
 
     private const TOKEN = 'secret-max-token-for-webhook-feature-tests';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -28,6 +29,7 @@ class MaxWebhookControllerTest extends TestCase
         ]);
     }
 
+    /** Message callback пишет в mess_max лог и возвращает OK. */
     public function test_message_callback_writes_to_mess_max_log_and_returns_ok(): void
     {
         $captured = [];
@@ -74,6 +76,7 @@ class MaxWebhookControllerTest extends TestCase
         });
     }
 
+    /** Возвращает 401 без валидного секрета. */
     public function test_returns_unauthorized_without_valid_secret(): void
     {
         Http::fake();

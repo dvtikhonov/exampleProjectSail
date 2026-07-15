@@ -18,6 +18,7 @@ class OrderItemsSnapshotBuilderTest extends TestCase
     use ResetsFoodDomainTables;
     use ResolvesDishImageUrl;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -25,6 +26,7 @@ class OrderItemsSnapshotBuilderTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Build создаёт снимок с форматированными суммами и URL изображения. */
     public function test_build_creates_snapshot_with_formatted_amounts_and_image_url(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Bistro', 'Steak', 700.0);

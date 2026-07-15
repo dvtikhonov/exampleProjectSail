@@ -11,6 +11,9 @@ use App\Models\FoodOrderMessage;
  */
 interface OrderMessageRepositoryInterface
 {
+    /**
+     * Создаёт сообщение в чате заказа.
+     */
     public function create(int $foodOrderId, int $senderMaxUserId, string $body): FoodOrderMessage;
 
     /**
@@ -20,6 +23,9 @@ interface OrderMessageRepositoryInterface
      */
     public function listForOrder(int $foodOrderId, ?int $afterId = null, int $limit = 50): array;
 
+    /**
+     * Находит сообщение чата по идентификатору.
+     */
     public function findById(int $id): ?FoodOrderMessage;
 
     /**

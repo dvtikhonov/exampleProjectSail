@@ -10,6 +10,8 @@ namespace App\Support;
 class OrderSnapshotComboResolver
 {
     /**
+     * Проверяет, является ли позиция снимка заказа комбо.
+     *
      * @param  array<string, mixed>  $item
      */
     public function isComboSnapshotItem(array $item): bool
@@ -18,6 +20,8 @@ class OrderSnapshotComboResolver
     }
 
     /**
+     * Возвращает название парного блюда комбо из снимка.
+     *
      * @param  array<string, mixed>  $item
      * @param  list<array<string, mixed>>  $itemsSnapshot
      */
@@ -78,6 +82,8 @@ class OrderSnapshotComboResolver
     }
 
     /**
+     * Форматирует подпись комбо-позиции.
+     *
      * @param  array<string, mixed>  $item
      * @param  list<array<string, mixed>>  $itemsSnapshot
      */
@@ -97,6 +103,8 @@ class OrderSnapshotComboResolver
     }
 
     /**
+     * Находит позицию в снимке заказа по идентификатору блюда.
+     *
      * @param  list<array<string, mixed>>  $itemsSnapshot
      * @param  callable(array<string, mixed>): bool  $predicate
      * @return array<string, mixed>|null

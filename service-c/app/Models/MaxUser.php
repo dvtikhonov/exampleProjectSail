@@ -34,6 +34,8 @@ class MaxUser extends Authenticatable
     protected $keyType = 'int';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -45,6 +47,8 @@ class MaxUser extends Authenticatable
     }
 
     /**
+     * Связь с категорией клиента.
+     *
      * @return BelongsTo<CustomerCategory, $this>
      */
     public function customerCategory(): BelongsTo
@@ -53,6 +57,8 @@ class MaxUser extends Authenticatable
     }
 
     /**
+     * Связь с корзинами пользователя.
+     *
      * @return HasMany<Cart, $this>
      */
     public function carts(): HasMany
@@ -61,6 +67,8 @@ class MaxUser extends Authenticatable
     }
 
     /**
+     * Связь с заказами пользователя.
+     *
      * @return HasMany<FoodOrder, $this>
      */
     public function foodOrders(): HasMany
@@ -69,6 +77,8 @@ class MaxUser extends Authenticatable
     }
 
     /**
+     * Связь с ролями администратора заказов.
+     *
      * @return HasMany<FoodOrderAdmin, $this>
      */
     public function adminRoles(): HasMany

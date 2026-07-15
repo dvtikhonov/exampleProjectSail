@@ -11,6 +11,7 @@ class OrderSnapshotComboResolverTest extends TestCase
 {
     private OrderSnapshotComboResolver $resolver;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -18,6 +19,7 @@ class OrderSnapshotComboResolverTest extends TestCase
         $this->resolver = new OrderSnapshotComboResolver;
     }
 
+    /** formatComboLabel включает имя партнёра. */
     public function test_format_combo_label_includes_partner_name(): void
     {
         $itemsSnapshot = [
@@ -40,6 +42,7 @@ class OrderSnapshotComboResolverTest extends TestCase
         $this->assertSame('Входит в комбо: Картофель фри', $label);
     }
 
+    /** formatComboLabel без имени партнёра использует короткую форму. */
     public function test_format_combo_label_without_partner_name_uses_short_form(): void
     {
         $itemsSnapshot = [
@@ -56,6 +59,7 @@ class OrderSnapshotComboResolverTest extends TestCase
         $this->assertSame('Входит в комбо', $label);
     }
 
+    /** formatComboLabel возвращает null для обычной позиции. */
     public function test_format_combo_label_returns_null_for_regular_item(): void
     {
         $itemsSnapshot = [

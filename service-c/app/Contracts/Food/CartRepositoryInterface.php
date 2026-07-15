@@ -23,16 +23,30 @@ interface CartRepositoryInterface
     public function findDraftForUpdate(int $maxUserId): ?Cart;
 
     /**
+     * Создаёт черновик корзины.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function createDraft(array $attributes): Cart;
 
+    /**
+     * Обновляет адрес доставки корзины.
+     */
     public function updateDeliveryAddress(Cart $cart, string $deliveryAddress): void;
 
+    /**
+     * Помечает корзину как оформленную.
+     */
     public function markAsSubmitted(Cart $cart): void;
 
+    /**
+     * Перезагружает корзину со связями для сборки DTO.
+     */
     public function refreshForDto(Cart $cart): Cart;
 
+    /**
+     * Удаляет корзину.
+     */
     public function delete(Cart $cart): void;
 
     /**
@@ -51,13 +65,24 @@ interface CartRepositoryInterface
     public function findComboItemByCartDishAndRef(int $cartId, int $dishId, string $comboRef): ?CartItem;
 
     /**
+     * Создаёт позицию корзины.
+     *
      * @param  array<string, mixed>  $attributes
      */
     public function createItem(array $attributes): CartItem;
 
+    /**
+     * Увеличивает количество позиции корзины.
+     */
     public function incrementItemQuantity(CartItem $cartItem, int $quantity): void;
 
+    /**
+     * Устанавливает количество позиции корзины.
+     */
     public function updateItemQuantity(CartItem $cartItem, int $quantity): void;
 
+    /**
+     * Удаляет позицию корзины.
+     */
     public function deleteItem(CartItem $cartItem): void;
 }

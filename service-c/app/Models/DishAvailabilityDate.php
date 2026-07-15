@@ -20,6 +20,8 @@ class DishAvailabilityDate extends Model
     protected $table = 'max_dish_availability_dates';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -30,6 +32,8 @@ class DishAvailabilityDate extends Model
     }
 
     /**
+     * Связь с блюдом.
+     *
      * @return BelongsTo<Dish, $this>
      */
     public function dish(): BelongsTo

@@ -13,6 +13,9 @@ use App\Models\FoodOrder;
  */
 class OrderStatusResolver
 {
+    /**
+     * Итоговый статус заказа по трём этапам проверки (адрес, состав, оплата).
+     */
     public function resolve(
         OrderReviewStatus $addressReviewStatus,
         OrderReviewStatus $compositionReviewStatus,
@@ -33,6 +36,9 @@ class OrderStatusResolver
         return OrderStatus::PendingReview;
     }
 
+    /**
+     * Итоговый статус по полям этапов проверки модели заказа.
+     */
     public function resolveForOrder(FoodOrder $order): OrderStatus
     {
         return $this->resolve(

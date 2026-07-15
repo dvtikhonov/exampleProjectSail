@@ -26,6 +26,8 @@ class CartItem extends Model
     protected $table = 'max_cart_items';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -37,6 +39,8 @@ class CartItem extends Model
     }
 
     /**
+     * Связь с корзиной.
+     *
      * @return BelongsTo<Cart, $this>
      */
     public function cart(): BelongsTo
@@ -45,6 +49,8 @@ class CartItem extends Model
     }
 
     /**
+     * Связь с блюдом.
+     *
      * @return BelongsTo<Dish, $this>
      */
     public function dish(): BelongsTo

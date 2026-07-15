@@ -12,6 +12,7 @@ abstract class TestCase extends BaseTestCase
 {
     private static bool $pendingMigrationsApplied = false;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         // Таблицы создаёт prepare в test-services.sh (main-app, service-a/b/c migrations).
@@ -25,6 +26,7 @@ abstract class TestCase extends BaseTestCase
         $this->resetMessMaxLogListeners();
     }
 
+    /** Очистка окружения после теста. */
     protected function tearDown(): void
     {
         $this->resetMessMaxLogListeners();
@@ -32,6 +34,7 @@ abstract class TestCase extends BaseTestCase
         parent::tearDown();
     }
 
+    /** Настраивает подключение к тестовой БД sail_db_testing. */
     private function configureTestingDatabaseConnection(): void
     {
         if (! $this->app) {
@@ -43,6 +46,7 @@ abstract class TestCase extends BaseTestCase
         DB::purge('mysql');
     }
 
+    /** Применяет миграции к тестовой БД один раз за процесс. */
     private function ensureTestingDatabaseReady(): void
     {
         if (self::$pendingMigrationsApplied) {
@@ -54,6 +58,7 @@ abstract class TestCase extends BaseTestCase
         self::$pendingMigrationsApplied = true;
     }
 
+    /** Сбрасывает слушатели логов MessMax. */
     private function resetMessMaxLogListeners(): void
     {
         if (! isset($this->app)) {

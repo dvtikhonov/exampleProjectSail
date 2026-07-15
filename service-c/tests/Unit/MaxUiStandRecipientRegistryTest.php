@@ -10,6 +10,7 @@ use Tests\TestCase;
 
 class MaxUiStandRecipientRegistryTest extends TestCase
 {
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -17,6 +18,7 @@ class MaxUiStandRecipientRegistryTest extends TestCase
         Cache::flush();
     }
 
+    /** Запоминает chat_id и user_id. */
     public function test_remembers_chat_and_user_ids(): void
     {
         $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
@@ -28,6 +30,7 @@ class MaxUiStandRecipientRegistryTest extends TestCase
         $this->assertSame([777], $registry->userIds());
     }
 
+    /** Перемещает недавнего получателя вперёд без дублей. */
     public function test_moves_recent_recipient_to_front_without_duplicates(): void
     {
         $registry = $this->app->make(MaxUiStandRecipientRegistry::class);

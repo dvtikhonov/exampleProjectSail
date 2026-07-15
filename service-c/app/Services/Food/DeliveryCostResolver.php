@@ -59,6 +59,8 @@ class DeliveryCostResolver
     }
 
     /**
+     * Определяет текущий тариф доставки для суммы заказа.
+     *
      * @param  list<DeliveryTierDto>  $tiers
      */
     private function resolveCurrentTier(float $itemsTotal, array $tiers): ?DeliveryTierDto

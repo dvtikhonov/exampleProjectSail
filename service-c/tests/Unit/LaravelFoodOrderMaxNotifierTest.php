@@ -25,6 +25,7 @@ use Tests\TestCase;
 
 class LaravelFoodOrderMaxNotifierTest extends TestCase
 {
+    /** Notify шлёт inline-keyboard каждому получателю, если mini-app настроен. */
     public function test_notify_calls_send_inline_keyboard_for_each_recipient_when_mini_app_configured(): void
     {
         Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
@@ -71,6 +72,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $this->assertSame(421816864057, $button->contactId);
     }
 
+    /** Notify откатывается к обычному сообщению, если URL mini-app отсутствует. */
     public function test_notify_falls_back_to_plain_message_when_mini_app_url_missing(): void
     {
         Config::set('max.ui_stand.mini_app_url', '');
@@ -102,6 +104,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $this->assertNull($sentMessages[0]->fileAttachmentToken);
     }
 
+    /** Notify логирует предупреждение и продолжает, если один получатель упал. */
     public function test_notify_logs_warning_and_continues_when_one_recipient_fails(): void
     {
         Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
@@ -139,6 +142,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $this->assertSame('Chat not found', $log->context['error']);
     }
 
+    /** Notify пропускает отправку, если получатели не настроены. */
     public function test_notify_skips_send_when_recipients_are_not_configured(): void
     {
         $captured = [];
@@ -168,6 +172,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $this->assertSame(42, $log->context['order_id']);
     }
 
+    /** Notify вызывает получателей последовательно. */
     public function test_notify_calls_recipients_sequentially(): void
     {
         Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
@@ -193,6 +198,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $this->assertSame([10, 20], $callOrder);
     }
 
+    /** Создаёт тестируемый нотификатор. */
     private function makeNotifier(
         MaxMessengerClientInterface $client,
         MaxOrderNotificationConfig $config,
@@ -212,6 +218,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         );
     }
 
+    /** Создаёт провайдер конфига для теста. */
     private function makeConfigProvider(MaxOrderNotificationConfig $config): MaxOrderNotificationConfigProviderInterface
     {
         $provider = $this->createMock(MaxOrderNotificationConfigProviderInterface::class);
@@ -220,6 +227,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         return $provider;
     }
 
+    /** Создаёт тестовый заказ. */
     private function makeOrder(): OrderDto
     {
         return new OrderDto(
@@ -243,6 +251,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         );
     }
 
+    /** Создаёт тестового пользователя MAX. */
     private function makeMaxUser(): MaxUser
     {
         return new MaxUser([

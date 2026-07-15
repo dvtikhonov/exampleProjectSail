@@ -14,6 +14,7 @@ use Tests\TestCase;
 
 class TrustGatewayAuthTest extends TestCase
 {
+    /** Логинит пользователя, когда resolver вернул DTO. */
     public function test_logs_in_when_resolver_returns_dto(): void
     {
         $user = new User;
@@ -36,6 +37,7 @@ class TrustGatewayAuthTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
     }
 
+    /** Возвращает 401, когда resolver вернул null. */
     public function test_returns_unauthorized_when_resolver_returns_null(): void
     {
         $resolver = $this->createMock(GatewayUserResolverInterface::class);

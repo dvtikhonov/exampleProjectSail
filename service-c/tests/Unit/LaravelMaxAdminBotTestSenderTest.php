@@ -15,6 +15,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
 {
     private const TOKEN = 'secret-max-token-for-admin-bot-test';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +32,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         ]);
     }
 
+    /** Тестовое сообщение уходит получателям уведомлений о заказах. */
     public function test_send_test_message_posts_to_order_notification_recipients(): void
     {
         Http::fake([
@@ -52,6 +54,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         });
     }
 
+    /** Тестовое сообщение падает, если получатели отсутствуют. */
     public function test_send_test_message_fails_when_recipients_are_missing(): void
     {
         config([
@@ -65,6 +68,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         $this->app->make(LaravelMaxAdminBotTestSender::class)->sendTestMessage();
     }
 
+    /** Тестовое сообщение падает, если username бота отсутствует. */
     public function test_send_test_message_fails_when_bot_username_is_missing(): void
     {
         config(['max.bot_username' => '']);
@@ -75,6 +79,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         $this->app->make(LaravelMaxAdminBotTestSender::class)->sendTestMessage();
     }
 
+    /** Тестовое сообщение падает, если access token бота отсутствует. */
     public function test_send_test_message_fails_when_bot_access_token_is_missing(): void
     {
         config(['max.bot_access_token' => '']);
@@ -85,6 +90,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         $this->app->make(LaravelMaxAdminBotTestSender::class)->sendTestMessage();
     }
 
+    /** Тест UI-стенда шлёт тем же получателям, что и приветствие. */
     public function test_send_ui_stand_test_message_posts_to_same_recipients_as_ui_stand_greeting(): void
     {
         config([
@@ -111,6 +117,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         });
     }
 
+    /** Тест UI-стенда использует chat_id, зарегистрированный из callback. */
     public function test_send_ui_stand_test_message_uses_registered_chat_from_callback(): void
     {
         config([
@@ -133,6 +140,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
         });
     }
 
+    /** Тест UI-стенда падает, если получатели стенда отсутствуют. */
     public function test_send_ui_stand_test_message_fails_when_ui_stand_recipients_are_missing(): void
     {
         config([

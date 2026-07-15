@@ -29,6 +29,8 @@ final class MaxUiStandRecipientResolver
     }
 
     /**
+     * Возвращает настроенные MAX user id получателей UI-стенда.
+     *
      * @return list<int>
      */
     public function configuredUserIds(): array
@@ -65,6 +67,8 @@ final class MaxUiStandRecipientResolver
     }
 
     /**
+     * Нормализует список идентификаторов пользователей.
+     *
      * @param  array<int|string, int|string>  $ids
      * @return list<int>
      */
@@ -74,6 +78,8 @@ final class MaxUiStandRecipientResolver
     }
 
     /**
+     * Убирает дубликаты идентификаторов с сохранением порядка.
+     *
      * @param  list<int>  $ids
      * @return list<int>
      */

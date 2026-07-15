@@ -11,6 +11,7 @@ use Tests\TestCase;
 
 class DishAdminEnumsTest extends TestCase
 {
+    /** Проверяет метки единиц веса. */
     public function test_weight_unit_labels(): void
     {
         $this->assertSame('г', DishWeightUnit::Gram->label());
@@ -20,6 +21,7 @@ class DishAdminEnumsTest extends TestCase
     }
 
     #[DataProvider('vatRateProvider')]
+    /** Проверяет значения и метки ставок НДС. */
     public function test_vat_rate_values_and_labels(?int $dbValue, DishVatRate $expected, string $label): void
     {
         $this->assertSame($expected, DishVatRate::fromValue($dbValue));

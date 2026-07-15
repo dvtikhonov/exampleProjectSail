@@ -15,6 +15,7 @@ class DishImageApiTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -22,6 +23,7 @@ class DishImageApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Эндпоинт изображения блюда возвращает 404 для удалённого URL. */
     public function test_dish_image_endpoint_returns_not_found_for_remote_url(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -31,6 +33,7 @@ class DishImageApiTest extends TestCase
             ->assertNotFound();
     }
 
+    /** Эндпоинт изображения блюда возвращает 404, если файл отсутствует. */
     public function test_dish_image_endpoint_returns_not_found_when_image_missing(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -40,6 +43,7 @@ class DishImageApiTest extends TestCase
             ->assertNotFound();
     }
 
+    /** Эндпоинт изображения блюда отдаёт локальный public-файл. */
     public function test_dish_image_endpoint_serves_local_public_file(): void
     {
         Storage::fake('public');
@@ -52,6 +56,7 @@ class DishImageApiTest extends TestCase
             ->assertOk();
     }
 
+    /** Эндпоинт изображения блюда отдаёт файл для мягко удалённого блюда. */
     public function test_dish_image_endpoint_serves_image_for_soft_deleted_dish(): void
     {
         Storage::fake('public');

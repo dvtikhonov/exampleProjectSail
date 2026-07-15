@@ -26,6 +26,8 @@ class OrderReviewStepHandler
     ) {}
 
     /**
+     * Одобряет шаг проверки заказа.
+     *
      * @throws FoodDomainException
      */
     public function approve(OrderReviewStep $step, int $orderId, MaxUser $admin): FoodOrder
@@ -50,6 +52,8 @@ class OrderReviewStepHandler
     }
 
     /**
+     * Отклоняет шаг проверки заказа.
+     *
      * @throws FoodDomainException
      */
     public function reject(OrderReviewStep $step, int $orderId, MaxUser $admin, string $comment): FoodOrder
@@ -71,6 +75,8 @@ class OrderReviewStepHandler
     }
 
     /**
+     * Находит заказ для проверки или выбрасывает исключение.
+     *
      * @throws FoodDomainException
      */
     private function findOrderForReview(int $orderId): FoodOrder

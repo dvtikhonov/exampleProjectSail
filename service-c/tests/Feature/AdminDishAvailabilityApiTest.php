@@ -22,6 +22,7 @@ class AdminDishAvailabilityApiTest extends TestCase
 
     private const string TIMEZONE = 'Europe/Moscow';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +30,7 @@ class AdminDishAvailabilityApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Эндпоинты доступности блюд возвращают 401 без токена. */
     public function test_dish_availability_endpoints_return_unauthorized_without_token(): void
     {
         $this->getJson('/api/food/admin/dish-availability-schedule?restaurant_id=1&category_id=1')
@@ -44,6 +46,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertJsonPath('message', 'Unauthenticated.');
     }
 
+    /** Эндпоинты доступности блюд возвращают 403 без роли менеджера меню. */
     public function test_dish_availability_endpoints_return_forbidden_without_menu_manager_role(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -61,6 +64,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** GET требует фильтры ресторана и категории. */
     public function test_get_requires_restaurant_and_category_filters(): void
     {
         $auth = $this->menuManagerAuth();
@@ -70,6 +74,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertJsonValidationErrors(['restaurant_id', 'category_id']);
     }
 
+    /** Менеджер меню может получить расписание с обязательными фильтрами. */
     public function test_menu_manager_can_get_schedule_with_required_filters(): void
     {
         $dates = $this->scheduleDates();
@@ -96,6 +101,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertJsonCount(30, 'dates');
     }
 
+    /** GET ограничивает прошлую дату редактируемым диапазоном. */
     public function test_get_clamps_past_date_from_to_editable_range(): void
     {
         $dates = $this->scheduleDates();
@@ -117,6 +123,7 @@ class AdminDishAvailabilityApiTest extends TestCase
         $this->assertNotContains($dates['yesterday'], $response->json('dates'));
     }
 
+    /** PUT добавляет и удаляет будущие даты доступности. */
     public function test_put_adds_and_removes_future_availability_dates(): void
     {
         $dates = $this->scheduleDates();
@@ -172,6 +179,7 @@ class AdminDishAvailabilityApiTest extends TestCase
         ]);
     }
 
+    /** PUT отклоняет изменения для сегодня и вчера. */
     public function test_put_rejects_changes_for_today_and_yesterday(): void
     {
         $dates = $this->scheduleDates();
@@ -203,6 +211,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertJsonPath('message', 'Нельзя изменять доступность на сегодня или прошедшие даты.');
     }
 
+    /** PUT не создаёт дубликаты строк блюдо–дата. */
     public function test_put_does_not_create_duplicate_dish_date_rows(): void
     {
         $dates = $this->scheduleDates();

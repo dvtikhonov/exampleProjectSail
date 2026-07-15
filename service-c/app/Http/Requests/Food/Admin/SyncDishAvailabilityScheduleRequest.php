@@ -13,17 +13,25 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class SyncDishAvailabilityScheduleRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Всегда ожидает JSON-ответ.
+     */
     public function wantsJson(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации пакетного обновления графика.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -41,6 +49,8 @@ class SyncDishAvailabilityScheduleRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации обновления графика.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -54,6 +64,8 @@ class SyncDishAvailabilityScheduleRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -69,6 +81,9 @@ class SyncDishAvailabilityScheduleRequest extends FormRequest
         ];
     }
 
+    /**
+     * Собирает DTO пакетного обновления графика доступности.
+     */
     public function toDto(): DishAvailabilityUpdateDto
     {
         /** @var list<array{dish_id: int, dates: list<string>}> $changes */
@@ -89,6 +104,9 @@ class SyncDishAvailabilityScheduleRequest extends FormRequest
         );
     }
 
+    /**
+     * Возвращает дату из валидированных данных или null.
+     */
     private function nullableDate(string $key): ?string
     {
         $value = $this->validated($key);

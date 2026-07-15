@@ -12,12 +12,17 @@ use Illuminate\Validation\Validator;
  */
 class AddCartItemRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации позиции корзины.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -30,6 +35,9 @@ class AddCartItemRequest extends FormRequest
         ];
     }
 
+    /**
+     * Дополнительная проверка парности полей комбо-метаданных.
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {

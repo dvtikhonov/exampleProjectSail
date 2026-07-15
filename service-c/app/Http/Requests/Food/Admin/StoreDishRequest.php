@@ -10,6 +10,8 @@ namespace App\Http\Requests\Food\Admin;
 class StoreDishRequest extends BaseDishFormRequest
 {
     /**
+     * Правила валидации создания блюда с обязательным фото.
+     *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array

@@ -146,6 +146,8 @@ class MaxWebAppInitDataValidator implements MaxWebAppInitDataValidatorInterface
     }
 
     /**
+     * Разбирает строку initData в ассоциативный массив параметров.
+     *
      * @return list<array{0: string, 1: string}>
      */
     private function parseInitData(string $initData): array

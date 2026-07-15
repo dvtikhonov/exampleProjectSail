@@ -31,6 +31,8 @@ readonly class AdminOrderListItemDto
     ) {}
 
     /**
+     * Преобразует элемент списка админских заказов в массив.
+     *
      * @return array<string, int|string|null>
      */
     public function toArray(): array

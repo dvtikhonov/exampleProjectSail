@@ -47,6 +47,8 @@ enum DishVatRate
     }
 
     /**
+     * Возвращает ставки НДС, доступные для выбора в UI.
+     *
      * @return list<self>
      */
     public static function selectableCases(): array

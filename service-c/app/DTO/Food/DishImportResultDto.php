@@ -18,6 +18,8 @@ readonly class DishImportResultDto
     ) {}
 
     /**
+     * Преобразует результат импорта блюд в массив.
+     *
      * @return array{imported_count: int, errors: list<array{row: int, message: string}>}
      */
     public function toArray(): array

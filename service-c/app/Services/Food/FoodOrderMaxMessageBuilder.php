@@ -67,6 +67,9 @@ class FoodOrderMaxMessageBuilder
         );
     }
 
+    /**
+     * Собирает заголовок MAX-сообщения о заказе.
+     */
     private function buildHeader(OrderDto $order, MaxUser $maxUser): string
     {
         $lines = [
@@ -153,6 +156,9 @@ class FoodOrderMaxMessageBuilder
         return implode("\n", $lines);
     }
 
+    /**
+     * Собирает подвал MAX-сообщения о заказе.
+     */
     private function buildFooter(OrderDto $order): string
     {
         $lines = [
@@ -169,6 +175,9 @@ class FoodOrderMaxMessageBuilder
         return implode("\n", $lines);
     }
 
+    /**
+     * Форматирует отправителя сообщения для превью.
+     */
     private function formatMessageSender(OrderMessageDto $message): string
     {
         $name = trim(implode(' ', array_filter([
@@ -187,6 +196,9 @@ class FoodOrderMaxMessageBuilder
         return 'Пользователь';
     }
 
+    /**
+     * Обрезает превью текста чата до лимита.
+     */
     private function truncateChatPreview(string $body): string
     {
         $normalized = trim($body);
@@ -198,6 +210,9 @@ class FoodOrderMaxMessageBuilder
         return mb_substr($normalized, 0, self::ORDER_CHAT_PREVIEW_MAX_LENGTH - 1).'…';
     }
 
+    /**
+     * Форматирует данные клиента для сообщения.
+     */
     private function formatClient(MaxUser $maxUser): string
     {
         $name = trim(implode(' ', array_filter([
@@ -223,6 +238,8 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Извлекает позиции из снимка состава заказа.
+     *
      * @return list<array<string, mixed>>
      */
     private function extractItems(OrderDto $order): array
@@ -255,6 +272,8 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Собирает секцию позиций заказа для сообщения.
+     *
      * @param  list<array{dish_name: string, quantity: int, line_total: string}>  $items
      */
     private function buildItemsSection(array $items, int $includedCount, int $remaining): string
@@ -273,6 +292,8 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Форматирует строки позиций заказа.
+     *
      * @param  list<array<string, mixed>>  $items
      * @return list<string>
      */
@@ -298,11 +319,17 @@ class FoodOrderMaxMessageBuilder
         return $lines;
     }
 
+    /**
+     * Возвращает суффикс обрезки длинного сообщения.
+     */
     private function buildTruncationSuffix(int $remainingCount): string
     {
         return sprintf(self::TRUNCATION_SUFFIX_TEMPLATE, $remainingCount);
     }
 
+    /**
+     * Склеивает части MAX-сообщения о заказе.
+     */
     private function assembleMessage(string $header, string $itemsSection, string $footer): string
     {
         $sections = [$header];
@@ -316,6 +343,9 @@ class FoodOrderMaxMessageBuilder
         return implode("\n\n", $sections);
     }
 
+    /**
+     * Укладывает текст сообщения в лимит длины.
+     */
     private function ensureWithinLimit(string $text, int $maxTextLength): string
     {
         if (mb_strlen($text) <= $maxTextLength) {

@@ -53,6 +53,9 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         $this->trySendMessage($text, $order);
     }
 
+    /**
+     * Пытается отправить уведомление клиенту о заказе.
+     */
     private function trySendMessage(string $text, FoodOrder $order): void
     {
         try {
