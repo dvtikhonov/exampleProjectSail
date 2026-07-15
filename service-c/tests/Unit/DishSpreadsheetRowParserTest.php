@@ -15,6 +15,7 @@ class DishSpreadsheetRowParserTest extends TestCase
 {
     private DishSpreadsheetRowParser $parser;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -22,6 +23,7 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->parser = new DishSpreadsheetRowParser(new FoodMoneyFormatter);
     }
 
+    /** Парсит имя, вес и цену из валидной строки. */
     public function test_parses_name_weight_and_price_from_valid_row(): void
     {
         $row = $this->parser->parse('Борщ.350г', '150');
@@ -35,6 +37,7 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->assertNull($row->description);
     }
 
+    /** Парсит дробную цену с запятой. */
     public function test_parses_decimal_price_with_comma_separator(): void
     {
         $row = $this->parser->parse('Пицца Маргарита.450г', '520,50');
@@ -44,6 +47,7 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->assertSame('520.50', $row->price);
     }
 
+    /** Парсит имя с пробелом перед весом из spreadsheet меню. */
     public function test_parses_name_with_space_before_weight_from_menu_spreadsheet(): void
     {
         $row1 = $this->parser->parse('Свинина, запеченная с сыром. 130г', '150');
@@ -65,6 +69,7 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->assertSame('200', $row3->weight);
     }
 
+    /** Невалидная колонка A выбрасывает DomainException. */
     public function test_invalid_column_a_throws_domain_exception(): void
     {
         $this->expectException(FoodDomainException::class);
@@ -73,6 +78,7 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->parser->parse('Неверный формат', '200');
     }
 
+    /** Пустая ячейка имени выбрасывает DomainException. */
     public function test_empty_name_cell_throws_domain_exception(): void
     {
         $this->expectException(FoodDomainException::class);
@@ -81,6 +87,7 @@ class DishSpreadsheetRowParserTest extends TestCase
         $this->parser->parse('', '');
     }
 
+    /** Невалидная колонка B выбрасывает DomainException. */
     public function test_invalid_column_b_throws_domain_exception(): void
     {
         $this->expectException(FoodDomainException::class);

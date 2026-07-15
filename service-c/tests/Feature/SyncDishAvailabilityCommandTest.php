@@ -11,6 +11,7 @@ use Tests\TestCase;
 
 class SyncDishAvailabilityCommandTest extends TestCase
 {
+    /** Команда синхронизирует доступность и шлёт уведомление о меню. */
     public function test_command_syncs_availability_and_sends_menu_notification(): void
     {
         $syncService = $this->createMock(DishAvailabilitySyncService::class);

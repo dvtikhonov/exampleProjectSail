@@ -24,6 +24,8 @@ class CustomerCategory extends Model
     protected $table = 'max_customer_categories';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -35,6 +37,8 @@ class CustomerCategory extends Model
     }
 
     /**
+     * Связь с пользователями MAX.
+     *
      * @return HasMany<MaxUser, $this>
      */
     public function maxUsers(): HasMany
@@ -43,6 +47,8 @@ class CustomerCategory extends Model
     }
 
     /**
+     * Связь с тарифами доставки.
+     *
      * @return HasMany<RestaurantCategoryDeliveryTier, $this>
      */
     public function deliveryTiers(): HasMany

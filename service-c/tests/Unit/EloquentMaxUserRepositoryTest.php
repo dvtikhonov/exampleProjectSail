@@ -10,6 +10,7 @@ use Tests\TestCase;
 
 class EloquentMaxUserRepositoryTest extends TestCase
 {
+    /** Список id пользователей MAX с адресом исключает null и пустые. */
     public function test_list_max_user_ids_with_delivery_address_excludes_null_and_blank(): void
     {
         foreach ([

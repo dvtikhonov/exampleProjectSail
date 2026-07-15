@@ -21,6 +21,8 @@ readonly class OrderListItemDto
     ) {}
 
     /**
+     * Преобразует элемент списка заказов клиента в массив.
+     *
      * @return array<string, int|string|null>
      */
     public function toArray(): array

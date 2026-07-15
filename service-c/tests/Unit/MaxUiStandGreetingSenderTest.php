@@ -11,6 +11,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
 {
     private const TOKEN = 'secret-max-token-for-ui-stand-tests';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,6 +30,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         ]);
     }
 
+    /** Send шлёт inline-keyboard payload каждому получателю. */
     public function test_send_posts_inline_keyboard_payload_for_each_recipient(): void
     {
         Http::fake([
@@ -64,6 +66,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         });
     }
 
+    /** Send выбрасывает исключение, если получатели не настроены. */
     public function test_send_throws_when_no_recipients_configured(): void
     {
         config([
@@ -81,6 +84,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         Http::assertNothingSent();
     }
 
+    /** Send продолжает, если один получатель упал. */
     public function test_send_continues_when_one_recipient_fails(): void
     {
         Http::fake([
@@ -93,6 +97,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    /** Send предпочитает URL mini-app username бота. */
     public function test_send_prefers_mini_app_url_over_bot_username(): void
     {
         config([
@@ -113,6 +118,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         });
     }
 
+    /** Send использует origin webhook, если URL mini-app не задан. */
     public function test_send_uses_webhook_origin_when_mini_app_url_is_not_set(): void
     {
         config([
@@ -134,6 +140,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         });
     }
 
+    /** Send использует ссылку max.ru, если задан только username бота. */
     public function test_send_uses_max_ru_link_when_only_bot_username_is_set(): void
     {
         config([
@@ -157,6 +164,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
         });
     }
 
+    /** sendToUser шлёт только указанному user_id. */
     public function test_send_to_user_posts_only_for_given_user_id(): void
     {
         Http::fake([

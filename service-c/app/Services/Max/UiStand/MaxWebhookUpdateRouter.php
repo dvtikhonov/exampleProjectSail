@@ -41,6 +41,8 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
     }
 
     /**
+     * Обрабатывает callback нажатия кнопки в сообщении.
+     *
      * @param  array<string, mixed>  $payload
      */
     private function handleMessageCallback(array $payload): void
@@ -91,6 +93,8 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
     }
 
     /**
+     * Обрабатывает событие запуска бота пользователем.
+     *
      * @param  array<string, mixed>  $payload
      */
     private function handleBotStarted(array $payload): void

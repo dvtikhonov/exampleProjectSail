@@ -42,6 +42,8 @@ class FoodOrder extends Model
     protected $table = 'max_food_orders';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -66,6 +68,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с корзиной заказа.
+     *
      * @return BelongsTo<Cart, $this>
      */
     public function cart(): BelongsTo
@@ -74,6 +78,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с заказчиком MAX.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function maxUser(): BelongsTo
@@ -82,6 +88,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с рестораном.
+     *
      * @return BelongsTo<Restaurant, $this>
      */
     public function restaurant(): BelongsTo
@@ -90,6 +98,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с администратором, проверившим адрес.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function addressReviewedBy(): BelongsTo
@@ -98,6 +108,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с администратором, проверившим состав.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function compositionReviewedBy(): BelongsTo
@@ -106,6 +118,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с администратором, проверившим оплату.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function paymentReviewedBy(): BelongsTo
@@ -114,6 +128,8 @@ class FoodOrder extends Model
     }
 
     /**
+     * Связь с сообщениями чата заказа.
+     *
      * @return HasMany<FoodOrderMessage, $this>
      */
     public function messages(): HasMany

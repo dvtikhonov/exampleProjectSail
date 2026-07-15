@@ -11,12 +11,17 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class ValidateInitDataRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации строки initData.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array

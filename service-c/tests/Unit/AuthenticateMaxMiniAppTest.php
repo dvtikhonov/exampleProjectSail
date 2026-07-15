@@ -15,6 +15,7 @@ class AuthenticateMaxMiniAppTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Возвращает 401 без Bearer-токена. */
     public function test_returns_unauthorized_without_bearer_token(): void
     {
         $middleware = new AuthenticateMaxMiniApp;
@@ -25,6 +26,7 @@ class AuthenticateMaxMiniAppTest extends TestCase
         $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
     }
 
+    /** Пропускает запрос с валидным токеном MAX мини-приложения. */
     public function test_passes_request_with_valid_max_miniapp_token(): void
     {
         $maxUser = MaxUser::query()->create([
@@ -48,6 +50,7 @@ class AuthenticateMaxMiniAppTest extends TestCase
         $this->assertSame('{"max_user_id":12345}', $response->getContent());
     }
 
+    /** Возвращает 401 за истёкший токен. */
     public function test_returns_unauthorized_for_expired_token(): void
     {
         $maxUser = MaxUser::query()->create([

@@ -24,6 +24,7 @@ class FoodCartApiTest extends TestCase
     use ResetsFoodDomainTables;
     use ResolvesDishImageUrl;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +32,7 @@ class FoodCartApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Показ корзины возвращает null, если черновой корзины нет. */
     public function test_cart_show_returns_null_when_no_draft_cart(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -40,6 +42,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart', null);
     }
 
+    /** Добавление позиции создаёт черновую корзину. */
     public function test_add_item_creates_draft_cart(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -78,6 +81,7 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** Добавление позиций комбо возвращает и сохраняет метаданные комбо. */
     public function test_add_combo_items_returns_and_persists_combo_metadata(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -135,6 +139,7 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** Добавление позиции валидирует payload. */
     public function test_add_item_validates_payload(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -143,6 +148,7 @@ class FoodCartApiTest extends TestCase
             ->assertUnprocessable();
     }
 
+    /** Добавление позиции отклоняет недоступное блюдо. */
     public function test_add_item_rejects_unavailable_dish(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -157,6 +163,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('message', 'Dish is not available.');
     }
 
+    /** Добавление позиции отклоняет блюдо другого ресторана, если корзина уже есть. */
     public function test_add_item_rejects_dish_from_another_restaurant_when_cart_exists(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -176,6 +183,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('message', 'Cart already contains items from another restaurant. Clear the cart before adding dishes from a different restaurant.');
     }
 
+    /** Обновляет количество позиции корзины. */
     public function test_update_cart_item_quantity(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -198,6 +206,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.total', '300.00');
     }
 
+    /** Удаление последней позиции возвращает null-корзину. */
     public function test_delete_cart_item_returns_null_cart_when_last_item_removed(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -220,6 +229,7 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** Очистка корзины удаляет все позиции и черновую корзину. */
     public function test_clear_cart_removes_all_items_and_draft_cart(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -244,6 +254,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart', null);
     }
 
+    /** Очистка пустой корзины идемпотентна. */
     public function test_clear_cart_is_idempotent_when_cart_is_empty(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -253,6 +264,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart', null);
     }
 
+    /** Операции с позициями отклоняют чужую позицию корзины. */
     public function test_cart_item_operations_reject_foreign_cart_item(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -285,6 +297,7 @@ class FoodCartApiTest extends TestCase
             ->assertNotFound();
     }
 
+    /** Добавление позиции увеличивает количество существующего блюда. */
     public function test_add_item_increments_existing_dish_quantity(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -306,6 +319,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.total', '150.00');
     }
 
+    /** Корзина включает стоимость доставки для пользователя с категорией. */
     public function test_cart_includes_delivery_cost_for_user_with_category(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -333,6 +347,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.customer_category.name', 'Standard');
     }
 
+    /** Корзина применяет тариф доставки при сумме позиций 999. */
     public function test_cart_applies_delivery_tier_at_999_items_total(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -357,6 +372,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.amount_to_next_tier', '1.00');
     }
 
+    /** Корзина не показывает подсказку тарифа на лучшем тарифе. */
     public function test_cart_omits_delivery_tier_hint_on_best_tier(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -379,6 +395,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.amount_to_next_tier', null);
     }
 
+    /** Корзина не показывает подсказку тарифа без категории. */
     public function test_cart_omits_delivery_tier_hint_without_category(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -395,6 +412,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.amount_to_next_tier', null);
     }
 
+    /** Корзина применяет бесплатную доставку при сумме позиций 1000. */
     public function test_cart_applies_free_delivery_tier_at_1000_items_total(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -416,6 +434,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.delivery_applicable', true);
     }
 
+    /** Корзина без категории исключает доставку из итога. */
     public function test_cart_without_category_excludes_delivery_from_total(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -433,6 +452,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('cart.customer_category', null);
     }
 
+    /** PATCH обновляет адрес доставки корзины. */
     public function test_patch_cart_delivery_address(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -463,6 +483,7 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** Новая корзина подставляет адрес доставки из профиля MAX. */
     public function test_new_cart_prefills_delivery_address_from_max_user(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -485,6 +506,7 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** PATCH адреса доставки валидирует payload. */
     public function test_patch_cart_delivery_address_validates_payload(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -506,6 +528,7 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
+    /** PATCH адреса доставки требует черновую корзину. */
     public function test_patch_cart_delivery_address_requires_draft_cart(): void
     {
         $auth = $this->authenticateMaxUser();

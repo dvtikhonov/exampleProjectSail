@@ -11,17 +11,25 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class ShowDishAvailabilityScheduleRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Всегда ожидает JSON-ответ.
+     */
     public function wantsJson(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации параметров графика доступности.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -35,6 +43,8 @@ class ShowDishAvailabilityScheduleRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации параметров графика.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -47,6 +57,8 @@ class ShowDishAvailabilityScheduleRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -59,16 +71,25 @@ class ShowDishAvailabilityScheduleRequest extends FormRequest
         ];
     }
 
+    /**
+     * Возвращает ID ресторана из валидированных данных.
+     */
     public function restaurantId(): int
     {
         return (int) $this->validated('restaurant_id');
     }
 
+    /**
+     * Возвращает ID категории меню из валидированных данных.
+     */
     public function categoryId(): int
     {
         return (int) $this->validated('category_id');
     }
 
+    /**
+     * Дата начала периода или null.
+     */
     public function dateFrom(): ?string
     {
         $value = $this->validated('date_from');
@@ -76,6 +97,9 @@ class ShowDishAvailabilityScheduleRequest extends FormRequest
         return is_string($value) && $value !== '' ? $value : null;
     }
 
+    /**
+     * Дата окончания периода или null.
+     */
     public function dateTo(): ?string
     {
         $value = $this->validated('date_to');

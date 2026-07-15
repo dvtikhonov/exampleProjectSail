@@ -17,6 +17,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,6 +25,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** findAllActive возвращает только активные рестораны, отсортированные по имени. */
     public function test_find_all_active_returns_only_active_restaurants_sorted_by_name(): void
     {
         Restaurant::factory()->create(['name' => 'Zeta']);
@@ -40,6 +42,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $this->assertSame('Zeta', $restaurants[1]->name);
     }
 
+    /** findActiveWithMenu возвращает ресторан с категориями и блюдами. */
     public function test_find_active_with_menu_returns_restaurant_with_categories_and_dishes(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -56,6 +59,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $this->assertSame('Test Pasta', $restaurant->menuCategories->first()->dishes->first()->name);
     }
 
+    /** findActiveWithMenu возвращает null для неактивного ресторана. */
     public function test_find_active_with_menu_returns_null_for_inactive_restaurant(): void
     {
         $restaurant = Restaurant::factory()->inactive()->create();
@@ -65,6 +69,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $this->assertNull($repository->findActiveWithMenu($restaurant->id));
     }
 
+    /** findActiveWithMenu сортирует категории по sort_order. */
     public function test_find_active_with_menu_sorts_categories_by_sort_order(): void
     {
         $restaurant = Restaurant::factory()->create();

@@ -44,6 +44,7 @@ class FoodTestDataBuilder
         ];
     }
 
+    /** Создаёт категорию клиента. */
     public static function createCustomerCategory(
         string $name = 'Standard',
         int $sortOrder = 1,
@@ -114,6 +115,7 @@ class FoodTestDataBuilder
         ];
     }
 
+    /** Назначает категорию клиенту. */
     public static function assignCustomerCategory(MaxUser $maxUser, CustomerCategory $category): MaxUser
     {
         $maxUser->update(['customer_category_id' => $category->id]);
@@ -121,6 +123,7 @@ class FoodTestDataBuilder
         return $maxUser->fresh();
     }
 
+    /** Создаёт пользователя MAX с категорией клиента. */
     public static function createMaxUserWithCategory(
         CustomerCategory $category,
         int $maxUserId = 99_001,

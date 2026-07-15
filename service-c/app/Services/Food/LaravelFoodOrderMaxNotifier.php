@@ -67,6 +67,8 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
     }
 
     /**
+     * Строит ряды кнопок открытия mini-app для уведомления о заказе.
+     *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */
     private function buildOpenAppButtonRows(): array
@@ -90,6 +92,8 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
     }
 
     /**
+     * Пытается отправить MAX-уведомление о заказе.
+     *
      * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
      */
     private function trySendNotification(

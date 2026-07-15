@@ -16,6 +16,9 @@ enum OrderReviewStep: string
     case Composition = 'composition';
     case Payment = 'payment';
 
+    /**
+     * Роль администратора, необходимая для этого этапа.
+     */
     public function requiredRole(): FoodOrderAdminRole
     {
         return match ($this) {
@@ -24,6 +27,9 @@ enum OrderReviewStep: string
         };
     }
 
+    /**
+     * Область отклонения, соответствующая этапу.
+     */
     public function rejectionScope(): OrderRejectionScope
     {
         return match ($this) {
@@ -33,6 +39,9 @@ enum OrderReviewStep: string
         };
     }
 
+    /**
+     * Имя колонки статуса этапа в `max_food_orders`.
+     */
     public function statusField(): string
     {
         return match ($this) {
@@ -42,6 +51,9 @@ enum OrderReviewStep: string
         };
     }
 
+    /**
+     * Имя колонки «кто проверил» для этапа.
+     */
     public function reviewedByField(): string
     {
         return match ($this) {
@@ -51,6 +63,9 @@ enum OrderReviewStep: string
         };
     }
 
+    /**
+     * Имя колонки времени проверки этапа.
+     */
     public function reviewedAtField(): string
     {
         return match ($this) {
@@ -60,6 +75,9 @@ enum OrderReviewStep: string
         };
     }
 
+    /**
+     * Имя колонки комментария отклонения этапа.
+     */
     public function rejectionCommentField(): string
     {
         return match ($this) {
@@ -69,12 +87,17 @@ enum OrderReviewStep: string
         };
     }
 
+    /**
+     * Текущий статус этапа на модели заказа.
+     */
     public function currentStatus(FoodOrder $order): OrderReviewStatus
     {
         return $order->{$this->statusField()};
     }
 
     /**
+     * Убеждается, что этап ещё ожидает проверки.
+     *
      * @throws FoodDomainException
      */
     public function assertPending(FoodOrder $order): void
@@ -95,6 +118,8 @@ enum OrderReviewStep: string
     }
 
     /**
+     * Строгая проверка pending для адреса/оплаты с учётом закрытого заказа.
+     *
      * @throws FoodDomainException
      */
     private function assertStrictPending(FoodOrder $order, string $alreadyCompletedMessage, string $notAwaitingMessage): void
@@ -109,6 +134,8 @@ enum OrderReviewStep: string
     }
 
     /**
+     * Проверка, что заказ ещё в очереди проверки состава.
+     *
      * @throws FoodDomainException
      */
     private function assertCompositionPending(FoodOrder $order): void
@@ -118,6 +145,9 @@ enum OrderReviewStep: string
         }
     }
 
+    /**
+     * Заказ уже подтверждён или отклонён — этапы проверки закрыты.
+     */
     private function isReviewClosed(OrderStatus $status): bool
     {
         return in_array($status, [OrderStatus::Rejected, OrderStatus::Confirmed], true);

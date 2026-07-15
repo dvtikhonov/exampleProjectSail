@@ -29,6 +29,8 @@ class Restaurant extends Model
     use SoftDeletes;
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -39,6 +41,8 @@ class Restaurant extends Model
     }
 
     /**
+     * Связь с категориями меню.
+     *
      * @return HasMany<MenuCategory, $this>
      */
     public function menuCategories(): HasMany
@@ -47,6 +51,8 @@ class Restaurant extends Model
     }
 
     /**
+     * Связь с корзинами ресторана.
+     *
      * @return HasMany<Cart, $this>
      */
     public function carts(): HasMany
@@ -55,6 +61,8 @@ class Restaurant extends Model
     }
 
     /**
+     * Связь с заказами ресторана.
+     *
      * @return HasMany<FoodOrder, $this>
      */
     public function orders(): HasMany
@@ -63,6 +71,8 @@ class Restaurant extends Model
     }
 
     /**
+     * Связь с тарифами доставки.
+     *
      * @return HasMany<RestaurantCategoryDeliveryTier, $this>
      */
     public function deliveryTiers(): HasMany

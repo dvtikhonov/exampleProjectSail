@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class MaxUiStandSendCommandTest extends TestCase
 {
+    /** Команда отправляет приветствие через sender. */
     public function test_command_sends_greeting_via_sender(): void
     {
         $sender = $this->createMock(MaxUiStandGreetingSender::class);
@@ -25,6 +26,7 @@ class MaxUiStandSendCommandTest extends TestCase
         );
     }
 
+    /** Команда возвращает ошибку, если sender выбросил исключение. */
     public function test_command_returns_failure_when_sender_throws(): void
     {
         $sender = $this->createMock(MaxUiStandGreetingSender::class);

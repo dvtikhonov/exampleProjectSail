@@ -92,6 +92,9 @@ export function setAuthToken(token) {
     sessionStorage.setItem('max_miniapp_token', token);
 }
 
+/**
+ * Очищает сохранённый Bearer token mini-app.
+ */
 export function clearAuthToken() {
     authToken = null;
     sessionStorage.removeItem('max_miniapp_token');
@@ -110,6 +113,9 @@ export async function authenticate(initData) {
 
 // --- Каталог и корзина (клиент) ---
 
+/**
+ * Загружает список ресторанов.
+ */
 export async function fetchRestaurants() {
     const { data } = await client.get('/food/restaurants');
 
@@ -125,6 +131,9 @@ export async function fetchMenu(restaurantId) {
     return data.menu;
 }
 
+/**
+ * Загружает текущую корзину пользователя.
+ */
 export async function fetchCart() {
     const { data } = await client.get('/food/cart');
 
@@ -205,6 +214,9 @@ export async function removeCartItem(itemId) {
     return data.cart;
 }
 
+/**
+ * Очищает корзину пользователя.
+ */
 export async function clearCart() {
     const { data } = await client.delete('/food/cart');
 
@@ -222,6 +234,9 @@ export async function updateCartDeliveryAddress(address) {
     return data.cart;
 }
 
+/**
+ * Оформляет заказ из текущей корзины.
+ */
 export async function submitOrder() {
     const { data } = await client.post('/food/orders/submit');
 

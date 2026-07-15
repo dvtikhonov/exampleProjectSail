@@ -10,6 +10,7 @@ use Tests\TestCase;
 
 class MaxAppRequestContextTest extends TestCase
 {
+    /** Определяет публичный туннель на поддомене fxtun. */
     public function test_is_public_tunnel_request_on_fxtun_subdomain(): void
     {
         config([
@@ -25,6 +26,7 @@ class MaxAppRequestContextTest extends TestCase
         $this->assertTrue(MaxAppRequestContext::isPublicTunnelRequest($request));
     }
 
+    /** Не считает localhost публичным туннелем. */
     public function test_is_not_public_tunnel_request_on_localhost(): void
     {
         $request = Request::create(

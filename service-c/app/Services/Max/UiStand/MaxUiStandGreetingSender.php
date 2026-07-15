@@ -51,6 +51,8 @@ class MaxUiStandGreetingSender
     }
 
     /**
+     * Отправляет приветствие UI-стенда получателям.
+     *
      * @param  list<int>  $chatIds
      * @param  list<int>  $userIds
      */
@@ -84,6 +86,8 @@ class MaxUiStandGreetingSender
     }
 
     /**
+     * Пытается отправить сообщение с inline-клавиатурой.
+     *
      * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
      */
     private function trySendInlineKeyboard(
@@ -121,6 +125,8 @@ class MaxUiStandGreetingSender
     }
 
     /**
+     * Строит ряды кнопок приветственного сообщения.
+     *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */
     private function buildButtonRows(): array

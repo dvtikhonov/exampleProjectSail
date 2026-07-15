@@ -14,6 +14,7 @@ class OrderStatusResolverTest extends TestCase
 {
     private OrderStatusResolver $resolver;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -22,6 +23,7 @@ class OrderStatusResolverTest extends TestCase
     }
 
     #[DataProvider('statusTransitionProvider')]
+    /** resolve возвращает ожидаемый статус заказа. */
     public function test_resolve_returns_expected_order_status(
         OrderReviewStatus $addressReviewStatus,
         OrderReviewStatus $compositionReviewStatus,

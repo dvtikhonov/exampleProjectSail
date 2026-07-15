@@ -12,9 +12,14 @@ use App\Models\FoodOrderAdmin;
  */
 interface FoodOrderAdminRepositoryInterface
 {
+    /**
+     * Проверяет наличие активной роли администратора у пользователя MAX.
+     */
     public function hasActiveRole(int $maxUserId, FoodOrderAdminRole $role): bool;
 
     /**
+     * Возвращает активные роли администратора пользователя MAX.
+     *
      * @return list<FoodOrderAdminRole>
      */
     public function getActiveRoles(int $maxUserId): array;

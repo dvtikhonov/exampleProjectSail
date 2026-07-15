@@ -12,12 +12,17 @@ use Illuminate\Validation\Validator;
  */
 class SendOrderMessageRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации текста сообщения.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -28,6 +33,8 @@ class SendOrderMessageRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации текста.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -39,6 +46,8 @@ class SendOrderMessageRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -48,6 +57,9 @@ class SendOrderMessageRequest extends FormRequest
         ];
     }
 
+    /**
+     * Проверяет, что текст сообщения не состоит только из пробелов.
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
@@ -59,6 +71,9 @@ class SendOrderMessageRequest extends FormRequest
         });
     }
 
+    /**
+     * Возвращает нормализованный текст сообщения.
+     */
     public function body(): string
     {
         return trim((string) $this->validated('body'));

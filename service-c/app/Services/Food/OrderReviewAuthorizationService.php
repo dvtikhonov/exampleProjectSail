@@ -21,6 +21,8 @@ class OrderReviewAuthorizationService
     ) {}
 
     /**
+     * Проверяет право администратора одобрить шаг.
+     *
      * @throws FoodDomainException
      */
     public function assertCanApprove(MaxUser $admin, FoodOrder $order, OrderReviewStep $step): void
@@ -30,6 +32,8 @@ class OrderReviewAuthorizationService
     }
 
     /**
+     * Проверяет право администратора отклонить шаг.
+     *
      * @throws FoodDomainException
      */
     public function assertCanReject(MaxUser $admin, FoodOrder $order, OrderReviewStep $step, string $comment): void
@@ -39,6 +43,8 @@ class OrderReviewAuthorizationService
     }
 
     /**
+     * Проверяет наличие активной роли у администратора.
+     *
      * @throws FoodDomainException
      */
     private function assertHasRole(MaxUser $admin, FoodOrderAdminRole $role): void
@@ -49,6 +55,8 @@ class OrderReviewAuthorizationService
     }
 
     /**
+     * Проверяет, что комментарий отклонения заполнен.
+     *
      * @throws FoodDomainException
      */
     private function assertRejectionCommentPresent(string $comment): void

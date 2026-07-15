@@ -28,6 +28,7 @@ class AdminDishApiTest extends TestCase
     use ResetsFoodDomainTables;
     use ResolvesDishImageUrl;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -36,6 +37,7 @@ class AdminDishApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Админские эндпоинты блюд возвращают 401 без токена. */
     public function test_admin_dishes_endpoints_return_unauthorized_without_token(): void
     {
         $this->getJson('/api/food/admin/dishes')
@@ -43,6 +45,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('message', 'Unauthenticated.');
     }
 
+    /** Админские эндпоинты блюд возвращают 403 без роли менеджера меню. */
     public function test_admin_dishes_endpoints_return_forbidden_without_menu_manager_role(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -52,6 +55,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Менеджер меню может отправить тестовое сообщение бота. */
     public function test_menu_manager_can_send_test_bot_message(): void
     {
         config([
@@ -81,6 +85,7 @@ class AdminDishApiTest extends TestCase
         });
     }
 
+    /** Эндпоинт теста бота возвращает 403 без роли менеджера меню. */
     public function test_test_bot_endpoint_returns_forbidden_without_menu_manager_role(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -90,6 +95,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Эндпоинт теста бота возвращает 503, если получатели не заданы. */
     public function test_test_bot_endpoint_returns_service_unavailable_when_recipients_missing(): void
     {
         config([
@@ -106,6 +112,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('message', 'Получатели не настроены. Укажите MAX_REPORT_CHAT_IDS или MAX_REPORT_USER_IDS в .env.');
     }
 
+    /** Менеджер меню может получить список категорий меню. */
     public function test_menu_manager_can_list_menu_categories(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -118,6 +125,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('categories.0.restaurant_name', $fixture['restaurant']->name);
     }
 
+    /** Менеджер меню может фильтровать блюда по ресторану и категории. */
     public function test_menu_manager_can_filter_dishes_by_restaurant_and_category_id(): void
     {
         $first = FoodTestDataBuilder::createRestaurantWithDish('Sushi Bar', 'Miso Soup');
@@ -138,6 +146,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('dishes.0.restaurant_id', $first['restaurant']->id);
     }
 
+    /** Менеджер меню может фильтровать блюда по имени. */
     public function test_menu_manager_can_filter_dishes_by_name(): void
     {
         FoodTestDataBuilder::createRestaurantWithDish('Sushi Bar', 'Miso Soup');
@@ -157,6 +166,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('dishes.0.name', 'Miso Soup');
     }
 
+    /** CRUD блюд менеджером меню проходит по успешному сценарию. */
     public function test_menu_manager_crud_happy_path(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'Original Dish');
@@ -212,6 +222,7 @@ class AdminDishApiTest extends TestCase
         $this->assertSoftDeleted('max_dishes', ['id' => $dishId]);
     }
 
+    /** Менеджер меню может обновить ставку НДС и сбросить её до exempt. */
     public function test_menu_manager_can_update_vat_rate_and_clear_to_exempt(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'Vat Dish');
@@ -235,6 +246,7 @@ class AdminDishApiTest extends TestCase
         $this->assertNull(Dish::query()->findOrFail($dishId)->vat_rate);
     }
 
+    /** Удалённое блюдо скрыто из админ-списка и клиентского меню. */
     public function test_deleted_dish_is_hidden_from_admin_list_and_client_menu(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'To Remove');
@@ -254,6 +266,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonCount(0, 'menu.categories');
     }
 
+    /** Store отклоняет недопустимое расширение файла. */
     public function test_store_rejects_disallowed_extension(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -267,6 +280,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonValidationErrors(['photo']);
     }
 
+    /** Store отклоняет поддельный MIME типа. */
     public function test_store_rejects_fake_mime(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -282,6 +296,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonValidationErrors(['photo']);
     }
 
+    /** Store отклоняет фото больше 25 МБ. */
     public function test_store_rejects_photo_larger_than_25_megabytes(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -302,6 +317,7 @@ class AdminDishApiTest extends TestCase
         );
     }
 
+    /** Store отклоняет изображение с шириной ниже минимума. */
     public function test_store_rejects_image_with_width_below_minimum(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -322,6 +338,7 @@ class AdminDishApiTest extends TestCase
         );
     }
 
+    /** Store отклоняет изображение с высотой ниже минимума. */
     public function test_store_rejects_image_with_height_below_minimum(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -342,6 +359,7 @@ class AdminDishApiTest extends TestCase
         );
     }
 
+    /** Store отклоняет несуществующую категорию меню. */
     public function test_store_rejects_nonexistent_menu_category(): void
     {
         $auth = $this->menuManagerAuth();
@@ -353,6 +371,7 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('message', 'Категория меню не найдена.');
     }
 
+    /** Store отклоняет дробный вес. */
     public function test_store_rejects_fractional_weight(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -373,6 +392,7 @@ class AdminDishApiTest extends TestCase
         );
     }
 
+    /** Delete мягко удаляет блюдо и сохраняет файл изображения. */
     public function test_delete_soft_deletes_dish_and_preserves_image_file(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -397,6 +417,7 @@ class AdminDishApiTest extends TestCase
             ->assertOk();
     }
 
+    /** Update без фото сохраняет существующий URL изображения. */
     public function test_update_without_photo_preserves_existing_image_url(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -422,6 +443,7 @@ class AdminDishApiTest extends TestCase
         Storage::disk('public')->assertExists($originalImagePath);
     }
 
+    /** Update с фото меняет версию публичного URL изображения. */
     public function test_update_with_photo_changes_public_image_url_version(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();

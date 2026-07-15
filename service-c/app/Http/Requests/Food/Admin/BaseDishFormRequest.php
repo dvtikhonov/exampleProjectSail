@@ -22,17 +22,25 @@ use Illuminate\Validation\Rules\Enum;
  */
 abstract class BaseDishFormRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Всегда ожидает JSON-ответ.
+     */
     public function wantsJson(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации атрибутов блюда.
+     *
      * @return array<string, array<int, Enum|string|MinImageDimensions|ValidDishPhotoMime>>
      */
     protected function dishAttributeRules(bool $sometimes = false): array
@@ -52,6 +60,8 @@ abstract class BaseDishFormRequest extends FormRequest
     }
 
     /**
+     * Правила валидации файла фотографии блюда.
+     *
      * @return array<int, string|ValidDishPhotoMime|MinImageDimensions>
      */
     protected function photoRules(bool $required): array
@@ -69,6 +79,8 @@ abstract class BaseDishFormRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации формы блюда.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -85,6 +97,8 @@ abstract class BaseDishFormRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов формы блюда.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -102,6 +116,9 @@ abstract class BaseDishFormRequest extends FormRequest
         ];
     }
 
+    /**
+     * Собирает DTO создания блюда из валидированных данных.
+     */
     public function toCreateDto(): CreateDishDto
     {
         return new CreateDishDto(
@@ -116,6 +133,9 @@ abstract class BaseDishFormRequest extends FormRequest
         );
     }
 
+    /**
+     * Собирает DTO обновления блюда из валидированных данных.
+     */
     public function toUpdateDto(): UpdateDishDto
     {
         return new UpdateDishDto(
@@ -130,6 +150,9 @@ abstract class BaseDishFormRequest extends FormRequest
         );
     }
 
+    /**
+     * Собирает DTO обновления, подставляя отсутствующие поля из текущего блюда.
+     */
     public function toUpdateDtoFromExisting(AdminDishDto $existing): UpdateDishDto
     {
         $validated = $this->validated();
@@ -162,6 +185,9 @@ abstract class BaseDishFormRequest extends FormRequest
         );
     }
 
+    /**
+     * Возвращает загруженный файл фотографии (обязательный).
+     */
     public function photo(): UploadedFile
     {
         /** @var UploadedFile $photo */
@@ -170,6 +196,9 @@ abstract class BaseDishFormRequest extends FormRequest
         return $photo;
     }
 
+    /**
+     * Возвращает загруженный файл фотографии или null.
+     */
     public function photoOrNull(): ?UploadedFile
     {
         $photo = $this->file('photo');
@@ -177,6 +206,9 @@ abstract class BaseDishFormRequest extends FormRequest
         return $photo instanceof UploadedFile ? $photo : null;
     }
 
+    /**
+     * Возвращает обрезанную строку поля или null, если пусто.
+     */
     private function nullableTrimmedString(string $key): ?string
     {
         if (! $this->has($key)) {
@@ -188,16 +220,25 @@ abstract class BaseDishFormRequest extends FormRequest
         return $value === '' ? null : $value;
     }
 
+    /**
+     * Нормализует вес к строковому целому числу.
+     */
     private function formatWeight(mixed $value): string
     {
         return (string) (int) $value;
     }
 
+    /**
+     * Нормализует цену к строке с двумя знаками после запятой.
+     */
     private function formatPrice(mixed $value): string
     {
         return number_format((float) $value, 2, '.', '');
     }
 
+    /**
+     * Преобразует ставку НДС в enum (пустое значение — без НДС).
+     */
     private function parseVatRate(mixed $value): DishVatRate
     {
         if ($value === null || $value === '') {

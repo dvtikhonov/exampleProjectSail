@@ -28,6 +28,8 @@ class AdminOrderQueryService
     ) {}
 
     /**
+     * Возвращает строковые значения активных ролей администратора.
+     *
      * @return list<string>
      */
     public function activeRoleValues(MaxUser $admin): array
@@ -39,6 +41,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Возвращает список заказов для админского API по scope и статусу.
+     *
      * @return list<AdminOrderListItemDto>
      *
      * @throws FoodDomainException
@@ -61,6 +65,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Возвращает детальные данные заказа для админского API.
+     *
      * @throws FoodDomainException
      */
     public function detail(MaxUser $admin, int $orderId, string $scope): AdminOrderDetailDto
@@ -77,6 +83,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Строит детальный DTO заказа по модели (с перезагрузкой).
+     *
      * @throws FoodDomainException
      */
     public function detailFromModel(FoodOrder $order): AdminOrderDetailDto
@@ -91,6 +99,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Проверяет доступ администратора к указанному scope проверки.
+     *
      * @throws FoodDomainException
      */
     private function assertScopeAccess(MaxUser $admin, string $scope): void
@@ -103,6 +113,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Преобразует коллекцию заказов в список DTO для админского списка.
+     *
      * @param  list<FoodOrder>  $orders
      * @return list<AdminOrderListItemDto>
      */
@@ -131,6 +143,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Сопоставляет scope проверки с ролью администратора.
+     *
      * @throws FoodDomainException
      */
     private function resolveScopeRole(string $scope): FoodOrderAdminRole
@@ -143,6 +157,8 @@ class AdminOrderQueryService
     }
 
     /**
+     * Преобразует заказ в DTO элемента админского списка.
+     *
      * @param  array{last_message_at: ?string, unread_count: int}  $chatStats
      */
     private function mapListItem(FoodOrder $order, array $chatStats): AdminOrderListItemDto
@@ -169,6 +185,9 @@ class AdminOrderQueryService
         );
     }
 
+    /**
+     * Преобразует заказ в детальный админский DTO.
+     */
     private function mapDetail(FoodOrder $order): AdminOrderDetailDto
     {
         return new AdminOrderDetailDto(
@@ -201,6 +220,9 @@ class AdminOrderQueryService
         );
     }
 
+    /**
+     * Форматирует денежную сумму.
+     */
     private function formatMoney(mixed $value): string
     {
         return $this->moneyFormatter->format((float) $value);

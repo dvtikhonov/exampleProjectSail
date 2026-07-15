@@ -19,6 +19,8 @@ class OrderReviewUpdateFactory
     ) {}
 
     /**
+     * Собирает атрибуты обновления при одобрении шага проверки.
+     *
      * @return array<string, mixed>
      */
     public function buildApprovalUpdate(
@@ -37,6 +39,8 @@ class OrderReviewUpdateFactory
     }
 
     /**
+     * Собирает атрибуты обновления при отклонении шага проверки.
+     *
      * @return array<string, mixed>
      */
     public function buildRejectionUpdate(
@@ -56,6 +60,9 @@ class OrderReviewUpdateFactory
         ];
     }
 
+    /**
+     * Определяет итоговый статус заказа после проверки.
+     */
     private function resolveOrderStatus(
         OrderReviewStep $step,
         FoodOrder $order,

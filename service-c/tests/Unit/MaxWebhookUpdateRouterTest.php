@@ -14,6 +14,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
 {
     private const TOKEN = 'secret-max-token-for-webhook-router-tests';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -31,6 +32,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
         ]);
     }
 
+    /** bot_started шлёт приветствие только пользователю события. */
     public function test_bot_started_sends_greeting_only_to_event_user(): void
     {
         $captured = [];
@@ -63,6 +65,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
         $this->assertSame([777], $registry->userIds());
     }
 
+    /** message_callback регистрирует group chat_id для UI-стенда. */
     public function test_message_callback_registers_group_chat_id_for_ui_stand_test(): void
     {
         Http::fake([

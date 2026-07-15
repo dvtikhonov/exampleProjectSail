@@ -22,6 +22,9 @@ final class MaxUiStandRecipientRegistry
         private readonly CacheRepository $cache,
     ) {}
 
+    /**
+     * Запоминает chat_id из webhook для последующих тестовых рассылок.
+     */
     public function rememberChatId(int $chatId): void
     {
         if ($chatId === 0) {
@@ -33,6 +36,9 @@ final class MaxUiStandRecipientRegistry
         $this->write($recipients);
     }
 
+    /**
+     * Запоминает user_id из webhook для последующих тестовых рассылок.
+     */
     public function rememberUserId(int $userId): void
     {
         if ($userId === 0) {
@@ -45,6 +51,8 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
+     * Известные chat_id получателей UI Stand.
+     *
      * @return list<int>
      */
     public function chatIds(): array
@@ -53,6 +61,8 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
+     * Известные user_id получателей UI Stand.
+     *
      * @return list<int>
      */
     public function userIds(): array
@@ -61,6 +71,8 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
+     * Читает реестр получателей UI-стенда.
+     *
      * @return array{chat_ids: list<int>, user_ids: list<int>}
      */
     private function read(): array
@@ -81,6 +93,8 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
+     * Записывает реестр получателей UI-стенда.
+     *
      * @param  array{chat_ids: list<int>, user_ids: list<int>}  $recipients
      */
     private function write(array $recipients): void
@@ -92,6 +106,8 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
+     * Добавляет id в начало списка без дубликатов.
+     *
      * @param  list<int>  $ids
      * @return list<int>
      */
@@ -108,6 +124,8 @@ final class MaxUiStandRecipientRegistry
     }
 
     /**
+     * Нормализует идентификаторы в реестре получателей.
+     *
      * @return list<int>
      */
     private function normalizeIds(mixed $ids): array

@@ -64,6 +64,8 @@ class DishImageUploadService implements DishImageUploadInterface
     }
 
     /**
+     * Проверяет файл загрузки изображения блюда.
+     *
      * @throws FoodDomainException
      */
     private function assertValidUpload(UploadedFile $file): void
@@ -74,6 +76,8 @@ class DishImageUploadService implements DishImageUploadInterface
     }
 
     /**
+     * Проверяет допустимое расширение файла изображения.
+     *
      * @throws FoodDomainException
      */
     private function assertAllowedExtension(UploadedFile $file): void
@@ -86,6 +90,8 @@ class DishImageUploadService implements DishImageUploadInterface
     }
 
     /**
+     * Проверяет, что размер файла не превышает лимит.
+     *
      * @throws FoodDomainException
      */
     private function assertMaxSize(UploadedFile $file): void
@@ -96,6 +102,8 @@ class DishImageUploadService implements DishImageUploadInterface
     }
 
     /**
+     * Проверяет MIME-тип загружаемого изображения.
+     *
      * @throws FoodDomainException
      */
     private function assertAllowedMime(UploadedFile $file): void
@@ -114,6 +122,8 @@ class DishImageUploadService implements DishImageUploadInterface
     }
 
     /**
+     * Проверяет минимальные размеры изображения.
+     *
      * @throws FoodDomainException
      */
     private function assertMinDimensions(UploadedFile $file): void

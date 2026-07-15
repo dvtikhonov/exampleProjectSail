@@ -21,6 +21,7 @@ class FoodOrderCustomerNotifierTest extends TestCase
 {
     private FoodOrderMaxMessageBuilder $messageBuilder;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -28,6 +29,7 @@ class FoodOrderCustomerNotifierTest extends TestCase
         $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
+    /** Собирает сообщение клиенту об отправке заказа. */
     public function test_build_customer_submitted_message(): void
     {
         $order = $this->makeOrder(id: 11);
@@ -40,6 +42,7 @@ class FoodOrderCustomerNotifierTest extends TestCase
         );
     }
 
+    /** Собирает сообщение клиенту о подтверждении заказа. */
     public function test_build_customer_confirmed_message(): void
     {
         $order = $this->makeOrder(id: 15);
@@ -49,6 +52,7 @@ class FoodOrderCustomerNotifierTest extends TestCase
         $this->assertSame('Заявка №15 принята к исполнению', $text);
     }
 
+    /** Собирает сообщение клиенту об отклонении по адресу. */
     public function test_build_customer_rejected_message_for_address(): void
     {
         $order = $this->makeOrder(
@@ -68,6 +72,7 @@ TEXT,
         );
     }
 
+    /** Собирает сообщение клиенту об отклонении по составу. */
     public function test_build_customer_rejected_message_for_composition(): void
     {
         $order = $this->makeOrder(
@@ -87,6 +92,7 @@ TEXT,
         );
     }
 
+    /** notifySubmitted отправляет сообщение клиенту заказа. */
     public function test_notify_submitted_sends_message_to_order_customer(): void
     {
         $sentMessage = null;
@@ -116,6 +122,7 @@ TEXT,
         );
     }
 
+    /** notifyConfirmed отправляет сообщение клиенту заказа. */
     public function test_notify_confirmed_sends_message_to_order_customer(): void
     {
         $sentMessage = null;
@@ -142,6 +149,7 @@ TEXT,
         $this->assertSame('Заявка №42 принята к исполнению', $sentMessage->text);
     }
 
+    /** notifyRejected отправляет сообщение со scope и комментарием. */
     public function test_notify_rejected_sends_message_with_scope_and_comment(): void
     {
         $sentMessage = null;
@@ -173,6 +181,7 @@ TEXT,
         $this->assertStringContainsString('Причина: Нет ингредиентов', $sentMessage->text);
     }
 
+    /** Логирует предупреждение, когда отправка не удалась. */
     public function test_notify_logs_warning_when_send_fails(): void
     {
         $captured = [];
@@ -203,6 +212,7 @@ TEXT,
         $this->assertSame('User blocked bot', $log->context['error']);
     }
 
+    /** Создаёт тестовый заказ. */
     private function makeOrder(
         int $id,
         int $maxUserId = 1000,

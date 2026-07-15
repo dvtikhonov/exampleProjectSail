@@ -12,6 +12,9 @@ use App\Models\FoodOrder;
  */
 interface FoodOrderAdminReadRepositoryInterface
 {
+    /**
+     * Находит заказ по идентификатору.
+     */
     public function findById(int $id): ?FoodOrder;
 
     /**

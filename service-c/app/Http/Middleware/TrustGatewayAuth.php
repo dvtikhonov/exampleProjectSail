@@ -20,6 +20,8 @@ class TrustGatewayAuth
     ) {}
 
     /**
+     * Проверяет доверие к аутентификации через gateway.
+     *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response

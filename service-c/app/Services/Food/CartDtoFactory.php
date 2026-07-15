@@ -88,6 +88,9 @@ class CartDtoFactory
         );
     }
 
+    /**
+     * Форматирует вес блюда для отображения в DTO.
+     */
     private function formatWeight(mixed $weight): string
     {
         return (string) (int) round((float) $weight);

@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class MaxWebhookSubscribeCommandTest extends TestCase
 {
+    /** Команда регистрирует подписку через subscriber. */
     public function test_command_registers_subscription_via_subscriber(): void
     {
         config(['max.webhook.url' => '']);
@@ -33,6 +34,7 @@ class MaxWebhookSubscribeCommandTest extends TestCase
         );
     }
 
+    /** Команда возвращает ошибку, если subscriber выбросил исключение. */
     public function test_command_returns_failure_when_subscriber_throws(): void
     {
         config(['max.webhook.url' => '']);

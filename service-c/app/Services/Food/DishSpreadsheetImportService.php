@@ -23,6 +23,8 @@ class DishSpreadsheetImportService
     ) {}
 
     /**
+     * Импортирует блюда из spreadsheet-файла.
+     *
      * @throws FoodDomainException
      */
     public function import(UploadedFile $file, int $menuCategoryId): DishImportResultDto
@@ -73,6 +75,9 @@ class DishSpreadsheetImportService
         return new DishImportResultDto($importedCount, $errors);
     }
 
+    /**
+     * Проверяет, является ли строка таблицы пустой.
+     */
     private function isEmptyRow(mixed $nameCell, mixed $priceCell): bool
     {
         return trim((string) $nameCell) === '' && trim((string) $priceCell) === '';

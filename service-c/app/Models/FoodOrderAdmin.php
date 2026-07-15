@@ -22,6 +22,8 @@ class FoodOrderAdmin extends Model
     protected $table = 'max_food_order_admins';
 
     /**
+     * Возвращает приведения атрибутов модели.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -34,6 +36,8 @@ class FoodOrderAdmin extends Model
     }
 
     /**
+     * Связь с пользователем MAX.
+     *
      * @return BelongsTo<MaxUser, $this>
      */
     public function maxUser(): BelongsTo

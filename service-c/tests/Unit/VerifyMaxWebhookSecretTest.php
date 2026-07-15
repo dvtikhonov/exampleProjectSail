@@ -11,6 +11,7 @@ class VerifyMaxWebhookSecretTest extends TestCase
 {
     private const SECRET = 'test-webhook-secret';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -18,6 +19,7 @@ class VerifyMaxWebhookSecretTest extends TestCase
         config(['max.webhook.secret' => self::SECRET]);
     }
 
+    /** Возвращает 401, если заголовок секрета неверный. */
     public function test_returns_unauthorized_when_secret_header_is_wrong(): void
     {
         $middleware = new VerifyMaxWebhookSecret;
@@ -30,6 +32,7 @@ class VerifyMaxWebhookSecretTest extends TestCase
         $this->assertSame('', $response->getContent());
     }
 
+    /** Возвращает 401, если заголовок секрета отсутствует. */
     public function test_returns_unauthorized_when_secret_header_is_missing(): void
     {
         $middleware = new VerifyMaxWebhookSecret;
@@ -40,6 +43,7 @@ class VerifyMaxWebhookSecretTest extends TestCase
         $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
     }
 
+    /** Возвращает 401, если настроенный секрет пуст. */
     public function test_returns_unauthorized_when_configured_secret_is_empty(): void
     {
         config(['max.webhook.secret' => '']);
@@ -53,6 +57,7 @@ class VerifyMaxWebhookSecretTest extends TestCase
         $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
     }
 
+    /** Пропускает запрос, когда секрет совпадает. */
     public function test_passes_request_when_secret_matches(): void
     {
         $middleware = new VerifyMaxWebhookSecret;

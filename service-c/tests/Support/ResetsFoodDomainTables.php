@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 
 trait ResetsFoodDomainTables
 {
+    /** Очищает таблицы домена еды перед тестом. */
     protected function resetFoodDomainTables(): void
     {
         FoodOrder::query()->delete();

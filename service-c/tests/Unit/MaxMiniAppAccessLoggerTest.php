@@ -13,6 +13,7 @@ use Tests\TestCase;
 
 class MaxMiniAppAccessLoggerTest extends TestCase
 {
+    /** logPageRequest пишет в канал mess_max. */
     public function test_log_page_request_writes_to_mess_max_channel(): void
     {
         $captured = [];
@@ -40,6 +41,7 @@ class MaxMiniAppAccessLoggerTest extends TestCase
         $this->assertArrayNotHasKey('init_data_length', $log->context);
     }
 
+    /** logAuthRequest пишет статус без initData. */
     public function test_log_auth_request_writes_status_without_init_data(): void
     {
         $captured = [];

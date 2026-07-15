@@ -83,6 +83,8 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
     }
 
     /**
+     * Отправляет тестовое сообщение бота списку получателей.
+     *
      * @param  int[]  $chatIds
      * @param  int[]  $userIds
      */
@@ -136,6 +138,8 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
     }
 
     /**
+     * Пытается отправить сообщение одному получателю и возвращает успех.
+     *
      * @return string|null Текст ошибки или null при успешной отправке
      */
     private function trySendMessage(string $text, ?int $chatId = null, ?int $userId = null): ?string
@@ -173,6 +177,9 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         return null;
     }
 
+    /**
+     * Форматирует текст ошибки отправки для получателя.
+     */
     private function formatRecipientError(string $message, ?int $chatId, ?int $userId): string
     {
         if ($chatId !== null) {

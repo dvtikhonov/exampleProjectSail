@@ -113,6 +113,9 @@ class AdminMenuCategoryController extends Controller
         ], $status);
     }
 
+    /**
+     * Опциональный положительный int из query-параметра.
+     */
     private function optionalPositiveIntQuery(Request $request, string $key): ?int
     {
         $value = $request->query($key);

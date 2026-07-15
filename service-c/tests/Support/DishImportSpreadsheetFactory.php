@@ -32,11 +32,13 @@ class DishImportSpreadsheetFactory
         );
     }
 
+    /** Возвращает валидный образец spreadsheet. */
     public static function validSample(): UploadedFile
     {
         return self::fromFixture('dishes-import-valid.xls');
     }
 
+    /** Возвращает невалидный образец spreadsheet. */
     public static function invalidSample(): UploadedFile
     {
         return self::fromFixture('dishes-import-invalid.xls');
@@ -68,6 +70,7 @@ class DishImportSpreadsheetFactory
         return $path;
     }
 
+    /** Создаёт spreadsheet из фикстуры. */
     private static function fromFixture(string $filename): UploadedFile
     {
         $sourcePath = base_path(self::FIXTURES_DIR.'/'.$filename);

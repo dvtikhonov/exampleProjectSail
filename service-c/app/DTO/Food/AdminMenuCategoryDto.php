@@ -20,6 +20,8 @@ readonly class AdminMenuCategoryDto
     ) {}
 
     /**
+     * Преобразует админский DTO категории меню в массив.
+     *
      * @return array<string, int|string|bool>
      */
     public function toArray(): array

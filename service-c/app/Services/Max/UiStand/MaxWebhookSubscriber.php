@@ -274,6 +274,9 @@ class MaxWebhookSubscriber
         );
     }
 
+    /**
+     * Проверяет, является ли URL удаляемым dev-туннелем.
+     */
     private function isRemovableDevTunnelUrl(string $url): bool
     {
         $host = parse_url($url, PHP_URL_HOST);
@@ -294,6 +297,8 @@ class MaxWebhookSubscriber
     }
 
     /**
+     * Возвращает суффиксы хостов удаляемых dev-туннелей.
+     *
      * @return list<string>
      */
     private function removableDevTunnelHostSuffixes(): array
@@ -310,6 +315,9 @@ class MaxWebhookSubscriber
         )));
     }
 
+    /**
+     * Возвращает access-токен бота MAX.
+     */
     private function botAccessToken(): string
     {
         $token = (string) $this->config->get('max.bot_access_token', '');
@@ -321,6 +329,9 @@ class MaxWebhookSubscriber
         return $token;
     }
 
+    /**
+     * Возвращает HTTP-клиент для запросов к API MAX.
+     */
     private function httpClient(string $token): PendingRequest
     {
         return Http::baseUrl(self::BASE_URL)
@@ -331,6 +342,9 @@ class MaxWebhookSubscriber
             ->asJson();
     }
 
+    /**
+     * Форматирует ошибку probe-запроса webhook.
+     */
     private function formatProbeError(int $status, string $body): string
     {
         if ($status === 530 && str_contains($body, '1033')) {
@@ -341,6 +355,9 @@ class MaxWebhookSubscriber
         return $body;
     }
 
+    /**
+     * Возвращает безопасное сообщение об ошибке по HTTP-статусу.
+     */
     private function safeErrorMessageForStatus(int $status): string
     {
         return match ($status) {

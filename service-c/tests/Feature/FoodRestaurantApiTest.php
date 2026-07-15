@@ -21,6 +21,7 @@ class FoodRestaurantApiTest extends TestCase
     use ResetsFoodDomainTables;
     use ResolvesDishImageUrl;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -28,12 +29,14 @@ class FoodRestaurantApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Эндпоинт ресторанов требует аутентификацию. */
     public function test_restaurants_endpoint_requires_authentication(): void
     {
         $this->getJson('/api/food/restaurants')
             ->assertUnauthorized();
     }
 
+    /** Эндпоинт ресторанов возвращает только активные рестораны. */
     public function test_restaurants_endpoint_returns_only_active_restaurants(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -50,6 +53,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonPath('restaurants.0.name', 'Active Place');
     }
 
+    /** Эндпоинт меню возвращает категории и блюда. */
     public function test_menu_endpoint_returns_categories_and_dishes(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -71,6 +75,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonPath('menu.categories.0.dishes.0.image_url', $this->expectedDishImageUrlForModel($fixture['dish']));
     }
 
+    /** Эндпоинт меню возвращает 404 для неактивного ресторана. */
     public function test_menu_endpoint_returns_not_found_for_inactive_restaurant(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -81,6 +86,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonPath('message', 'Restaurant not found.');
     }
 
+    /** Эндпоинт меню возвращает 404 для неизвестного ресторана. */
     public function test_menu_endpoint_returns_not_found_for_unknown_restaurant(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -89,6 +95,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertNotFound();
     }
 
+    /** Эндпоинт меню исключает недоступные блюда. */
     public function test_menu_endpoint_excludes_unavailable_dishes(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -112,6 +119,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonMissing(['name' => 'Hidden Soup']);
     }
 
+    /** Эндпоинт меню скрывает категории без доступных блюд. */
     public function test_menu_endpoint_hides_categories_without_available_dishes(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -139,6 +147,7 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonCount(0, 'menu.categories');
     }
 
+    /** Эндпоинт меню сортирует категории по sort_order. */
     public function test_menu_endpoint_sorts_categories_by_sort_order(): void
     {
         $auth = $this->authenticateMaxUser();

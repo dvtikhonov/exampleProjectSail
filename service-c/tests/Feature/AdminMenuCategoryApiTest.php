@@ -20,6 +20,7 @@ class AdminMenuCategoryApiTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,6 +28,7 @@ class AdminMenuCategoryApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Эндпоинты категорий меню возвращают 401 без токена. */
     public function test_menu_category_endpoints_return_unauthorized_without_token(): void
     {
         $this->getJson('/api/food/admin/menu-categories')
@@ -34,6 +36,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('message', 'Unauthenticated.');
     }
 
+    /** Эндпоинты категорий меню возвращают 403 без роли менеджера меню. */
     public function test_menu_category_endpoints_return_forbidden_without_menu_manager_role(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -43,6 +46,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('message', 'Forbidden.');
     }
 
+    /** Менеджер меню может получить список категорий меню. */
     public function test_menu_manager_can_list_menu_categories(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -63,6 +67,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('categories.0.dishes_count', 1);
     }
 
+    /** Менеджер меню может фильтровать категории по restaurant_id. */
     public function test_menu_manager_can_filter_categories_by_restaurant_id(): void
     {
         $first = FoodTestDataBuilder::createRestaurantWithDish('First', 'Soup');
@@ -79,6 +84,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('categories.0.id', $first['category']->id);
     }
 
+    /** Менеджер меню может создать категорию меню. */
     public function test_menu_manager_can_create_menu_category(): void
     {
         $restaurant = Restaurant::factory()->create();
@@ -103,6 +109,7 @@ class AdminMenuCategoryApiTest extends TestCase
         ]);
     }
 
+    /** Менеджер меню может показать категорию меню. */
     public function test_menu_manager_can_show_menu_category(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -114,6 +121,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('category.name', 'Main');
     }
 
+    /** Менеджер меню может обновить категорию меню. */
     public function test_menu_manager_can_update_menu_category(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -138,6 +146,7 @@ class AdminMenuCategoryApiTest extends TestCase
         ]);
     }
 
+    /** Store отклоняет несуществующий ресторан. */
     public function test_store_rejects_nonexistent_restaurant(): void
     {
         $auth = $this->menuManagerAuth();
@@ -150,6 +159,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('message', 'Ресторан не найден.');
     }
 
+    /** Delete отклоняет категорию, у которой есть блюда. */
     public function test_delete_rejects_category_with_dishes(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -160,6 +170,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('message', 'Нельзя удалить категорию: в ней есть блюда.');
     }
 
+    /** Менеджер меню может удалить пустую категорию меню. */
     public function test_menu_manager_can_delete_empty_menu_category(): void
     {
         $restaurant = Restaurant::factory()->create();
@@ -176,6 +187,7 @@ class AdminMenuCategoryApiTest extends TestCase
         ]);
     }
 
+    /** Update отклоняет смену ресторана, если у категории есть блюда. */
     public function test_update_rejects_restaurant_change_when_category_has_dishes(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -192,6 +204,7 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('message', 'Нельзя сменить ресторан: в категории есть блюда.');
     }
 
+    /** Эндпоинт меню включает флаг доступности комбо. */
     public function test_menu_endpoint_includes_combo_availability_flag(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();

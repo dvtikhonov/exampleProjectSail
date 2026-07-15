@@ -12,12 +12,17 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class UpdateMenuCategoryRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации обновления категории меню.
+     *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
@@ -31,6 +36,8 @@ class UpdateMenuCategoryRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации категории.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -42,6 +49,8 @@ class UpdateMenuCategoryRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -54,6 +63,9 @@ class UpdateMenuCategoryRequest extends FormRequest
         ];
     }
 
+    /**
+     * Собирает DTO обновления категории меню.
+     */
     public function toUpdateDto(): UpdateMenuCategoryDto
     {
         $validated = $this->validated();

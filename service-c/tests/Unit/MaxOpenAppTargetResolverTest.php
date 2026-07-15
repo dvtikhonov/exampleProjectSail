@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class MaxOpenAppTargetResolverTest extends TestCase
 {
+    /** resolveWebApp предпочитает явный URL mini-app. */
     public function test_resolve_web_app_prefers_explicit_mini_app_url(): void
     {
         config([
@@ -21,6 +22,7 @@ class MaxOpenAppTargetResolverTest extends TestCase
         $this->assertSame('https://explicit.test/max-app', $resolver->resolveWebApp());
     }
 
+    /** resolveWebApp выводит URL из webhook URL. */
     public function test_resolve_web_app_derives_from_webhook_url(): void
     {
         config([
@@ -36,6 +38,7 @@ class MaxOpenAppTargetResolverTest extends TestCase
         );
     }
 
+    /** resolveContactId возвращает null, если не настроено. */
     public function test_resolve_contact_id_returns_null_when_not_configured(): void
     {
         config(['max.bot_user_id' => 0]);

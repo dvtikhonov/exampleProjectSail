@@ -13,6 +13,7 @@ class MaxCallbackHandlerTest extends TestCase
 {
     private const TOKEN = 'secret-max-token-for-callback-tests';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,6 +28,7 @@ class MaxCallbackHandlerTest extends TestCase
         ]);
     }
 
+    /** Payload «да» логирует da и отвечает на callback. */
     public function test_yes_payload_logs_da_and_answers_callback(): void
     {
         $captured = [];
@@ -62,6 +64,7 @@ class MaxCallbackHandlerTest extends TestCase
         });
     }
 
+    /** Payload «нет» логирует net и отвечает на callback. */
     public function test_no_payload_logs_net_and_answers_callback(): void
     {
         $captured = [];

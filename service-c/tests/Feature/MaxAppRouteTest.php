@@ -14,6 +14,7 @@ use Tests\TestCase;
 
 class MaxAppRouteTest extends TestCase
 {
+    /** MAX app возвращает HTML Content-Type на хосте fxtun. */
     public function test_max_app_returns_html_content_type_on_fxtun_host(): void
     {
         $captured = [];
@@ -38,6 +39,7 @@ class MaxAppRouteTest extends TestCase
         $this->assertTrue($log->context['is_tunnel']);
     }
 
+    /** MAX app сохраняет HTML Content-Type на localhost. */
     public function test_max_app_keeps_html_content_type_on_localhost(): void
     {
         $response = $this->get('/max-app', [
@@ -48,6 +50,7 @@ class MaxAppRouteTest extends TestCase
         $this->assertStringContainsString('text/html', (string) $response->headers->get('Content-Type'));
     }
 
+    /** MAX app внедряет local-dev initData, когда это включено. */
     public function test_max_app_injects_local_dev_init_data_when_enabled(): void
     {
         Config::set('max.bot_access_token', 'route-test-bot-token');
@@ -72,6 +75,7 @@ class MaxAppRouteTest extends TestCase
         $response->assertSee('window.__MAX_DEV_INIT_DATA__', false);
     }
 
+    /** MAX app не внедряет local-dev initData, когда это выключено. */
     public function test_max_app_does_not_inject_local_dev_init_data_when_disabled(): void
     {
         config([

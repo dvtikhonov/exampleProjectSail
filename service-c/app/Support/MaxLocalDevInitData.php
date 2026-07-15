@@ -75,6 +75,8 @@ final class MaxLocalDevInitData
     }
 
     /**
+     * Определяет демо-профиль пользователя для локальной разработки.
+     *
      * @return array{first_name: string, last_name: string, username: string, language_code: string}|null
      */
     private static function resolveDemoUserProfile(int $userId): ?array

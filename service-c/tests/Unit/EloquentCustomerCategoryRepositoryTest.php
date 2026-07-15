@@ -14,6 +14,7 @@ class EloquentCustomerCategoryRepositoryTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -21,6 +22,7 @@ class EloquentCustomerCategoryRepositoryTest extends TestCase
         CustomerCategory::query()->forceDelete();
     }
 
+    /** findOrCreateDefaultCategoryId создаёт стандартную категорию. */
     public function test_find_or_create_default_category_id_creates_standard_category(): void
     {
         $repository = new EloquentCustomerCategoryRepository;
@@ -35,6 +37,7 @@ class EloquentCustomerCategoryRepositoryTest extends TestCase
         ]);
     }
 
+    /** findOrCreateDefaultCategoryId возвращает существующую стандартную категорию. */
     public function test_find_or_create_default_category_id_returns_existing_standard_category(): void
     {
         $repository = new EloquentCustomerCategoryRepository;

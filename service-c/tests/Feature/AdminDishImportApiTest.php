@@ -24,6 +24,7 @@ class AdminDishImportApiTest extends TestCase
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -32,6 +33,7 @@ class AdminDishImportApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Импорт создаёт новые блюда из spreadsheet. */
     public function test_import_creates_new_dishes_from_spreadsheet(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -70,6 +72,7 @@ class AdminDishImportApiTest extends TestCase
         ]);
     }
 
+    /** Импорт обновляет только цену, если имя блюда совпадает. */
     public function test_import_updates_only_price_when_dish_name_matches(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish(
@@ -114,6 +117,7 @@ class AdminDishImportApiTest extends TestCase
         Storage::disk('public')->assertExists('dishes/'.$existingDish->id.'/keep-me.jpg');
     }
 
+    /** Импорт создаёт новое блюдо, если имя отличается даже слегка. */
     public function test_import_creates_new_dish_when_name_differs_even_slightly(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish(

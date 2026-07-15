@@ -19,6 +19,8 @@ class DishSpreadsheetRowParser
     ) {}
 
     /**
+     * Разбирает строку таблицы импорта в DTO блюда.
+     *
      * @throws FoodDomainException
      */
     public function parse(mixed $nameCell, mixed $priceCell): ImportDishRowDto
@@ -47,6 +49,8 @@ class DishSpreadsheetRowParser
     }
 
     /**
+     * Разбирает цену из ячейки таблицы импорта.
+     *
      * @throws FoodDomainException
      */
     private function parsePrice(mixed $priceCell): float

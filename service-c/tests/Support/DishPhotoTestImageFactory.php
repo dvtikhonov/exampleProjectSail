@@ -14,11 +14,13 @@ final class DishPhotoTestImageFactory
 {
     private function __construct() {}
 
+    /** Создаёт тестовый JPEG UploadedFile. */
     public static function jpeg(int $width, int $height, string $filename = 'dish.jpg'): UploadedFile
     {
         return self::fromBinary(self::pngBinary($width, $height), $filename, 'image/jpeg');
     }
 
+    /** Создаёт тестовый PNG UploadedFile. */
     public static function png(int $width, int $height, string $filename = 'dish.png'): UploadedFile
     {
         return self::fromBinary(self::pngBinary($width, $height), $filename, 'image/png');
@@ -103,6 +105,7 @@ final class DishPhotoTestImageFactory
         return new UploadedFile($path, 'dish.gif', 'image/gif', null, true);
     }
 
+    /** Создаёт UploadedFile из бинарных данных. */
     private static function fromBinary(string $binary, string $filename, string $mime): UploadedFile
     {
         $path = tempnam(sys_get_temp_dir(), 'dish_photo_test_');
@@ -139,6 +142,7 @@ final class DishPhotoTestImageFactory
         return $signature.$ihdr.$idat.$iend;
     }
 
+    /** Возвращает минимальный PNG-чанк. */
     private static function pngChunk(string $type, string $data): string
     {
         return pack('N', strlen($data)).$type.$data.pack('N', crc32($type.$data) & 0xFFFFFFFF);

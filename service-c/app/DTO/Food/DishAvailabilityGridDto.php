@@ -22,6 +22,8 @@ readonly class DishAvailabilityGridDto
     ) {}
 
     /**
+     * Преобразует сетку доступности блюд в массив.
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array

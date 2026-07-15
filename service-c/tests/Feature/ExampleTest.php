@@ -10,6 +10,7 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Эндпоинт данных шлюза возвращает пользователя. */
     public function test_gateway_authenticated_data_endpoint_returns_user(): void
     {
         $user = User::factory()->create();

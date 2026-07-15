@@ -12,12 +12,17 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class StoreMenuCategoryRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации создания категории меню.
+     *
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
@@ -31,6 +36,8 @@ class StoreMenuCategoryRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации категории.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -42,6 +49,8 @@ class StoreMenuCategoryRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array
@@ -54,6 +63,9 @@ class StoreMenuCategoryRequest extends FormRequest
         ];
     }
 
+    /**
+     * Собирает DTO создания категории меню.
+     */
     public function toCreateDto(int $defaultSortOrder): CreateMenuCategoryDto
     {
         $validated = $this->validated();

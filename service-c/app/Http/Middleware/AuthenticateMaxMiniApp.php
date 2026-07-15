@@ -18,6 +18,8 @@ class AuthenticateMaxMiniApp
     private const TOKEN_ABILITY = 'max-miniapp';
 
     /**
+     * Аутентифицирует запрос MAX mini-app по Bearer-токену.
+     *
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
@@ -55,6 +57,9 @@ class AuthenticateMaxMiniApp
         return $next($request);
     }
 
+    /**
+     * Возвращает JSON-ответ об отсутствии аутентификации.
+     */
     private function unauthorized(): Response
     {
         return response()->json([

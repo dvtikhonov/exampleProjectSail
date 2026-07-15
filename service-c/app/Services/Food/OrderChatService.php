@@ -30,6 +30,8 @@ class OrderChatService implements OrderChatServiceInterface
     ) {}
 
     /**
+     * Возвращает сообщения чата заказа.
+     *
      * @return list<OrderMessageDto>
      *
      * @throws FoodDomainException
@@ -61,6 +63,8 @@ class OrderChatService implements OrderChatServiceInterface
     }
 
     /**
+     * Отправляет сообщение в чат заказа.
+     *
      * @throws FoodDomainException
      */
     public function sendMessage(MaxUser $actor, int $orderId, string $body): OrderMessageDto
@@ -81,6 +85,8 @@ class OrderChatService implements OrderChatServiceInterface
     }
 
     /**
+     * Находит заказ или выбрасывает доменное исключение.
+     *
      * @throws FoodDomainException
      */
     private function findOrderOrFail(int $orderId): FoodOrder
@@ -95,6 +101,8 @@ class OrderChatService implements OrderChatServiceInterface
     }
 
     /**
+     * Нормализует и валидирует текст сообщения чата.
+     *
      * @throws FoodDomainException
      */
     private function normalizeBody(string $body): string
@@ -115,6 +123,9 @@ class OrderChatService implements OrderChatServiceInterface
         return $normalized;
     }
 
+    /**
+     * Нормализует лимит выборки сообщений.
+     */
     private function normalizeLimit(int $limit): int
     {
         if ($limit < 1) {
@@ -124,6 +135,9 @@ class OrderChatService implements OrderChatServiceInterface
         return min($limit, 100);
     }
 
+    /**
+     * Преобразует модель сообщения в DTO.
+     */
     private function mapMessage(
         FoodOrderMessage $message,
         FoodOrder $order,

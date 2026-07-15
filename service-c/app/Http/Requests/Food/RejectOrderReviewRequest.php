@@ -11,12 +11,17 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class RejectOrderReviewRequest extends FormRequest
 {
+    /**
+     * Разрешает выполнение запроса.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Правила валидации комментария отклонения.
+     *
      * @return array<string, array<int, string>>
      */
     public function rules(): array
@@ -27,6 +32,8 @@ class RejectOrderReviewRequest extends FormRequest
     }
 
     /**
+     * Сообщения об ошибках валидации комментария.
+     *
      * @return array<string, string>
      */
     public function messages(): array
@@ -38,6 +45,8 @@ class RejectOrderReviewRequest extends FormRequest
     }
 
     /**
+     * Человекочитаемые имена атрибутов.
+     *
      * @return array<string, string>
      */
     public function attributes(): array

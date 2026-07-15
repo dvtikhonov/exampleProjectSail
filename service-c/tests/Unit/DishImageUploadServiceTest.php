@@ -16,6 +16,7 @@ class DishImageUploadServiceTest extends TestCase
 {
     private DishImageUploadService $service;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,6 +25,7 @@ class DishImageUploadServiceTest extends TestCase
         $this->service = new DishImageUploadService;
     }
 
+    /** Upload сохраняет валидный JPEG в путь dishes. */
     public function test_upload_stores_valid_jpeg_under_dishes_path(): void
     {
         $file = DishPhotoTestImageFactory::jpeg(800, 600);
@@ -35,6 +37,7 @@ class DishImageUploadServiceTest extends TestCase
         Storage::disk('public')->assertExists($path);
     }
 
+    /** Upload сохраняет валидный PNG с расширением png. */
     public function test_upload_stores_valid_png_with_png_extension(): void
     {
         $file = DishPhotoTestImageFactory::png(1920, 1080);
@@ -45,6 +48,7 @@ class DishImageUploadServiceTest extends TestCase
         Storage::disk('public')->assertExists($path);
     }
 
+    /** Upload отклоняет изображение с малыми размерами. */
     public function test_upload_rejects_small_dimensions(): void
     {
         $file = DishPhotoTestImageFactory::jpeg(799, 600);
@@ -55,6 +59,7 @@ class DishImageUploadServiceTest extends TestCase
         $this->service->upload(1, $file);
     }
 
+    /** Upload отклоняет недопустимое расширение. */
     public function test_upload_rejects_disallowed_extension(): void
     {
         $file = DishPhotoTestImageFactory::jpeg(800, 600, 'dish.gif');
@@ -64,6 +69,7 @@ class DishImageUploadServiceTest extends TestCase
         $this->service->upload(1, $file);
     }
 
+    /** Upload отклоняет поддельный MIME. */
     public function test_upload_rejects_fake_mime(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'fake_jpg_');
@@ -75,6 +81,7 @@ class DishImageUploadServiceTest extends TestCase
         $this->service->upload(1, $file);
     }
 
+    /** deleteIfExists удаляет файл с публичного диска. */
     public function test_delete_if_exists_removes_file_from_public_disk(): void
     {
         Storage::disk('public')->put('dishes/1/old.jpg', 'bytes');
@@ -84,6 +91,7 @@ class DishImageUploadServiceTest extends TestCase
         Storage::disk('public')->assertMissing('dishes/1/old.jpg');
     }
 
+    /** deleteIfExists игнорирует удалённые URL. */
     public function test_delete_if_exists_ignores_remote_urls(): void
     {
         $this->service->deleteIfExists('https://example.com/photo.jpg');
@@ -91,6 +99,7 @@ class DishImageUploadServiceTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    /** Проверяет константы разрешённых расширений фото блюда. */
     public function test_dish_photo_allowed_extensions_constants(): void
     {
         $this->assertSame(25600, DishPhotoAllowedExtensions::MAX_SIZE_KILOBYTES);

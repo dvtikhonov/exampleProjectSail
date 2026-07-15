@@ -10,6 +10,7 @@ use App\Models\MaxUser;
 
 trait AuthenticatesMaxMiniAppUser
 {
+    /** Аутентифицирует пользователя MAX мини-приложения. */
     protected function authenticateMaxUser(?MaxUser $maxUser = null): array
     {
         $maxUser ??= MaxUser::query()->create([

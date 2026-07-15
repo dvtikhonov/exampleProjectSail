@@ -24,6 +24,8 @@ readonly class OrderMessageDto
     ) {}
 
     /**
+     * Преобразует DTO сообщения заказа в массив.
+     *
      * @return array<string, int|string|array<string, int|string|null>>
      */
     public function toArray(): array

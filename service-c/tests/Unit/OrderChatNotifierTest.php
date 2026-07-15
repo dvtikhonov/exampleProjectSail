@@ -26,6 +26,7 @@ class OrderChatNotifierTest extends TestCase
 {
     private FoodOrderMaxMessageBuilder $messageBuilder;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,6 +34,7 @@ class OrderChatNotifierTest extends TestCase
         $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
+    /** Сборка уведомления чата форматирует отправителя и body. */
     public function test_build_order_chat_notification_formats_sender_and_body(): void
     {
         $order = $this->makeOrder(id: 42);
@@ -54,6 +56,7 @@ TEXT,
         );
     }
 
+    /** Сборка уведомления чата обрезает длинный body. */
     public function test_build_order_chat_notification_truncates_long_body(): void
     {
         $order = $this->makeOrder(id: 5);
@@ -73,6 +76,7 @@ TEXT,
         $this->assertStringEndsWith('…', $lines[1]);
     }
 
+    /** Open-app URL чата добавляет query-параметры. */
     public function test_build_order_chat_open_app_url_appends_query_params(): void
     {
         $url = $this->messageBuilder->buildOrderChatOpenAppUrl(
@@ -83,12 +87,14 @@ TEXT,
         $this->assertSame('https://example.test/max-app?order_id=42&view=chat', $url);
     }
 
+    /** Open-app URL чата возвращает null, если base отсутствует. */
     public function test_build_order_chat_open_app_url_returns_null_when_base_missing(): void
     {
         $this->assertNull($this->messageBuilder->buildOrderChatOpenAppUrl(42, null));
         $this->assertNull($this->messageBuilder->buildOrderChatOpenAppUrl(42, '   '));
     }
 
+    /** Сообщение клиента уходит всем активным админам с кнопкой open-app. */
     public function test_notify_customer_message_sends_to_all_active_admins_with_open_app_button(): void
     {
         Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
@@ -145,6 +151,7 @@ TEXT,
         $this->assertSame(421816864057, $first->buttonRows[0][0]->contactId);
     }
 
+    /** Сообщение админа уходит клиенту заказа. */
     public function test_notify_admin_message_sends_to_order_customer(): void
     {
         $this->disableOpenAppTarget();
@@ -185,6 +192,7 @@ TEXT,
         $this->assertStringContainsString('Админ: Принято, уточняем доставку', $sentMessage->text);
     }
 
+    /** Логирует предупреждение при ошибке отправки без исключения. */
     public function test_notify_logs_warning_when_send_fails_without_throwing(): void
     {
         $this->disableOpenAppTarget();
@@ -228,6 +236,7 @@ TEXT,
         $this->assertSame('User blocked bot', $log->context['error']);
     }
 
+    /** Логирует, если нет активных админов для сообщения клиента. */
     public function test_notify_customer_message_logs_when_no_active_admins(): void
     {
         $captured = [];
@@ -268,6 +277,7 @@ TEXT,
         $this->assertSame('customer', $log->context['author_type']);
     }
 
+    /** Отключает цель open-app для теста. */
     private function disableOpenAppTarget(): void
     {
         Config::set('max.ui_stand.mini_app_url', '');
@@ -276,6 +286,7 @@ TEXT,
         Config::set('max.bot_username', '');
     }
 
+    /** Создаёт тестовый заказ. */
     private function makeOrder(int $id, int $maxUserId = 1000): FoodOrder
     {
         $order = new FoodOrder([
@@ -286,6 +297,7 @@ TEXT,
         return $order;
     }
 
+    /** Создаёт DTO сообщения чата. */
     private function makeMessageDto(
         int $foodOrderId,
         string $body,

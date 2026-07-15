@@ -16,6 +16,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
 
     private MaxWebAppInitDataValidator $validator;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -28,6 +29,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->validator = new MaxWebAppInitDataValidator(config());
     }
 
+    /** Валидирует фиксированную фикстуру, когда проверка auth_date отключена. */
     public function test_validates_fixed_fixture_when_auth_date_check_is_disabled_for_fixture(): void
     {
         config(['max.miniapp.auth_date_max_age_seconds' => PHP_INT_MAX]);
@@ -49,6 +51,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->assertSame('4c0ab423-342b-4e45-aea4-2747dbc500cd', $dto->queryId);
     }
 
+    /** Валидирует свежие initData. */
     public function test_validates_fresh_init_data(): void
     {
         $fixture = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN);
@@ -59,6 +62,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->assertSame('Max', $dto->firstName);
     }
 
+    /** Отклоняет подделанный hash. */
     public function test_rejects_tampered_hash(): void
     {
         $fixture = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN);
@@ -70,6 +74,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->validator->validate($tampered);
     }
 
+    /** Отклоняет истёкший auth_date. */
     public function test_rejects_expired_auth_date(): void
     {
         $fixture = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN, [
@@ -82,6 +87,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->validator->validate($fixture);
     }
 
+    /** Отклоняет дублирующиеся ключи параметров. */
     public function test_rejects_duplicate_parameter_keys(): void
     {
         $fixture = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN).'&auth_date=1771409719';
@@ -92,6 +98,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->validator->validate($fixture);
     }
 
+    /** Отклоняет отсутствующий user payload. */
     public function test_rejects_missing_user_payload(): void
     {
         $fixture = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN, [
@@ -104,6 +111,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->validator->validate($fixture);
     }
 
+    /** Отклоняет, если токен бота не настроен. */
     public function test_rejects_when_bot_token_is_not_configured(): void
     {
         config(['max.bot_access_token' => '']);
@@ -116,6 +124,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
         $this->validator->validate($fixture);
     }
 
+    /** Парсит опциональный параметр chat. */
     public function test_parses_optional_chat_parameter(): void
     {
         $fixture = MaxInitDataFixtureBuilder::build(self::BOT_TOKEN, [

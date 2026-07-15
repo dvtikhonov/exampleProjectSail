@@ -28,6 +28,8 @@ readonly class AdminDishDto
     ) {}
 
     /**
+     * Преобразует админский DTO блюда в массив.
+     *
      * @return array<string, int|string|bool|null>
      */
     public function toArray(): array

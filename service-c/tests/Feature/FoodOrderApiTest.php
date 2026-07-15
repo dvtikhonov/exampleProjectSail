@@ -28,6 +28,7 @@ class FoodOrderApiTest extends TestCase
     use ResetsFoodDomainTables;
     use ResolvesDishImageUrl;
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,12 +36,14 @@ class FoodOrderApiTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
+    /** Submit заказа требует аутентификацию. */
     public function test_submit_order_requires_authentication(): void
     {
         $this->postJson('/api/food/orders/submit')
             ->assertUnauthorized();
     }
 
+    /** Submit заказа отклоняет пустую корзину. */
     public function test_submit_order_rejects_empty_cart(): void
     {
         $auth = $this->authenticateMaxUser();
@@ -50,6 +53,7 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('message', 'Cart is empty.');
     }
 
+    /** Submit заказа отправляет уведомление в MAX. */
     public function test_submit_order_triggers_max_notification_with_created_order(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -111,6 +115,7 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame('Burger', $capturedOrder->itemsSnapshot[0]['dish_name'] ?? null);
     }
 
+    /** Submit создаёт заказ на проверке и помечает корзину отправленной. */
     public function test_submit_order_creates_pending_review_order_and_marks_cart_submitted(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -168,6 +173,7 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame(1, FoodOrder::query()->count());
     }
 
+    /** Submit включает метаданные комбо в снимок позиций. */
     public function test_submit_order_includes_combo_metadata_in_items_snapshot(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -217,6 +223,7 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame([$fixture['dish']->id], $snapshot[1]['combo_partner_dish_ids']);
     }
 
+    /** Submit сохраняет взаимные связи снимка для нескольких комбо. */
     public function test_submit_order_keeps_mutual_snapshot_links_for_multiple_combos(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -314,6 +321,7 @@ class FoodOrderApiTest extends TestCase
         );
     }
 
+    /** Корзина пуста после отправки заказа. */
     public function test_cart_is_empty_after_order_submission(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery();
@@ -331,6 +339,7 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('cart', null);
     }
 
+    /** Пользователь может оформить новый заказ после предыдущей отправки. */
     public function test_user_can_place_new_order_after_previous_submission(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
@@ -359,6 +368,7 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame(2, FoodOrder::query()->count());
     }
 
+    /** Submit отклоняет отсутствующий адрес доставки. */
     public function test_submit_order_rejects_missing_delivery_address(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery();
@@ -373,6 +383,7 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
+    /** Submit отклоняет отсутствующий адрес и для пользователя без категории. */
     public function test_submit_order_rejects_missing_delivery_address_for_user_without_category(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -385,6 +396,7 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
+    /** Submit разрешает пользователя без категории, если адрес указан. */
     public function test_submit_order_allows_user_without_category_when_address_present(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery();
@@ -412,6 +424,7 @@ class FoodOrderApiTest extends TestCase
         ]);
     }
 
+    /** Submit разрешает категорию без настроенных тарифов. */
     public function test_submit_order_allows_category_without_configured_tiers(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -428,6 +441,7 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('order.delivery_cost', '0.00');
     }
 
+    /** Submit обновляет сохранённый адрес доставки пользователя при изменении. */
     public function test_submit_order_updates_saved_user_delivery_address_when_changed(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(price: 100);

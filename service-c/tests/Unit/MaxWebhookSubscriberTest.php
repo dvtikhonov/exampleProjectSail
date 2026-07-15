@@ -13,6 +13,7 @@ class MaxWebhookSubscriberTest extends TestCase
 {
     private const TOKEN = 'secret-max-token-for-tests';
 
+    /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,6 +25,7 @@ class MaxWebhookSubscriberTest extends TestCase
         ]);
     }
 
+    /** Очистка окружения после теста. */
     protected function tearDown(): void
     {
         Http::fake();
@@ -31,6 +33,7 @@ class MaxWebhookSubscriberTest extends TestCase
         parent::tearDown();
     }
 
+    /** Subscribe отправляет payload подписки в MAX API. */
     public function test_subscribe_posts_subscription_payload_to_max_api(): void
     {
         Http::fake([
@@ -49,6 +52,7 @@ class MaxWebhookSubscriberTest extends TestCase
         });
     }
 
+    /** Subscribe падает, если webhook URL отсутствует. */
     public function test_subscribe_fails_when_webhook_url_is_missing(): void
     {
         config(['max.webhook.url' => '']);
@@ -59,6 +63,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->app->make(MaxWebhookSubscriber::class)->subscribe();
     }
 
+    /** Subscribe падает, если секрет webhook слишком короткий. */
     public function test_subscribe_fails_when_webhook_secret_is_too_short(): void
     {
         config(['max.webhook.secret' => 'abc']);
@@ -69,6 +74,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->app->make(MaxWebhookSubscriber::class)->subscribe();
     }
 
+    /** Subscribe падает, если webhook URL не HTTPS. */
     public function test_subscribe_fails_when_webhook_url_is_not_https(): void
     {
         config(['max.webhook.url' => 'http://example.ngrok.io/api/webhooks/max']);
@@ -79,6 +85,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->app->make(MaxWebhookSubscriber::class)->subscribe();
     }
 
+    /** Subscribe падает, если секрет содержит недопустимые символы. */
     public function test_subscribe_fails_when_webhook_secret_has_invalid_characters(): void
     {
         config(['max.webhook.secret' => 'dev secret!']);
@@ -89,6 +96,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->app->make(MaxWebhookSubscriber::class)->subscribe();
     }
 
+    /** Subscribe выбрасывает auth-исключение на 401. */
     public function test_subscribe_throws_auth_exception_on_401(): void
     {
         Http::fake([
@@ -100,6 +108,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->app->make(MaxWebhookSubscriber::class)->subscribe();
     }
 
+    /** Subscribe выбрасывает request-исключение на 400. */
     public function test_subscribe_throws_request_exception_on_400(): void
     {
         Http::fake([
@@ -114,6 +123,7 @@ class MaxWebhookSubscriberTest extends TestCase
         }
     }
 
+    /** Unsubscribe удаляет только устаревшие trycloudflare URL. */
     public function test_unsubscribe_stale_dev_tunnels_removes_only_trycloudflare_urls(): void
     {
         $configuredUrl = 'https://fresh-id.trycloudflare.com/api/webhooks/max';
