@@ -14,7 +14,7 @@ use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
 /**
- * Отправка уведомлений клиенту о результате проверки заказа через MAX.
+ * Отправка уведомлений клиенту о статусе заказа через MAX.
  */
 class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInterface
 {
@@ -22,6 +22,16 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         private readonly MaxMessengerClientInterface $client,
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
     ) {}
+
+    /**
+     * {@inheritDoc}
+     */
+    public function notifySubmitted(FoodOrder $order): void
+    {
+        $text = $this->messageBuilder->buildCustomerSubmitted($order);
+
+        $this->trySendMessage($text, $order);
+    }
 
     /**
      * {@inheritDoc}

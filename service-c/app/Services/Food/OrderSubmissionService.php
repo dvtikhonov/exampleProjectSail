@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\CartRepositoryInterface;
+use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Food\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\OrderSubmissionServiceInterface;
@@ -12,6 +13,7 @@ use App\DTO\Food\OrderDto;
 use App\Enums\Food\OrderReviewStatus;
 use App\Enums\Food\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
+use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +31,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
         private readonly CartRepositoryInterface $cartRepository,
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
+        private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
     ) {}
 
     /**
@@ -38,7 +41,8 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
      */
     public function submit(MaxUser $maxUser): OrderDto
     {
-        $orderDto = DB::transaction(function () use ($maxUser): OrderDto {
+        /** @var array{order: FoodOrder, dto: OrderDto} $result */
+        $result = DB::transaction(function () use ($maxUser): array {
             $cart = $this->cartRepository->findDraftForUpdate($maxUser->max_user_id);
 
             if ($cart === null || $cart->items->isEmpty()) {
@@ -83,23 +87,27 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
 
             $this->cartRepository->markAsSubmitted($cart);
 
-            return new OrderDto(
-                id: $order->id,
-                status: $order->status->value,
-                restaurantId: $order->restaurant_id,
-                restaurantName: $cart->restaurant->name,
-                itemsTotal: $formattedItemsTotal,
-                deliveryApplicable: $totals->deliveryApplicable,
-                deliveryCost: $formattedDeliveryCost,
-                total: $formattedTotal,
-                deliveryAddress: $cart->delivery_address,
-                itemsSnapshot: $order->items_snapshot ?? [],
-                createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
-            );
+            return [
+                'order' => $order,
+                'dto' => new OrderDto(
+                    id: $order->id,
+                    status: $order->status->value,
+                    restaurantId: $order->restaurant_id,
+                    restaurantName: $cart->restaurant->name,
+                    itemsTotal: $formattedItemsTotal,
+                    deliveryApplicable: $totals->deliveryApplicable,
+                    deliveryCost: $formattedDeliveryCost,
+                    total: $formattedTotal,
+                    deliveryAddress: $cart->delivery_address,
+                    itemsSnapshot: $order->items_snapshot ?? [],
+                    createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
+                ),
+            ];
         });
 
-        $this->foodOrderMaxNotifier->notify($orderDto, $maxUser);
+        $this->foodOrderMaxNotifier->notify($result['dto'], $maxUser);
+        $this->foodOrderCustomerNotifier->notifySubmitted($result['order']);
 
-        return $orderDto;
+        return $result['dto'];
     }
 }

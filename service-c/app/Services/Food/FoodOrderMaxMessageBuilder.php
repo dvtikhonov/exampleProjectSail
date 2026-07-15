@@ -115,6 +115,14 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Текст уведомления клиенту о принятии заказа на рассмотрение.
+     */
+    public function buildCustomerSubmitted(FoodOrder $order): string
+    {
+        return 'Заказ принят на рассмотрение. В чате заказа можете сделать уточнения к заказу';
+    }
+
+    /**
      * Текст уведомления клиенту о подтверждении заявки.
      */
     public function buildCustomerConfirmed(FoodOrder $order): string
