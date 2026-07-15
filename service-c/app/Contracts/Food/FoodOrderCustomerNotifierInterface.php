@@ -8,10 +8,15 @@ use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 
 /**
- * Уведомление клиента MAX о результате проверки заказа.
+ * Уведомление клиента MAX о статусе заказа.
  */
 interface FoodOrderCustomerNotifierInterface
 {
+    /**
+     * Сообщает клиенту, что заказ принят на рассмотрение.
+     */
+    public function notifySubmitted(FoodOrder $order): void;
+
     /**
      * Сообщает клиенту, что заявка принята к исполнению.
      */

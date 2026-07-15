@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\OrderDto;
 use App\Enums\Food\CartStatus;
@@ -63,6 +64,7 @@ class FoodOrderApiTest extends TestCase
 
         $capturedOrder = null;
         $capturedUser = null;
+        $capturedCustomerOrder = null;
 
         $notifier = $this->createMock(FoodOrderMaxNotifierInterface::class);
         $notifier
@@ -73,7 +75,16 @@ class FoodOrderApiTest extends TestCase
                 $capturedUser = $user;
             });
 
+        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier
+            ->expects($this->once())
+            ->method('notifySubmitted')
+            ->willReturnCallback(function (FoodOrder $order) use (&$capturedCustomerOrder): void {
+                $capturedCustomerOrder = $order;
+            });
+
         $this->app->instance(FoodOrderMaxNotifierInterface::class, $notifier);
+        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
 
         $this->addItemToCart($auth, $fixture['dish']->id, 2);
         $this->setCartDeliveryAddress($auth, $address);
@@ -88,8 +99,11 @@ class FoodOrderApiTest extends TestCase
 
         $this->assertNotNull($capturedOrder);
         $this->assertNotNull($capturedUser);
+        $this->assertNotNull($capturedCustomerOrder);
         $this->assertSame($auth['user']->max_user_id, $capturedUser->max_user_id);
         $this->assertSame($response->json('order.id'), $capturedOrder->id);
+        $this->assertSame($response->json('order.id'), $capturedCustomerOrder->id);
+        $this->assertSame($auth['user']->max_user_id, $capturedCustomerOrder->max_user_id);
         $this->assertSame(OrderStatus::PendingReview->value, $capturedOrder->status);
         $this->assertSame('Notify Place', $capturedOrder->restaurantName);
         $this->assertSame('1000.00', $capturedOrder->itemsTotal);

@@ -28,6 +28,18 @@ class FoodOrderCustomerNotifierTest extends TestCase
         $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
+    public function test_build_customer_submitted_message(): void
+    {
+        $order = $this->makeOrder(id: 11);
+
+        $text = $this->messageBuilder->buildCustomerSubmitted($order);
+
+        $this->assertSame(
+            'Заказ принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            $text,
+        );
+    }
+
     public function test_build_customer_confirmed_message(): void
     {
         $order = $this->makeOrder(id: 15);
@@ -72,6 +84,35 @@ TEXT,
 Причина: Блюдо временно недоступно
 TEXT,
             $text,
+        );
+    }
+
+    public function test_notify_submitted_sends_message_to_order_customer(): void
+    {
+        $sentMessage = null;
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessage): void {
+                $sentMessage = $message;
+            });
+
+        $notifier = new LaravelFoodOrderCustomerNotifier(
+            client: $client,
+            messageBuilder: $this->messageBuilder,
+        );
+
+        $order = $this->makeOrder(id: 33, maxUserId: 2001);
+
+        $notifier->notifySubmitted($order);
+
+        $this->assertNotNull($sentMessage);
+        $this->assertSame(2001, $sentMessage->userId);
+        $this->assertNull($sentMessage->chatId);
+        $this->assertSame(
+            'Заказ принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            $sentMessage->text,
         );
     }
 
