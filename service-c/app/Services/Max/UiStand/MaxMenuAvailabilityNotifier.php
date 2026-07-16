@@ -16,7 +16,7 @@ use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
 /**
- * Уведомление в MAX о доступности меню на сегодня.
+ * Уведомление в MAX о доступности меню на завтра (дата заказа).
  *
  * Получатели: MAX_REPORT_* и пользователи max_users с сохранённым адресом доставки.
  */
@@ -51,7 +51,8 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
             return 0;
         }
 
-        $text = self::messageTextForDate(CarbonImmutable::now(self::TIMEZONE));
+        $menuDate = CarbonImmutable::now(self::TIMEZONE)->addDay();
+        $text = self::messageTextForDate($menuDate);
         $sentCount = 0;
 
         foreach ($notificationConfig->chatIds as $chatId) {

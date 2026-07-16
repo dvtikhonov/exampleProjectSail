@@ -88,13 +88,21 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
-     * Текст push-уведомления о новом сообщении в чате заказа.
+     * Короткое уведомление клиенту о новом сообщении в чате заказа (без текста сообщения).
      */
-    public function buildOrderChatNotification(FoodOrder $order, OrderMessageDto $message): string
+    public function buildOrderChatCustomerNotification(FoodOrder $order): string
+    {
+        return sprintf('В чат заказа №%d поступило сообщение', $order->id);
+    }
+
+    /**
+     * Уведомление в MAX_UI_STAND_* о новом сообщении в чате заказа (с текстом сообщения).
+     */
+    public function buildOrderChatUiStandNotification(FoodOrder $order, OrderMessageDto $message): string
     {
         return implode("\n", [
-            sprintf('Новое сообщение по заказу №%d', $order->id),
-            sprintf('%s: %s', $this->formatMessageSender($message), $this->truncateChatPreview($message->body)),
+            sprintf('В чат заказа №%d поступило сообщение', $order->id),
+            $this->truncateChatPreview($message->body),
         ]);
     }
 
@@ -173,27 +181,6 @@ class FoodOrderMaxMessageBuilder
         $lines[] = sprintf('Итого: %s ₽', $order->total);
 
         return implode("\n", $lines);
-    }
-
-    /**
-     * Форматирует отправителя сообщения для превью.
-     */
-    private function formatMessageSender(OrderMessageDto $message): string
-    {
-        $name = trim(implode(' ', array_filter([
-            $message->senderFirstName,
-            $message->senderLastName,
-        ])));
-
-        if ($name !== '') {
-            return $name;
-        }
-
-        if ($message->senderUsername !== null && trim($message->senderUsername) !== '') {
-            return '@'.trim($message->senderUsername);
-        }
-
-        return 'Пользователь';
     }
 
     /**

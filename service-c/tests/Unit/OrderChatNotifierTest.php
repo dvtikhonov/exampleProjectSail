@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderMessageAuthorType;
 use App\Models\FoodOrder;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelOrderChatNotifier;
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\MaxUiStandRecipientResolver;
 use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -31,48 +32,60 @@ class OrderChatNotifierTest extends TestCase
     {
         parent::setUp();
 
+        Cache::forget('max.ui_stand.known_recipients');
+        Config::set('max.ui_stand.recipient_chat_ids', []);
+        Config::set('max.ui_stand.recipient_user_ids', []);
+
         $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
     }
 
-    /** Сборка уведомления чата форматирует отправителя и body. */
-    public function test_build_order_chat_notification_formats_sender_and_body(): void
+    /** Короткое уведомление клиенту без текста сообщения. */
+    public function test_build_order_chat_customer_notification(): void
+    {
+        $order = $this->makeOrder(id: 42);
+
+        $this->assertSame(
+            'В чат заказа №42 поступило сообщение',
+            $this->messageBuilder->buildOrderChatCustomerNotification($order),
+        );
+    }
+
+    /** Уведомление UI Stand содержит заголовок и текст сообщения. */
+    public function test_build_order_chat_ui_stand_notification_includes_body(): void
     {
         $order = $this->makeOrder(id: 42);
         $message = $this->makeMessageDto(
             foodOrderId: 42,
-            senderFirstName: 'Иван',
             body: 'Уточните адрес, подъезд 3',
             authorType: OrderMessageAuthorType::Customer,
         );
 
-        $text = $this->messageBuilder->buildOrderChatNotification($order, $message);
+        $text = $this->messageBuilder->buildOrderChatUiStandNotification($order, $message);
 
         $this->assertSame(
             <<<'TEXT'
-Новое сообщение по заказу №42
-Иван: Уточните адрес, подъезд 3
+В чат заказа №42 поступило сообщение
+Уточните адрес, подъезд 3
 TEXT,
             $text,
         );
     }
 
-    /** Сборка уведомления чата обрезает длинный body. */
-    public function test_build_order_chat_notification_truncates_long_body(): void
+    /** Уведомление UI Stand обрезает длинный body. */
+    public function test_build_order_chat_ui_stand_notification_truncates_long_body(): void
     {
         $order = $this->makeOrder(id: 5);
         $message = $this->makeMessageDto(
             foodOrderId: 5,
-            senderUsername: 'support',
             body: str_repeat('а', 250),
             authorType: OrderMessageAuthorType::Admin,
         );
 
-        $text = $this->messageBuilder->buildOrderChatNotification($order, $message);
+        $text = $this->messageBuilder->buildOrderChatUiStandNotification($order, $message);
         $lines = explode("\n", $text);
 
-        $this->assertSame('Новое сообщение по заказу №5', $lines[0]);
-        $this->assertStringStartsWith('@support: ', $lines[1]);
-        $this->assertSame(200, mb_strlen(mb_substr($lines[1], mb_strlen('@support: '))));
+        $this->assertSame('В чат заказа №5 поступило сообщение', $lines[0]);
+        $this->assertSame(200, mb_strlen($lines[1]));
         $this->assertStringEndsWith('…', $lines[1]);
     }
 
@@ -94,11 +107,13 @@ TEXT,
         $this->assertNull($this->messageBuilder->buildOrderChatOpenAppUrl(42, '   '));
     }
 
-    /** Сообщение клиента уходит всем активным админам с кнопкой open-app. */
-    public function test_notify_customer_message_sends_to_all_active_admins_with_open_app_button(): void
+    /** Сообщение клиента уходит только в UI Stand, клиенту не дублируется. */
+    public function test_notify_customer_message_sends_only_to_ui_stand(): void
     {
         Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
         Config::set('max.bot_user_id', 421816864057);
+        Config::set('max.ui_stand.recipient_chat_ids', [777001, 777002]);
+        Config::set('max.ui_stand.recipient_user_ids', []);
 
         $sentMessages = [];
         $client = $this->createMock(MaxMessengerClientInterface::class);
@@ -110,23 +125,11 @@ TEXT,
             });
         $client->expects($this->never())->method('sendMessage');
 
-        $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
-        $adminRepository
-            ->expects($this->once())
-            ->method('listActiveAdminMaxUserIds')
-            ->willReturn([1001, 1003]);
-
-        $notifier = new LaravelOrderChatNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-            foodOrderAdminRepository: $adminRepository,
-            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 42, maxUserId: 1002);
         $message = $this->makeMessageDto(
             foodOrderId: 42,
-            senderFirstName: 'Иван',
             body: 'Уточните адрес, подъезд 3',
             authorType: OrderMessageAuthorType::Customer,
         );
@@ -134,68 +137,72 @@ TEXT,
         $notifier->notify($order, $message);
 
         $this->assertCount(2, $sentMessages);
-        $this->assertSame([1001, 1003], array_map(
-            static fn (MaxInlineKeyboardMessageDto $dto): int => (int) $dto->userId,
+        $this->assertSame([777001, 777002], array_map(
+            static fn (MaxInlineKeyboardMessageDto $dto): int => (int) $dto->chatId,
             $sentMessages,
         ));
 
         $first = $sentMessages[0];
-        $this->assertStringContainsString('Новое сообщение по заказу №42', $first->text);
-        $this->assertStringContainsString('Иван: Уточните адрес, подъезд 3', $first->text);
+        $this->assertStringContainsString('В чат заказа №42 поступило сообщение', $first->text);
+        $this->assertStringContainsString('Уточните адрес, подъезд 3', $first->text);
         $this->assertSame('open_app', $first->buttonRows[0][0]->type);
-        $this->assertSame('Открыть в приложении', $first->buttonRows[0][0]->text);
         $this->assertSame(
             'https://example.test/max-app?order_id=42&view=chat',
             $first->buttonRows[0][0]->webApp,
         );
-        $this->assertSame(421816864057, $first->buttonRows[0][0]->contactId);
     }
 
-    /** Сообщение админа уходит клиенту заказа. */
-    public function test_notify_admin_message_sends_to_order_customer(): void
+    /** Сообщение админа уходит клиенту (без body) и в UI Stand (с body). */
+    public function test_notify_admin_message_sends_to_customer_and_ui_stand(): void
     {
         $this->disableOpenAppTarget();
+        Config::set('max.ui_stand.recipient_chat_ids', [777001]);
+        Config::set('max.ui_stand.recipient_user_ids', []);
 
-        $sentMessage = null;
+        $sentMessages = [];
         $client = $this->createMock(MaxMessengerClientInterface::class);
         $client
-            ->expects($this->once())
+            ->expects($this->exactly(2))
             ->method('sendMessage')
-            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessage): void {
-                $sentMessage = $message;
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessages): void {
+                $sentMessages[] = $message;
             });
         $client->expects($this->never())->method('sendInlineKeyboardMessage');
 
-        $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
-        $adminRepository->expects($this->never())->method('listActiveAdminMaxUserIds');
-
-        $notifier = new LaravelOrderChatNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-            foodOrderAdminRepository: $adminRepository,
-            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 7, maxUserId: 1002);
         $message = $this->makeMessageDto(
             foodOrderId: 7,
-            senderFirstName: 'Админ',
             body: 'Принято, уточняем доставку',
             authorType: OrderMessageAuthorType::Admin,
         );
 
         $notifier->notify($order, $message);
 
-        $this->assertNotNull($sentMessage);
-        $this->assertSame(1002, $sentMessage->userId);
-        $this->assertStringContainsString('Новое сообщение по заказу №7', $sentMessage->text);
-        $this->assertStringContainsString('Админ: Принято, уточняем доставку', $sentMessage->text);
+        $this->assertCount(2, $sentMessages);
+
+        $uiStand = $sentMessages[0];
+        $this->assertSame(777001, $uiStand->chatId);
+        $this->assertNull($uiStand->userId);
+        $this->assertSame(
+            "В чат заказа №7 поступило сообщение\nПринято, уточняем доставку",
+            $uiStand->text,
+        );
+
+        $customer = $sentMessages[1];
+        $this->assertSame(1002, $customer->userId);
+        $this->assertNull($customer->chatId);
+        $this->assertSame('В чат заказа №7 поступило сообщение', $customer->text);
+        $this->assertStringNotContainsString('Принято, уточняем доставку', $customer->text);
     }
 
     /** Логирует предупреждение при ошибке отправки без исключения. */
     public function test_notify_logs_warning_when_send_fails_without_throwing(): void
     {
         $this->disableOpenAppTarget();
+        Config::set('max.ui_stand.recipient_chat_ids', []);
+        Config::set('max.ui_stand.recipient_user_ids', []);
 
         $captured = [];
 
@@ -204,20 +211,10 @@ TEXT,
         });
 
         $client = $this->createMock(MaxMessengerClientInterface::class);
-        $client
-            ->expects($this->once())
-            ->method('sendMessage')
+        $client->expects($this->once())->method('sendMessage')
             ->willThrowException(new MaxMessengerRequestException('User blocked bot'));
 
-        $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
-        $adminRepository->expects($this->never())->method('listActiveAdminMaxUserIds');
-
-        $notifier = new LaravelOrderChatNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-            foodOrderAdminRepository: $adminRepository,
-            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 3, maxUserId: 99);
         $message = $this->makeMessageDto(
@@ -228,16 +225,23 @@ TEXT,
 
         $notifier->notify($order, $message);
 
-        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX order chat notification send failed');
-        $this->assertSame('warning', $log->level);
-        $this->assertSame(3, $log->context['order_id']);
-        $this->assertSame($message->id, $log->context['message_id']);
-        $this->assertSame(99, $log->context['max_user_id']);
-        $this->assertSame('User blocked bot', $log->context['error']);
+        MessMaxLogTestHelper::assertSingleMessage(
+            $captured,
+            'MAX order chat notification skipped: UI Stand recipients are not configured',
+        );
+
+        $failLog = MessMaxLogTestHelper::assertSingleMessage(
+            $captured,
+            'MAX order chat notification send failed',
+        );
+        $this->assertSame('warning', $failLog->level);
+        $this->assertSame(3, $failLog->context['order_id']);
+        $this->assertSame(99, $failLog->context['max_user_id']);
+        $this->assertSame('User blocked bot', $failLog->context['error']);
     }
 
-    /** Логирует, если нет активных админов для сообщения клиента. */
-    public function test_notify_customer_message_logs_when_no_active_admins(): void
+    /** Логирует, если UI Stand не настроен, при сообщении клиента. */
+    public function test_notify_customer_message_logs_when_ui_stand_not_configured(): void
     {
         $captured = [];
 
@@ -245,22 +249,14 @@ TEXT,
             $captured[] = $event;
         });
 
+        Config::set('max.ui_stand.recipient_chat_ids', []);
+        Config::set('max.ui_stand.recipient_user_ids', []);
+
         $client = $this->createMock(MaxMessengerClientInterface::class);
         $client->expects($this->never())->method('sendMessage');
         $client->expects($this->never())->method('sendInlineKeyboardMessage');
 
-        $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
-        $adminRepository
-            ->expects($this->once())
-            ->method('listActiveAdminMaxUserIds')
-            ->willReturn([]);
-
-        $notifier = new LaravelOrderChatNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-            foodOrderAdminRepository: $adminRepository,
-            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 11, maxUserId: 1002);
         $message = $this->makeMessageDto(
@@ -271,10 +267,24 @@ TEXT,
 
         $notifier->notify($order, $message);
 
-        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX order chat notification skipped: no recipients');
+        $log = MessMaxLogTestHelper::assertSingleMessage(
+            $captured,
+            'MAX order chat notification skipped: UI Stand recipients are not configured',
+        );
         $this->assertSame('warning', $log->level);
         $this->assertSame(11, $log->context['order_id']);
         $this->assertSame('customer', $log->context['author_type']);
+    }
+
+    /** Создаёт notifier с подставным MAX-клиентом. */
+    private function makeNotifier(MaxMessengerClientInterface $client): LaravelOrderChatNotifier
+    {
+        return new LaravelOrderChatNotifier(
+            client: $client,
+            messageBuilder: $this->messageBuilder,
+            uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolver::class),
+            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
+        );
     }
 
     /** Отключает цель open-app для теста. */

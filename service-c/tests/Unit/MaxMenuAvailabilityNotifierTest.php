@@ -53,9 +53,9 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         $this->assertSame(2, $sentCount);
 
         $expectedText = MaxMenuAvailabilityNotifier::messageTextForDate(
-            CarbonImmutable::parse('2026-07-09', 'Europe/Moscow'),
+            CarbonImmutable::parse('2026-07-10', 'Europe/Moscow'),
         );
-        $this->assertSame('Доступно для заказов меню на 09.07.2026', $expectedText);
+        $this->assertSame('Доступно для заказов меню на 10.07.2026', $expectedText);
 
         Http::assertSentCount(2);
         Http::assertSent(function ($request) use ($expectedText): bool {
