@@ -107,7 +107,17 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
-     * URL mini-app с deep-link на чат заказа.
+     * Payload кнопки open_app → start_param mini-app (только [A-Za-z0-9_-]).
+     *
+     * @see https://dev.max.ru/docs/webapps/introduction
+     */
+    public function buildOrderChatStartParam(int $orderId): string
+    {
+        return sprintf('order_%d_chat', $orderId);
+    }
+
+    /**
+     * URL mini-app с query deep-link (локальный браузер / fallback).
      */
     public function buildOrderChatOpenAppUrl(int $orderId, ?string $baseWebAppUrl): ?string
     {

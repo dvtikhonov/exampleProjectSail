@@ -89,7 +89,14 @@ TEXT,
         $this->assertStringEndsWith('…', $lines[1]);
     }
 
-    /** Open-app URL чата добавляет query-параметры. */
+    /** Open-app start_param чата заказа. */
+    public function test_build_order_chat_start_param(): void
+    {
+        $this->assertSame('order_14_chat', $this->messageBuilder->buildOrderChatStartParam(14));
+        $this->assertSame('order_42_chat', $this->messageBuilder->buildOrderChatStartParam(42));
+    }
+
+    /** Open-app URL чата добавляет query-параметры (локальный fallback). */
     public function test_build_order_chat_open_app_url_appends_query_params(): void
     {
         $url = $this->messageBuilder->buildOrderChatOpenAppUrl(
@@ -146,10 +153,9 @@ TEXT,
         $this->assertStringContainsString('В чат заказа №42 поступило сообщение', $first->text);
         $this->assertStringContainsString('Уточните адрес, подъезд 3', $first->text);
         $this->assertSame('open_app', $first->buttonRows[0][0]->type);
-        $this->assertSame(
-            'https://example.test/max-app?order_id=42&view=chat',
-            $first->buttonRows[0][0]->webApp,
-        );
+        $this->assertSame('Открыть заказ №42', $first->buttonRows[0][0]->text);
+        $this->assertSame('https://example.test/max-app', $first->buttonRows[0][0]->webApp);
+        $this->assertSame('order_42_chat', $first->buttonRows[0][0]->payload);
     }
 
     /** Сообщение админа уходит клиенту (без body) и в UI Stand (с body). */

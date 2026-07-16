@@ -104,6 +104,35 @@ export function getPlatform() {
 }
 
 /**
+ * start_param из кнопки open_app / диплинка ?startapp=.
+ *
+ * @returns {string}
+ */
+export function getStartParam() {
+    const webApp = getWebApp();
+    const fromUnsafe = webApp?.initDataUnsafe?.start_param;
+
+    if (typeof fromUnsafe === 'string' && fromUnsafe !== '') {
+        return fromUnsafe;
+    }
+
+    const initData = getInitData();
+
+    if (initData) {
+        const fromInitData = new URLSearchParams(initData).get('start_param');
+
+        if (typeof fromInitData === 'string' && fromInitData !== '') {
+            return fromInitData;
+        }
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromUrl = urlParams.get('WebAppStartParam') ?? urlParams.get('startapp');
+
+    return typeof fromUrl === 'string' ? fromUrl : '';
+}
+
+/**
  * Отключает системные вертикальные свайпы MAX (закрытие/сворачивание mini-app),
  * чтобы жесты доходили до внутренних scroll-контейнеров.
  */

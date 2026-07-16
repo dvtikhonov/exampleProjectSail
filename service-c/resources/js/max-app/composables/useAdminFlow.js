@@ -96,6 +96,15 @@ export function useAdminFlow(adminScope) {
         }
     }
 
+    /**
+     * Открыть карточку заказа по id (deep link из уведомления MAX).
+     *
+     * @param {number} orderId
+     */
+    async function openAdminOrderById(orderId) {
+        await openAdminOrder({ id: orderId });
+    }
+
     function closeAdminOrderDetail() {
         adminView.value = ADMIN_VIEWS.list;
         selectedAdminOrder.value = null;
@@ -238,6 +247,7 @@ export function useAdminFlow(adminScope) {
         loadAdminOrders,
         handleAdminScopeChange,
         openAdminOrder,
+        openAdminOrderById,
         closeAdminOrderDetail,
         handleAdminApproveAddress,
         handleAdminApprovePayment,

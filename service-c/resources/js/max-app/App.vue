@@ -9,7 +9,7 @@
  * вложенные ref (auth.authLoading) в template не разворачиваются Vue.
  */
 import { onMounted, ref } from 'vue';
-import { disableVerticalSwipes } from './bridge/maxBridge';
+import { disableVerticalSwipes, getStartParam } from './bridge/maxBridge';
 import { useAdminFlow } from './composables/useAdminFlow';
 import { useAuth } from './composables/useAuth';
 import { useCart } from './composables/useCart';
@@ -22,6 +22,7 @@ import { createChatMessagesReadHandler, useMaxBackButton } from './composables/u
 import { useMyOrders } from './composables/useMyOrders';
 import { useRestaurantsMenu } from './composables/useRestaurantsMenu';
 import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from './constants/views';
+import { resolveOrderChatDeepLinkOrderId } from './utils/orderChatDeepLink';
 import CartPage from './pages/CartPage.vue';
 import MenuPage from './pages/MenuPage.vue';
 import OrderConfirmationPage from './pages/OrderConfirmationPage.vue';
@@ -76,6 +77,7 @@ const {
     loadAdminOrders,
     handleAdminScopeChange,
     openAdminOrder,
+    openAdminOrderById,
     closeAdminOrderDetail,
     handleAdminApproveAddress,
     handleAdminApprovePayment,
@@ -262,8 +264,14 @@ async function bootstrapApp() {
     if (!authError.value) {
         disableVerticalSwipes();
 
+        const deepLinkOrderId = resolveOrderChatDeepLinkOrderId({ getStartParam });
+
         if (hasAdminRoles.value) {
-            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
+            if (deepLinkOrderId !== null && hasOrderReviewRoles.value) {
+                adminSection.value = ADMIN_SECTIONS.orders;
+                initAdminSession();
+                await openAdminOrderById(deepLinkOrderId);
+            } else if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 initDishAdminSession();
             } else if (hasOrderReviewRoles.value) {
                 initAdminSession();
