@@ -1,26 +1,9 @@
 /**
  * Клиентская навигация без vue-router: currentView и переходы между экранами.
  */
+import { getStartParam } from '../bridge/maxBridge';
 import { VIEWS } from '../constants/views';
-
-/**
- * Deep link из уведомления MAX: ?order_id=N&view=chat открывает чат заказа.
- *
- * @returns {number|null}
- */
-function parseDeepLinkOrderId() {
-    const params = new URLSearchParams(window.location.search);
-    const orderId = params.get('order_id');
-    const view = params.get('view');
-
-    if (!orderId || view !== 'chat') {
-        return null;
-    }
-
-    const parsed = Number.parseInt(orderId, 10);
-
-    return Number.isNaN(parsed) ? null : parsed;
-}
+import { resolveOrderChatDeepLinkOrderId } from '../utils/orderChatDeepLink';
 
 /**
  * @param {object} deps — доменные composables клиентского потока
@@ -67,7 +50,7 @@ export function useClientNavigation({ currentView, restaurantsMenu, cart, orders
             orders.loadMyOrders({ silent: true }),
         ]);
 
-        const deepLinkOrderId = parseDeepLinkOrderId();
+        const deepLinkOrderId = resolveOrderChatDeepLinkOrderId({ getStartParam });
 
         if (deepLinkOrderId !== null) {
             await orders.openOrderDetail(deepLinkOrderId);

@@ -107,14 +107,13 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     /**
      * Строит ряды кнопок открытия mini-app для уведомления.
      *
+     * web_app — базовый URL/username бота; payload — start_param order_{id}_chat.
+     *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */
     private function buildOpenAppButtonRows(int $orderId): array
     {
-        $webAppUrl = $this->messageBuilder->buildOrderChatOpenAppUrl(
-            orderId: $orderId,
-            baseWebAppUrl: $this->openAppTargetResolver->resolveWebApp(),
-        );
+        $webAppUrl = $this->openAppTargetResolver->resolveWebApp();
 
         if ($webAppUrl === null) {
             return [];
@@ -123,8 +122,9 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
         return [
             [
                 new MaxInlineKeyboardButtonDto(
-                    text: 'Открыть в приложении',
+                    text: sprintf('Открыть заказ №%d', $orderId),
                     type: 'open_app',
+                    payload: $this->messageBuilder->buildOrderChatStartParam($orderId),
                     webApp: $webAppUrl,
                     contactId: $this->openAppTargetResolver->resolveContactId(),
                 ),
