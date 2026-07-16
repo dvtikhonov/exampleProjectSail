@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\OrderChatNotifierInterface;
 use App\Enums\Food\FoodOrderAdminRole;
 use App\Enums\Food\OrderMessageAuthorType;
 use App\Enums\Food\OrderReviewStatus;
@@ -32,6 +33,7 @@ class OrderChatApiTest extends TestCase
 
         $this->resetFoodDomainTables();
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
+        $this->mock(OrderChatNotifierInterface::class)->shouldIgnoreMissing();
     }
 
     /** Клиент может получить список сообщений по своему заказу. */

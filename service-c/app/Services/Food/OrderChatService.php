@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
+use App\Contracts\Food\OrderChatNotifierInterface;
 use App\Contracts\Food\OrderChatServiceInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\DTO\Food\OrderMessageDto;
@@ -27,6 +28,7 @@ class OrderChatService implements OrderChatServiceInterface
         private readonly FoodOrderCustomerReadRepositoryInterface $foodOrderReadRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
         private readonly OrderChatAuthorizationService $orderChatAuthorizationService,
+        private readonly OrderChatNotifierInterface $orderChatNotifier,
     ) {}
 
     /**
@@ -81,7 +83,10 @@ class OrderChatService implements OrderChatServiceInterface
 
         $message->loadMissing('sender');
 
-        return $this->mapMessage($message, $order);
+        $dto = $this->mapMessage($message, $order);
+        $this->orderChatNotifier->notify($order, $dto);
+
+        return $dto;
     }
 
     /**

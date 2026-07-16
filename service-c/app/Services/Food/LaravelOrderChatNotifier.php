@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Food;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\OrderChatNotifierInterface;
 use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderMessageAuthorType;
 use App\Models\FoodOrder;
 use App\Support\MaxOpenAppTargetResolver;
+use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
@@ -20,13 +20,16 @@ use Throwable;
 
 /**
  * Отправка push-уведомлений MAX о новых сообщениях в чате заказа.
+ *
+ * Клиенту — короткое уведомление (без своего же сообщения).
+ * В MAX_UI_STAND_* — уведомление с текстом сообщения.
  */
 class LaravelOrderChatNotifier implements OrderChatNotifierInterface
 {
     public function __construct(
         private readonly MaxMessengerClientInterface $client,
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
-        private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
     ) {}
 
@@ -35,12 +38,40 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
      */
     public function notify(FoodOrder $order, OrderMessageDto $message): void
     {
-        $text = $this->messageBuilder->buildOrderChatNotification($order, $message);
-        $buttonRows = $this->buildOpenAppButtonRows($order->id);
-        $recipientUserIds = $this->resolveRecipientUserIds($order, $message->authorType);
+        $this->notifyUiStand($order, $message);
 
-        if ($recipientUserIds === []) {
-            Log::channel('messMax')->warning('MAX order chat notification skipped: no recipients', [
+        if ($message->authorType === OrderMessageAuthorType::Admin) {
+            $this->notifyCustomer($order, $message);
+        }
+    }
+
+    /**
+     * Уведомляет клиента о сообщении админа (без текста сообщения).
+     */
+    private function notifyCustomer(FoodOrder $order, OrderMessageDto $message): void
+    {
+        $text = $this->messageBuilder->buildOrderChatCustomerNotification($order);
+        $buttonRows = $this->buildOpenAppButtonRows($order->id);
+
+        $this->trySendNotification(
+            text: $text,
+            buttonRows: $buttonRows,
+            orderId: $order->id,
+            messageId: $message->id,
+            userId: $order->max_user_id,
+        );
+    }
+
+    /**
+     * Уведомляет получателей UI Stand (MAX_UI_STAND_CHAT_IDS / USER_IDS).
+     */
+    private function notifyUiStand(FoodOrder $order, OrderMessageDto $message): void
+    {
+        $chatIds = $this->uiStandRecipientResolver->chatIds();
+        $userIds = $this->uiStandRecipientResolver->userIds();
+
+        if ($chatIds === [] && $userIds === []) {
+            Log::channel('messMax')->warning('MAX order chat notification skipped: UI Stand recipients are not configured', [
                 'order_id' => $order->id,
                 'message_id' => $message->id,
                 'author_type' => $message->authorType->value,
@@ -49,7 +80,20 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
             return;
         }
 
-        foreach ($recipientUserIds as $userId) {
+        $text = $this->messageBuilder->buildOrderChatUiStandNotification($order, $message);
+        $buttonRows = $this->buildOpenAppButtonRows($order->id);
+
+        foreach ($chatIds as $chatId) {
+            $this->trySendNotification(
+                text: $text,
+                buttonRows: $buttonRows,
+                orderId: $order->id,
+                messageId: $message->id,
+                chatId: $chatId,
+            );
+        }
+
+        foreach ($userIds as $userId) {
             $this->trySendNotification(
                 text: $text,
                 buttonRows: $buttonRows,
@@ -58,22 +102,6 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
                 userId: $userId,
             );
         }
-    }
-
-    /**
-     * Определяет MAX user id получателей уведомления чата.
-     *
-     * @return list<int>
-     */
-    private function resolveRecipientUserIds(
-        FoodOrder $order,
-        OrderMessageAuthorType $authorType,
-    ): array {
-        if ($authorType === OrderMessageAuthorType::Customer) {
-            return $this->foodOrderAdminRepository->listActiveAdminMaxUserIds();
-        }
-
-        return [$order->max_user_id];
     }
 
     /**
@@ -114,13 +142,15 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
         array $buttonRows,
         int $orderId,
         int $messageId,
-        int $userId,
+        ?int $chatId = null,
+        ?int $userId = null,
     ): void {
         try {
             if ($buttonRows !== []) {
                 $this->client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
                     text: $text,
                     buttonRows: $buttonRows,
+                    chatId: $chatId,
                     userId: $userId,
                 ));
 
@@ -129,12 +159,14 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
 
             $this->client->sendMessage(new MaxMessageDto(
                 text: $text,
+                chatId: $chatId,
                 userId: $userId,
             ));
         } catch (MaxMessengerException $exception) {
             Log::channel('messMax')->warning('MAX order chat notification send failed', [
                 'order_id' => $orderId,
                 'message_id' => $messageId,
+                'chat_id' => $chatId,
                 'max_user_id' => $userId,
                 'error' => $exception->userMessage(),
             ]);
@@ -142,6 +174,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
             Log::channel('messMax')->warning('MAX order chat notification send failed', [
                 'order_id' => $orderId,
                 'message_id' => $messageId,
+                'chat_id' => $chatId,
                 'max_user_id' => $userId,
                 'error' => $exception->getMessage(),
             ]);
