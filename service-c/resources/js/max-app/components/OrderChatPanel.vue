@@ -3,7 +3,7 @@
  * Панель чата по заказу: загрузка истории, отправка, polling новых сообщений.
  * perspective определяет, какие сообщения считаются «своими» (customer | admin).
  */
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { extractErrorMessage, fetchOrderMessages, sendOrderMessage } from '../api/foodClient';
 import OrderChatMessage from './OrderChatMessage.vue';
 
@@ -27,9 +27,33 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    /** Активная зона на карточке заказа (увеличенная доля высоты) */
+    active: {
+        type: Boolean,
+        default: false,
+    },
 });
 
-const emit = defineEmits(['messages-read']);
+const emit = defineEmits(['messages-read', 'activate']);
+
+/**
+ * Равные отступы сверху/снизу у поля ввода; safe-area добавляется к нижнему, не заменяет его.
+ * @returns {string}
+ */
+const composerFooterPadClass = computed(() => {
+    if (props.safeAreaBottom) {
+        return props.compact
+            ? 'pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]'
+            : 'pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]';
+    }
+
+    return props.compact ? 'pt-2 pb-2' : 'pt-3 pb-3';
+});
+
+/** Клик / фокус в панели чата — родитель может увеличить её долю экрана */
+function emitActivate() {
+    emit('activate');
+}
 
 const messages = ref([]);
 const loading = ref(true);
@@ -159,7 +183,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-100 bg-gray-50">
+    <div
+        class="flex min-h-0 flex-col overflow-hidden rounded-2xl border bg-gray-50"
+        :class="active ? 'border-max-primary/50' : 'border-gray-100'"
+        @pointerdown="emitActivate"
+        @focusin="emitActivate"
+    >
         <div
             class="shrink-0 border-b border-gray-100 bg-white"
             :class="compact ? 'px-3 py-1.5' : 'px-4 py-3'"
@@ -208,7 +237,7 @@ onUnmounted(() => {
 
         <div
             class="shrink-0 border-t border-gray-200 bg-white px-3"
-            :class="[compact ? 'py-2' : 'py-3', safeAreaBottom ? 'safe-area-bottom' : '']"
+            :class="composerFooterPadClass"
         >
             <div
                 v-if="sendError"

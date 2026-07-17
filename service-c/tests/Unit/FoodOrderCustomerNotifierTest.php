@@ -8,10 +8,13 @@ use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
+use App\Support\MaxOpenAppTargetResolver;
 use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
+use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
 use Tests\Support\MessMaxLogTestHelper;
@@ -37,7 +40,7 @@ class FoodOrderCustomerNotifierTest extends TestCase
         $text = $this->messageBuilder->buildCustomerSubmitted($order);
 
         $this->assertSame(
-            'Заказ принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            'Заказ №11 принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
             $text,
         );
     }
@@ -92,22 +95,23 @@ TEXT,
         );
     }
 
-    /** notifySubmitted отправляет сообщение клиенту заказа. */
-    public function test_notify_submitted_sends_message_to_order_customer(): void
+    /** notifySubmitted отправляет сообщение с кнопкой открытия заказа. */
+    public function test_notify_submitted_sends_message_with_open_app_button(): void
     {
+        Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
+        Config::set('max.bot_user_id', 421816864057);
+
         $sentMessage = null;
         $client = $this->createMock(MaxMessengerClientInterface::class);
         $client
             ->expects($this->once())
-            ->method('sendMessage')
-            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessage): void {
+            ->method('sendInlineKeyboardMessage')
+            ->willReturnCallback(function (MaxInlineKeyboardMessageDto $message) use (&$sentMessage): void {
                 $sentMessage = $message;
             });
+        $client->expects($this->never())->method('sendMessage');
 
-        $notifier = new LaravelFoodOrderCustomerNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 33, maxUserId: 2001);
 
@@ -117,7 +121,41 @@ TEXT,
         $this->assertSame(2001, $sentMessage->userId);
         $this->assertNull($sentMessage->chatId);
         $this->assertSame(
-            'Заказ принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            'Заказ №33 принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            $sentMessage->text,
+        );
+        $this->assertSame('Открыть заказ №33', $sentMessage->buttonRows[0][0]->text);
+        $this->assertSame('open_app', $sentMessage->buttonRows[0][0]->type);
+        $this->assertSame('https://example.test/max-app', $sentMessage->buttonRows[0][0]->webApp);
+        $this->assertSame('order_33_chat', $sentMessage->buttonRows[0][0]->payload);
+        $this->assertSame(421816864057, $sentMessage->buttonRows[0][0]->contactId);
+    }
+
+    /** notifySubmitted без mini-app URL отправляет обычное сообщение. */
+    public function test_notify_submitted_falls_back_to_plain_message_without_open_app_target(): void
+    {
+        $this->disableOpenAppTarget();
+
+        $sentMessage = null;
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessage): void {
+                $sentMessage = $message;
+            });
+        $client->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $notifier = $this->makeNotifier($client);
+
+        $order = $this->makeOrder(id: 33, maxUserId: 2001);
+
+        $notifier->notifySubmitted($order);
+
+        $this->assertNotNull($sentMessage);
+        $this->assertSame(2001, $sentMessage->userId);
+        $this->assertSame(
+            'Заказ №33 принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
             $sentMessage->text,
         );
     }
@@ -134,10 +172,7 @@ TEXT,
                 $sentMessage = $message;
             });
 
-        $notifier = new LaravelFoodOrderCustomerNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 42, maxUserId: 1002);
 
@@ -161,10 +196,7 @@ TEXT,
                 $sentMessage = $message;
             });
 
-        $notifier = new LaravelFoodOrderCustomerNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(
             id: 7,
@@ -196,10 +228,7 @@ TEXT,
             ->method('sendMessage')
             ->willThrowException(new MaxMessengerRequestException('User blocked bot'));
 
-        $notifier = new LaravelFoodOrderCustomerNotifier(
-            client: $client,
-            messageBuilder: $this->messageBuilder,
-        );
+        $notifier = $this->makeNotifier($client);
 
         $order = $this->makeOrder(id: 3, maxUserId: 99);
 
@@ -210,6 +239,25 @@ TEXT,
         $this->assertSame(3, $log->context['order_id']);
         $this->assertSame(99, $log->context['max_user_id']);
         $this->assertSame('User blocked bot', $log->context['error']);
+    }
+
+    /** Создаёт notifier с подставным MAX-клиентом. */
+    private function makeNotifier(MaxMessengerClientInterface $client): LaravelFoodOrderCustomerNotifier
+    {
+        return new LaravelFoodOrderCustomerNotifier(
+            client: $client,
+            messageBuilder: $this->messageBuilder,
+            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
+        );
+    }
+
+    /** Отключает цель open-app для теста. */
+    private function disableOpenAppTarget(): void
+    {
+        Config::set('max.ui_stand.mini_app_url', '');
+        Config::set('max.public_app_url', '');
+        Config::set('max.webhook.url', '');
+        Config::set('max.bot_username', '');
     }
 
     /** Создаёт тестовый заказ. */

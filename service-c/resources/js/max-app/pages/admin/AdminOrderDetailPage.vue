@@ -8,6 +8,7 @@ import OrderChatPanel from '../../components/OrderChatPanel.vue';
 import OrderSnapshotItemRow from '../../components/OrderSnapshotItemRow.vue';
 import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
+import { useOrderDetailPaneLayout } from '../../composables/useOrderDetailPaneLayout';
 import RejectOrderModal from './RejectOrderModal.vue';
 
 const props = defineProps({
@@ -53,6 +54,15 @@ const emit = defineEmits([
     'reject',
     'messages-read',
 ]);
+
+const {
+    activateDetails,
+    activateChat,
+    isChatActive,
+    isDetailsActive,
+    detailsPaneClass,
+    chatPaneClass,
+} = useOrderDetailPaneLayout();
 
 const isAddressScope = computed(() => props.scope === 'address');
 const isCompositionScope = computed(() => props.scope === 'composition');
@@ -136,7 +146,14 @@ function formatCustomerName(customer) {
             </div>
 
             <template v-else>
-                <div class="min-h-0 flex-[3] space-y-2 overflow-y-auto">
+                <div
+                    class="space-y-2 overflow-y-auto rounded-2xl"
+                    :class="[
+                        detailsPaneClass,
+                        isDetailsActive ? 'ring-1 ring-max-primary/15' : '',
+                    ]"
+                    @pointerdown="activateDetails"
+                >
                 <div class="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Клиент</p>
                     <p class="mt-1 text-sm text-gray-900">{{ formatCustomerName(order.customer) }}</p>
@@ -207,8 +224,10 @@ function formatCustomerName(customer) {
                     :order-id="order.id"
                     perspective="admin"
                     compact
+                    :active="isChatActive"
                     :safe-area-bottom="!hasBottomActions"
-                    class="min-h-0 flex-[2]"
+                    :class="chatPaneClass"
+                    @activate="activateChat"
                     @messages-read="emit('messages-read')"
                 />
             </template>

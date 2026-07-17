@@ -87,14 +87,14 @@ export function useMyOrders({ currentView }) {
     }
 
     /**
-     * @param {import('vue').Ref<object|null>} submittedOrder
+     * @param {{ id: number|string }|null|undefined} order
      */
-    function goToOrderFromConfirmation(submittedOrder) {
-        if (!submittedOrder.value) {
+    function goToOrderFromConfirmation(order) {
+        if (!order?.id) {
             return;
         }
 
-        openOrderDetail(submittedOrder.value.id);
+        openOrderDetail(order.id);
     }
 
     /** Сброс выбранного заказа при возврате на главный экран */

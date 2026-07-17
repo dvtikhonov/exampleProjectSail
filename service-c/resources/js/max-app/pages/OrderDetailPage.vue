@@ -1,10 +1,12 @@
 <script setup>
 /**
  * Карточка заказа клиента: снимок состава, адрес, итог и чат с оператором.
+ * Активная зона (состав или чат) занимает 3/5 высоты, вторая — 2/5.
  */
 import OrderChatPanel from '../components/OrderChatPanel.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
+import { useOrderDetailPaneLayout } from '../composables/useOrderDetailPaneLayout';
 
 defineProps({
     order: {
@@ -22,6 +24,15 @@ defineProps({
 });
 
 const emit = defineEmits(['back', 'messages-read']);
+
+const {
+    activateDetails,
+    activateChat,
+    isChatActive,
+    detailsPaneClass,
+    chatPaneClass,
+    detailsActiveSurfaceClass,
+} = useOrderDetailPaneLayout();
 </script>
 
 <template>
@@ -61,39 +72,45 @@ const emit = defineEmits(['back', 'messages-read']);
             </div>
 
             <template v-else>
-                <div class="min-h-0 flex-[3] overflow-y-auto rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
-                    <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
+                <div
+                    class="flex min-h-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm"
+                    :class="[detailsPaneClass, detailsActiveSurfaceClass]"
+                    @pointerdown="activateDetails"
+                >
+                    <div class="min-h-0 flex-1 overflow-y-auto p-3">
+                        <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
+                        <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
 
-                    <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
-                        <OrderSnapshotItemRow
-                            v-for="(item, index) in order.items_snapshot"
-                            :key="index"
-                            :item="item"
-                            :items-snapshot="order.items_snapshot"
-                        />
-                    </ul>
+                        <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                            <OrderSnapshotItemRow
+                                v-for="(item, index) in order.items_snapshot"
+                                :key="index"
+                                :item="item"
+                                :items-snapshot="order.items_snapshot"
+                            />
+                        </ul>
 
-                    <div class="mt-3 border-t border-gray-100 pt-3 text-sm">
-                        <template v-if="order.delivery_applicable">
-                            <div class="space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-max-muted">Сумма блюд</span>
-                                    <span class="font-medium text-gray-900">{{ order.items_total }} ₽</span>
+                        <div class="mt-3 border-t border-gray-100 pt-3 text-sm">
+                            <template v-if="order.delivery_applicable">
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-max-muted">Сумма блюд</span>
+                                        <span class="font-medium text-gray-900">{{ order.items_total }} ₽</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-max-muted">Доставка</span>
+                                        <span class="font-medium text-gray-900">{{ order.delivery_cost }} ₽</span>
+                                    </div>
+                                    <div class="flex items-center justify-between border-t border-gray-100 pt-2">
+                                        <span class="font-medium text-gray-900">Итого</span>
+                                        <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
+                                    </div>
                                 </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-max-muted">Доставка</span>
-                                    <span class="font-medium text-gray-900">{{ order.delivery_cost }} ₽</span>
-                                </div>
-                                <div class="flex items-center justify-between border-t border-gray-100 pt-2">
-                                    <span class="font-medium text-gray-900">Итого</span>
-                                    <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
-                                </div>
+                            </template>
+                            <div v-else class="flex items-center justify-between">
+                                <span class="font-medium text-gray-900">Итого</span>
+                                <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
                             </div>
-                        </template>
-                        <div v-else class="flex items-center justify-between">
-                            <span class="font-medium text-gray-900">Итого</span>
-                            <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
                         </div>
                     </div>
                 </div>
@@ -102,7 +119,9 @@ const emit = defineEmits(['back', 'messages-read']);
                     :order-id="order.id"
                     perspective="customer"
                     compact
-                    class="min-h-0 flex-[2]"
+                    :active="isChatActive"
+                    :class="chatPaneClass"
+                    @activate="activateChat"
                     @messages-read="emit('messages-read')"
                 />
             </template>
