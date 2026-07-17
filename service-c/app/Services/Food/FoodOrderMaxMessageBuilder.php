@@ -140,7 +140,10 @@ class FoodOrderMaxMessageBuilder
      */
     public function buildCustomerSubmitted(FoodOrder $order): string
     {
-        return 'Заказ принят на рассмотрение. В чате заказа можете сделать уточнения к заказу';
+        return sprintf(
+            'Заказ №%d принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            $order->id,
+        );
     }
 
     /**
