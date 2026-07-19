@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Enums\Food\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
+use App\Models\Cart;
 use App\Models\MaxUser;
 use App\Services\Food\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,7 +102,7 @@ class CartServiceTest extends TestCase
 
         $cart = app(CartService::class)->addItem($maxUser, $fixture['dish']->id, 1);
 
-        \App\Models\Cart::query()->whereKey($cart->id)->update(['delivery_address' => null]);
+        Cart::query()->whereKey($cart->id)->update(['delivery_address' => null]);
 
         $reloaded = app(CartService::class)->getDraftCart($maxUser->fresh());
 
