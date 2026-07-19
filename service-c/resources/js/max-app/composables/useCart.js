@@ -1,7 +1,7 @@
 /**
  * Корзина: загрузка, изменение позиций, адрес доставки, оформление заказа.
  */
-import { computed, onScopeDispose, ref } from 'vue';
+import { computed, onScopeDispose, ref, watch } from 'vue';
 import {
     clearCart,
     extractErrorMessage,
@@ -23,6 +23,8 @@ const ADDRESS_DEBOUNCE_MS = 500;
  */
 export function useCart({ currentView }) {
     const cart = ref(null);
+    /** Сохранённый адрес профиля — показывается в меню даже без корзины */
+    const savedDeliveryAddress = ref('');
     const cartLoading = ref(false);
     const cartError = ref('');
     const updatingItemId = ref(null);
@@ -41,6 +43,38 @@ export function useCart({ currentView }) {
 
     const cartTotal = computed(() => cart.value?.total ?? '0.00');
 
+    /** Адрес для шапки меню и корзины: из корзины или из профиля */
+    const deliveryAddress = computed(() => {
+        const fromCart = cart.value?.delivery_address?.trim() ?? '';
+
+        if (fromCart !== '') {
+            return fromCart;
+        }
+
+        return savedDeliveryAddress.value.trim();
+    });
+
+    watch(
+        cart,
+        (value) => {
+            rememberDeliveryAddress(value?.delivery_address);
+        },
+        { flush: 'sync' },
+    );
+
+    function rememberDeliveryAddress(address) {
+        const trimmed = typeof address === 'string' ? address.trim() : '';
+
+        if (trimmed !== '') {
+            savedDeliveryAddress.value = trimmed;
+        }
+    }
+
+    function applyCartEnvelope(envelope) {
+        cart.value = envelope.cart ?? null;
+        rememberDeliveryAddress(envelope.deliveryAddress ?? envelope.cart?.delivery_address);
+    }
+
     function clearAddressDebounceTimer() {
         if (addressDebounceTimer !== null) {
             clearTimeout(addressDebounceTimer);
@@ -53,7 +87,7 @@ export function useCart({ currentView }) {
         cartError.value = '';
 
         try {
-            cart.value = await fetchCart();
+            applyCartEnvelope(await fetchCart());
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -68,6 +102,7 @@ export function useCart({ currentView }) {
         try {
             for (const cartItem of items) {
                 cart.value = await updateCartItem(cartItem.id, quantity);
+                rememberDeliveryAddress(cart.value?.delivery_address);
             }
         } catch (error) {
             cartError.value = extractErrorMessage(error);
@@ -83,6 +118,7 @@ export function useCart({ currentView }) {
         try {
             for (const cartItem of items) {
                 cart.value = await removeCartItem(cartItem.id);
+                rememberDeliveryAddress(cart.value?.delivery_address);
             }
         } catch (error) {
             cartError.value = extractErrorMessage(error);
@@ -116,7 +152,7 @@ export function useCart({ currentView }) {
         cartError.value = '';
 
         try {
-            cart.value = await updateCartDeliveryAddress(trimmed);
+            applyCartEnvelope(await updateCartDeliveryAddress(trimmed));
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -141,10 +177,10 @@ export function useCart({ currentView }) {
         saveDeliveryAddress(address);
     }
 
-    async function handleSubmitOrder(deliveryAddress) {
+    async function handleSubmitOrder(deliveryAddressValue) {
         clearAddressDebounceTimer();
 
-        const trimmed = deliveryAddress.trim();
+        const trimmed = deliveryAddressValue.trim();
 
         if (trimmed === '') {
             cartError.value = 'Укажите адрес доставки.';
@@ -155,8 +191,9 @@ export function useCart({ currentView }) {
         cartError.value = '';
 
         try {
-            cart.value = await updateCartDeliveryAddress(trimmed);
+            applyCartEnvelope(await updateCartDeliveryAddress(trimmed));
             submittedOrder.value = await submitOrder();
+            rememberDeliveryAddress(trimmed);
             cart.value = null;
             currentView.value = VIEWS.confirmation;
         } catch (error) {
@@ -177,6 +214,8 @@ export function useCart({ currentView }) {
 
     return {
         cart,
+        savedDeliveryAddress,
+        deliveryAddress,
         cartLoading,
         cartError,
         updatingItemId,

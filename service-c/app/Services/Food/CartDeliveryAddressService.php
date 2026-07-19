@@ -6,7 +6,6 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\CartRepositoryInterface;
 use App\DTO\Food\CartDto;
-use App\Exceptions\Food\FoodDomainException;
 use App\Models\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 
@@ -22,20 +21,21 @@ class CartDeliveryAddressService
     ) {}
 
     /**
-     * Сохраняет адрес доставки в корзине и профиле пользователя.
+     * Сохраняет адрес доставки в профиле пользователя и в черновике корзины (если есть).
      *
-     * @throws FoodDomainException
+     * Без корзины адрес всё равно сохраняется в профиле MAX — чтобы показывать его в меню.
      */
-    public function update(MaxUser $maxUser, string $deliveryAddress): CartDto
+    public function update(MaxUser $maxUser, string $deliveryAddress): ?CartDto
     {
+        $this->maxUserDeliveryAddressService->persist($maxUser, $deliveryAddress);
+
         $cart = $this->cartRepository->findDraftByMaxUserId($maxUser->max_user_id);
 
         if ($cart === null) {
-            throw new FoodDomainException('Cart is empty.', 404);
+            return null;
         }
 
         $this->cartRepository->updateDeliveryAddress($cart, $deliveryAddress);
-        $this->maxUserDeliveryAddressService->persist($maxUser, $deliveryAddress);
 
         return $this->cartDtoFactory->fromModel(
             $this->cartRepository->refreshForDto($cart),
