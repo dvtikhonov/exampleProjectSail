@@ -14,12 +14,32 @@ import { resolveOrderChatDeepLinkOrderId } from '../utils/orderChatDeepLink';
  */
 export function useClientNavigation({ currentView, restaurantsMenu, cart, orders }) {
 
+    /**
+     * Список ресторанов (multi mode): сброс выбора и переход на список.
+     */
     function goToRestaurants() {
         currentView.value = VIEWS.restaurants;
         restaurantsMenu.resetRestaurantSelection();
         cart.resetSubmittedOrder();
         orders.resetOrderSelection();
         orders.loadMyOrders({ silent: true });
+    }
+
+    /**
+     * «Домой»: в single-restaurant mode — меню единственного ресторана,
+     * иначе — список ресторанов.
+     */
+    async function goHome() {
+        if (restaurantsMenu.isSingleRestaurantMode.value) {
+            cart.resetSubmittedOrder();
+            orders.resetOrderSelection();
+            orders.loadMyOrders({ silent: true });
+            await restaurantsMenu.openRestaurant(restaurantsMenu.restaurants.value[0]);
+
+            return;
+        }
+
+        goToRestaurants();
     }
 
     function goToCart() {
@@ -33,7 +53,7 @@ export function useClientNavigation({ currentView, restaurantsMenu, cart, orders
         restaurantsMenu.syncSelectedRestaurantFromCart();
 
         if (!restaurantsMenu.selectedRestaurant.value) {
-            goToRestaurants();
+            await goHome();
 
             return;
         }
@@ -54,12 +74,19 @@ export function useClientNavigation({ currentView, restaurantsMenu, cart, orders
 
         if (deepLinkOrderId !== null) {
             await orders.openOrderDetail(deepLinkOrderId);
+
+            return;
+        }
+
+        if (restaurantsMenu.isSingleRestaurantMode.value) {
+            await restaurantsMenu.openRestaurant(restaurantsMenu.restaurants.value[0]);
         }
     }
 
     return {
         currentView,
         goToRestaurants,
+        goHome,
         goToCart,
         goToMenuFromCart,
         bootstrapClient,

@@ -215,6 +215,7 @@ const {
     openRestaurant,
     handleAddToCart,
     handleAddComboToCart,
+    isSingleRestaurantMode,
 } = restaurantsMenu;
 
 const orders = useMyOrders({ currentView });
@@ -236,7 +237,7 @@ const {
 } = orders;
 
 const nav = useClientNavigation({ currentView, restaurantsMenu, cart: cartFlow, orders });
-const { goToRestaurants, goToCart, bootstrapClient } = nav;
+const { goHome, goToCart, bootstrapClient } = nav;
 
 const back = useMaxBackButton({
     hasAdminRoles,
@@ -248,6 +249,7 @@ const back = useMaxBackButton({
     nav,
     cart: cartFlow,
     orders,
+    isSingleRestaurantMode: restaurantsMenu.isSingleRestaurantMode,
 });
 
 const handleChatMessagesRead = createChatMessagesReadHandler({
@@ -706,12 +708,13 @@ onMounted(async () => {
                     :saving-address="savingAddress"
                     :clearing="clearingCart"
                     :orders-unread-count="ordersUnreadCount"
+                    :is-single-restaurant-mode="isSingleRestaurantMode"
                     @update-quantity="handleUpdateQuantity"
                     @remove-item="handleRemoveItem"
                     @clear-cart="handleClearCart"
                     @submit-order="handleSubmitOrder"
                     @go-back="back.handleBack"
-                    @go-to-restaurants="goToRestaurants"
+                    @go-to-restaurants="goHome"
                     @delivery-address-input="handleDeliveryAddressInput"
                     @delivery-address-blur="handleDeliveryAddressBlur"
                     @open-orders="goToMyOrders"
@@ -725,7 +728,7 @@ onMounted(async () => {
                     :refreshing="myOrdersRefreshing"
                     @select-order="handleSelectOrder"
                     @refresh="loadMyOrders({ refreshing: true })"
-                    @back="goToRestaurants"
+                    @back="goHome"
                 />
 
                 <OrderDetailPage
@@ -740,7 +743,8 @@ onMounted(async () => {
                 <OrderConfirmationPage
                     v-else-if="currentView === VIEWS.confirmation && submittedOrder"
                     :order="submittedOrder"
-                    @back-to-restaurants="goToRestaurants"
+                    :is-single-restaurant-mode="isSingleRestaurantMode"
+                    @back-to-restaurants="goHome"
                     @go-to-order="() => goToOrderFromConfirmation(submittedOrder)"
                 />
             </template>

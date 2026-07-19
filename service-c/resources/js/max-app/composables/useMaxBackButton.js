@@ -16,6 +16,7 @@ import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from '../constan
  * @param {ReturnType<import('./useClientNavigation').useClientNavigation>} deps.nav
  * @param {ReturnType<import('./useCart').useCart>} deps.cart
  * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders
+ * @param {import('vue').ComputedRef<boolean>} deps.isSingleRestaurantMode — меню как корень клиента
  */
 export function useMaxBackButton({
     hasAdminRoles,
@@ -27,9 +28,16 @@ export function useMaxBackButton({
     nav,
     cart,
     orders,
+    isSingleRestaurantMode,
 }) {
     /** Снимает обработчик кнопки «Назад» при смене экрана */
     let unbindBackButton = () => {};
+
+    /** Список ресторанов (multi) или меню единственного ресторана (single) */
+    function isClientRootView() {
+        return nav.currentView.value === VIEWS.restaurants
+            || (nav.currentView.value === VIEWS.menu && isSingleRestaurantMode.value);
+    }
 
     /**
      * Обработка системной кнопки «Назад» MAX.
@@ -65,7 +73,15 @@ export function useMaxBackButton({
         }
 
         if (nav.currentView.value === VIEWS.menu) {
-            nav.goToRestaurants();
+            if (isSingleRestaurantMode.value) {
+                if (getPlatform() === 'desktop') {
+                    closeMaxApp();
+                }
+
+                return;
+            }
+
+            nav.goHome();
             return;
         }
 
@@ -75,7 +91,7 @@ export function useMaxBackButton({
         }
 
         if (nav.currentView.value === VIEWS.orderList) {
-            nav.goToRestaurants();
+            nav.goHome();
             return;
         }
 
@@ -136,13 +152,13 @@ export function useMaxBackButton({
             return;
         }
 
-        if (nav.currentView.value === VIEWS.restaurants && getPlatform() === 'desktop') {
+        if (isClientRootView() && getPlatform() === 'desktop') {
             unbindBackButton = bindBackButton(closeMaxApp);
 
             return;
         }
 
-        if (nav.currentView.value === VIEWS.restaurants || nav.currentView.value === VIEWS.confirmation) {
+        if (isClientRootView() || nav.currentView.value === VIEWS.confirmation) {
             hideBackButton();
 
             return;
@@ -167,6 +183,7 @@ export function useMaxBackButton({
     watch(admin.adminView, setupBackButton);
     watch(adminSection, setupBackButton);
     watch(dishAdmin.dishAdminView, setupBackButton);
+    watch(isSingleRestaurantMode, setupBackButton);
 
     function cleanup() {
         unbindBackButton();

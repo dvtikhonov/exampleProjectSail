@@ -53,6 +53,10 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    isSingleRestaurantMode: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits([
@@ -212,7 +216,7 @@ watch(
                     class="mt-6 rounded-2xl bg-max-primary px-6 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover"
                     @click="emit('go-to-restaurants')"
                 >
-                    К ресторанам
+                    {{ isSingleRestaurantMode ? 'К меню' : 'К ресторанам' }}
                 </button>
             </div>
 
