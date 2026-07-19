@@ -1,7 +1,7 @@
 /**
  * Клиентский поток: список ресторанов, меню, добавление в корзину.
  */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { addComboToCart, addToCart, extractErrorMessage, fetchMenu, fetchRestaurants } from '../api/foodClient';
 import { VIEWS } from '../constants/views';
 
@@ -14,6 +14,9 @@ export function useRestaurantsMenu({ currentView, cart }) {
     const restaurants = ref([]);
     const restaurantsLoading = ref(false);
     const restaurantsError = ref('');
+
+    /** Режим одного доступного ресторана: список не показывается, «домой» ведёт в меню */
+    const isSingleRestaurantMode = computed(() => restaurants.value.length === 1);
 
     const selectedRestaurant = ref(null);
     const menu = ref(null);
@@ -128,6 +131,7 @@ export function useRestaurantsMenu({ currentView, cart }) {
         restaurants,
         restaurantsLoading,
         restaurantsError,
+        isSingleRestaurantMode,
         selectedRestaurant,
         menu,
         menuLoading,

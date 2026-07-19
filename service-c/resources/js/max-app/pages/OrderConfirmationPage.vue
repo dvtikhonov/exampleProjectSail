@@ -9,6 +9,10 @@ defineProps({
         type: Object,
         required: true,
     },
+    isSingleRestaurantMode: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['back-to-restaurants', 'go-to-order']);
@@ -76,7 +80,7 @@ const emit = defineEmits(['back-to-restaurants', 'go-to-order']);
             class="mt-3 w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-3.5 font-medium text-gray-700 transition hover:bg-gray-50"
             @click="emit('back-to-restaurants')"
         >
-            К ресторанам
+            {{ isSingleRestaurantMode ? 'К меню' : 'К ресторанам' }}
         </button>
     </div>
 </template>
