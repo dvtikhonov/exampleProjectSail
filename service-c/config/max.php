@@ -66,7 +66,8 @@ return [
         ],
     ],
 
-    // Уведомления о заказах еды в MAX-чаты отчётов (те же MAX_REPORT_* env, что в service-b).
+    // MAX_REPORT_*: «тест бот», уведомление о доступности меню (не новые заказы — для них MAX_UI_STAND_*).
+    // max_text_length также используется сборщиками текстов уведомлений о заказах.
     'order_notifications' => [
         'chat_ids' => array_values(array_filter(array_map(
             static fn (string $id): int => (int) $id,
