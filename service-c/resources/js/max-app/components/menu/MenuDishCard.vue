@@ -114,6 +114,7 @@ function handleSelectSecond() {
             </button>
 
             <button
+                v-if="!comboBuilderOpen"
                 type="button"
                 class="flex w-full items-center justify-center rounded-full bg-max-text px-2 py-1.5 text-xs font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
                 :disabled="isAdding || addingComboRef !== null"
