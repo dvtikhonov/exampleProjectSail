@@ -1,10 +1,11 @@
 <script setup>
 /**
  * Панель чата по заказу: загрузка истории, отправка, polling новых сообщений.
- * perspective определяет, какие сообщения считаются «своими» (customer | admin).
+ * perspective влияет на fallback-подписи; «своё» — по sender_max_user_id текущего пользователя.
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { extractErrorMessage, fetchOrderMessages, sendOrderMessage } from '../api/foodClient';
+import { useAuth } from '../composables/useAuth';
 import OrderChatMessage from './OrderChatMessage.vue';
 
 const props = defineProps({
@@ -35,6 +36,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['messages-read', 'activate']);
+
+const { maxUserId } = useAuth();
 
 /**
  * Равные отступы сверху/снизу у поля ввода; safe-area добавляется к нижнему, не заменяет его.
@@ -68,8 +71,18 @@ const MAX_BODY_LENGTH = 2000;
 
 let pollTimer = null;
 
-/** Сообщения текущего пользователя выравниваются справа в ленте */
+/**
+ * Сообщения текущего пользователя выравниваются справа.
+ * Сравниваем sender_max_user_id, чтобы разные админы не видели чужие сообщения как «Вы».
+ *
+ * @param {{ sender_max_user_id?: number, author_type?: string }} message
+ * @returns {boolean}
+ */
 function isOwnMessage(message) {
+    if (maxUserId.value != null && message.sender_max_user_id != null) {
+        return Number(message.sender_max_user_id) === Number(maxUserId.value);
+    }
+
     if (props.perspective === 'customer') {
         return message.author_type === 'customer';
     }
