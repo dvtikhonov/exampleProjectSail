@@ -39,7 +39,22 @@ class FoodCartApiTest extends TestCase
 
         $this->getJson('/api/food/cart', $auth['headers'])
             ->assertOk()
-            ->assertJsonPath('cart', null);
+            ->assertJsonPath('cart', null)
+            ->assertJsonPath('delivery_address', null);
+    }
+
+    /** Показ корзины подставляет сохранённый адрес профиля без черновика. */
+    public function test_cart_show_returns_saved_delivery_address_when_no_draft_cart(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $address = 'ул. Сохранённая, 5';
+
+        $auth['user']->update(['delivery_address' => $address]);
+
+        $this->getJson('/api/food/cart', $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart', null)
+            ->assertJsonPath('delivery_address', $address);
     }
 
     /** Добавление позиции создаёт черновую корзину. */
@@ -528,16 +543,23 @@ class FoodCartApiTest extends TestCase
             ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
-    /** PATCH адреса доставки требует черновую корзину. */
-    public function test_patch_cart_delivery_address_requires_draft_cart(): void
+    /** PATCH адреса доставки без корзины сохраняет адрес в профиле. */
+    public function test_patch_cart_delivery_address_persists_to_profile_without_draft_cart(): void
     {
         $auth = $this->authenticateMaxUser();
+        $address = 'ул. Примерная, 1';
 
         $this->patchJson('/api/food/cart', [
-            'delivery_address' => 'ул. Примерная, 1',
+            'delivery_address' => $address,
         ], $auth['headers'])
-            ->assertNotFound()
-            ->assertJsonPath('message', 'Cart is empty.');
+            ->assertOk()
+            ->assertJsonPath('cart', null)
+            ->assertJsonPath('delivery_address', $address);
+
+        $this->assertDatabaseHas('max_users', [
+            'max_user_id' => $auth['user']->max_user_id,
+            'delivery_address' => $address,
+        ]);
     }
 
     /**

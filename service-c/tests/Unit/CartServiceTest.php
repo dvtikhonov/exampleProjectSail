@@ -87,6 +87,28 @@ class CartServiceTest extends TestCase
         $this->assertSame($address, $cart->deliveryAddress);
     }
 
+    /** getDraftCart подставляет адрес из профиля, если в корзине адрес пустой. */
+    public function test_get_draft_cart_falls_back_to_user_delivery_address_when_cart_address_empty(): void
+    {
+        $address = 'ул. Профильная, 7';
+        $maxUser = MaxUser::query()->create([
+            'max_user_id' => 11_005,
+            'first_name' => 'Cart',
+            'delivery_address' => $address,
+        ]);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+
+        $cart = app(CartService::class)->addItem($maxUser, $fixture['dish']->id, 1);
+
+        \App\Models\Cart::query()->whereKey($cart->id)->update(['delivery_address' => null]);
+
+        $reloaded = app(CartService::class)->getDraftCart($maxUser->fresh());
+
+        $this->assertNotNull($reloaded);
+        $this->assertSame($address, $reloaded->deliveryAddress);
+    }
+
     /** clear удаляет черновую корзину вместе с позициями. */
     public function test_clear_removes_draft_cart_with_items(): void
     {

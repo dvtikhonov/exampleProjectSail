@@ -10,6 +10,7 @@ use App\DTO\Food\CartItemDto;
 use App\Enums\Food\DishWeightUnit;
 use App\Models\Cart;
 use App\Models\MaxUser;
+use App\Services\Max\MaxUserDeliveryAddressService;
 
 /**
  * Сборка CartDto из модели корзины с расчётом сумм.
@@ -20,6 +21,7 @@ class CartDtoFactory
         private readonly FoodMoneyFormatter $moneyFormatter,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
+        private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
     ) {}
 
     /**
@@ -73,7 +75,7 @@ class CartDtoFactory
                 ? $this->moneyFormatter->format($totals->deliveryCost)
                 : null,
             total: $this->moneyFormatter->format($totals->total),
-            deliveryAddress: $cart->delivery_address,
+            deliveryAddress: $this->resolveDeliveryAddress($cart, $maxUser),
             customerCategory: $totals->customerCategory,
             deliveryApplicable: $totals->deliveryApplicable,
             nextTierMinTotal: $totals->nextTierMinTotal !== null
@@ -86,6 +88,20 @@ class CartDtoFactory
                 ? $this->moneyFormatter->format($totals->amountToNextTier)
                 : null,
         );
+    }
+
+    /**
+     * Адрес из корзины или сохранённый в профиле пользователя.
+     */
+    private function resolveDeliveryAddress(Cart $cart, MaxUser $maxUser): ?string
+    {
+        $fromCart = $cart->delivery_address;
+
+        if ($fromCart !== null && trim($fromCart) !== '') {
+            return trim($fromCart);
+        }
+
+        return $this->maxUserDeliveryAddressService->defaultFor($maxUser);
     }
 
     /**

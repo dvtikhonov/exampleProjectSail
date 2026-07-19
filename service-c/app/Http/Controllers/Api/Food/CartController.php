@@ -12,6 +12,7 @@ use App\Http\Requests\Food\UpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\UpdateCartItemRequest;
 use App\Models\MaxUser;
 use App\Services\Food\CartDeliveryAddressService;
+use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,30 +24,36 @@ class CartController extends Controller
     public function __construct(
         private readonly CartServiceInterface $cartService,
         private readonly CartDeliveryAddressService $cartDeliveryAddressService,
+        private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
     ) {}
 
     /**
      * Возвращает текущую черновую корзину пользователя.
+     *
+     * `delivery_address` — адрес из корзины или сохранённый в профиле (для шапки меню без корзины).
      */
     public function show(Request $request): JsonResponse
     {
-        $cart = $this->cartService->getDraftCart($this->maxUser($request));
+        $maxUser = $this->maxUser($request);
+        $cart = $this->cartService->getDraftCart($maxUser);
 
         return response()->json([
             'cart' => $cart?->toArray(),
+            'delivery_address' => $cart?->deliveryAddress
+                ?? $this->maxUserDeliveryAddressService->defaultFor($maxUser),
         ]);
     }
 
     /**
-     * Обновляет адрес доставки в корзине.
+     * Обновляет адрес доставки в корзине и/или профиле пользователя.
      */
     public function updateDeliveryAddress(UpdateCartDeliveryAddressRequest $request): JsonResponse
     {
+        $maxUser = $this->maxUser($request);
+        $deliveryAddress = $request->deliveryAddress();
+
         try {
-            $cart = $this->cartDeliveryAddressService->update(
-                $this->maxUser($request),
-                $request->deliveryAddress(),
-            );
+            $cart = $this->cartDeliveryAddressService->update($maxUser, $deliveryAddress);
         } catch (FoodDomainException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -54,7 +61,10 @@ class CartController extends Controller
         }
 
         return response()->json([
-            'cart' => $cart->toArray(),
+            'cart' => $cart?->toArray(),
+            'delivery_address' => $cart?->deliveryAddress
+                ?? $this->maxUserDeliveryAddressService->defaultFor($maxUser)
+                ?? $deliveryAddress,
         ]);
     }
 

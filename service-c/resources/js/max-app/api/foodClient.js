@@ -132,12 +132,17 @@ export async function fetchMenu(restaurantId) {
 }
 
 /**
- * Загружает текущую корзину пользователя.
+ * Загружает текущую корзину и сохранённый адрес доставки.
+ *
+ * @returns {Promise<{ cart: object|null, deliveryAddress: string|null }>}
  */
 export async function fetchCart() {
     const { data } = await client.get('/food/cart');
 
-    return data.cart;
+    return {
+        cart: data.cart ?? null,
+        deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? null,
+    };
 }
 
 /**
@@ -225,13 +230,17 @@ export async function clearCart() {
 
 /**
  * @param {string} address
+ * @returns {Promise<{ cart: object|null, deliveryAddress: string|null }>}
  */
 export async function updateCartDeliveryAddress(address) {
     const { data } = await client.patch('/food/cart', {
         delivery_address: address,
     });
 
-    return data.cart;
+    return {
+        cart: data.cart ?? null,
+        deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? address,
+    };
 }
 
 /**

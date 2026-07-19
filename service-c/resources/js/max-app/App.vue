@@ -184,6 +184,7 @@ const dishListPageRef = ref(null);
 const cartFlow = useCart({ currentView });
 const {
     cart,
+    deliveryAddress,
     cartLoading,
     cartError,
     updatingItemId,
@@ -680,7 +681,7 @@ onMounted(async () => {
                 <MenuPage
                     v-else-if="currentView === VIEWS.menu"
                     :menu="menu"
-                    :delivery-address="cart?.delivery_address ?? ''"
+                    :delivery-address="deliveryAddress"
                     :loading="menuLoading"
                     :error="menuError"
                     :adding-dish-id="addingDishId"
