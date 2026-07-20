@@ -59,6 +59,17 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function notifyCompositionChanged(FoodOrder $order): void
+    {
+        $text = $this->messageBuilder->buildCustomerCompositionChanged($order);
+        $buttonRows = $this->buildOpenAppButtonRows($order->id);
+
+        $this->trySendMessage($text, $order, $buttonRows);
+    }
+
+    /**
      * Строит ряды кнопок открытия mini-app для уведомления о заказе.
      *
      * web_app — базовый URL/username бота; payload — start_param order_{id}_chat.

@@ -230,6 +230,18 @@ export function useAdminFlow(adminScope) {
         }
     }
 
+    /**
+     * Обновляет карточку после успешного PUT состава (из useCompositionEdit → composition-saved).
+     *
+     * @param {object} order — AdminOrderDetailDto с сервера
+     */
+    function handleAdminCompositionSaved(order) {
+        adminOrderDetail.value = order;
+        selectedAdminOrder.value = order;
+        adminActionError.value = '';
+        void loadAdminOrders({ silent: true });
+    }
+
     return {
         adminView,
         adminOrders,
@@ -255,5 +267,6 @@ export function useAdminFlow(adminScope) {
         openAdminRejectModal,
         closeAdminRejectModal,
         handleAdminReject,
+        handleAdminCompositionSaved,
     };
 }

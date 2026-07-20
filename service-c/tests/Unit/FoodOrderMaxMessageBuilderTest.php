@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\DTO\Food\OrderDto;
+use App\Models\FoodOrder;
 use App\Models\MaxUser;
+use App\Models\Restaurant;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Support\OrderSnapshotComboResolver;
 use Tests\TestCase;
@@ -222,6 +224,117 @@ TEXT,
 
         $this->assertStringContainsString("• Бургер × 3 — 960.00 ₽\n  Входит в комбо: Картофель фри", $text);
         $this->assertStringContainsString("• Картофель фри × 3 — 540.00 ₽\n  Входит в комбо: Бургер", $text);
+    }
+
+    /** Собирает клиентское уведомление об изменении состава с финальным вариантом заказа. */
+    public function test_builds_customer_composition_changed_message_with_final_order(): void
+    {
+        $order = $this->makeFoodOrder(
+            id: 55,
+            restaurantName: 'Пиццерия',
+            deliveryAddress: 'ул. Ленина, 1',
+            itemsTotal: '950.00',
+            deliveryCost: '200.00',
+            total: '1150.00',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Маргарита',
+                    'quantity' => 2,
+                    'line_total' => '800.00',
+                ],
+                [
+                    'dish_id' => 2,
+                    'dish_name' => 'Кола',
+                    'quantity' => 1,
+                    'line_total' => '150.00',
+                ],
+            ],
+        );
+
+        $text = $this->builder->buildCustomerCompositionChanged($order);
+
+        $this->assertSame(
+            <<<'TEXT'
+Заказ изменен по вашему согласованию
+Заказ №55
+Ресторан: Пиццерия
+Адрес: ул. Ленина, 1
+
+• Маргарита × 2 — 800.00 ₽
+• Кола × 1 — 150.00 ₽
+
+Сумма блюд: 950.00 ₽
+Доставка: 200.00 ₽
+Итого: 1150.00 ₽
+TEXT,
+            $text,
+        );
+    }
+
+    /** Включает метки комбо в клиентское уведомление об изменении состава. */
+    public function test_builds_customer_composition_changed_message_with_combo_labels(): void
+    {
+        $order = $this->makeFoodOrder(
+            id: 16,
+            restaurantName: 'Бургерная',
+            deliveryAddress: null,
+            itemsTotal: '1500.00',
+            deliveryCost: null,
+            total: '1500.00',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 10,
+                    'dish_name' => 'Бургер',
+                    'quantity' => 1,
+                    'line_total' => '960.00',
+                    'combo_ref' => '550e8400-e29b-41d4-a716-446655440000',
+                    'combo_partner_dish_ids' => [11],
+                ],
+                [
+                    'dish_id' => 11,
+                    'dish_name' => 'Картофель фри',
+                    'quantity' => 1,
+                    'line_total' => '540.00',
+                    'combo_ref' => '550e8400-e29b-41d4-a716-446655440000',
+                    'combo_partner_dish_ids' => [10],
+                ],
+            ],
+        );
+
+        $text = $this->builder->buildCustomerCompositionChanged($order);
+
+        $this->assertStringContainsString('Заказ изменен по вашему согласованию', $text);
+        $this->assertStringContainsString('Заказ №16', $text);
+        $this->assertStringContainsString("• Бургер × 1 — 960.00 ₽\n  Входит в комбо: Картофель фри", $text);
+        $this->assertStringContainsString("• Картофель фри × 1 — 540.00 ₽\n  Входит в комбо: Бургер", $text);
+        $this->assertStringNotContainsString('Доставка:', $text);
+        $this->assertStringContainsString('Итого: 1500.00 ₽', $text);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $itemsSnapshot
+     */
+    private function makeFoodOrder(
+        int $id,
+        string $restaurantName,
+        ?string $deliveryAddress,
+        string $itemsTotal,
+        ?string $deliveryCost,
+        string $total,
+        array $itemsSnapshot,
+    ): FoodOrder {
+        $order = new FoodOrder([
+            'delivery_address' => $deliveryAddress,
+            'items_total' => $itemsTotal,
+            'delivery_cost' => $deliveryCost,
+            'total' => $total,
+            'items_snapshot' => $itemsSnapshot,
+        ]);
+        $order->id = $id;
+        $order->setRelation('restaurant', new Restaurant(['name' => $restaurantName]));
+
+        return $order;
     }
 
     /**

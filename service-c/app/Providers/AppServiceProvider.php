@@ -29,6 +29,8 @@ use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\MenuReadRepositoryInterface;
 use App\Contracts\Food\OrderChatNotifierInterface;
 use App\Contracts\Food\OrderChatServiceInterface;
+use App\Contracts\Food\OrderCompositionSnapshotBuilderInterface;
+use App\Contracts\Food\OrderCompositionUpdateServiceInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\Contracts\Food\RestaurantRepositoryInterface;
@@ -64,6 +66,8 @@ use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Services\Food\LaravelOrderChatNotifier;
 use App\Services\Food\MenuCategoryAdminService;
 use App\Services\Food\OrderChatService;
+use App\Services\Food\OrderCompositionSnapshotBuilder;
+use App\Services\Food\OrderCompositionUpdateService;
 use App\Services\Food\OrderSubmissionService;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
@@ -105,6 +109,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DishAvailabilityRepositoryInterface::class, EloquentDishAvailabilityRepository::class);
         $this->app->bind(DishAvailabilityScheduleServiceInterface::class, DishAvailabilityScheduleService::class);
         $this->app->bind(OrderSubmissionServiceInterface::class, OrderSubmissionService::class);
+        $this->app->bind(OrderCompositionSnapshotBuilderInterface::class, OrderCompositionSnapshotBuilder::class);
+        $this->app->bind(OrderCompositionUpdateServiceInterface::class, OrderCompositionUpdateService::class);
         $this->app->bind(OrderChatServiceInterface::class, OrderChatService::class);
         $this->app->bind(
             MenuCategoryRepositoryInterface::class,

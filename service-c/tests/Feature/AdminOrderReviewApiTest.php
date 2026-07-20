@@ -10,8 +10,11 @@ use App\Enums\Food\FoodOrderAdminRole;
 use App\Enums\Food\OrderRejectionScope;
 use App\Enums\Food\OrderReviewStatus;
 use App\Enums\Food\OrderStatus;
+use App\Models\Dish;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
+use App\Models\MenuCategory;
+use App\Models\Restaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -639,8 +642,432 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('message', 'Invalid status. Use pending or all.');
     }
 
+    /** Обновление состава меняет количество и пересчитывает суммы, включая доставку. */
+    public function test_composition_update_changes_quantity_and_recalculates_totals(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_801);
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 4],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.id', $fixture['order_id'])
+            ->assertJsonPath('order.items_snapshot.0.dish_id', $fixture['dish']->id)
+            ->assertJsonPath('order.items_snapshot.0.quantity', 4)
+            ->assertJsonPath('order.items_total', '1200.00')
+            ->assertJsonPath('order.delivery_cost', '0.00')
+            ->assertJsonPath('order.total', '1200.00')
+            ->assertJsonPath('order.composition_review_status', OrderReviewStatus::Pending->value);
+
+        $this->assertDatabaseHas('max_food_orders', [
+            'id' => $fixture['order_id'],
+            'items_total' => '1200.00',
+            'delivery_cost' => '0.00',
+            'total' => '1200.00',
+        ]);
+    }
+
+    /** Обновление состава может удалить позицию, оставив остальные. */
+    public function test_composition_update_can_remove_item(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_802);
+        $extraDish = Dish::factory()->create([
+            'menu_category_id' => $fixture['category']->id,
+            'name' => 'Salad',
+            'price' => 150,
+        ]);
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 1],
+                ['dish_id' => $extraDish->id, 'quantity' => 2],
+            ],
+        ], $auth['headers'])->assertOk();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'order.items_snapshot')
+            ->assertJsonPath('order.items_snapshot.0.dish_id', $fixture['dish']->id)
+            ->assertJsonPath('order.items_total', '300.00')
+            ->assertJsonPath('order.delivery_cost', '200.00')
+            ->assertJsonPath('order.total', '500.00');
+    }
+
+    /** Обновление состава может добавить обычное блюдо из меню ресторана. */
+    public function test_composition_update_can_add_regular_dish(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_803);
+        $extraDish = Dish::factory()->create([
+            'menu_category_id' => $fixture['category']->id,
+            'name' => 'Soup',
+            'price' => 250,
+        ]);
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 1],
+                ['dish_id' => $extraDish->id, 'quantity' => 2],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(2, 'order.items_snapshot')
+            ->assertJsonPath('order.items_snapshot.1.dish_id', $extraDish->id)
+            ->assertJsonPath('order.items_snapshot.1.dish_name', 'Soup')
+            ->assertJsonPath('order.items_snapshot.1.quantity', 2)
+            ->assertJsonPath('order.items_total', '800.00')
+            ->assertJsonPath('order.delivery_cost', '200.00')
+            ->assertJsonPath('order.total', '1000.00');
+    }
+
+    /** Обновление состава может добавить комбо и пересчитать суммы. */
+    public function test_composition_update_can_add_combo_and_recalculates_totals(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_804);
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Sides',
+            'sort_order' => 2,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Fries',
+            'price' => 180,
+        ]);
+        $comboRef = '550e8400-e29b-41d4-a716-446655440000';
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                [
+                    'dish_id' => $fixture['dish']->id,
+                    'quantity' => 2,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $sideDish->id,
+                ],
+                [
+                    'dish_id' => $sideDish->id,
+                    'quantity' => 2,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $fixture['dish']->id,
+                ],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(2, 'order.items_snapshot')
+            ->assertJsonPath('order.items_snapshot.0.combo_ref', $comboRef)
+            ->assertJsonPath('order.items_snapshot.0.combo_partner_dish_ids.0', $sideDish->id)
+            ->assertJsonPath('order.items_snapshot.1.combo_ref', $comboRef)
+            ->assertJsonPath('order.items_snapshot.1.combo_partner_dish_ids.0', $fixture['dish']->id)
+            ->assertJsonPath('order.items_total', '960.00')
+            ->assertJsonPath('order.delivery_cost', '200.00')
+            ->assertJsonPath('order.total', '1160.00');
+    }
+
+    /** После успешного обновления состава вызывается notifyCompositionChanged. */
+    public function test_composition_update_notifies_customer(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_805);
+        $auth = $this->compositionAdminAuth();
+
+        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier
+            ->expects($this->once())
+            ->method('notifyCompositionChanged')
+            ->with($this->callback(
+                static fn (FoodOrder $order): bool => $order->id === $fixture['order_id']
+                    && (float) $order->items_total === 600.0,
+            ));
+        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 2],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.items_total', '600.00');
+    }
+
+    /** Обновление состава требует роль composition_reviewer. */
+    public function test_composition_update_requires_admin_role(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_806);
+        $auth = $this->authenticateMaxUser();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    /** Обновление состава недоступно после завершения проверки состава. */
+    public function test_composition_update_returns_unprocessable_when_not_pending(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_807);
+        $auth = $this->compositionAdminAuth();
+
+        $this->mock(FoodOrderCustomerNotifierInterface::class)->shouldIgnoreMissing();
+
+        $this->postJson(
+            "/api/food/admin/orders/{$fixture['order_id']}/composition/approve",
+            [],
+            $auth['headers'],
+        )->assertOk();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 2],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Composition review already completed.');
+    }
+
+    /** Обновление состава отклоняет пустой список позиций. */
+    public function test_composition_update_rejects_empty_items(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_808);
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items']);
+    }
+
+    /** Обновление состава отклоняет битую пару комбо. */
+    public function test_composition_update_rejects_broken_combo_pair(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_809);
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Sides',
+            'sort_order' => 2,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Fries',
+            'price' => 180,
+        ]);
+        $comboRef = '550e8400-e29b-41d4-a716-446655440000';
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                [
+                    'dish_id' => $fixture['dish']->id,
+                    'quantity' => 1,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $sideDish->id,
+                ],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'message',
+                sprintf('Combo pair "%s" must contain exactly two items.', $comboRef),
+            );
+    }
+
+    /** Обновление состава отклоняет блюдо другого ресторана. */
+    public function test_composition_update_rejects_dish_from_another_restaurant(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_810);
+        $other = FoodTestDataBuilder::createRestaurantWithDish('Other Place', 'Burger', 400);
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $other['dish']->id, 'quantity' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Dish does not belong to the order restaurant.');
+    }
+
+    /** Можно менять количество уже принятого в заказ блюда, даже если оно стало недоступным. */
+    public function test_composition_update_allows_quantity_change_when_existing_dish_unavailable(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_812);
+        $auth = $this->compositionAdminAuth();
+
+        $fixture['dish']->update(['is_available' => false]);
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 3],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.items_snapshot.0.quantity', 3)
+            ->assertJsonPath('order.items_total', '900.00')
+            ->assertJsonPath('order.total', '1100.00');
+    }
+
+    /** Новое блюдо с is_available=false при правке состава отклоняется. */
+    public function test_composition_update_rejects_newly_added_unavailable_dish(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_813);
+        $unavailableDish = Dish::factory()->create([
+            'menu_category_id' => $fixture['category']->id,
+            'name' => 'Unavailable Soup',
+            'price' => 250,
+            'is_available' => false,
+        ]);
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 1],
+                ['dish_id' => $unavailableDish->id, 'quantity' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Dish is not available.');
+    }
+
+    /** Можно менять количество комбо, уже лежащего в заказе, если блюда стали недоступны. */
+    public function test_composition_update_allows_combo_quantity_change_when_dishes_unavailable(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_814);
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Sides',
+            'sort_order' => 2,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Fries',
+            'price' => 180,
+        ]);
+        $comboRef = '550e8400-e29b-41d4-a716-446655440001';
+        $auth = $this->compositionAdminAuth();
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                [
+                    'dish_id' => $fixture['dish']->id,
+                    'quantity' => 1,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $sideDish->id,
+                ],
+                [
+                    'dish_id' => $sideDish->id,
+                    'quantity' => 1,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $fixture['dish']->id,
+                ],
+            ],
+        ], $auth['headers'])->assertOk();
+
+        $fixture['dish']->update(['is_available' => false]);
+        $sideDish->update(['is_available' => false]);
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                [
+                    'dish_id' => $fixture['dish']->id,
+                    'quantity' => 20,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $sideDish->id,
+                ],
+                [
+                    'dish_id' => $sideDish->id,
+                    'quantity' => 20,
+                    'combo_ref' => $comboRef,
+                    'combo_partner_dish_id' => $fixture['dish']->id,
+                ],
+            ],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.items_snapshot.0.quantity', 20)
+            ->assertJsonPath('order.items_snapshot.1.quantity', 20)
+            ->assertJsonPath('order.items_total', '9600.00');
+    }
+
+    /** После правки состава approve по-прежнему работает. */
+    public function test_composition_approve_after_edit_still_works(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_811);
+        $compositionAdmin = $this->compositionAdminAuth();
+        $addressAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier
+            ->expects($this->once())
+            ->method('notifyCompositionChanged')
+            ->with($this->callback(static fn (FoodOrder $order): bool => $order->id === $fixture['order_id']));
+        $customerNotifier
+            ->expects($this->once())
+            ->method('notifyConfirmed')
+            ->with($this->callback(static fn (FoodOrder $order): bool => $order->id === $fixture['order_id']));
+        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => [
+                ['dish_id' => $fixture['dish']->id, 'quantity' => 2],
+            ],
+        ], $compositionAdmin['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.items_total', '600.00');
+
+        $this->postJson(
+            "/api/food/admin/orders/{$fixture['order_id']}/address/approve",
+            [],
+            $addressAdmin['headers'],
+        )->assertOk();
+        $this->postJson(
+            "/api/food/admin/orders/{$fixture['order_id']}/payment/approve",
+            [],
+            $addressAdmin['headers'],
+        )->assertOk();
+        $this->postJson(
+            "/api/food/admin/orders/{$fixture['order_id']}/composition/approve",
+            [],
+            $compositionAdmin['headers'],
+        )
+            ->assertOk()
+            ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
+            ->assertJsonPath('order.composition_review_status', OrderReviewStatus::Approved->value)
+            ->assertJsonPath('order.items_total', '600.00');
+    }
+
     /** Создаёт заказ в статусе ожидания проверки. */
     private function createPendingReviewOrder(int $customerMaxUserId = 99_101): int
+    {
+        return $this->createPendingReviewOrderFixture($customerMaxUserId)['order_id'];
+    }
+
+    /**
+     * Создаёт заказ в статусе ожидания проверки и возвращает связанные сущности.
+     *
+     * @return array{
+     *     order_id: int,
+     *     dish: Dish,
+     *     restaurant: Restaurant,
+     *     category: MenuCategory,
+     * }
+     */
+    private function createPendingReviewOrderFixture(int $customerMaxUserId = 99_101): array
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
             'Review Place',
@@ -663,7 +1090,26 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('order.status', OrderStatus::PendingReview->value);
 
-        return (int) $response->json('order.id');
+        return [
+            'order_id' => (int) $response->json('order.id'),
+            'dish' => $fixture['dish'],
+            'restaurant' => $fixture['restaurant'],
+            'category' => $fixture['category'],
+        ];
+    }
+
+    /**
+     * @return array{user: MaxUser, token: string, headers: array<string, string>}
+     */
+    private function compositionAdminAuth(int $maxUserId = 10_004): array
+    {
+        return $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => $maxUserId,
+                'first_name' => 'CompositionAdmin',
+            ])),
+            FoodOrderAdminRole::CompositionReviewer,
+        );
     }
 
     /**

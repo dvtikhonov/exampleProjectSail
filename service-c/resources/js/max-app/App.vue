@@ -85,6 +85,7 @@ const {
     openAdminRejectModal,
     closeAdminRejectModal,
     handleAdminReject,
+    handleAdminCompositionSaved,
 } = admin;
 
 const {
@@ -645,6 +646,7 @@ onMounted(async () => {
                         @open-reject="openAdminRejectModal"
                         @close-reject="closeAdminRejectModal"
                         @reject="handleAdminReject"
+                        @composition-saved="handleAdminCompositionSaved"
                         @messages-read="handleChatMessagesRead"
                     />
 
