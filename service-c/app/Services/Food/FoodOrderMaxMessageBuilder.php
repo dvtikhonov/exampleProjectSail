@@ -178,6 +178,71 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Текст уведомления клиенту об окончательном варианте заказа после правки состава.
+     */
+    public function buildCustomerCompositionChanged(
+        FoodOrder $order,
+        int $maxTextLength = self::DEFAULT_MAX_TEXT_LENGTH,
+    ): string {
+        $order->loadMissing('restaurant');
+
+        $headerLines = [
+            'Заказ изменен по вашему согласованию',
+            sprintf('Заказ №%d', $order->id),
+            sprintf('Ресторан: %s', (string) ($order->restaurant?->name ?? '')),
+        ];
+
+        $address = trim((string) $order->delivery_address);
+
+        if ($address !== '') {
+            $headerLines[] = sprintf('Адрес: %s', $address);
+        }
+
+        $header = implode("\n", $headerLines);
+
+        $footerLines = [
+            sprintf('Сумма блюд: %s ₽', $this->formatMoneyAmount($order->items_total)),
+        ];
+
+        if ($order->delivery_cost !== null) {
+            $footerLines[] = sprintf('Доставка: %s ₽', $this->formatMoneyAmount($order->delivery_cost));
+        }
+
+        $footerLines[] = sprintf('Итого: %s ₽', $this->formatMoneyAmount($order->total));
+        $footer = implode("\n", $footerLines);
+
+        $items = $this->extractItemsFromSnapshot(is_array($order->items_snapshot) ? $order->items_snapshot : []);
+
+        if ($items === []) {
+            return $this->ensureWithinLimit($this->assembleMessage($header, '', $footer), $maxTextLength);
+        }
+
+        $fullItemsSection = implode("\n", $this->formatItemsLines($items));
+        $fullText = $this->assembleMessage($header, $fullItemsSection, $footer);
+
+        if (mb_strlen($fullText) <= $maxTextLength) {
+            return $fullText;
+        }
+
+        $totalItems = count($items);
+
+        for ($includedCount = $totalItems - 1; $includedCount >= 0; $includedCount--) {
+            $remaining = $totalItems - $includedCount;
+            $itemsSection = $this->buildItemsSection($items, $includedCount, $remaining);
+            $candidate = $this->assembleMessage($header, $itemsSection, $footer);
+
+            if (mb_strlen($candidate) <= $maxTextLength) {
+                return $candidate;
+            }
+        }
+
+        return $this->ensureWithinLimit(
+            $this->assembleMessage($header, $this->buildTruncationSuffix($totalItems), $footer),
+            $maxTextLength,
+        );
+    }
+
+    /**
      * Собирает подвал MAX-сообщения о заказе.
      */
     private function buildFooter(OrderDto $order): string
@@ -244,9 +309,20 @@ class FoodOrderMaxMessageBuilder
      */
     private function extractItems(OrderDto $order): array
     {
+        return $this->extractItemsFromSnapshot($order->itemsSnapshot);
+    }
+
+    /**
+     * Извлекает позиции из массива items_snapshot.
+     *
+     * @param  list<mixed>|array<int, mixed>  $itemsSnapshot
+     * @return list<array<string, mixed>>
+     */
+    private function extractItemsFromSnapshot(array $itemsSnapshot): array
+    {
         $items = [];
 
-        foreach ($order->itemsSnapshot as $snapshot) {
+        foreach ($itemsSnapshot as $snapshot) {
             if (! is_array($snapshot)) {
                 continue;
             }
@@ -269,6 +345,18 @@ class FoodOrderMaxMessageBuilder
         }
 
         return $items;
+    }
+
+    /**
+     * Форматирует денежную сумму для клиентского уведомления.
+     */
+    private function formatMoneyAmount(mixed $amount): string
+    {
+        if ($amount === null || $amount === '') {
+            return '0.00';
+        }
+
+        return number_format((float) $amount, 2, '.', '');
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
+use App\Models\Restaurant;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Support\MaxOpenAppTargetResolver;
@@ -160,6 +161,80 @@ TEXT,
         );
     }
 
+    /** Собирает сообщение клиенту об изменении состава. */
+    public function test_build_customer_composition_changed_message(): void
+    {
+        $order = $this->makeOrder(
+            id: 55,
+            restaurantName: 'Пиццерия',
+            deliveryAddress: 'ул. Ленина, 1',
+            itemsTotal: '800.00',
+            deliveryCost: '200.00',
+            total: '1000.00',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Маргарита',
+                    'quantity' => 2,
+                    'line_total' => '800.00',
+                ],
+            ],
+        );
+
+        $text = $this->messageBuilder->buildCustomerCompositionChanged($order);
+
+        $this->assertStringContainsString('Заказ изменен по вашему согласованию', $text);
+        $this->assertStringContainsString('Заказ №55', $text);
+        $this->assertStringContainsString('Ресторан: Пиццерия', $text);
+        $this->assertStringContainsString('• Маргарита × 2 — 800.00 ₽', $text);
+        $this->assertStringContainsString('Итого: 1000.00 ₽', $text);
+    }
+
+    /** notifyCompositionChanged отправляет сообщение с кнопкой открытия заказа. */
+    public function test_notify_composition_changed_sends_message_with_open_app_button(): void
+    {
+        Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
+        Config::set('max.bot_user_id', 421816864057);
+
+        $sentMessage = null;
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->once())
+            ->method('sendInlineKeyboardMessage')
+            ->willReturnCallback(function (MaxInlineKeyboardMessageDto $message) use (&$sentMessage): void {
+                $sentMessage = $message;
+            });
+        $client->expects($this->never())->method('sendMessage');
+
+        $notifier = $this->makeNotifier($client);
+
+        $order = $this->makeOrder(
+            id: 55,
+            maxUserId: 2001,
+            restaurantName: 'Пиццерия',
+            itemsTotal: '500.00',
+            total: '500.00',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'quantity' => 1,
+                    'line_total' => '500.00',
+                ],
+            ],
+        );
+
+        $notifier->notifyCompositionChanged($order);
+
+        $this->assertNotNull($sentMessage);
+        $this->assertSame(2001, $sentMessage->userId);
+        $this->assertStringContainsString('Заказ изменен по вашему согласованию', $sentMessage->text);
+        $this->assertStringContainsString('• Суп × 1 — 500.00 ₽', $sentMessage->text);
+        $this->assertSame('Открыть заказ №55', $sentMessage->buttonRows[0][0]->text);
+        $this->assertSame('open_app', $sentMessage->buttonRows[0][0]->type);
+        $this->assertSame('order_55_chat', $sentMessage->buttonRows[0][0]->payload);
+    }
+
     /** notifyConfirmed отправляет сообщение клиенту заказа. */
     public function test_notify_confirmed_sends_message_to_order_customer(): void
     {
@@ -266,13 +341,28 @@ TEXT,
         int $maxUserId = 1000,
         ?string $addressRejectionComment = null,
         ?string $compositionRejectionComment = null,
+        ?string $restaurantName = null,
+        ?string $deliveryAddress = null,
+        ?string $itemsTotal = null,
+        ?string $deliveryCost = null,
+        ?string $total = null,
+        ?array $itemsSnapshot = null,
     ): FoodOrder {
         $order = new FoodOrder([
             'max_user_id' => $maxUserId,
             'address_rejection_comment' => $addressRejectionComment,
             'composition_rejection_comment' => $compositionRejectionComment,
+            'delivery_address' => $deliveryAddress,
+            'items_total' => $itemsTotal,
+            'delivery_cost' => $deliveryCost,
+            'total' => $total,
+            'items_snapshot' => $itemsSnapshot,
         ]);
         $order->id = $id;
+
+        if ($restaurantName !== null) {
+            $order->setRelation('restaurant', new Restaurant(['name' => $restaurantName]));
+        }
 
         return $order;
     }

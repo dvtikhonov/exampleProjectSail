@@ -20,9 +20,11 @@ class ComboPairValidator
     /**
      * Проверяет, что партнёр комбо допустим для указанного блюда.
      *
+     * @param  bool  $requirePartnerAvailable  false — для партнёра уже из items_snapshot заказа
+     *
      * @throws FoodDomainException
      */
-    public function validatePair(Dish $dish, int $partnerDishId): Dish
+    public function validatePair(Dish $dish, int $partnerDishId, bool $requirePartnerAvailable = true): Dish
     {
         if ($partnerDishId === $dish->id) {
             throw new FoodDomainException('Combo partner dish must differ from the dish being added.');
@@ -34,7 +36,7 @@ class ComboPairValidator
             throw new FoodDomainException('Combo partner dish not found.', 404);
         }
 
-        if (! $partner->is_available) {
+        if ($requirePartnerAvailable && ! $partner->is_available) {
             throw new FoodDomainException('Combo partner dish is not available.');
         }
 

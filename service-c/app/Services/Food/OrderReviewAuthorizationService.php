@@ -43,6 +43,20 @@ class OrderReviewAuthorizationService
     }
 
     /**
+     * Проверяет право администратора редактировать состав заказа в очереди проверки.
+     *
+     * @throws FoodDomainException
+     */
+    public function assertCanEditComposition(MaxUser $admin, FoodOrder $order): void
+    {
+        $this->assertHasRole($admin, FoodOrderAdminRole::CompositionReviewer);
+
+        if (! $order->isInCompositionReviewQueue()) {
+            throw new FoodDomainException('Composition review already completed.', 422);
+        }
+    }
+
+    /**
      * Проверяет наличие активной роли у администратора.
      *
      * @throws FoodDomainException

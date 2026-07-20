@@ -3,12 +3,16 @@
  * Карточка заказа для проверяющего: клиент, адрес, оплата, состав, чат, approve/reject.
  * В разделе «Адреса» проверяющий подтверждает адрес и оплату независимо.
  */
-import { computed } from 'vue';
+import { computed, toRef } from 'vue';
+import CompositionEditItemList from '../../components/admin/CompositionEditItemList.vue';
+import CompositionMenuPickerSheet from '../../components/admin/CompositionMenuPickerSheet.vue';
 import OrderChatPanel from '../../components/OrderChatPanel.vue';
 import OrderSnapshotItemRow from '../../components/OrderSnapshotItemRow.vue';
 import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
+import { useCompositionEdit } from '../../composables/useCompositionEdit';
 import { useOrderDetailPaneLayout } from '../../composables/useOrderDetailPaneLayout';
+import ConfirmCompositionSaveModal from './ConfirmCompositionSaveModal.vue';
 import RejectOrderModal from './RejectOrderModal.vue';
 
 const props = defineProps({
@@ -53,7 +57,47 @@ const emit = defineEmits([
     'close-reject',
     'reject',
     'messages-read',
+    'composition-saved',
 ]);
+
+const orderRef = computed(() => props.order);
+const scopeRef = toRef(props, 'scope');
+
+const {
+    isEditMode,
+    canEdit,
+    draftGroups,
+    draftItemsTotal,
+    menu,
+    menuLoading,
+    menuError,
+    saveLoading,
+    saveError,
+    showConfirmModal,
+    menuPickerOpen,
+    comboBuilderOpen,
+    comboFirstDish,
+    comboSecondDish,
+    comboQuantity,
+    comboTotal,
+    canAddCombo,
+    startEdit,
+    cancelEdit,
+    openMenuPicker,
+    closeMenuPicker,
+    openSaveConfirm,
+    closeSaveConfirm,
+    updateGroupQuantity,
+    removeGroup,
+    addDishFromMenu,
+    startComboBuilder,
+    closeComboBuilder,
+    resetSecondComboDish,
+    selectSecondComboDish,
+    changeComboQuantity,
+    handleAddCombo,
+    confirmSave,
+} = useCompositionEdit(orderRef, scopeRef);
 
 const {
     activateDetails,
@@ -69,6 +113,16 @@ const isCompositionScope = computed(() => props.scope === 'composition');
 
 const isAddressPending = computed(() => props.order.address_review_status === 'pending');
 const isPaymentPending = computed(() => props.order.payment_review_status === 'pending');
+
+const displayItemsTotal = computed(() => {
+    if (isEditMode.value) {
+        return draftItemsTotal.value;
+    }
+
+    return props.order.items_total;
+});
+
+const compositionActionError = computed(() => saveError.value || props.actionError);
 
 const hasBottomActions = computed(() => {
     if (props.loading) {
@@ -109,6 +163,12 @@ function formatCustomerName(customer) {
     }
 
     return `ID ${customer.max_user_id}`;
+}
+
+function handleConfirmSave() {
+    confirmSave((updatedOrder) => {
+        emit('composition-saved', updatedOrder);
+    });
 }
 </script>
 
@@ -183,8 +243,48 @@ function formatCustomerName(customer) {
                     class="rounded-2xl border bg-white p-3 shadow-sm"
                     :class="isCompositionScope ? 'border-max-primary/40 ring-1 ring-max-primary/10' : 'border-gray-100'"
                 >
-                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Состав заказа</p>
-                    <ul class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Состав заказа</p>
+                        <button
+                            v-if="isCompositionScope && canEdit && !isEditMode"
+                            type="button"
+                            class="shrink-0 text-xs font-medium text-max-primary transition hover:text-max-primary-hover"
+                            @click="startEdit"
+                        >
+                            Редактировать
+                        </button>
+                    </div>
+
+                    <template v-if="isEditMode">
+                        <CompositionEditItemList
+                            class="mt-3"
+                            :groups="draftGroups"
+                            @update-quantity="updateGroupQuantity"
+                            @remove-group="removeGroup"
+                        />
+
+                        <div class="mt-3">
+                            <button
+                                type="button"
+                                class="w-full rounded-xl border border-max-primary/30 bg-max-primary/5 px-3 py-2 text-xs font-medium text-max-primary transition hover:bg-max-primary/10"
+                                @click="openMenuPicker"
+                            >
+                                Добавить блюдо
+                            </button>
+                        </div>
+
+                        <p
+                            v-if="menuError"
+                            class="mt-2 text-xs text-red-600"
+                        >
+                            {{ menuError }}
+                        </p>
+                    </template>
+
+                    <ul
+                        v-else
+                        class="mt-3 space-y-2"
+                    >
                         <OrderSnapshotItemRow
                             v-for="(item, index) in order.items_snapshot"
                             :key="index"
@@ -196,24 +296,39 @@ function formatCustomerName(customer) {
                     <div class="mt-4 border-t border-gray-100 pt-3 text-sm">
                         <div class="flex items-center justify-between">
                             <span class="text-max-muted">Сумма блюд</span>
-                            <span class="font-medium text-gray-900">{{ order.items_total }} ₽</span>
+                            <span class="font-medium text-gray-900">{{ displayItemsTotal }} ₽</span>
                         </div>
                         <div
-                            v-if="order.delivery_cost !== null"
+                            v-if="!isEditMode && order.delivery_cost !== null"
                             class="mt-1.5 flex items-center justify-between"
                         >
                             <span class="text-max-muted">Доставка</span>
                             <span class="font-medium text-gray-900">{{ order.delivery_cost }} ₽</span>
                         </div>
-                        <div class="mt-2 flex items-center justify-between border-t border-gray-100 pt-2">
+                        <div
+                            v-if="!isEditMode"
+                            class="mt-2 flex items-center justify-between border-t border-gray-100 pt-2"
+                        >
                             <span class="font-medium text-gray-900">Итого</span>
                             <span class="text-lg font-bold text-gray-900">{{ order.total }} ₽</span>
                         </div>
+                        <p
+                            v-else
+                            class="mt-2 text-xs text-max-muted"
+                        >
+                            Доставка и итог пересчитаются после сохранения
+                        </p>
                     </div>
                 </div>
 
                 <div
-                    v-if="actionError"
+                    v-if="compositionActionError && !showConfirmModal"
+                    class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                    {{ compositionActionError }}
+                </div>
+                <div
+                    v-else-if="actionError && !isCompositionScope"
                     class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
                 >
                     {{ actionError }}
@@ -234,7 +349,31 @@ function formatCustomerName(customer) {
         </main>
 
         <footer
-            v-if="!loading && isCompositionScope"
+            v-if="!loading && isCompositionScope && isEditMode"
+            class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
+        >
+            <div class="flex gap-2">
+                <button
+                    type="button"
+                    class="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                    :disabled="saveLoading"
+                    @click="cancelEdit"
+                >
+                    Отмена
+                </button>
+                <button
+                    type="button"
+                    class="flex-1 rounded-xl bg-max-primary px-3 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                    :disabled="saveLoading || draftGroups.length === 0"
+                    @click="openSaveConfirm"
+                >
+                    Сохранить
+                </button>
+            </div>
+        </footer>
+
+        <footer
+            v-else-if="!loading && isCompositionScope"
             class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
         >
             <div class="flex gap-2">
@@ -316,6 +455,37 @@ function formatCustomerName(customer) {
             :title="rejectModalTitle"
             @close="emit('close-reject')"
             @submit="(comment) => emit('reject', comment)"
+        />
+
+        <ConfirmCompositionSaveModal
+            :open="showConfirmModal"
+            :groups="draftGroups"
+            :items-total="draftItemsTotal"
+            :loading="saveLoading"
+            :error="saveError"
+            @close="closeSaveConfirm"
+            @confirm="handleConfirmSave"
+        />
+
+        <CompositionMenuPickerSheet
+            :open="menuPickerOpen"
+            :menu="menu"
+            :loading="menuLoading"
+            :error="menuError"
+            :combo-builder-open="comboBuilderOpen"
+            :combo-first-dish="comboFirstDish"
+            :combo-second-dish="comboSecondDish"
+            :combo-quantity="comboQuantity"
+            :combo-total="comboTotal"
+            :can-add-combo="canAddCombo"
+            @close="closeMenuPicker"
+            @add-dish="addDishFromMenu"
+            @start-combo="startComboBuilder"
+            @reset-second-combo="resetSecondComboDish"
+            @change-combo-quantity="changeComboQuantity"
+            @add-combo="handleAddCombo"
+            @select-second-combo-dish="selectSecondComboDish"
+            @close-combo-builder="closeComboBuilder"
         />
     </div>
 </template>

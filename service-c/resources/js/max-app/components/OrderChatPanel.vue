@@ -280,7 +280,7 @@ onUnmounted(() => {
                 >
                     <svg
                         v-if="!sending"
-                        class="h-5 w-5"
+                        class="h-5 w-5 rotate-90"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"

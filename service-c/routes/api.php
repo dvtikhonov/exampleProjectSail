@@ -73,6 +73,9 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::post('/orders/{order}/composition/reject', [AdminOrderReviewController::class, 'rejectComposition'])
                 ->middleware('food.order.admin:composition_reviewer')
                 ->whereNumber('order');
+            Route::put('/orders/{order}/composition', [AdminOrderReviewController::class, 'updateComposition'])
+                ->middleware('food.order.admin:composition_reviewer')
+                ->whereNumber('order');
 
             Route::middleware('food.order.admin:menu_manager')->group(function () {
                 Route::get('/menu-categories', [AdminMenuCategoryController::class, 'index']);

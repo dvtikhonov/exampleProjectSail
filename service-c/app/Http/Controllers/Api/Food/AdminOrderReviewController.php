@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\OrderCompositionUpdateServiceInterface;
 use App\Enums\Food\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
+use App\Http\Requests\Food\UpdateOrderCompositionRequest;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use App\Services\Food\AdminOrderQueryService;
@@ -23,6 +25,7 @@ class AdminOrderReviewController extends Controller
     public function __construct(
         private readonly AdminOrderQueryService $adminOrderQueryService,
         private readonly OrderReviewStepHandler $orderReviewStepHandler,
+        private readonly OrderCompositionUpdateServiceInterface $orderCompositionUpdateService,
     ) {}
 
     /**
@@ -139,6 +142,20 @@ class AdminOrderReviewController extends Controller
                 $order,
                 $this->maxUser($request),
                 $request->comment(),
+            );
+        });
+    }
+
+    /**
+     * Обновляет состав заказа в очереди проверки.
+     */
+    public function updateComposition(UpdateOrderCompositionRequest $request, int $order): JsonResponse
+    {
+        return $this->respondReviewDecision(function () use ($request, $order) {
+            return $this->orderCompositionUpdateService->update(
+                $order,
+                $this->maxUser($request),
+                $request->items(),
             );
         });
     }

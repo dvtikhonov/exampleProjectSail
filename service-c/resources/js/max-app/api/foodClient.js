@@ -398,6 +398,18 @@ export async function rejectOrderComposition(orderId, comment) {
     return data.order;
 }
 
+/**
+ * @param {number} orderId
+ * @param {Array<{ dish_id: number, quantity: number, combo_ref?: string, combo_partner_dish_id?: number }>} items
+ */
+export async function updateOrderComposition(orderId, items) {
+    const { data } = await client.put(`/food/admin/orders/${orderId}/composition`, {
+        items,
+    });
+
+    return data.order;
+}
+
 // --- Админ: управление меню (CRUD блюд) ---
 
 /**

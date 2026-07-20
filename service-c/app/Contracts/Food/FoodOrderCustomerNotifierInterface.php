@@ -26,4 +26,9 @@ interface FoodOrderCustomerNotifierInterface
      * Сообщает клиенту об отклонении заявки с указанием этапа и причины.
      */
     public function notifyRejected(FoodOrder $order, OrderRejectionScope $scope): void;
+
+    /**
+     * Сообщает клиенту окончательный вариант заказа после правки состава.
+     */
+    public function notifyCompositionChanged(FoodOrder $order): void;
 }
