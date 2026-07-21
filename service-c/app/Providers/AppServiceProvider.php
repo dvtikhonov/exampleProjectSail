@@ -44,6 +44,7 @@ use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
@@ -91,6 +92,7 @@ use App\Services\Max\UiStand\MaxManagerDailyMenuNotifier;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Support\MaxAppRequestContext;
+use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
@@ -188,6 +190,10 @@ class AppServiceProvider extends ServiceProvider
         });
         $this->app->bind(MaxWebhookUpdateRouterInterface::class, MaxWebhookUpdateRouter::class);
         $this->app->bind(MaxWebAppInitDataValidatorInterface::class, MaxWebAppInitDataValidator::class);
+        $this->app->bind(
+            MaxUiStandRecipientResolverInterface::class,
+            MaxUiStandRecipientResolver::class,
+        );
         $this->app->bind(
             MaxOrderNotificationConfigProviderInterface::class,
             ConfigMaxOrderNotificationConfigProvider::class,

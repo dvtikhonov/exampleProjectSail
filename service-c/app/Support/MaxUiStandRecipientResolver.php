@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use Illuminate\Contracts\Config\Repository;
 
 /**
  * Получатели UI Stand из .env и из webhook-событий (активные чаты/диалоги).
  */
-final class MaxUiStandRecipientResolver
+final class MaxUiStandRecipientResolver implements MaxUiStandRecipientResolverInterface
 {
     public function __construct(
         private readonly Repository $config,

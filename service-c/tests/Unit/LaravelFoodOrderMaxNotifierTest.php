@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\OrderDto;
 use App\DTO\Max\MaxOrderNotificationConfig;
 use App\Models\MaxUser;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Support\MaxOpenAppTargetResolver;
-use App\Support\MaxUiStandRecipientResolver;
 use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
@@ -211,7 +211,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         return new LaravelFoodOrderMaxNotifier(
             client: $client,
             configProvider: $this->makeConfigProvider($config),
-            uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolver::class),
+            uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolverInterface::class),
             messageBuilder: new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver),
             openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
             config: $this->app->make('config'),

@@ -6,10 +6,10 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Support\MaxOpenAppTargetResolver;
-use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
@@ -28,7 +28,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
         private readonly OrderCustomerNotifyRecipientResolverInterface $recipientResolver,
-        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
+        private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
     ) {}
 
     /**

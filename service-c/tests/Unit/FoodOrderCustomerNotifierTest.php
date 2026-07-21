@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
@@ -12,7 +13,6 @@ use App\Models\Restaurant;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Support\MaxOpenAppTargetResolver;
-use App\Support\MaxUiStandRecipientResolver;
 use App\Support\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
@@ -480,7 +480,7 @@ TEXT,
             ->method('resolveMaxUserIds')
             ->willReturn([1003]);
 
-        $uiStandResolver = $this->createMock(MaxUiStandRecipientResolver::class);
+        $uiStandResolver = $this->createMock(MaxUiStandRecipientResolverInterface::class);
         $uiStandResolver->method('chatIds')->willReturn([-75495934087316]);
         $uiStandResolver->method('userIds')->willReturn([]);
 
@@ -569,7 +569,7 @@ TEXT,
     private function makeNotifier(
         MaxMessengerClientInterface $client,
         ?OrderCustomerNotifyRecipientResolverInterface $recipientResolver = null,
-        ?MaxUiStandRecipientResolver $uiStandRecipientResolver = null,
+        ?MaxUiStandRecipientResolverInterface $uiStandRecipientResolver = null,
     ): LaravelFoodOrderCustomerNotifier {
         return new LaravelFoodOrderCustomerNotifier(
             client: $client,
@@ -578,7 +578,7 @@ TEXT,
             recipientResolver: $recipientResolver
                 ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
             uiStandRecipientResolver: $uiStandRecipientResolver
-                ?? $this->app->make(MaxUiStandRecipientResolver::class),
+                ?? $this->app->make(MaxUiStandRecipientResolverInterface::class),
         );
     }
 
