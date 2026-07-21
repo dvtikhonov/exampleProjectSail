@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'max_user_id',
+    'created_by_max_user_id',
     'restaurant_id',
     'status',
     'delivery_address',
@@ -33,6 +34,7 @@ class Cart extends Model
     {
         return [
             'max_user_id' => 'integer',
+            'created_by_max_user_id' => 'integer',
             'status' => CartStatus::class,
         ];
     }
@@ -45,6 +47,16 @@ class Cart extends Model
     public function maxUser(): BelongsTo
     {
         return $this->belongsTo(MaxUser::class, 'max_user_id', 'max_user_id');
+    }
+
+    /**
+     * Связь с менеджером, создавшим ручную корзину (null — личная корзина клиента).
+     *
+     * @return BelongsTo<MaxUser, $this>
+     */
+    public function createdByMaxUser(): BelongsTo
+    {
+        return $this->belongsTo(MaxUser::class, 'created_by_max_user_id', 'max_user_id');
     }
 
     /**

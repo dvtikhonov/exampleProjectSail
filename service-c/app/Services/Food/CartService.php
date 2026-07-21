@@ -77,6 +77,7 @@ class CartService implements CartServiceInterface
             if ($cart === null) {
                 $cart = $this->cartRepository->createDraft([
                     'max_user_id' => $maxUser->max_user_id,
+                    'created_by_max_user_id' => null,
                     'restaurant_id' => $restaurant->id,
                     'status' => CartStatus::Draft,
                     'delivery_address' => $this->maxUserDeliveryAddressService->defaultFor($maxUser),

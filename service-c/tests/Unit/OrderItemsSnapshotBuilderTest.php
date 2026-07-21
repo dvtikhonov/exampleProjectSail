@@ -49,6 +49,9 @@ class OrderItemsSnapshotBuilderTest extends TestCase
         $this->assertSame('700.00', $snapshot->itemsSnapshot[0]['unit_price']);
         $this->assertSame(2, $snapshot->itemsSnapshot[0]['quantity']);
         $this->assertSame('1400.00', $snapshot->itemsSnapshot[0]['line_total']);
+        $this->assertArrayHasKey('description', $snapshot->itemsSnapshot[0]);
+        $this->assertArrayHasKey('weight', $snapshot->itemsSnapshot[0]);
+        $this->assertArrayHasKey('weight_unit', $snapshot->itemsSnapshot[0]);
         $this->assertSame(
             $this->expectedDishImageUrlForModel($fixture['dish']),
             $snapshot->itemsSnapshot[0]['image_url'],

@@ -13,14 +13,24 @@ use App\Models\CartItem;
 interface CartRepositoryInterface
 {
     /**
-     * Черновик корзины пользователя с рестораном и позициями.
+     * Личный черновик корзины клиента (created_by_max_user_id IS NULL).
      */
     public function findDraftByMaxUserId(int $maxUserId): ?Cart;
 
     /**
-     * Черновик корзины с блокировкой строки для обновления (SELECT … FOR UPDATE).
+     * Личный черновик корзины с блокировкой строки для обновления (SELECT … FOR UPDATE).
      */
     public function findDraftForUpdate(int $maxUserId): ?Cart;
+
+    /**
+     * Ручной черновик корзины клиента, созданный менеджером.
+     */
+    public function findManualDraft(int $customerMaxUserId, int $managerMaxUserId): ?Cart;
+
+    /**
+     * Ручной черновик корзины с блокировкой строки для обновления.
+     */
+    public function findManualDraftForUpdate(int $customerMaxUserId, int $managerMaxUserId): ?Cart;
 
     /**
      * Создаёт черновик корзины.

@@ -35,4 +35,11 @@ interface FoodOrderAdminRepositoryInterface
      * @return list<int>
      */
     public function listActiveAdminMaxUserIds(): array;
+
+    /**
+     * Уникальные max_user_id активных администраторов с указанной ролью.
+     *
+     * @return list<int>
+     */
+    public function listActiveMaxUserIdsByRole(FoodOrderAdminRole $role): array;
 }

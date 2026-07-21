@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
+use App\Http\Controllers\Api\Food\AdminManualOrderController;
 use App\Http\Controllers\Api\Food\AdminMenuCategoryController;
 use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
@@ -102,6 +103,21 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 Route::get('/dish-availability-schedule', [AdminDishAvailabilityController::class, 'show']);
                 Route::put('/dish-availability-schedule', [AdminDishAvailabilityController::class, 'sync']);
             });
+
+            Route::prefix('manual-orders')
+                ->middleware('food.order.admin:max_manager')
+                ->group(function () {
+                    Route::get('/users', [AdminManualOrderController::class, 'users']);
+                    Route::get('/cart', [AdminManualOrderController::class, 'showCart']);
+                    Route::patch('/cart', [AdminManualOrderController::class, 'updateDeliveryAddress']);
+                    Route::delete('/cart', [AdminManualOrderController::class, 'clearCart']);
+                    Route::post('/cart/items', [AdminManualOrderController::class, 'storeItem']);
+                    Route::patch('/cart/items/{item}', [AdminManualOrderController::class, 'updateItem'])
+                        ->whereNumber('item');
+                    Route::delete('/cart/items/{item}', [AdminManualOrderController::class, 'destroyItem'])
+                        ->whereNumber('item');
+                    Route::post('/submit', [AdminManualOrderController::class, 'submit']);
+                });
         });
     });
 });

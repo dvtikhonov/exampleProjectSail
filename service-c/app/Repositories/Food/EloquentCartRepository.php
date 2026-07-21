@@ -8,6 +8,7 @@ use App\Contracts\Food\CartRepositoryInterface;
 use App\Enums\Food\CartStatus;
 use App\Models\Cart;
 use App\Models\CartItem;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Eloquent-реализация репозитория корзины.
@@ -19,9 +20,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findDraftByMaxUserId(int $maxUserId): ?Cart
     {
-        return Cart::query()
-            ->where('max_user_id', $maxUserId)
-            ->where('status', CartStatus::Draft)
+        return $this->draftQuery($maxUserId)
             ->with(['restaurant', 'items.dish', 'items.comboPartnerDish'])
             ->first();
     }
@@ -31,9 +30,28 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findDraftForUpdate(int $maxUserId): ?Cart
     {
-        return Cart::query()
-            ->where('max_user_id', $maxUserId)
-            ->where('status', CartStatus::Draft)
+        return $this->draftQuery($maxUserId)
+            ->with(['restaurant', 'items.dish'])
+            ->lockForUpdate()
+            ->first();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findManualDraft(int $customerMaxUserId, int $managerMaxUserId): ?Cart
+    {
+        return $this->manualDraftQuery($customerMaxUserId, $managerMaxUserId)
+            ->with(['restaurant', 'items.dish', 'items.comboPartnerDish'])
+            ->first();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findManualDraftForUpdate(int $customerMaxUserId, int $managerMaxUserId): ?Cart
+    {
+        return $this->manualDraftQuery($customerMaxUserId, $managerMaxUserId)
             ->with(['restaurant', 'items.dish'])
             ->lockForUpdate()
             ->first();
@@ -143,5 +161,31 @@ class EloquentCartRepository implements CartRepositoryInterface
     public function deleteItem(CartItem $cartItem): void
     {
         $cartItem->delete();
+    }
+
+    /**
+     * Запрос личного черновика клиента.
+     *
+     * @return Builder<Cart>
+     */
+    private function draftQuery(int $maxUserId): Builder
+    {
+        return Cart::query()
+            ->where('max_user_id', $maxUserId)
+            ->where('status', CartStatus::Draft)
+            ->whereNull('created_by_max_user_id');
+    }
+
+    /**
+     * Запрос ручного черновика менеджера для клиента.
+     *
+     * @return Builder<Cart>
+     */
+    private function manualDraftQuery(int $customerMaxUserId, int $managerMaxUserId): Builder
+    {
+        return Cart::query()
+            ->where('max_user_id', $customerMaxUserId)
+            ->where('created_by_max_user_id', $managerMaxUserId)
+            ->where('status', CartStatus::Draft);
     }
 }

@@ -6,6 +6,7 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\DishImageUrlResolverInterface;
 use App\DTO\Food\OrderItemsSnapshotDto;
+use App\Enums\Food\DishWeightUnit;
 use App\Models\CartItem;
 use App\Models\Dish;
 use Illuminate\Support\Collection;
@@ -65,9 +66,14 @@ class OrderItemsSnapshotBuilder
             $lineTotal = $unitPrice * $quantity;
             $itemsTotal += $lineTotal;
 
+            $weightUnit = $dish->weight_unit ?? DishWeightUnit::Gram;
+
             $snapshotItem = [
                 'dish_id' => (int) $dish->id,
                 'dish_name' => $dish->name,
+                'description' => $this->normalizeDescription($dish->description),
+                'weight' => $this->formatWeight($dish->weight),
+                'weight_unit' => $weightUnit->value,
                 'unit_price' => $this->moneyFormatter->format($unitPrice),
                 'quantity' => $quantity,
                 'line_total' => $this->moneyFormatter->format($lineTotal),
@@ -91,5 +97,31 @@ class OrderItemsSnapshotBuilder
             itemsSnapshot: $itemsSnapshot,
             itemsTotal: $itemsTotal,
         );
+    }
+
+    /**
+     * Нормализует описание блюда для снимка заказа.
+     */
+    private function normalizeDescription(mixed $description): ?string
+    {
+        if ($description === null) {
+            return null;
+        }
+
+        $normalized = trim((string) $description);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    /**
+     * Форматирует вес блюда для снимка заказа.
+     */
+    private function formatWeight(mixed $weight): ?string
+    {
+        if ($weight === null || $weight === '') {
+            return null;
+        }
+
+        return (string) (int) round((float) $weight);
     }
 }

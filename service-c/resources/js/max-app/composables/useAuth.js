@@ -10,6 +10,7 @@ import {
     ADMIN_SECTIONS,
     ROLE_ADDRESS,
     ROLE_COMPOSITION,
+    ROLE_MAX_MANAGER,
     ROLE_MENU,
 } from '../constants/views';
 
@@ -27,13 +28,32 @@ const hasOrderReviewRoles = computed(() =>
 
 const hasMenuManagerRole = computed(() => adminRoles.value.includes(ROLE_MENU));
 
+const hasMaxManagerRole = computed(() => adminRoles.value.includes(ROLE_MAX_MANAGER));
+
 const hasAdminRoles = computed(() =>
-    hasOrderReviewRoles.value || hasMenuManagerRole.value,
+    hasOrderReviewRoles.value || hasMenuManagerRole.value || hasMaxManagerRole.value,
 );
 
-const showAdminSectionSwitcher = computed(() =>
-    hasOrderReviewRoles.value && hasMenuManagerRole.value,
-);
+/** Доступные вкладки админки по ролям */
+const availableAdminSections = computed(() => {
+    const sections = [];
+
+    if (hasOrderReviewRoles.value) {
+        sections.push(ADMIN_SECTIONS.orders);
+    }
+
+    if (hasMaxManagerRole.value) {
+        sections.push(ADMIN_SECTIONS.manualOrders);
+    }
+
+    if (hasMenuManagerRole.value) {
+        sections.push(ADMIN_SECTIONS.menu);
+    }
+
+    return sections;
+});
+
+const showAdminSectionSwitcher = computed(() => availableAdminSections.value.length > 1);
 
 /**
  * Выбирает вкладку админки по приоритету ролей пользователя.
@@ -54,16 +74,25 @@ function resolveDefaultAdminScope(roles) {
 }
 
 /**
- * Определяет начальный раздел админки: заказы или меню.
+ * Определяет начальный раздел админки: заказы, ручные заказы или меню.
  *
  * @param {string[]} roles
  * @returns {string}
  */
 function resolveDefaultAdminSection(roles) {
     const hasOrders = roles.includes(ROLE_ADDRESS) || roles.includes(ROLE_COMPOSITION);
+    const hasManual = roles.includes(ROLE_MAX_MANAGER);
     const hasMenu = roles.includes(ROLE_MENU);
 
-    if (hasMenu && !hasOrders) {
+    if (hasOrders) {
+        return ADMIN_SECTIONS.orders;
+    }
+
+    if (hasManual) {
+        return ADMIN_SECTIONS.manualOrders;
+    }
+
+    if (hasMenu) {
         return ADMIN_SECTIONS.menu;
     }
 
@@ -109,7 +138,9 @@ export function useAuth() {
         adminSection,
         hasOrderReviewRoles,
         hasMenuManagerRole,
+        hasMaxManagerRole,
         hasAdminRoles,
+        availableAdminSections,
         showAdminSectionSwitcher,
         initAuth,
     };

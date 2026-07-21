@@ -10,9 +10,12 @@ import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from '../constan
  * @param {import('vue').ComputedRef<boolean>} deps.hasAdminRoles
  * @param {import('vue').Ref<string>} deps.adminSection
  * @param {import('vue').ComputedRef<boolean>} deps.hasMenuManagerRole
+ * @param {import('vue').ComputedRef<boolean>} [deps.hasMaxManagerRole]
  * @param {ReturnType<import('./useAdminFlow').useAdminFlow>} deps.admin
  * @param {ReturnType<import('./useDishAdmin').useDishAdmin>} deps.dishAdmin
  * @param {ReturnType<import('./useMenuCategoryAdmin').useMenuCategoryAdmin>} deps.categoryAdmin
+ * @param {ReturnType<import('./useManualOrder').useManualOrder>|null} [deps.manualOrder]
+ * @param {(() => void)|null} [deps.onManualExitOrdering]
  * @param {ReturnType<import('./useClientNavigation').useClientNavigation>} deps.nav
  * @param {ReturnType<import('./useCart').useCart>} deps.cart
  * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders
@@ -22,9 +25,12 @@ export function useMaxBackButton({
     hasAdminRoles,
     adminSection,
     hasMenuManagerRole,
+    hasMaxManagerRole = null,
     admin,
     dishAdmin,
     categoryAdmin,
+    manualOrder = null,
+    onManualExitOrdering = null,
     nav,
     cart,
     orders,
@@ -33,10 +39,33 @@ export function useMaxBackButton({
     /** Снимает обработчик кнопки «Назад» при смене экрана */
     let unbindBackButton = () => {};
 
+    function isMaxManagerSection() {
+        return Boolean(
+            hasMaxManagerRole?.value
+            && adminSection.value === ADMIN_SECTIONS.manualOrders,
+        );
+    }
+
+    function isManualOrdering() {
+        return isMaxManagerSection() && Boolean(manualOrder?.isOrdering?.value);
+    }
+
     /** Список ресторанов (multi) или меню единственного ресторана (single) */
     function isClientRootView() {
         return nav.currentView.value === VIEWS.restaurants
             || (nav.currentView.value === VIEWS.menu && isSingleRestaurantMode.value);
+    }
+
+    function isManualOrderRootView() {
+        if (!isMaxManagerSection()) {
+            return false;
+        }
+
+        if (!manualOrder?.isOrdering?.value) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -45,6 +74,42 @@ export function useMaxBackButton({
      */
     function handleBack() {
         if (hasAdminRoles.value) {
+            if (isManualOrdering()) {
+                if (nav.currentView.value === VIEWS.cart && cart.cartPageRef.value?.handleBackRequest?.()) {
+                    return;
+                }
+
+                if (nav.currentView.value === VIEWS.confirmation) {
+                    onManualExitOrdering?.();
+
+                    return;
+                }
+
+                if (nav.currentView.value === VIEWS.menu) {
+                    if (isSingleRestaurantMode.value) {
+                        onManualExitOrdering?.();
+
+                        return;
+                    }
+
+                    nav.goToRestaurants();
+
+                    return;
+                }
+
+                if (nav.currentView.value === VIEWS.cart) {
+                    nav.goToMenuFromCart();
+
+                    return;
+                }
+
+                if (nav.currentView.value === VIEWS.restaurants) {
+                    onManualExitOrdering?.();
+                }
+
+                return;
+            }
+
             if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.form) {
                     dishAdmin.closeDishForm();
@@ -108,6 +173,30 @@ export function useMaxBackButton({
         unbindBackButton();
 
         if (hasAdminRoles.value) {
+            if (isMaxManagerSection()) {
+                if (isManualOrderRootView() && getPlatform() === 'desktop') {
+                    unbindBackButton = bindBackButton(closeMaxApp);
+
+                    return;
+                }
+
+                if (isManualOrderRootView()) {
+                    hideBackButton();
+
+                    return;
+                }
+
+                if (nav.currentView.value === VIEWS.confirmation) {
+                    hideBackButton();
+
+                    return;
+                }
+
+                unbindBackButton = bindBackButton(handleBack);
+
+                return;
+            }
+
             if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 if (
                     (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
@@ -184,6 +273,10 @@ export function useMaxBackButton({
     watch(adminSection, setupBackButton);
     watch(dishAdmin.dishAdminView, setupBackButton);
     watch(isSingleRestaurantMode, setupBackButton);
+
+    if (manualOrder?.isOrdering) {
+        watch(manualOrder.isOrdering, setupBackButton);
+    }
 
     function cleanup() {
         unbindBackButton();

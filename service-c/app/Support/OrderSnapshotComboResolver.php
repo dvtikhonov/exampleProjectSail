@@ -103,6 +103,58 @@ class OrderSnapshotComboResolver
     }
 
     /**
+     * Группирует позиции снимка: обычные блюда и пары комбо по combo_ref.
+     *
+     * @param  list<array<string, mixed>>  $itemsSnapshot
+     * @return list<array{
+     *     type: 'item'|'combo',
+     *     items: list<array<string, mixed>>,
+     *     quantity: int
+     * }>
+     */
+    public function groupSnapshotItems(array $itemsSnapshot): array
+    {
+        $groups = [];
+        $comboIndexByRef = [];
+
+        foreach ($itemsSnapshot as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (! $this->isComboSnapshotItem($item)) {
+                $groups[] = [
+                    'type' => 'item',
+                    'items' => [$item],
+                    'quantity' => (int) ($item['quantity'] ?? 0),
+                ];
+
+                continue;
+            }
+
+            $comboRef = (string) $item['combo_ref'];
+
+            if (! isset($comboIndexByRef[$comboRef])) {
+                $comboIndexByRef[$comboRef] = count($groups);
+                $groups[] = [
+                    'type' => 'combo',
+                    'items' => [],
+                    'quantity' => (int) ($item['quantity'] ?? 0),
+                ];
+            }
+
+            $index = $comboIndexByRef[$comboRef];
+            $groups[$index]['items'][] = $item;
+            $groups[$index]['quantity'] = min(
+                (int) $groups[$index]['quantity'],
+                (int) ($item['quantity'] ?? 0),
+            );
+        }
+
+        return $groups;
+    }
+
+    /**
      * Находит позицию в снимке заказа по идентификатору блюда.
      *
      * @param  list<array<string, mixed>>  $itemsSnapshot

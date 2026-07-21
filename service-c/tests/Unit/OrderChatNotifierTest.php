@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
 use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderMessageAuthorType;
 use App\Models\FoodOrder;
@@ -282,14 +283,55 @@ TEXT,
         $this->assertSame('customer', $log->context['author_type']);
     }
 
-    /** Создаёт notifier с подставным MAX-клиентом. */
-    private function makeNotifier(MaxMessengerClientInterface $client): LaravelOrderChatNotifier
+    /** Для ручного заказа сообщение админа уходит менеджерам, не клиенту. */
+    public function test_notify_admin_message_manual_order_sends_to_managers_not_customer(): void
     {
+        $this->disableOpenAppTarget();
+        Config::set('max.ui_stand.recipient_chat_ids', []);
+        Config::set('max.ui_stand.recipient_user_ids', []);
+
+        $sentUserIds = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->exactly(2))
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentUserIds): void {
+                $sentUserIds[] = $message->userId;
+            });
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver
+            ->expects($this->once())
+            ->method('resolveMaxUserIds')
+            ->willReturn([9001, 9002]);
+
+        $notifier = $this->makeNotifier($client, $recipientResolver);
+
+        $order = $this->makeOrder(id: 7, maxUserId: 1002, isManual: true);
+        $message = $this->makeMessageDto(
+            foodOrderId: 7,
+            body: 'Принято, уточняем доставку',
+            authorType: OrderMessageAuthorType::Admin,
+        );
+
+        $notifier->notify($order, $message);
+
+        $this->assertSame([9001, 9002], $sentUserIds);
+        $this->assertNotContains(1002, $sentUserIds);
+    }
+
+    /** Создаёт notifier с подставным MAX-клиентом. */
+    private function makeNotifier(
+        MaxMessengerClientInterface $client,
+        ?OrderCustomerNotifyRecipientResolverInterface $customerRecipientResolver = null,
+    ): LaravelOrderChatNotifier {
         return new LaravelOrderChatNotifier(
             client: $client,
             messageBuilder: $this->messageBuilder,
             uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolver::class),
             openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
+            customerRecipientResolver: $customerRecipientResolver
+                ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
         );
     }
 
@@ -303,10 +345,11 @@ TEXT,
     }
 
     /** Создаёт тестовый заказ. */
-    private function makeOrder(int $id, int $maxUserId = 1000): FoodOrder
+    private function makeOrder(int $id, int $maxUserId = 1000, bool $isManual = false): FoodOrder
     {
         $order = new FoodOrder([
             'max_user_id' => $maxUserId,
+            'is_manual' => $isManual,
         ]);
         $order->id = $id;
 
