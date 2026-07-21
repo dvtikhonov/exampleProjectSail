@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
+use App\Models\MaxUser;
 use App\Models\Restaurant;
 use App\Services\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
@@ -54,6 +57,88 @@ class FoodOrderCustomerNotifierTest extends TestCase
         $text = $this->messageBuilder->buildCustomerConfirmed($order);
 
         $this->assertSame('Заявка №15 принята к исполнению', $text);
+    }
+
+    /** Собирает детальное уведомление оформившему ручной заказ. */
+    public function test_build_manual_order_creator_confirmed_message(): void
+    {
+        $order = $this->makeOrder(
+            id: 21,
+            maxUserId: 1002,
+            isManual: true,
+            createdByMaxUserId: 9001,
+            createdAt: '2026-07-21 10:00:00',
+            customerFirstName: 'Иван',
+            customerLastName: 'Петров',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Салат "Гнездо глухаря"',
+                    'description' => 'курица, картофель пай, яйцо, лук жареный, майонез',
+                    'weight' => '110',
+                    'weight_unit' => 'g',
+                    'unit_price' => '97.00',
+                    'quantity' => 2,
+                    'line_total' => '194.00',
+                ],
+                [
+                    'dish_id' => 2,
+                    'dish_name' => 'Терпуг запеченный с овощами',
+                    'weight' => '130',
+                    'weight_unit' => 'g',
+                    'unit_price' => '100.00',
+                    'quantity' => 1,
+                    'line_total' => '100.00',
+                    'combo_ref' => 'combo-1',
+                    'combo_partner_dish_ids' => [3],
+                ],
+                [
+                    'dish_id' => 3,
+                    'dish_name' => 'Гречка',
+                    'weight' => '150',
+                    'weight_unit' => 'g',
+                    'unit_price' => '60.00',
+                    'quantity' => 1,
+                    'line_total' => '60.00',
+                    'combo_ref' => 'combo-1',
+                    'combo_partner_dish_ids' => [2],
+                ],
+                [
+                    'dish_id' => 4,
+                    'dish_name' => 'Поджарка из курицы',
+                    'weight' => '100',
+                    'weight_unit' => 'g',
+                    'unit_price' => '135.00',
+                    'quantity' => 3,
+                    'line_total' => '405.00',
+                    'combo_ref' => 'combo-2',
+                    'combo_partner_dish_ids' => [5],
+                ],
+                [
+                    'dish_id' => 5,
+                    'dish_name' => 'Гречка',
+                    'weight' => '150',
+                    'weight_unit' => 'g',
+                    'unit_price' => '50.00',
+                    'quantity' => 3,
+                    'line_total' => '150.00',
+                    'combo_ref' => 'combo-2',
+                    'combo_partner_dish_ids' => [4],
+                ],
+            ],
+        );
+
+        $text = $this->messageBuilder->buildManualOrderCreatorConfirmed($order);
+
+        $this->assertSame(
+            <<<'TEXT'
+Заказ на 21.07. от Иван Петров:
+1. Салат "Гнездо глухаря" (курица, картофель пай, яйцо, лук жареный, майонез), 110г – 97р - 2шт.
+2. Терпуг запеченный с овощами / Гречка, 130г / 150г – 160р - 1шт.
+3. Поджарка из курицы / Гречка, 100г / 150г – 185р - 3шт.
+TEXT,
+            $text,
+        );
     }
 
     /** Собирает сообщение клиенту об отклонении по адресу. */
@@ -288,6 +373,170 @@ TEXT,
         $this->assertStringContainsString('Причина: Нет ингредиентов', $sentMessage->text);
     }
 
+    /** Для ручного заказа уведомление уходит активным max_manager, не клиенту. */
+    public function test_notify_confirmed_manual_order_sends_to_managers_not_customer(): void
+    {
+        $sentUserIds = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->exactly(2))
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentUserIds): void {
+                $sentUserIds[] = $message->userId;
+            });
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver
+            ->expects($this->once())
+            ->method('resolveMaxUserIds')
+            ->willReturn([9001, 9002]);
+
+        $notifier = $this->makeNotifier($client, $recipientResolver);
+
+        $order = $this->makeOrder(id: 42, maxUserId: 1002, isManual: true);
+
+        $notifier->notifyConfirmed($order);
+
+        $this->assertSame([9001, 9002], $sentUserIds);
+        $this->assertNotContains(1002, $sentUserIds);
+    }
+
+    /** После confirm ручного заказа оформившему уходит детальный состав. */
+    public function test_notify_confirmed_manual_order_sends_detailed_message_to_creator(): void
+    {
+        $sentMessages = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->exactly(2))
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessages): void {
+                $sentMessages[] = $message;
+            });
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver
+            ->expects($this->once())
+            ->method('resolveMaxUserIds')
+            ->willReturn([9001]);
+
+        $notifier = $this->makeNotifier($client, $recipientResolver);
+
+        $order = $this->makeOrder(
+            id: 42,
+            maxUserId: 1002,
+            isManual: true,
+            createdByMaxUserId: 9001,
+            createdAt: '2026-07-21 12:00:00',
+            customerFirstName: 'Анна',
+            customerLastName: 'Сидорова',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'description' => 'куриный бульон',
+                    'weight' => '250',
+                    'weight_unit' => 'g',
+                    'unit_price' => '120.00',
+                    'quantity' => 1,
+                    'line_total' => '120.00',
+                ],
+            ],
+        );
+
+        $notifier->notifyConfirmed($order);
+
+        $this->assertCount(2, $sentMessages);
+        $this->assertSame(9001, $sentMessages[0]->userId);
+        $this->assertSame('Заявка №42 принята к исполнению', $sentMessages[0]->text);
+        $this->assertSame(9001, $sentMessages[1]->userId);
+        $this->assertSame(
+            <<<'TEXT'
+Заказ на 21.07. от Анна Сидорова:
+1. Суп (куриный бульон), 250г – 120р - 1шт.
+TEXT,
+            $sentMessages[1]->text,
+        );
+    }
+
+    /** Если DM оформившему недоступен — «Заказ на» уходит в UI Stand chat. */
+    public function test_notify_confirmed_manual_order_falls_back_to_ui_stand_when_creator_dm_fails(): void
+    {
+        $sentMessages = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->exactly(3))
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessages): void {
+                $sentMessages[] = $message;
+
+                if ($message->userId === 1003) {
+                    throw new MaxMessengerRequestException('Получатель MAX не найден. Проверьте chat_id и user_id в настройках.');
+                }
+            });
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver
+            ->expects($this->once())
+            ->method('resolveMaxUserIds')
+            ->willReturn([1003]);
+
+        $uiStandResolver = $this->createMock(MaxUiStandRecipientResolverInterface::class);
+        $uiStandResolver->method('chatIds')->willReturn([-75495934087316]);
+        $uiStandResolver->method('userIds')->willReturn([]);
+
+        $notifier = $this->makeNotifier($client, $recipientResolver, $uiStandResolver);
+
+        $order = $this->makeOrder(
+            id: 42,
+            maxUserId: 1002,
+            isManual: true,
+            createdByMaxUserId: 1003,
+            createdAt: '2026-07-21 12:00:00',
+            customerFirstName: 'Demo',
+            customerLastName: 'VIP',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'weight' => '250',
+                    'weight_unit' => 'g',
+                    'unit_price' => '120.00',
+                    'quantity' => 1,
+                    'line_total' => '120.00',
+                ],
+            ],
+        );
+
+        $notifier->notifyConfirmed($order);
+
+        $this->assertCount(3, $sentMessages);
+        $this->assertSame(1003, $sentMessages[0]->userId);
+        $this->assertSame('Заявка №42 принята к исполнению', $sentMessages[0]->text);
+        $this->assertSame(1003, $sentMessages[1]->userId);
+        $this->assertStringStartsWith('Заказ на 21.07.', $sentMessages[1]->text);
+        $this->assertSame(-75495934087316, $sentMessages[2]->chatId);
+        $this->assertNull($sentMessages[2]->userId);
+        $this->assertSame($sentMessages[1]->text, $sentMessages[2]->text);
+    }
+
+    /** Без получателей (нет max_manager) отправка не выполняется. */
+    public function test_notify_manual_order_skips_send_when_no_recipients(): void
+    {
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client->expects($this->never())->method('sendMessage');
+        $client->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver
+            ->expects($this->once())
+            ->method('resolveMaxUserIds')
+            ->willReturn([]);
+
+        $notifier = $this->makeNotifier($client, $recipientResolver);
+
+        $notifier->notifyConfirmed($this->makeOrder(id: 42, maxUserId: 1002, isManual: true));
+    }
+
     /** Логирует предупреждение, когда отправка не удалась. */
     public function test_notify_logs_warning_when_send_fails(): void
     {
@@ -317,12 +566,19 @@ TEXT,
     }
 
     /** Создаёт notifier с подставным MAX-клиентом. */
-    private function makeNotifier(MaxMessengerClientInterface $client): LaravelFoodOrderCustomerNotifier
-    {
+    private function makeNotifier(
+        MaxMessengerClientInterface $client,
+        ?OrderCustomerNotifyRecipientResolverInterface $recipientResolver = null,
+        ?MaxUiStandRecipientResolverInterface $uiStandRecipientResolver = null,
+    ): LaravelFoodOrderCustomerNotifier {
         return new LaravelFoodOrderCustomerNotifier(
             client: $client,
             messageBuilder: $this->messageBuilder,
             openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
+            recipientResolver: $recipientResolver
+                ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
+            uiStandRecipientResolver: $uiStandRecipientResolver
+                ?? $this->app->make(MaxUiStandRecipientResolverInterface::class),
         );
     }
 
@@ -347,9 +603,16 @@ TEXT,
         ?string $deliveryCost = null,
         ?string $total = null,
         ?array $itemsSnapshot = null,
+        bool $isManual = false,
+        ?int $createdByMaxUserId = null,
+        ?string $createdAt = null,
+        ?string $customerFirstName = null,
+        ?string $customerLastName = null,
     ): FoodOrder {
         $order = new FoodOrder([
             'max_user_id' => $maxUserId,
+            'is_manual' => $isManual,
+            'created_by_max_user_id' => $createdByMaxUserId,
             'address_rejection_comment' => $addressRejectionComment,
             'composition_rejection_comment' => $compositionRejectionComment,
             'delivery_address' => $deliveryAddress,
@@ -360,8 +623,20 @@ TEXT,
         ]);
         $order->id = $id;
 
+        if ($createdAt !== null) {
+            $order->created_at = $createdAt;
+        }
+
         if ($restaurantName !== null) {
             $order->setRelation('restaurant', new Restaurant(['name' => $restaurantName]));
+        }
+
+        if ($customerFirstName !== null || $customerLastName !== null) {
+            $order->setRelation('maxUser', new MaxUser([
+                'max_user_id' => $maxUserId,
+                'first_name' => $customerFirstName,
+                'last_name' => $customerLastName,
+            ]));
         }
 
         return $order;

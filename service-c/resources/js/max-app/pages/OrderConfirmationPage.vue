@@ -1,6 +1,7 @@
 <script setup>
 /**
- * Экран после успешной отправки заявки: ожидание проверки оператором.
+ * Экран после успешной отправки заявки.
+ * Клиентский заказ — ожидание проверки; ручной — сразу принят к исполнению.
  */
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 
@@ -13,19 +14,40 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    /** Ручной заказ менеджера: другой текст и CTA к выбору потребителя */
+    manualOrderMode: {
+        type: Boolean,
+        default: false,
+    },
+    customerLabel: {
+        type: String,
+        default: '',
+    },
 });
 
-const emit = defineEmits(['back-to-restaurants', 'go-to-order']);
+const emit = defineEmits(['back-to-restaurants', 'go-to-order', 'back-to-users']);
 </script>
 
 <template>
     <div class="flex min-h-dvh flex-col items-center justify-center px-6 py-12 text-center">
-        <div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 text-4xl">
-            ⏳
+        <div
+            class="mb-6 flex h-20 w-20 items-center justify-center rounded-full text-4xl"
+            :class="manualOrderMode ? 'bg-green-100' : 'bg-amber-100'"
+        >
+            {{ manualOrderMode ? '✓' : '⏳' }}
         </div>
-        <h1 class="text-2xl font-bold text-gray-900">Заявка отправлена на проверку</h1>
+        <h1 class="text-2xl font-bold text-gray-900">
+            {{ manualOrderMode ? 'Заявка оформлена' : 'Заявка отправлена на проверку' }}
+        </h1>
         <p class="mt-2 text-sm text-max-muted">
-            Заказ №{{ order.id }} ожидает подтверждения. Мы сообщим вам в MAX, когда заявка будет обработана.
+            <template v-if="manualOrderMode">
+                Заказ №{{ order.id }}
+                <template v-if="customerLabel"> для потребителя {{ customerLabel }}</template>
+                принят к исполнению. Адрес, оплата и состав подтверждены.
+            </template>
+            <template v-else>
+                Заказ №{{ order.id }} ожидает подтверждения. Мы сообщим вам в MAX, когда заявка будет обработана.
+            </template>
         </p>
 
         <div class="mt-8 w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm">
@@ -68,19 +90,30 @@ const emit = defineEmits(['back-to-restaurants', 'go-to-order']);
         </div>
 
         <button
+            v-if="manualOrderMode"
             type="button"
             class="mt-8 w-full max-w-sm rounded-2xl bg-max-primary px-6 py-3.5 font-medium text-white transition hover:bg-max-primary-hover"
-            @click="emit('go-to-order')"
+            @click="emit('back-to-users')"
         >
-            Перейти к заказу
+            Выбрать другого потребителя
         </button>
 
-        <button
-            type="button"
-            class="mt-3 w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-3.5 font-medium text-gray-700 transition hover:bg-gray-50"
-            @click="emit('back-to-restaurants')"
-        >
-            {{ isSingleRestaurantMode ? 'К меню' : 'К ресторанам' }}
-        </button>
+        <template v-else>
+            <button
+                type="button"
+                class="mt-8 w-full max-w-sm rounded-2xl bg-max-primary px-6 py-3.5 font-medium text-white transition hover:bg-max-primary-hover"
+                @click="emit('go-to-order')"
+            >
+                Перейти к заказу
+            </button>
+
+            <button
+                type="button"
+                class="mt-3 w-full max-w-sm rounded-2xl border border-gray-200 bg-white px-6 py-3.5 font-medium text-gray-700 transition hover:bg-gray-50"
+                @click="emit('back-to-restaurants')"
+            >
+                {{ isSingleRestaurantMode ? 'К меню' : 'К ресторанам' }}
+            </button>
+        </template>
     </div>
 </template>

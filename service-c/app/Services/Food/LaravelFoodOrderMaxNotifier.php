@@ -6,10 +6,10 @@ namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\OrderDto;
 use App\Models\MaxUser;
 use App\Support\MaxOpenAppTargetResolver;
-use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -28,7 +28,7 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
     public function __construct(
         private readonly MaxMessengerClientInterface $client,
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
-        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
+        private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
         private readonly Repository $config,

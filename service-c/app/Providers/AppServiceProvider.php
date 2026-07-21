@@ -9,6 +9,8 @@ use App\Contracts\Food\CartRepositoryInterface;
 use App\Contracts\Food\CartServiceInterface;
 use App\Contracts\Food\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\CustomerOrderQueryServiceInterface;
+use App\Contracts\Food\DailyMenuCatalogRepositoryInterface;
+use App\Contracts\Food\DailyMenuLineCollectorInterface;
 use App\Contracts\Food\DeliveryTierRepositoryInterface;
 use App\Contracts\Food\DishAdminRepositoryInterface;
 use App\Contracts\Food\DishAdminServiceInterface;
@@ -24,6 +26,9 @@ use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\FoodOrderMaxNotifierInterface;
 use App\Contracts\Food\FoodOrderWriteRepositoryInterface;
+use App\Contracts\Food\ManualOrderCartServiceInterface;
+use App\Contracts\Food\ManualOrderUserQueryServiceInterface;
+use App\Contracts\Food\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Food\MenuCategoryAdminServiceInterface;
 use App\Contracts\Food\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\MenuReadRepositoryInterface;
@@ -31,17 +36,21 @@ use App\Contracts\Food\OrderChatNotifierInterface;
 use App\Contracts\Food\OrderChatServiceInterface;
 use App\Contracts\Food\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\OrderCompositionUpdateServiceInterface;
+use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Food\OrderMessageRepositoryInterface;
 use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\Contracts\Food\RestaurantRepositoryInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
+use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\Repositories\Food\EloquentCartRepository;
 use App\Repositories\Food\EloquentCustomerCategoryRepository;
+use App\Repositories\Food\EloquentDailyMenuCatalogRepository;
 use App\Repositories\Food\EloquentDeliveryTierRepository;
 use App\Repositories\Food\EloquentDishAvailabilityRepository;
 use App\Repositories\Food\EloquentDishRepository;
@@ -56,6 +65,7 @@ use App\Services\Auth\LaravelGatewayAuthSession;
 use App\Services\Auth\RequestGatewayUserContext;
 use App\Services\Food\CartService;
 use App\Services\Food\CustomerOrderQueryService;
+use App\Services\Food\DailyMenuLineCollector;
 use App\Services\Food\DishAdminService;
 use App\Services\Food\DishAvailabilityScheduleService;
 use App\Services\Food\DishImageDeliveryService;
@@ -64,19 +74,25 @@ use App\Services\Food\DishImageUrlResolver;
 use App\Services\Food\LaravelFoodOrderCustomerNotifier;
 use App\Services\Food\LaravelFoodOrderMaxNotifier;
 use App\Services\Food\LaravelOrderChatNotifier;
+use App\Services\Food\ManualOrderCartService;
+use App\Services\Food\ManualOrderUserQueryService;
+use App\Services\Food\MaxManagerDailyMenuMessageBuilder;
 use App\Services\Food\MenuCategoryAdminService;
 use App\Services\Food\OrderChatService;
 use App\Services\Food\OrderCompositionSnapshotBuilder;
 use App\Services\Food\OrderCompositionUpdateService;
+use App\Services\Food\OrderCustomerNotifyRecipientResolver;
 use App\Services\Food\OrderSubmissionService;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
 use App\Services\Max\LaravelMaxAdminBotTestSender;
 use App\Services\Max\MaxWebAppInitDataValidator;
+use App\Services\Max\UiStand\MaxManagerDailyMenuNotifier;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Support\MaxAppRequestContext;
+use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
@@ -103,6 +119,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DishCatalogRepositoryInterface::class, EloquentDishRepository::class);
         $this->app->bind(CartRepositoryInterface::class, EloquentCartRepository::class);
         $this->app->bind(CartServiceInterface::class, CartService::class);
+        $this->app->bind(ManualOrderCartServiceInterface::class, ManualOrderCartService::class);
+        $this->app->bind(ManualOrderUserQueryServiceInterface::class, ManualOrderUserQueryService::class);
         $this->app->bind(CustomerOrderQueryServiceInterface::class, CustomerOrderQueryService::class);
         $this->app->bind(DishAdminServiceInterface::class, DishAdminService::class);
         $this->app->bind(MenuCategoryAdminServiceInterface::class, MenuCategoryAdminService::class);
@@ -156,6 +174,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MaxAdminBotTestSenderInterface::class, LaravelMaxAdminBotTestSender::class);
         $this->app->bind(MaxUserRepositoryInterface::class, EloquentMaxUserRepository::class);
         $this->app->bind(MaxMenuAvailabilityNotifierInterface::class, MaxMenuAvailabilityNotifier::class);
+        $this->app->bind(DailyMenuCatalogRepositoryInterface::class, EloquentDailyMenuCatalogRepository::class);
+        $this->app->bind(DailyMenuLineCollectorInterface::class, DailyMenuLineCollector::class);
+        $this->app->bind(
+            MaxManagerDailyMenuMessageBuilderInterface::class,
+            MaxManagerDailyMenuMessageBuilder::class,
+        );
+        $this->app->bind(MaxManagerDailyMenuNotifierInterface::class, MaxManagerDailyMenuNotifier::class);
         $this->app->bind(MaxBotTokenProviderInterface::class, EnvMaxBotTokenProvider::class);
         $this->app->bind(MaxMessengerClientInterface::class, function ($app): HttpMaxMessengerClient {
             return new HttpMaxMessengerClient(
@@ -166,10 +191,18 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MaxWebhookUpdateRouterInterface::class, MaxWebhookUpdateRouter::class);
         $this->app->bind(MaxWebAppInitDataValidatorInterface::class, MaxWebAppInitDataValidator::class);
         $this->app->bind(
+            MaxUiStandRecipientResolverInterface::class,
+            MaxUiStandRecipientResolver::class,
+        );
+        $this->app->bind(
             MaxOrderNotificationConfigProviderInterface::class,
             ConfigMaxOrderNotificationConfigProvider::class,
         );
         $this->app->bind(FoodOrderMaxNotifierInterface::class, LaravelFoodOrderMaxNotifier::class);
+        $this->app->bind(
+            OrderCustomerNotifyRecipientResolverInterface::class,
+            OrderCustomerNotifyRecipientResolver::class,
+        );
         $this->app->bind(FoodOrderCustomerNotifierInterface::class, LaravelFoodOrderCustomerNotifier::class);
         $this->app->bind(OrderChatNotifierInterface::class, LaravelOrderChatNotifier::class);
     }

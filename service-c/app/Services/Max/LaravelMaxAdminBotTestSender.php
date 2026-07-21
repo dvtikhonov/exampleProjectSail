@@ -6,9 +6,9 @@ namespace App\Services\Max;
 
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Max\MaxAdminBotTestSendResultDto;
 use App\Exceptions\Food\FoodDomainException;
-use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -30,7 +30,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         private readonly MaxMessengerClientInterface $client,
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly Repository $config,
-        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
+        private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
     ) {}
 
     /**

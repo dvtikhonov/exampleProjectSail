@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'cart_id',
     'max_user_id',
+    'is_manual',
+    'created_by_max_user_id',
     'restaurant_id',
     'status',
     'address_review_status',
@@ -50,6 +52,8 @@ class FoodOrder extends Model
     {
         return [
             'max_user_id' => 'integer',
+            'is_manual' => 'boolean',
+            'created_by_max_user_id' => 'integer',
             'status' => OrderStatus::class,
             'address_review_status' => OrderReviewStatus::class,
             'composition_review_status' => OrderReviewStatus::class,
@@ -85,6 +89,16 @@ class FoodOrder extends Model
     public function maxUser(): BelongsTo
     {
         return $this->belongsTo(MaxUser::class, 'max_user_id', 'max_user_id');
+    }
+
+    /**
+     * Связь с менеджером, оформившим ручной заказ.
+     *
+     * @return BelongsTo<MaxUser, $this>
+     */
+    public function createdByMaxUser(): BelongsTo
+    {
+        return $this->belongsTo(MaxUser::class, 'created_by_max_user_id', 'max_user_id');
     }
 
     /**

@@ -19,6 +19,9 @@ interface FoodOrderCustomerNotifierInterface
 
     /**
      * Сообщает клиенту, что заявка принята к исполнению.
+     *
+     * Для ручного заказа дополнительно отправляет детальный состав менеджеру
+     * из created_by_max_user_id.
      */
     public function notifyConfirmed(FoodOrder $order): void;
 

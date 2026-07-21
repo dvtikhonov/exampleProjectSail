@@ -71,4 +71,20 @@ class EloquentFoodOrderAdminRepository implements FoodOrderAdminRepositoryInterf
             ->values()
             ->all();
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listActiveMaxUserIdsByRole(FoodOrderAdminRole $role): array
+    {
+        return FoodOrderAdmin::query()
+            ->where('is_active', true)
+            ->where('role', $role)
+            ->distinct()
+            ->orderBy('max_user_id')
+            ->pluck('max_user_id')
+            ->map(static fn (mixed $maxUserId): int => (int) $maxUserId)
+            ->values()
+            ->all();
+    }
 }

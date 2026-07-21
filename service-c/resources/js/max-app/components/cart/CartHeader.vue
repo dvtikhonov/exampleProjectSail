@@ -37,6 +37,10 @@ defineProps({
         type: Number,
         default: 0,
     },
+    manualOrderMode: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits([
@@ -119,6 +123,7 @@ function handleAddressBlur(value) {
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                     <MyOrdersButton
+                        v-if="!manualOrderMode"
                         label="Заказы"
                         :unread-count="ordersUnreadCount"
                         button-class="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-white/80"

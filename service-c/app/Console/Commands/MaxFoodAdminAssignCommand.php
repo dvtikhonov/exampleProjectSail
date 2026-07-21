@@ -16,7 +16,7 @@ class MaxFoodAdminAssignCommand extends Command
 {
     protected $signature = 'max:food-admin:assign
                             {max_user_id : MAX user ID из max_users}
-                            {role : address_reviewer, composition_reviewer или menu_manager}';
+                            {role : address_reviewer, composition_reviewer, menu_manager или max_manager}';
 
     protected $description = 'Назначить роль администратора заказов еды или меню пользователю MAX';
 
@@ -30,12 +30,11 @@ class MaxFoodAdminAssignCommand extends Command
         $role = FoodOrderAdminRole::tryFrom($roleValue);
 
         if ($role === null) {
-            $this->error(
-                'Недопустимая роль. Допустимые значения: '
-                .FoodOrderAdminRole::AddressReviewer->value.', '
-                .FoodOrderAdminRole::CompositionReviewer->value.', '
-                .FoodOrderAdminRole::MenuManager->value.'.',
-            );
+            $allowedRoles = implode(', ', array_map(
+                static fn (FoodOrderAdminRole $case): string => $case->value,
+                FoodOrderAdminRole::cases(),
+            ));
+            $this->error("Недопустимая роль. Допустимые значения: {$allowedRoles}.");
 
             return self::FAILURE;
         }

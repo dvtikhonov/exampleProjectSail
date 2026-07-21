@@ -19,4 +19,12 @@ interface OrderSubmissionServiceInterface
      * @throws FoodDomainException
      */
     public function submit(MaxUser $maxUser): OrderDto;
+
+    /**
+     * Создаёт ручной заказ из корзины менеджера от имени клиента.
+     * Сразу подтверждает адрес, оплату и состав (approved) и переводит заказ в confirmed.
+     *
+     * @throws FoodDomainException
+     */
+    public function submitManual(MaxUser $customer, MaxUser $manager): OrderDto;
 }

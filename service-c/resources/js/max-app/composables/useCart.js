@@ -1,15 +1,22 @@
 /**
  * Корзина: загрузка, изменение позиций, адрес доставки, оформление заказа.
+ * При getTargetMaxUserId() → number использует admin manual-orders API.
  */
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import {
     clearCart,
+    clearManualCart,
     extractErrorMessage,
     fetchCart,
+    fetchManualCart,
     removeCartItem,
+    removeManualCartItem,
+    submitManualOrder,
     submitOrder,
     updateCartDeliveryAddress,
     updateCartItem,
+    updateManualCartDeliveryAddress,
+    updateManualCartItem,
 } from '../api/foodClient';
 import { VIEWS } from '../constants/views';
 import { buildCartGroups, countCartGroupsQuantity } from '../utils/cartGroups';
@@ -20,8 +27,9 @@ const ADDRESS_DEBOUNCE_MS = 500;
 /**
  * @param {object} deps
  * @param {import('vue').Ref<string>} deps.currentView — для перехода на экран подтверждения
+ * @param {(() => number|null)=} deps.getTargetMaxUserId — клиент ручного заказа или null
  */
-export function useCart({ currentView }) {
+export function useCart({ currentView, getTargetMaxUserId = () => null }) {
     const cart = ref(null);
     /** Сохранённый адрес профиля — показывается в меню даже без корзины */
     const savedDeliveryAddress = ref('');
@@ -82,12 +90,27 @@ export function useCart({ currentView }) {
         }
     }
 
+    /**
+     * @returns {number|null}
+     */
+    function resolveManualUserId() {
+        const id = getTargetMaxUserId();
+
+        return typeof id === 'number' && id > 0 ? id : null;
+    }
+
     async function loadCart() {
         cartLoading.value = true;
         cartError.value = '';
 
         try {
-            applyCartEnvelope(await fetchCart());
+            const manualUserId = resolveManualUserId();
+
+            applyCartEnvelope(
+                manualUserId !== null
+                    ? await fetchManualCart(manualUserId)
+                    : await fetchCart(),
+            );
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -98,10 +121,13 @@ export function useCart({ currentView }) {
     async function handleUpdateQuantity(item, quantity) {
         const items = item.items ?? [item];
         updatingItemId.value = item.key ?? item.id;
+        const manualUserId = resolveManualUserId();
 
         try {
             for (const cartItem of items) {
-                cart.value = await updateCartItem(cartItem.id, quantity);
+                cart.value = manualUserId !== null
+                    ? await updateManualCartItem(manualUserId, cartItem.id, quantity)
+                    : await updateCartItem(cartItem.id, quantity);
                 rememberDeliveryAddress(cart.value?.delivery_address);
             }
         } catch (error) {
@@ -114,10 +140,13 @@ export function useCart({ currentView }) {
     async function handleRemoveItem(item) {
         const items = item.items ?? [item];
         updatingItemId.value = item.key ?? item.id;
+        const manualUserId = resolveManualUserId();
 
         try {
             for (const cartItem of items) {
-                cart.value = await removeCartItem(cartItem.id);
+                cart.value = manualUserId !== null
+                    ? await removeManualCartItem(manualUserId, cartItem.id)
+                    : await removeCartItem(cartItem.id);
                 rememberDeliveryAddress(cart.value?.delivery_address);
             }
         } catch (error) {
@@ -130,9 +159,12 @@ export function useCart({ currentView }) {
     async function handleClearCart() {
         clearingCart.value = true;
         cartError.value = '';
+        const manualUserId = resolveManualUserId();
 
         try {
-            cart.value = await clearCart();
+            cart.value = manualUserId !== null
+                ? await clearManualCart(manualUserId)
+                : await clearCart();
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -150,9 +182,14 @@ export function useCart({ currentView }) {
 
         savingAddress.value = true;
         cartError.value = '';
+        const manualUserId = resolveManualUserId();
 
         try {
-            applyCartEnvelope(await updateCartDeliveryAddress(trimmed));
+            applyCartEnvelope(
+                manualUserId !== null
+                    ? await updateManualCartDeliveryAddress(manualUserId, trimmed)
+                    : await updateCartDeliveryAddress(trimmed),
+            );
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -189,10 +226,17 @@ export function useCart({ currentView }) {
 
         submitting.value = true;
         cartError.value = '';
+        const manualUserId = resolveManualUserId();
 
         try {
-            applyCartEnvelope(await updateCartDeliveryAddress(trimmed));
-            submittedOrder.value = await submitOrder();
+            applyCartEnvelope(
+                manualUserId !== null
+                    ? await updateManualCartDeliveryAddress(manualUserId, trimmed)
+                    : await updateCartDeliveryAddress(trimmed),
+            );
+            submittedOrder.value = manualUserId !== null
+                ? await submitManualOrder(manualUserId)
+                : await submitOrder();
             rememberDeliveryAddress(trimmed);
             cart.value = null;
             currentView.value = VIEWS.confirmation;
@@ -205,6 +249,15 @@ export function useCart({ currentView }) {
 
     /** Сброс оформленного заказа при возврате на главный экран */
     function resetSubmittedOrder() {
+        submittedOrder.value = null;
+    }
+
+    /** Локальный сброс корзины при смене клиента (серверную draft не трогаем) */
+    function resetLocalCartState() {
+        clearAddressDebounceTimer();
+        cart.value = null;
+        savedDeliveryAddress.value = '';
+        cartError.value = '';
         submittedOrder.value = null;
     }
 
@@ -235,5 +288,6 @@ export function useCart({ currentView }) {
         handleDeliveryAddressBlur,
         handleSubmitOrder,
         resetSubmittedOrder,
+        resetLocalCartState,
     };
 }

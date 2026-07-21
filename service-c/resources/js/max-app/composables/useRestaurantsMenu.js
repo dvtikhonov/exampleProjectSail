@@ -1,16 +1,26 @@
 /**
  * Клиентский поток: список ресторанов, меню, добавление в корзину.
+ * При getTargetMaxUserId() → number добавляет позиции через manual-orders API.
  */
 import { computed, ref } from 'vue';
-import { addComboToCart, addToCart, extractErrorMessage, fetchMenu, fetchRestaurants } from '../api/foodClient';
+import {
+    addComboToCart,
+    addComboToManualCart,
+    addToCart,
+    addToManualCart,
+    extractErrorMessage,
+    fetchMenu,
+    fetchRestaurants,
+} from '../api/foodClient';
 import { VIEWS } from '../constants/views';
 
 /**
  * @param {object} deps
  * @param {import('vue').Ref<string>} deps.currentView — текущий экран клиента
  * @param {import('vue').Ref<object|null>} deps.cart — корзина (обновляется при addToCart)
+ * @param {(() => number|null)=} deps.getTargetMaxUserId — клиент ручного заказа или null
  */
-export function useRestaurantsMenu({ currentView, cart }) {
+export function useRestaurantsMenu({ currentView, cart, getTargetMaxUserId = () => null }) {
     const restaurants = ref([]);
     const restaurantsLoading = ref(false);
     const restaurantsError = ref('');
@@ -24,6 +34,15 @@ export function useRestaurantsMenu({ currentView, cart }) {
     const menuError = ref('');
     const addingDishId = ref(null);
     const addingComboRef = ref(null);
+
+    /**
+     * @returns {number|null}
+     */
+    function resolveManualUserId() {
+        const id = getTargetMaxUserId();
+
+        return typeof id === 'number' && id > 0 ? id : null;
+    }
 
     async function loadRestaurants() {
         restaurantsLoading.value = true;
@@ -56,9 +75,12 @@ export function useRestaurantsMenu({ currentView, cart }) {
 
     async function handleAddToCart(dish) {
         addingDishId.value = dish.id;
+        const manualUserId = resolveManualUserId();
 
         try {
-            cart.value = await addToCart(dish.id, 1);
+            cart.value = manualUserId !== null
+                ? await addToManualCart(manualUserId, dish.id, 1)
+                : await addToCart(dish.id, 1);
         } catch (error) {
             menuError.value = extractErrorMessage(error);
         } finally {
@@ -69,14 +91,23 @@ export function useRestaurantsMenu({ currentView, cart }) {
     async function handleAddComboToCart(combo) {
         addingComboRef.value = combo.comboRef;
         menuError.value = '';
+        const manualUserId = resolveManualUserId();
 
         try {
-            cart.value = await addComboToCart(
-                combo.firstDish.id,
-                combo.secondDish.id,
-                combo.quantity,
-                combo.comboRef,
-            );
+            cart.value = manualUserId !== null
+                ? await addComboToManualCart(
+                    manualUserId,
+                    combo.firstDish.id,
+                    combo.secondDish.id,
+                    combo.quantity,
+                    combo.comboRef,
+                )
+                : await addComboToCart(
+                    combo.firstDish.id,
+                    combo.secondDish.id,
+                    combo.quantity,
+                    combo.comboRef,
+                );
         } catch (error) {
             menuError.value = extractErrorMessage(error);
         } finally {

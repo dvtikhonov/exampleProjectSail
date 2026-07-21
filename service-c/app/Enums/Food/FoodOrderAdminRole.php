@@ -12,4 +12,5 @@ enum FoodOrderAdminRole: string
     case AddressReviewer = 'address_reviewer';
     case CompositionReviewer = 'composition_reviewer';
     case MenuManager = 'menu_manager';
+    case MaxManager = 'max_manager';
 }

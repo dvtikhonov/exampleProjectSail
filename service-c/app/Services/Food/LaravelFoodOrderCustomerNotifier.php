@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Support\MaxOpenAppTargetResolver;
@@ -25,6 +27,8 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         private readonly MaxMessengerClientInterface $client,
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
+        private readonly OrderCustomerNotifyRecipientResolverInterface $recipientResolver,
+        private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
     ) {}
 
     /**
@@ -46,6 +50,61 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         $text = $this->messageBuilder->buildCustomerConfirmed($order);
 
         $this->trySendMessage($text, $order);
+
+        $this->notifyManualOrderCreatorIfNeeded($order);
+    }
+
+    /**
+     * Дополнительно уведомляет менеджера, оформившего ручной заказ, детальным составом.
+     *
+     * Сначала DM на created_by_max_user_id; при ошибке MAX (например демо-id → 404)
+     * — fallback в получатели UI Stand (MAX_UI_STAND_*), куда уже приходят рабочие уведомления.
+     */
+    private function notifyManualOrderCreatorIfNeeded(FoodOrder $order): void
+    {
+        if (! $order->is_manual) {
+            return;
+        }
+
+        $creatorId = $order->created_by_max_user_id;
+
+        if ($creatorId === null) {
+            return;
+        }
+
+        $text = $this->messageBuilder->buildManualOrderCreatorConfirmed($order);
+
+        $sent = $this->trySendToUser($text, $order, (int) $creatorId);
+
+        if (! $sent) {
+            $this->trySendManualCreatorToUiStand($text, $order);
+        }
+    }
+
+    /**
+     * Fallback: детальный состав ручного заказа в UI Stand (chat_id / user_id).
+     */
+    private function trySendManualCreatorToUiStand(string $text, FoodOrder $order): void
+    {
+        $chatIds = $this->uiStandRecipientResolver->chatIds();
+        $userIds = $this->uiStandRecipientResolver->userIds();
+
+        if ($chatIds === [] && $userIds === []) {
+            Log::channel('messMax')->warning(
+                'MAX manual order creator notification fallback skipped: UI Stand recipients are not configured',
+                ['order_id' => $order->id],
+            );
+
+            return;
+        }
+
+        foreach ($chatIds as $chatId) {
+            $this->trySendToChat($text, $order, $chatId);
+        }
+
+        foreach ($userIds as $userId) {
+            $this->trySendToUser($text, $order, $userId);
+        }
     }
 
     /**
@@ -98,39 +157,94 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
     }
 
     /**
-     * Пытается отправить уведомление клиенту о заказе.
+     * Пытается отправить уведомление получателям клиентского канала заказа.
      *
      * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
      */
     private function trySendMessage(string $text, FoodOrder $order, array $buttonRows = []): void
     {
+        $recipientUserIds = $this->recipientResolver->resolveMaxUserIds($order);
+
+        foreach ($recipientUserIds as $userId) {
+            $this->trySendToUser($text, $order, $userId, $buttonRows);
+        }
+    }
+
+    /**
+     * Пытается отправить одно уведомление в MAX-чат.
+     */
+    private function trySendToChat(string $text, FoodOrder $order, int $chatId): bool
+    {
+        try {
+            $this->client->sendMessage(new MaxMessageDto(
+                text: $text,
+                chatId: $chatId,
+            ));
+
+            return true;
+        } catch (MaxMessengerException $exception) {
+            Log::channel('messMax')->warning('MAX customer order notification send failed', [
+                'order_id' => $order->id,
+                'chat_id' => $chatId,
+                'error' => $exception->userMessage(),
+            ]);
+
+            return false;
+        } catch (Throwable $exception) {
+            Log::channel('messMax')->warning('MAX customer order notification send failed', [
+                'order_id' => $order->id,
+                'chat_id' => $chatId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Пытается отправить одно уведомление конкретному получателю.
+     *
+     * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
+     */
+    private function trySendToUser(
+        string $text,
+        FoodOrder $order,
+        int $userId,
+        array $buttonRows = [],
+    ): bool {
         try {
             if ($buttonRows !== []) {
                 $this->client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
                     text: $text,
                     buttonRows: $buttonRows,
-                    userId: $order->max_user_id,
+                    userId: $userId,
                 ));
 
-                return;
+                return true;
             }
 
             $this->client->sendMessage(new MaxMessageDto(
                 text: $text,
-                userId: $order->max_user_id,
+                userId: $userId,
             ));
+
+            return true;
         } catch (MaxMessengerException $exception) {
             Log::channel('messMax')->warning('MAX customer order notification send failed', [
                 'order_id' => $order->id,
-                'max_user_id' => $order->max_user_id,
+                'max_user_id' => $userId,
                 'error' => $exception->userMessage(),
             ]);
+
+            return false;
         } catch (Throwable $exception) {
             Log::channel('messMax')->warning('MAX customer order notification send failed', [
                 'order_id' => $order->id,
-                'max_user_id' => $order->max_user_id,
+                'max_user_id' => $userId,
                 'error' => $exception->getMessage(),
             ]);
+
+            return false;
         }
     }
 }

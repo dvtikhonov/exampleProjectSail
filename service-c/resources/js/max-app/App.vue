@@ -18,6 +18,7 @@ import { useDishAdmin } from './composables/useDishAdmin';
 import { useDishAdminFilters } from './composables/useDishAdminFilters';
 import { useDishAvailabilitySchedule } from './composables/useDishAvailabilitySchedule';
 import { useMenuCategoryAdmin } from './composables/useMenuCategoryAdmin';
+import { useManualOrder } from './composables/useManualOrder';
 import { createChatMessagesReadHandler, useMaxBackButton } from './composables/useMaxBackButton';
 import { useMyOrders } from './composables/useMyOrders';
 import { useRestaurantsMenu } from './composables/useRestaurantsMenu';
@@ -36,6 +37,7 @@ import AdminMenuCategoryFormPage from './pages/admin/AdminMenuCategoryFormPage.v
 import AdminMenuCategoryListPage from './pages/admin/AdminMenuCategoryListPage.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
+import ManualOrderUserSelectPage from './pages/admin/ManualOrderUserSelectPage.vue';
 
 /** Текущий экран клиентского потока — общий ref для cart, orders, navigation */
 const currentView = ref(VIEWS.restaurants);
@@ -47,11 +49,41 @@ const {
     adminSection,
     hasOrderReviewRoles,
     hasMenuManagerRole,
+    hasMaxManagerRole,
     hasAdminRoles,
     showAdminSectionSwitcher,
     adminScope,
     initAuth,
 } = useAuth();
+
+const manualOrder = useManualOrder();
+const {
+    customerLabel,
+    isOrdering: isManualOrdering,
+    users: manualUsers,
+    usersLoading: manualUsersLoading,
+    usersError: manualUsersError,
+    usersQuery: manualUsersQuery,
+    loadUsers: loadManualUsers,
+    handleUsersSearchInput,
+    selectUser: selectManualUser,
+    clearTargetUser: clearManualTargetUser,
+    initManualOrderSession,
+    getTargetMaxUserId: getManualTargetMaxUserId,
+} = manualOrder;
+
+/**
+ * max_user_id клиента для manual cart API; вне раздела — null (клиентский API).
+ *
+ * @returns {number|null}
+ */
+function getTargetMaxUserId() {
+    if (adminSection.value !== ADMIN_SECTIONS.manualOrders) {
+        return null;
+    }
+
+    return getManualTargetMaxUserId();
+}
 
 const admin = useAdminFlow(adminScope);
 const dishFilters = useDishAdminFilters();
@@ -182,7 +214,7 @@ const {
 
 const dishListPageRef = ref(null);
 
-const cartFlow = useCart({ currentView });
+const cartFlow = useCart({ currentView, getTargetMaxUserId });
 const {
     cart,
     deliveryAddress,
@@ -202,9 +234,10 @@ const {
     handleDeliveryAddressInput,
     handleDeliveryAddressBlur,
     handleSubmitOrder,
+    resetLocalCartState,
 } = cartFlow;
 
-const restaurantsMenu = useRestaurantsMenu({ currentView, cart });
+const restaurantsMenu = useRestaurantsMenu({ currentView, cart, getTargetMaxUserId });
 const {
     restaurants,
     restaurantsLoading,
@@ -218,6 +251,8 @@ const {
     handleAddToCart,
     handleAddComboToCart,
     isSingleRestaurantMode,
+    loadRestaurants,
+    resetRestaurantSelection,
 } = restaurantsMenu;
 
 const orders = useMyOrders({ currentView });
@@ -241,13 +276,44 @@ const {
 const nav = useClientNavigation({ currentView, restaurantsMenu, cart: cartFlow, orders });
 const { goHome, goToCart, bootstrapClient } = nav;
 
+/** Выход из оформления ручного заказа к списку клиентов */
+function handleManualExitOrdering() {
+    clearManualTargetUser();
+    resetLocalCartState();
+    resetRestaurantSelection();
+    currentView.value = VIEWS.restaurants;
+    loadManualUsers();
+}
+
+/**
+ * @param {object} user
+ */
+async function handleManualSelectUser(user) {
+    selectManualUser(user);
+    resetLocalCartState();
+    resetRestaurantSelection();
+    currentView.value = VIEWS.restaurants;
+
+    await Promise.all([
+        loadRestaurants(),
+        cartFlow.loadCart(),
+    ]);
+
+    if (isSingleRestaurantMode.value && restaurants.value[0]) {
+        await openRestaurant(restaurants.value[0]);
+    }
+}
+
 const back = useMaxBackButton({
     hasAdminRoles,
     adminSection,
     hasMenuManagerRole,
+    hasMaxManagerRole,
     admin,
     dishAdmin,
     categoryAdmin,
+    manualOrder,
+    onManualExitOrdering: handleManualExitOrdering,
     nav,
     cart: cartFlow,
     orders,
@@ -277,8 +343,15 @@ async function bootstrapApp() {
                 await openAdminOrderById(deepLinkOrderId);
             } else if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
                 initDishAdminSession();
+            } else if (adminSection.value === ADMIN_SECTIONS.manualOrders && hasMaxManagerRole.value) {
+                initManualOrderSession();
             } else if (hasOrderReviewRoles.value) {
                 initAdminSession();
+            } else if (hasMaxManagerRole.value) {
+                adminSection.value = ADMIN_SECTIONS.manualOrders;
+                initManualOrderSession();
+            } else if (hasMenuManagerRole.value) {
+                initDishAdminSession();
             }
         } else {
             await bootstrapClient();
@@ -299,8 +372,14 @@ function handleAdminSectionChange(section) {
     adminSection.value = section;
 
     if (section === ADMIN_SECTIONS.menu) {
+        clearManualTargetUser();
+        resetLocalCartState();
         initDishAdminSession();
+    } else if (section === ADMIN_SECTIONS.manualOrders) {
+        initManualOrderSession();
     } else {
+        clearManualTargetUser();
+        resetLocalCartState();
         initAdminSession();
     }
 
@@ -438,6 +517,7 @@ onMounted(async () => {
                     >
                         <nav class="flex" aria-label="Разделы админки">
                             <button
+                                v-if="hasOrderReviewRoles"
                                 type="button"
                                 class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
                                 :class="
@@ -450,6 +530,20 @@ onMounted(async () => {
                                 Заказы
                             </button>
                             <button
+                                v-if="hasMaxManagerRole"
+                                type="button"
+                                class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
+                                :class="
+                                    adminSection === ADMIN_SECTIONS.manualOrders
+                                        ? 'border-max-primary text-max-primary'
+                                        : 'border-transparent text-max-muted hover:text-gray-700'
+                                "
+                                @click="handleAdminSectionChange(ADMIN_SECTIONS.manualOrders)"
+                            >
+                                Ручные заказы
+                            </button>
+                            <button
+                                v-if="hasMenuManagerRole"
                                 type="button"
                                 class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
                                 :class="
@@ -626,6 +720,88 @@ onMounted(async () => {
                         @refresh="loadSchedule"
                     />
                     </div>
+                        </template>
+
+                        <template v-else-if="adminSection === ADMIN_SECTIONS.manualOrders && hasMaxManagerRole">
+                            <ManualOrderUserSelectPage
+                                v-if="!isManualOrdering"
+                                class="min-h-0 flex-1"
+                                :users="manualUsers"
+                                :loading="manualUsersLoading"
+                                :error="manualUsersError"
+                                :query="manualUsersQuery"
+                                @search="handleUsersSearchInput"
+                                @select-user="handleManualSelectUser"
+                                @refresh="loadManualUsers"
+                            />
+
+                            <template v-else>
+                                <RestaurantList
+                                    v-if="currentView === VIEWS.restaurants"
+                                    class="min-h-0 flex-1"
+                                    :restaurants="restaurants"
+                                    :loading="restaurantsLoading"
+                                    :error="restaurantsError"
+                                    :cart-item-count="cartItemCount"
+                                    :manual-order-mode="true"
+                                    :customer-label="customerLabel"
+                                    @select-restaurant="openRestaurant"
+                                    @open-cart="goToCart"
+                                />
+
+                                <MenuPage
+                                    v-else-if="currentView === VIEWS.menu"
+                                    class="min-h-0 flex-1"
+                                    :menu="menu"
+                                    :delivery-address="deliveryAddress"
+                                    :loading="menuLoading"
+                                    :error="menuError"
+                                    :adding-dish-id="addingDishId"
+                                    :adding-combo-ref="addingComboRef"
+                                    :cart-item-count="cartItemCount"
+                                    :cart-total="cartTotal"
+                                    :saving-address="savingAddress"
+                                    :manual-order-mode="true"
+                                    :customer-label="customerLabel"
+                                    @add-to-cart="handleAddToCart"
+                                    @add-combo-to-cart="handleAddComboToCart"
+                                    @open-cart="goToCart"
+                                    @delivery-address-input="handleDeliveryAddressInput"
+                                    @delivery-address-blur="handleDeliveryAddressBlur"
+                                />
+
+                                <CartPage
+                                    ref="cartPageRef"
+                                    v-else-if="currentView === VIEWS.cart"
+                                    class="min-h-0 flex-1"
+                                    :cart="cart"
+                                    :loading="cartLoading"
+                                    :error="cartError"
+                                    :submitting="submitting"
+                                    :updating-item-id="updatingItemId"
+                                    :saving-address="savingAddress"
+                                    :clearing="clearingCart"
+                                    :is-single-restaurant-mode="isSingleRestaurantMode"
+                                    :manual-order-mode="true"
+                                    @update-quantity="handleUpdateQuantity"
+                                    @remove-item="handleRemoveItem"
+                                    @clear-cart="handleClearCart"
+                                    @submit-order="handleSubmitOrder"
+                                    @go-back="back.handleBack"
+                                    @go-to-restaurants="goHome"
+                                    @delivery-address-input="handleDeliveryAddressInput"
+                                    @delivery-address-blur="handleDeliveryAddressBlur"
+                                />
+
+                                <OrderConfirmationPage
+                                    v-else-if="currentView === VIEWS.confirmation && submittedOrder"
+                                    :order="submittedOrder"
+                                    :is-single-restaurant-mode="isSingleRestaurantMode"
+                                    :manual-order-mode="true"
+                                    :customer-label="customerLabel"
+                                    @back-to-users="handleManualExitOrdering"
+                                />
+                            </template>
                         </template>
 
                         <template v-else-if="hasOrderReviewRoles">

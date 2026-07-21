@@ -24,6 +24,15 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    /** Режим ручного заказа: скрывает кнопку «Заказы» */
+    manualOrderMode: {
+        type: Boolean,
+        default: false,
+    },
+    customerLabel: {
+        type: String,
+        default: '',
+    },
 });
 
 const emit = defineEmits([
@@ -98,6 +107,12 @@ function handleAddressBlur(value) {
                                 <p v-if="restaurantName" class="truncate text-xs text-max-muted">
                                     {{ restaurantName }}
                                 </p>
+                                <p
+                                    v-if="manualOrderMode && customerLabel"
+                                    class="truncate text-xs text-max-muted"
+                                >
+                                    Заказ для потребителя: {{ customerLabel }}
+                                </p>
                             </div>
                             <svg
                                 class="h-4 w-4 shrink-0 text-max-muted"
@@ -113,6 +128,7 @@ function handleAddressBlur(value) {
                     </button>
                 </div>
                 <MyOrdersButton
+                    v-if="!manualOrderMode"
                     label="Заказы"
                     :unread-count="ordersUnreadCount"
                     button-class="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-white/80"

@@ -46,6 +46,16 @@ class FoodOrderAdminSeeder extends Seeder
             ],
         );
 
+        MaxUser::query()->updateOrCreate(
+            ['max_user_id' => 1006],
+            [
+                'first_name' => 'Demo',
+                'last_name' => 'MAX-менеджер',
+                'username' => 'demo_max_manager',
+                'language_code' => 'ru',
+            ],
+        );
+
         FoodOrderAdmin::query()->updateOrCreate(
             [
                 'max_user_id' => 1003,
@@ -70,6 +80,16 @@ class FoodOrderAdminSeeder extends Seeder
             [
                 'max_user_id' => 1005,
                 'role' => FoodOrderAdminRole::MenuManager,
+            ],
+            [
+                'is_active' => true,
+            ],
+        );
+
+        FoodOrderAdmin::query()->updateOrCreate(
+            [
+                'max_user_id' => 1006,
+                'role' => FoodOrderAdminRole::MaxManager,
             ],
             [
                 'is_active' => true,

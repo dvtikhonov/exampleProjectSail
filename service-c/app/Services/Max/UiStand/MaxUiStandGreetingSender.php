@@ -2,8 +2,8 @@
 
 namespace App\Services\Max\UiStand;
 
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Support\MaxOpenAppTargetResolver;
-use App\Support\MaxUiStandRecipientResolver;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -22,7 +22,7 @@ class MaxUiStandGreetingSender
         private readonly MaxMessengerClientInterface $client,
         private readonly Repository $config,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
-        private readonly MaxUiStandRecipientResolver $recipientResolver,
+        private readonly MaxUiStandRecipientResolverInterface $recipientResolver,
     ) {}
 
     /**

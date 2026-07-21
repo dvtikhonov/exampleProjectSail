@@ -12,9 +12,13 @@ export const ROLE_COMPOSITION = 'composition_reviewer';
 /** Роль управления меню (CRUD блюд) */
 export const ROLE_MENU = 'menu_manager';
 
-/** Разделы админ-интерфейса: проверка заказов или управление меню */
+/** Роль ручного оформления заказов от имени клиента */
+export const ROLE_MAX_MANAGER = 'max_manager';
+
+/** Разделы админ-интерфейса: проверка заказов, ручные заказы или меню */
 export const ADMIN_SECTIONS = {
     orders: 'orders',
+    manualOrders: 'manualOrders',
     menu: 'menu',
 };
 

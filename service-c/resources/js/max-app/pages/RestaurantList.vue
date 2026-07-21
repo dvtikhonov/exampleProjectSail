@@ -26,21 +26,40 @@ defineProps({
         type: Number,
         default: 0,
     },
+    /** Режим ручного заказа: скрывает «Мои заказы», показывает ФИО потребителя */
+    manualOrderMode: {
+        type: Boolean,
+        default: false,
+    },
+    customerLabel: {
+        type: String,
+        default: '',
+    },
 });
 
 const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders']);
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col">
-        <header class="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 safe-area-top">
+    <div
+        class="flex flex-col"
+        :class="manualOrderMode ? 'h-full min-h-0 overflow-hidden' : 'min-h-dvh'"
+    >
+        <header
+            class="z-10 border-b border-gray-200 bg-white px-4 py-3 safe-area-top"
+            :class="manualOrderMode ? 'shrink-0' : 'sticky top-0'"
+        >
             <div class="flex items-center justify-between">
-                <div>
+                <div class="min-w-0 flex-1 pr-3">
                     <h1 class="text-lg font-semibold text-gray-900">Рестораны</h1>
-                    <p class="text-sm text-max-muted">Выберите, где заказать</p>
+                    <p v-if="manualOrderMode && customerLabel" class="truncate text-sm text-max-muted">
+                        Потребитель: {{ customerLabel }}
+                    </p>
+                    <p v-else class="text-sm text-max-muted">Выберите, где заказать</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <MyOrdersButton
+                        v-if="!manualOrderMode"
                         :unread-count="ordersUnreadCount"
                         @click="emit('open-orders')"
                     />
@@ -64,7 +83,10 @@ const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders']);
             </div>
         </header>
 
-        <main class="flex-1 px-4 py-4">
+        <main
+            class="px-4 py-4"
+            :class="manualOrderMode ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-1'"
+        >
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>

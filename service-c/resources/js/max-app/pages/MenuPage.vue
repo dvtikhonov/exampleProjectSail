@@ -52,6 +52,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    manualOrderMode: {
+        type: Boolean,
+        default: false,
+    },
+    customerLabel: {
+        type: String,
+        default: '',
+    },
 });
 
 const emit = defineEmits([
@@ -103,6 +111,19 @@ const comboSecondDish = ref(null);
 const comboQuantity = ref(1);
 const stickyHeaderRef = ref(null);
 const categoryTabsRef = ref(null);
+const dishListScrollRef = ref(null);
+
+const rootClass = computed(() => (
+    props.manualOrderMode
+        ? 'flex h-full min-h-0 flex-col overflow-hidden bg-white pb-24'
+        : 'flex min-h-dvh flex-col bg-white pb-24'
+));
+
+const dishListMainClass = computed(() => (
+    props.manualOrderMode
+        ? 'relative min-h-0 flex-1 overflow-y-auto py-4'
+        : 'relative flex-1 py-4'
+));
 
 const {
     activeCategoryId,
@@ -209,7 +230,8 @@ function generateComboRef() {
 }
 
 /**
- * Прокручивает страницу так, чтобы поиск и категории были видны под панелью «Собрать блюдо».
+ * Прокручивает так, чтобы поиск и категории были видны под панелью «Собрать блюдо».
+ * В режиме ручного заказа скролл идёт во внутреннем контейнере (admin-shell с overflow-hidden).
  */
 async function scrollToCategoryTabs() {
     await nextTick();
@@ -226,9 +248,15 @@ async function scrollToCategoryTabs() {
         const tabsTop = categoryTabs.getBoundingClientRect().top;
         const offset = tabsTop - stickyBottom - 8;
 
-        if (offset < 0) {
-            window.scrollBy({ top: offset, behavior: 'smooth' });
+        if (offset >= 0) {
+            return;
         }
+
+        const scrollTarget = props.manualOrderMode
+            ? dishListScrollRef.value
+            : window;
+
+        scrollTarget?.scrollBy({ top: offset, behavior: 'smooth' });
     });
 }
 
@@ -240,13 +268,19 @@ watch(comboBuilderOpen, (open) => {
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col bg-white pb-24">
-        <div ref="stickyHeaderRef" class="sticky top-0 z-30 safe-area-top">
+    <div :class="rootClass">
+        <div
+            ref="stickyHeaderRef"
+            class="z-30 safe-area-top"
+            :class="manualOrderMode ? 'shrink-0' : 'sticky top-0'"
+        >
             <MenuHeader
                 :delivery-address="localAddress"
                 :restaurant-name="menu?.restaurant_name ?? ''"
                 :orders-unread-count="ordersUnreadCount"
                 :saving-address="savingAddress"
+                :manual-order-mode="manualOrderMode"
+                :customer-label="customerLabel"
                 @update:delivery-address="localAddress = $event"
                 @delivery-address-focus="handleAddressFocus"
                 @delivery-address-input="handleAddressInput"
@@ -270,7 +304,7 @@ watch(comboBuilderOpen, (open) => {
             />
         </div>
 
-        <main class="relative flex-1 py-4">
+        <main ref="dishListScrollRef" :class="dishListMainClass">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>

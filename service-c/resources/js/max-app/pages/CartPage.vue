@@ -57,6 +57,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    manualOrderMode: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits([
@@ -184,7 +188,13 @@ watch(
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col bg-white" :class="footerBottomPaddingClass">
+    <div
+        class="flex flex-col bg-white"
+        :class="[
+            footerBottomPaddingClass,
+            manualOrderMode ? 'h-full min-h-0 overflow-hidden' : 'min-h-dvh',
+        ]"
+    >
         <CartHeader
             :delivery-address="localAddress"
             :loading="loading"
@@ -193,6 +203,8 @@ watch(
             :saving-address="savingAddress"
             :is-empty="isEmpty"
             :orders-unread-count="ordersUnreadCount"
+            :manual-order-mode="manualOrderMode"
+            class="shrink-0"
             @go-back="handleGoBack"
             @open-orders="emit('open-orders')"
             @clear-cart="emit('clear-cart')"
@@ -202,7 +214,10 @@ watch(
             @delivery-address-blur="handleAddressBlur"
         />
 
-        <main class="flex-1 px-4 py-4">
+        <main
+            class="px-4 py-4"
+            :class="manualOrderMode ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-1'"
+        >
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>

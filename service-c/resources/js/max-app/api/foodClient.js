@@ -252,6 +252,175 @@ export async function submitOrder() {
     return data.order;
 }
 
+// --- Админ: ручные заказы (max_manager) ---
+
+/**
+ * @param {{ q?: string, perPage?: number }} [options]
+ * @returns {Promise<object[]>}
+ */
+export async function fetchManualOrderUsers({ q = '', perPage = 30 } = {}) {
+    const params = { per_page: perPage };
+
+    if (typeof q === 'string' && q.trim() !== '') {
+        params.q = q.trim();
+    }
+
+    const { data } = await client.get('/food/admin/manual-orders/users', { params });
+
+    if (Array.isArray(data.users)) {
+        return data.users;
+    }
+
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    return [];
+}
+
+/**
+ * @param {number} maxUserId
+ * @returns {Promise<{ cart: object|null, deliveryAddress: string|null }>}
+ */
+export async function fetchManualCart(maxUserId) {
+    const { data } = await client.get('/food/admin/manual-orders/cart', {
+        params: { max_user_id: maxUserId },
+    });
+
+    return {
+        cart: data.cart ?? null,
+        deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? null,
+    };
+}
+
+/**
+ * @param {number} maxUserId
+ * @param {number} dishId
+ * @param {number} quantity
+ * @param {{ comboRef?: string|null, comboPartnerDishId?: number|null }} [options]
+ */
+export async function addToManualCart(
+    maxUserId,
+    dishId,
+    quantity = 1,
+    { comboRef = null, comboPartnerDishId = null } = {},
+) {
+    const payload = {
+        max_user_id: maxUserId,
+        dish_id: dishId,
+        quantity,
+    };
+
+    if (comboRef !== null && comboPartnerDishId !== null) {
+        payload.combo_ref = comboRef;
+        payload.combo_partner_dish_id = comboPartnerDishId;
+    }
+
+    const { data } = await client.post('/food/admin/manual-orders/cart/items', payload);
+
+    return data.cart;
+}
+
+/**
+ * @param {number} maxUserId
+ * @param {number} firstDishId
+ * @param {number} secondDishId
+ * @param {number} quantity
+ * @param {string} comboRef
+ */
+export async function addComboToManualCart(maxUserId, firstDishId, secondDishId, quantity, comboRef) {
+    let firstCart = null;
+
+    try {
+        firstCart = await addToManualCart(maxUserId, firstDishId, quantity, {
+            comboRef,
+            comboPartnerDishId: secondDishId,
+        });
+
+        return await addToManualCart(maxUserId, secondDishId, quantity, {
+            comboRef,
+            comboPartnerDishId: firstDishId,
+        });
+    } catch (error) {
+        const firstComboItem = firstCart?.items?.find(
+            (item) => item.combo_ref === comboRef && item.dish_id === firstDishId,
+        );
+
+        if (firstComboItem) {
+            await removeManualCartItem(maxUserId, firstComboItem.id).catch(() => {});
+        }
+
+        throw error;
+    }
+}
+
+/**
+ * @param {number} maxUserId
+ * @param {number} itemId
+ * @param {number} quantity
+ */
+export async function updateManualCartItem(maxUserId, itemId, quantity) {
+    const { data } = await client.patch(`/food/admin/manual-orders/cart/items/${itemId}`, {
+        max_user_id: maxUserId,
+        quantity,
+    });
+
+    return data.cart;
+}
+
+/**
+ * @param {number} maxUserId
+ * @param {number} itemId
+ */
+export async function removeManualCartItem(maxUserId, itemId) {
+    const { data } = await client.delete(`/food/admin/manual-orders/cart/items/${itemId}`, {
+        data: { max_user_id: maxUserId },
+        params: { max_user_id: maxUserId },
+    });
+
+    return data.cart;
+}
+
+/**
+ * @param {number} maxUserId
+ */
+export async function clearManualCart(maxUserId) {
+    const { data } = await client.delete('/food/admin/manual-orders/cart', {
+        data: { max_user_id: maxUserId },
+        params: { max_user_id: maxUserId },
+    });
+
+    return data.cart;
+}
+
+/**
+ * @param {number} maxUserId
+ * @param {string} address
+ * @returns {Promise<{ cart: object|null, deliveryAddress: string|null }>}
+ */
+export async function updateManualCartDeliveryAddress(maxUserId, address) {
+    const { data } = await client.patch('/food/admin/manual-orders/cart', {
+        max_user_id: maxUserId,
+        delivery_address: address,
+    });
+
+    return {
+        cart: data.cart ?? null,
+        deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? address,
+    };
+}
+
+/**
+ * @param {number} maxUserId
+ */
+export async function submitManualOrder(maxUserId) {
+    const { data } = await client.post('/food/admin/manual-orders/submit', {
+        max_user_id: maxUserId,
+    });
+
+    return data.order;
+}
+
 // --- Заказы клиента и чат ---
 
 /**

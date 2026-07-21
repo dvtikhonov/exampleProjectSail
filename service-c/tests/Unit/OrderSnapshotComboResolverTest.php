@@ -73,4 +73,39 @@ class OrderSnapshotComboResolverTest extends TestCase
 
         $this->assertNull($label);
     }
+
+    /** groupSnapshotItems объединяет пары комбо и оставляет обычные позиции. */
+    public function test_group_snapshot_items_groups_combo_pairs(): void
+    {
+        $itemsSnapshot = [
+            [
+                'dish_id' => 1,
+                'dish_name' => 'Салат',
+                'quantity' => 2,
+            ],
+            [
+                'dish_id' => 2,
+                'dish_name' => 'Бургер',
+                'quantity' => 1,
+                'combo_ref' => 'combo-1',
+                'combo_partner_dish_ids' => [3],
+            ],
+            [
+                'dish_id' => 3,
+                'dish_name' => 'Картофель фри',
+                'quantity' => 1,
+                'combo_ref' => 'combo-1',
+                'combo_partner_dish_ids' => [2],
+            ],
+        ];
+
+        $groups = $this->resolver->groupSnapshotItems($itemsSnapshot);
+
+        $this->assertCount(2, $groups);
+        $this->assertSame('item', $groups[0]['type']);
+        $this->assertSame(2, $groups[0]['quantity']);
+        $this->assertSame('combo', $groups[1]['type']);
+        $this->assertCount(2, $groups[1]['items']);
+        $this->assertSame(1, $groups[1]['quantity']);
+    }
 }

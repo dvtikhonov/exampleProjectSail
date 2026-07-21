@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food;
 
 use App\Contracts\Food\OrderChatNotifierInterface;
+use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
 use App\DTO\Food\OrderMessageDto;
 use App\Enums\Food\OrderMessageAuthorType;
 use App\Models\FoodOrder;
@@ -31,6 +32,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
         private readonly FoodOrderMaxMessageBuilder $messageBuilder,
         private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
         private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
+        private readonly OrderCustomerNotifyRecipientResolverInterface $customerRecipientResolver,
     ) {}
 
     /**
@@ -46,20 +48,23 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     }
 
     /**
-     * Уведомляет клиента о сообщении админа (без текста сообщения).
+     * Уведомляет получателей клиентского канала о сообщении админа (без текста сообщения).
      */
     private function notifyCustomer(FoodOrder $order, OrderMessageDto $message): void
     {
         $text = $this->messageBuilder->buildOrderChatCustomerNotification($order);
         $buttonRows = $this->buildOpenAppButtonRows($order->id);
+        $recipientUserIds = $this->customerRecipientResolver->resolveMaxUserIds($order);
 
-        $this->trySendNotification(
-            text: $text,
-            buttonRows: $buttonRows,
-            orderId: $order->id,
-            messageId: $message->id,
-            userId: $order->max_user_id,
-        );
+        foreach ($recipientUserIds as $userId) {
+            $this->trySendNotification(
+                text: $text,
+                buttonRows: $buttonRows,
+                orderId: $order->id,
+                messageId: $message->id,
+                userId: $userId,
+            );
+        }
     }
 
     /**

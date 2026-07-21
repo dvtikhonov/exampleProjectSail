@@ -6,10 +6,13 @@ namespace App\Services\Food;
 
 use App\DTO\Food\OrderDto;
 use App\DTO\Food\OrderMessageDto;
+use App\Enums\Food\DishWeightUnit;
 use App\Enums\Food\OrderRejectionScope;
 use App\Models\FoodOrder;
 use App\Models\MaxUser;
 use App\Support\OrderSnapshotComboResolver;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 
 /**
  * Формирование текста уведомления о заказе для MAX с усечением по лимиту.
@@ -25,6 +28,8 @@ class FoodOrderMaxMessageBuilder
     private const TRUNCATION_SUFFIX_TEMPLATE = '…и ещё %d позиций';
 
     private const ORDER_CHAT_PREVIEW_MAX_LENGTH = 200;
+
+    private const BUSINESS_TIMEZONE = 'Europe/Moscow';
 
     /**
      * Собирает текст уведомления о заказе с учётом лимита символов.
@@ -152,6 +157,58 @@ class FoodOrderMaxMessageBuilder
     public function buildCustomerConfirmed(FoodOrder $order): string
     {
         return sprintf('Заявка №%d принята к исполнению', $order->id);
+    }
+
+    /**
+     * Текст доп. уведомления менеджеру, оформившему ручной заказ, после подтверждения.
+     *
+     * Формат:
+     * Заказ на 21.07. от Иван Иванов:
+     * 1. Салат "...", 110г – 97р - 2шт.
+     * 2. Блюдо 1 / Блюдо 2, 130г / 150г – 160р - 1шт.
+     */
+    public function buildManualOrderCreatorConfirmed(
+        FoodOrder $order,
+        int $maxTextLength = self::DEFAULT_MAX_TEXT_LENGTH,
+    ): string {
+        $order->loadMissing('maxUser');
+
+        $header = sprintf(
+            'Заказ на %s. от %s:',
+            $this->formatOrderDate($order->created_at),
+            $this->formatCustomerDisplayName($order->maxUser),
+        );
+
+        $itemsSnapshot = is_array($order->items_snapshot) ? $order->items_snapshot : [];
+        $itemLines = $this->formatManualOrderItemLines($itemsSnapshot);
+
+        if ($itemLines === []) {
+            return $this->ensureWithinLimit($header, $maxTextLength);
+        }
+
+        $fullText = $header."\n".implode("\n", $itemLines);
+
+        if (mb_strlen($fullText) <= $maxTextLength) {
+            return $fullText;
+        }
+
+        $totalLines = count($itemLines);
+
+        for ($includedCount = $totalLines - 1; $includedCount >= 0; $includedCount--) {
+            $remaining = $totalLines - $includedCount;
+            $lines = array_slice($itemLines, 0, $includedCount);
+            $lines[] = $this->buildTruncationSuffix($remaining);
+            $candidate = $header."\n".implode("\n", $lines);
+
+            if (mb_strlen($candidate) <= $maxTextLength) {
+                return $candidate;
+            }
+        }
+
+        return $this->ensureWithinLimit(
+            $header."\n".$this->buildTruncationSuffix($totalLines),
+            $maxTextLength,
+        );
     }
 
     /**
@@ -303,6 +360,211 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
+     * Отображаемое имя клиента, на кого оформлен заказ.
+     */
+    private function formatCustomerDisplayName(?MaxUser $maxUser): string
+    {
+        if ($maxUser === null) {
+            return 'клиент';
+        }
+
+        $name = trim(implode(' ', array_filter([
+            $maxUser->first_name,
+            $maxUser->last_name,
+        ])));
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        if ($maxUser->username !== null && trim($maxUser->username) !== '') {
+            return '@'.trim($maxUser->username);
+        }
+
+        return 'id '.$maxUser->max_user_id;
+    }
+
+    /**
+     * Дата заказа в формате дд.мм для уведомления менеджеру.
+     */
+    private function formatOrderDate(mixed $createdAt): string
+    {
+        if ($createdAt instanceof CarbonInterface) {
+            return $createdAt->timezone(self::BUSINESS_TIMEZONE)->format('d.m');
+        }
+
+        if (is_string($createdAt) && trim($createdAt) !== '') {
+            return Carbon::parse($createdAt)
+                ->timezone(self::BUSINESS_TIMEZONE)
+                ->format('d.m');
+        }
+
+        return Carbon::now(self::BUSINESS_TIMEZONE)->format('d.m');
+    }
+
+    /**
+     * Строки позиций ручного заказа (обычные и комбо) с нумерацией.
+     *
+     * @param  list<mixed>|array<int, mixed>  $itemsSnapshot
+     * @return list<string>
+     */
+    private function formatManualOrderItemLines(array $itemsSnapshot): array
+    {
+        $items = $this->extractItemsFromSnapshot($itemsSnapshot);
+        $groups = $this->comboResolver->groupSnapshotItems($items);
+        $lines = [];
+        $number = 1;
+
+        foreach ($groups as $group) {
+            if (($group['type'] ?? '') === 'combo') {
+                $line = $this->formatManualComboLine($number, $group['items'], (int) ($group['quantity'] ?? 0));
+            } else {
+                $item = $group['items'][0] ?? null;
+
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $line = $this->formatManualSingleItemLine($number, $item);
+            }
+
+            if ($line === null) {
+                continue;
+            }
+
+            $lines[] = $line;
+            $number++;
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Форматирует обычную позицию ручного заказа.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function formatManualSingleItemLine(int $number, array $item): ?string
+    {
+        $name = trim((string) ($item['dish_name'] ?? ''));
+
+        if ($name === '') {
+            return null;
+        }
+
+        $parts = [sprintf('%d. %s', $number, $name)];
+
+        $description = trim((string) ($item['description'] ?? ''));
+
+        if ($description !== '') {
+            $parts[0] .= sprintf(' (%s)', $description);
+        }
+
+        $weightLabel = $this->formatWeightLabel($item);
+
+        if ($weightLabel !== null) {
+            $parts[0] .= ', '.$weightLabel;
+        }
+
+        $parts[0] .= sprintf(
+            ' – %sр - %dшт.',
+            $this->formatRublesAmount($item['unit_price'] ?? null),
+            (int) ($item['quantity'] ?? 0),
+        );
+
+        return $parts[0];
+    }
+
+    /**
+     * Форматирует комбо-позицию: «блюдо 1 / блюдо 2, вес1 / вес2 – суммар - Nшт.»
+     *
+     * @param  list<array<string, mixed>>  $items
+     */
+    private function formatManualComboLine(int $number, array $items, int $quantity): ?string
+    {
+        if ($items === []) {
+            return null;
+        }
+
+        $names = [];
+        $weights = [];
+        $unitPriceSum = 0.0;
+
+        foreach ($items as $item) {
+            $name = trim((string) ($item['dish_name'] ?? ''));
+
+            if ($name === '') {
+                continue;
+            }
+
+            $names[] = $name;
+            $weights[] = $this->formatWeightLabel($item) ?? '';
+            $unitPriceSum += (float) ($item['unit_price'] ?? 0);
+        }
+
+        if ($names === []) {
+            return null;
+        }
+
+        $line = sprintf('%d. %s', $number, implode(' / ', $names));
+
+        if ($this->hasAnyNonEmptyWeight($weights)) {
+            $line .= ', '.implode(' / ', $weights);
+        }
+
+        $line .= sprintf(
+            ' – %sр - %dшт.',
+            $this->formatRublesAmount($unitPriceSum),
+            $quantity,
+        );
+
+        return $line;
+    }
+
+    /**
+     * Проверяет, есть ли хотя бы один непустой вес в комбо.
+     *
+     * @param  list<string>  $weights
+     */
+    private function hasAnyNonEmptyWeight(array $weights): bool
+    {
+        foreach ($weights as $weight) {
+            if ($weight !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Форматирует вес позиции: «110г».
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function formatWeightLabel(array $item): ?string
+    {
+        $weight = $item['weight'] ?? null;
+
+        if ($weight === null || $weight === '') {
+            return null;
+        }
+
+        $unitValue = (string) ($item['weight_unit'] ?? DishWeightUnit::Gram->value);
+        $unit = DishWeightUnit::tryFrom($unitValue) ?? DishWeightUnit::Gram;
+
+        return sprintf('%s%s', (string) (int) round((float) $weight), $unit->label());
+    }
+
+    /**
+     * Форматирует цену в рублях без копеек для уведомления менеджеру.
+     */
+    private function formatRublesAmount(mixed $amount): string
+    {
+        return (string) (int) round((float) ($amount ?? 0));
+    }
+
+    /**
      * Извлекает позиции из снимка состава заказа.
      *
      * @return list<array<string, mixed>>
@@ -330,7 +592,11 @@ class FoodOrderMaxMessageBuilder
             $item = [
                 'dish_id' => (int) ($snapshot['dish_id'] ?? 0),
                 'dish_name' => (string) ($snapshot['dish_name'] ?? ''),
+                'description' => isset($snapshot['description']) ? (string) $snapshot['description'] : null,
+                'weight' => $snapshot['weight'] ?? null,
+                'weight_unit' => $snapshot['weight_unit'] ?? null,
                 'quantity' => (int) ($snapshot['quantity'] ?? 0),
+                'unit_price' => (string) ($snapshot['unit_price'] ?? '0.00'),
                 'line_total' => (string) ($snapshot['line_total'] ?? '0.00'),
             ];
 
