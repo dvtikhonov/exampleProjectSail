@@ -124,12 +124,12 @@ class MaxManagerDailyMenuMessageBuilder implements MaxManagerDailyMenuMessageBui
         if ($this->hasAnyWeight($weights)) {
             $text .= ', '.implode(' / ', $weights);
         }
-
-        $text .= sprintf(
-            ' – %sр - %dшт.',
-            $this->formatRubles($priceSum),
-            max(1, $line->quantity),
-        );
+// todo скорее всего это лишнее
+//        $text .= sprintf(
+//            ' – %sр - %dшт.',
+//            $this->formatRubles($priceSum),
+//            max(1, $line->quantity),
+//        );
 
         return $text;
     }
