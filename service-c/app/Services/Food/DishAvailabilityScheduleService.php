@@ -16,7 +16,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
- * График доступности блюд: чтение сетки и синхронизация будущих дат.
+ * График доступности блюд: чтение сетки и синхронизация дат (включая сегодня).
  */
 class DishAvailabilityScheduleService implements DishAvailabilityScheduleServiceInterface
 {
@@ -28,6 +28,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     public function __construct(
         private readonly DishAvailabilityRepositoryInterface $availabilityRepository,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
+        private readonly DishAvailabilitySyncService $availabilitySyncService,
     ) {}
 
     /**
@@ -105,6 +106,8 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
                 );
             }
         });
+
+        $this->availabilitySyncService->syncForToday();
     }
 
     /**
@@ -137,7 +140,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
         foreach ($dates as $date) {
             if ($date < $editableFrom) {
                 throw new FoodDomainException(
-                    'Нельзя изменять доступность на сегодня или прошедшие даты.',
+                    'Нельзя изменять доступность на прошедшие даты.',
                     422,
                 );
             }
@@ -159,7 +162,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     private function resolveDateRange(?string $dateFrom, ?string $dateTo): array
     {
         $today = CarbonImmutable::now(self::TIMEZONE)->startOfDay();
-        $editableFrom = $today->addDay();
+        $editableFrom = $today;
         $maxTo = $today->addDays(self::DAYS_FORWARD);
 
         $from = $dateFrom ?? $editableFrom->toDateString();
@@ -181,11 +184,11 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     }
 
     /**
-     * Возвращает первую дату, доступную для редактирования.
+     * Возвращает первую дату, доступную для редактирования (сегодня по MSK).
      */
     private function editableFrom(): string
     {
-        return CarbonImmutable::now(self::TIMEZONE)->addDay()->toDateString();
+        return CarbonImmutable::now(self::TIMEZONE)->toDateString();
     }
 
     /**

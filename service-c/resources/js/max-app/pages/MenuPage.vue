@@ -133,6 +133,7 @@ const {
 } = useMenuCategoryFilter(toRef(props, 'menu'), {
     comboBuilderOpen,
     comboFirstDish,
+    includeUnavailable: toRef(props, 'manualOrderMode'),
 });
 
 const comboTotal = computed(() => {

@@ -37,6 +37,7 @@ import AdminMenuCategoryFormPage from './pages/admin/AdminMenuCategoryFormPage.v
 import AdminMenuCategoryListPage from './pages/admin/AdminMenuCategoryListPage.vue';
 import AdminHomePage from './pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.vue';
+import ManualOrderDetailPage from './pages/admin/ManualOrderDetailPage.vue';
 import ManualOrderUserSelectPage from './pages/admin/ManualOrderUserSelectPage.vue';
 
 /** Текущий экран клиентского потока — общий ref для cart, orders, navigation */
@@ -60,12 +61,32 @@ const manualOrder = useManualOrder();
 const {
     customerLabel,
     isOrdering: isManualOrdering,
+    activeTab: manualOrderActiveTab,
     users: manualUsers,
     usersLoading: manualUsersLoading,
     usersError: manualUsersError,
     usersQuery: manualUsersQuery,
+    selectedConsumer: manualSelectedConsumer,
+    orders: manualOrders,
+    ordersMeta: manualOrdersMeta,
+    ordersLoading: manualOrdersLoading,
+    ordersError: manualOrdersError,
+    ordersDateFrom: manualOrdersDateFrom,
+    ordersDateTo: manualOrdersDateTo,
+    ordersStatus: manualOrdersStatus,
+    selectedOrderDetail: manualOrderDetail,
+    orderDetailLoading: manualOrderDetailLoading,
+    orderDetailError: manualOrderDetailError,
     loadUsers: loadManualUsers,
+    loadOrders: loadManualOrders,
     handleUsersSearchInput,
+    handleOrdersDateFromChange,
+    handleOrdersDateToChange,
+    handleOrdersStatusChange,
+    setSelectedConsumer: setManualSelectedConsumer,
+    setActiveTab: setManualOrderActiveTab,
+    openOrderDetail: openManualOrderDetail,
+    closeOrderDetail: closeManualOrderDetail,
     selectUser: selectManualUser,
     clearTargetUser: clearManualTargetUser,
     initManualOrderSession,
@@ -283,6 +304,19 @@ function handleManualExitOrdering() {
     resetRestaurantSelection();
     currentView.value = VIEWS.restaurants;
     loadManualUsers();
+}
+
+/**
+ * Запуск оформления для выбранного в UI потребителя.
+ */
+async function handleManualStartOrder() {
+    const user = manualSelectedConsumer.value;
+
+    if (!user) {
+        return;
+    }
+
+    await handleManualSelectUser(user);
 }
 
 /**
@@ -723,19 +757,48 @@ onMounted(async () => {
                         </template>
 
                         <template v-else-if="adminSection === ADMIN_SECTIONS.manualOrders && hasMaxManagerRole">
-                            <ManualOrderUserSelectPage
-                                v-if="!isManualOrdering"
+                            <ManualOrderDetailPage
+                                v-if="manualOrderDetail || manualOrderDetailLoading || manualOrderDetailError"
                                 class="min-h-0 flex-1"
-                                :users="manualUsers"
-                                :loading="manualUsersLoading"
-                                :error="manualUsersError"
-                                :query="manualUsersQuery"
-                                @search="handleUsersSearchInput"
-                                @select-user="handleManualSelectUser"
-                                @refresh="loadManualUsers"
+                                :order="manualOrderDetail"
+                                :loading="manualOrderDetailLoading"
+                                :error="manualOrderDetailError"
+                                @back="closeManualOrderDetail"
                             />
 
-                            <template v-else>
+                            <KeepAlive>
+                                <ManualOrderUserSelectPage
+                                    v-if="!manualOrderDetail && !manualOrderDetailLoading && !manualOrderDetailError && !isManualOrdering"
+                                    class="min-h-0 flex-1"
+                                    :users="manualUsers"
+                                    :loading="manualUsersLoading"
+                                    :error="manualUsersError"
+                                    :query="manualUsersQuery"
+                                    :selected-consumer="manualSelectedConsumer"
+                                    :selected-consumer-id="manualSelectedConsumer?.max_user_id ?? ''"
+                                    :active-tab="manualOrderActiveTab"
+                                    :orders="manualOrders"
+                                    :orders-loading="manualOrdersLoading"
+                                    :orders-error="manualOrdersError"
+                                    :orders-date-from="manualOrdersDateFrom"
+                                    :orders-date-to="manualOrdersDateTo"
+                                    :orders-status="manualOrdersStatus"
+                                    :orders-total="manualOrdersMeta.total"
+                                    :orders-total-amount="manualOrdersMeta.total_amount"
+                                    @search="handleUsersSearchInput"
+                                    @select-consumer="setManualSelectedConsumer"
+                                    @start-order="handleManualStartOrder"
+                                    @refresh="loadManualUsers"
+                                    @change-tab="setManualOrderActiveTab"
+                                    @orders-date-from="handleOrdersDateFromChange"
+                                    @orders-date-to="handleOrdersDateToChange"
+                                    @orders-status="handleOrdersStatusChange"
+                                    @orders-refresh="loadManualOrders"
+                                    @select-order="openManualOrderDetail"
+                                />
+                            </KeepAlive>
+
+                            <template v-if="!(manualOrderDetail || manualOrderDetailLoading || manualOrderDetailError) && isManualOrdering">
                                 <RestaurantList
                                     v-if="currentView === VIEWS.restaurants"
                                     class="min-h-0 flex-1"

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Contracts\Food;
 
 use App\Enums\Food\OrderReviewStatus;
+use App\Enums\Food\OrderStatus;
 use App\Models\FoodOrder;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * Чтение заказов еды для административного API проверки.
@@ -37,4 +39,34 @@ interface FoodOrderAdminReadRepositoryInterface
      * @return list<FoodOrder>
      */
     public function findAll(): array;
+
+    /**
+     * Постраничный список ручных заказов с фильтром по потребителю, периоду, статусу и/или ФИО.
+     *
+     * @return LengthAwarePaginator<int, FoodOrder>
+     */
+    public function paginateManualOrders(
+        ?string $query,
+        ?string $dateFrom,
+        ?string $dateTo,
+        int $perPage,
+        ?int $customerMaxUserId = null,
+        ?OrderStatus $status = null,
+    ): LengthAwarePaginator;
+
+    /**
+     * Сумма total по всем ручным заказам с теми же фильтрами, что и у списка.
+     */
+    public function sumManualOrdersTotal(
+        ?string $query,
+        ?string $dateFrom,
+        ?string $dateTo,
+        ?int $customerMaxUserId = null,
+        ?OrderStatus $status = null,
+    ): string;
+
+    /**
+     * Находит ручной заказ по идентификатору.
+     */
+    public function findManualOrderById(int $id): ?FoodOrder;
 }

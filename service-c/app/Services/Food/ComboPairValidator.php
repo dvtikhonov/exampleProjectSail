@@ -20,7 +20,7 @@ class ComboPairValidator
     /**
      * Проверяет, что партнёр комбо допустим для указанного блюда.
      *
-     * @param  bool  $requirePartnerAvailable  false — для партнёра уже из items_snapshot заказа
+     * @param  bool  $requirePartnerAvailable  false — партнёр из items_snapshot или ручной заказ
      *
      * @throws FoodDomainException
      */

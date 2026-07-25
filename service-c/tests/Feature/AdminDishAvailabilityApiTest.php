@@ -98,7 +98,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertJsonPath('dishes.0.name', 'Борщ')
             ->assertJsonPath('schedule.'.$fixture['dish']->id, [$dates['future']])
             ->assertJsonPath('dates.0', $dates['editable_from'])
-            ->assertJsonCount(30, 'dates');
+            ->assertJsonCount(31, 'dates');
     }
 
     /** GET ограничивает прошлую дату редактируемым диапазоном. */
@@ -119,7 +119,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('dates.0', $dates['editable_from']);
 
-        $this->assertNotContains($dates['today'], $response->json('dates'));
+        $this->assertContains($dates['today'], $response->json('dates'));
         $this->assertNotContains($dates['yesterday'], $response->json('dates'));
     }
 
@@ -179,8 +179,8 @@ class AdminDishAvailabilityApiTest extends TestCase
         ]);
     }
 
-    /** PUT отклоняет изменения для сегодня и вчера. */
-    public function test_put_rejects_changes_for_today_and_yesterday(): void
+    /** PUT отклоняет изменения для вчера; сегодня разрешено. */
+    public function test_put_rejects_yesterday_but_allows_today(): void
     {
         $dates = $this->scheduleDates();
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
@@ -202,13 +202,18 @@ class AdminDishAvailabilityApiTest extends TestCase
 
         $this->putJson('/api/food/admin/dish-availability-schedule', $payload, $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Нельзя изменять доступность на сегодня или прошедшие даты.');
+            ->assertJsonPath('message', 'Нельзя изменять доступность на прошедшие даты.');
 
         $payload['changes'][0]['dates'] = [$dates['today']];
 
         $this->putJson('/api/food/admin/dish-availability-schedule', $payload, $auth['headers'])
-            ->assertUnprocessable()
-            ->assertJsonPath('message', 'Нельзя изменять доступность на сегодня или прошедшие даты.');
+            ->assertOk();
+
+        $this->assertDatabaseHas('max_dish_availability_dates', [
+            'dish_id' => $dishId,
+            'available_date' => $dates['today'],
+        ]);
+        $this->assertTrue($fixture['dish']->fresh()->is_available);
     }
 
     /** PUT не создаёт дубликаты строк блюдо–дата. */
@@ -261,7 +266,7 @@ class AdminDishAvailabilityApiTest extends TestCase
     private function scheduleDates(): array
     {
         $today = CarbonImmutable::now(self::TIMEZONE)->startOfDay();
-        $editableFrom = $today->addDay();
+        $editableFrom = $today;
 
         return [
             'today' => $today->toDateString(),

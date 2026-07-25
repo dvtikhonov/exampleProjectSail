@@ -121,6 +121,183 @@ class AdminManualOrderApiTest extends TestCase
             ->assertJsonPath('users.0.username', 'unique_login');
     }
 
+    /** Список ручных заказов требует аутентификацию. */
+    public function test_list_manual_orders_requires_authentication(): void
+    {
+        $this->getJson('/api/food/admin/manual-orders')
+            ->assertUnauthorized();
+    }
+
+    /** Без роли max_manager список ручных заказов недоступен. */
+    public function test_list_manual_orders_forbidden_without_max_manager_role(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->getJson('/api/food/admin/manual-orders', $auth['headers'])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    /** max_manager видит только ручные заказы. */
+    public function test_max_manager_can_list_manual_orders(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('List Place', 'Soup', 200);
+        $customer = MaxUser::query()->create([
+            'max_user_id' => 55_100,
+            'first_name' => 'Иван',
+            'last_name' => 'Петров',
+            'username' => 'ivan_petrov',
+        ]);
+
+        $manualOrder = $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $customer->max_user_id,
+            $manager['user']->max_user_id,
+            createdAt: '2026-07-10 12:00:00',
+        );
+        $this->createRegularOrder(
+            $fixture['restaurant']->id,
+            $customer->max_user_id,
+            createdAt: '2026-07-10 13:00:00',
+        );
+
+        $this->getJson('/api/food/admin/manual-orders', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.id', $manualOrder->id)
+            ->assertJsonPath('orders.0.customer.first_name', 'Иван')
+            ->assertJsonPath('orders.0.customer.last_name', 'Петров')
+            ->assertJsonPath('orders.0.restaurant_name', 'List Place')
+            ->assertJsonPath('orders.0.total', '250.00');
+    }
+
+    /** Фильтр по ФИО заказчика. */
+    public function test_max_manager_can_filter_manual_orders_by_fio(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Fio Place', 'Salad', 150);
+        $matching = MaxUser::query()->create([
+            'max_user_id' => 55_101,
+            'first_name' => 'Анна',
+            'last_name' => 'Сидорова',
+        ]);
+        $other = MaxUser::query()->create([
+            'max_user_id' => 55_102,
+            'first_name' => 'Борис',
+            'last_name' => 'Козлов',
+        ]);
+
+        $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $matching->max_user_id,
+            $manager['user']->max_user_id,
+        );
+        $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $other->max_user_id,
+            $manager['user']->max_user_id,
+        );
+
+        $this->getJson('/api/food/admin/manual-orders?q=Сидорова', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.customer.last_name', 'Сидорова');
+
+        $this->getJson('/api/food/admin/manual-orders?q=Анна Сидорова', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.customer.first_name', 'Анна');
+    }
+
+    /** Фильтр по max_user_id потребителя. */
+    public function test_max_manager_can_filter_manual_orders_by_max_user_id(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('UserId Place', 'Soup', 120);
+        $matching = MaxUser::query()->create([
+            'max_user_id' => 55_104,
+            'first_name' => 'Игорь',
+            'last_name' => 'Фильтров',
+        ]);
+        $other = MaxUser::query()->create([
+            'max_user_id' => 55_105,
+            'first_name' => 'Олег',
+            'last_name' => 'Другой',
+        ]);
+
+        $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $matching->max_user_id,
+            $manager['user']->max_user_id,
+        );
+        $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $other->max_user_id,
+            $manager['user']->max_user_id,
+        );
+
+        $this->getJson(
+            '/api/food/admin/manual-orders?max_user_id='.$matching->max_user_id,
+            $manager['headers'],
+        )
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.customer.max_user_id', $matching->max_user_id);
+    }
+
+    /** Фильтр по периоду оформления. */
+    public function test_max_manager_can_filter_manual_orders_by_period(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Period Place', 'Tea', 100);
+        $customer = MaxUser::query()->create([
+            'max_user_id' => 55_103,
+            'first_name' => 'Период',
+            'last_name' => 'Клиент',
+        ]);
+
+        $inRange = $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $customer->max_user_id,
+            $manager['user']->max_user_id,
+            createdAt: '2026-07-15 10:00:00',
+        );
+        $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $customer->max_user_id,
+            $manager['user']->max_user_id,
+            createdAt: '2026-07-01 10:00:00',
+        );
+        $this->createManualOrder(
+            $fixture['restaurant']->id,
+            $customer->max_user_id,
+            $manager['user']->max_user_id,
+            createdAt: '2026-07-25 10:00:00',
+        );
+
+        $this->getJson(
+            '/api/food/admin/manual-orders?date_from=2026-07-10&date_to=2026-07-20',
+            $manager['headers'],
+        )
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.id', $inRange->id);
+    }
+
+    /** date_to раньше date_from отклоняется. */
+    public function test_list_manual_orders_rejects_invalid_date_range(): void
+    {
+        $manager = $this->maxManagerAuth();
+
+        $this->getJson(
+            '/api/food/admin/manual-orders?date_from=2026-07-20&date_to=2026-07-10',
+            $manager['headers'],
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['date_to']);
+    }
+
     /** CRUD ручной корзины от имени клиента. */
     public function test_max_manager_can_manage_manual_cart_for_customer(): void
     {
@@ -214,6 +391,51 @@ class AdminManualOrderApiTest extends TestCase
             'max_user_id' => $customer->max_user_id,
             'created_by_max_user_id' => $manager['user']->max_user_id,
             'status' => CartStatus::Draft->value,
+        ]);
+    }
+
+    /** В ручном режиме можно добавить блюдо с is_available=false и оформить заказ. */
+    public function test_manual_cart_allows_unavailable_dish(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Unavailable Manual Place',
+            'Hidden Steak',
+            500,
+        );
+        $fixture['dish']->update(['is_available' => false]);
+        $customer = FoodTestDataBuilder::createMaxUserWithCategory(
+            $fixture['customer_category'],
+            maxUserId: 55_025,
+            firstName: 'UnavailableCustomer',
+        );
+        $address = 'ул. Ручная, 3';
+
+        $this->addManualCartItem(
+            $manager,
+            $customer->max_user_id,
+            $fixture['dish']->id,
+            1,
+        )
+            ->assertOk()
+            ->assertJsonPath('cart.items.0.dish_id', $fixture['dish']->id);
+
+        $this->patchJson('/api/food/admin/manual-orders/cart', [
+            'max_user_id' => $customer->max_user_id,
+            'delivery_address' => $address,
+        ], $manager['headers'])->assertOk();
+
+        $this->postJson('/api/food/admin/manual-orders/submit', [
+            'max_user_id' => $customer->max_user_id,
+        ], $manager['headers'])
+            ->assertCreated()
+            ->assertJsonPath('order.status', OrderStatus::Confirmed->value);
+
+        $this->assertDatabaseHas('max_food_orders', [
+            'max_user_id' => $customer->max_user_id,
+            'is_manual' => 1,
+            'created_by_max_user_id' => $manager['user']->max_user_id,
+            'status' => OrderStatus::Confirmed->value,
         ]);
     }
 
@@ -498,5 +720,86 @@ class AdminManualOrderApiTest extends TestCase
             'dish_id' => $dishId,
             'quantity' => $quantity,
         ], $manager['headers']);
+    }
+
+    /**
+     * Создаёт ручной заказ для тестов списка.
+     */
+    private function createManualOrder(
+        int $restaurantId,
+        int $customerMaxUserId,
+        int $managerMaxUserId,
+        string $createdAt = '2026-07-10 12:00:00',
+    ): FoodOrder {
+        $cart = Cart::query()->create([
+            'max_user_id' => $customerMaxUserId,
+            'created_by_max_user_id' => $managerMaxUserId,
+            'restaurant_id' => $restaurantId,
+            'status' => CartStatus::Submitted,
+            'delivery_address' => 'ул. Тестовая, 1',
+        ]);
+
+        $order = FoodOrder::query()->create([
+            'cart_id' => $cart->id,
+            'max_user_id' => $customerMaxUserId,
+            'is_manual' => true,
+            'created_by_max_user_id' => $managerMaxUserId,
+            'restaurant_id' => $restaurantId,
+            'status' => OrderStatus::Confirmed,
+            'address_review_status' => OrderReviewStatus::Approved,
+            'composition_review_status' => OrderReviewStatus::Approved,
+            'payment_review_status' => OrderReviewStatus::Approved,
+            'total' => 250,
+            'items_total' => 250,
+            'delivery_cost' => 0,
+            'delivery_address' => 'ул. Тестовая, 1',
+            'items_snapshot' => [],
+        ]);
+
+        FoodOrder::query()->whereKey($order->id)->update([
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
+
+        return $order->refresh();
+    }
+
+    /**
+     * Создаёт обычный (не ручной) заказ для проверки фильтра is_manual.
+     */
+    private function createRegularOrder(
+        int $restaurantId,
+        int $customerMaxUserId,
+        string $createdAt = '2026-07-10 12:00:00',
+    ): FoodOrder {
+        $cart = Cart::query()->create([
+            'max_user_id' => $customerMaxUserId,
+            'restaurant_id' => $restaurantId,
+            'status' => CartStatus::Submitted,
+            'delivery_address' => 'ул. Обычная, 2',
+        ]);
+
+        $order = FoodOrder::query()->create([
+            'cart_id' => $cart->id,
+            'max_user_id' => $customerMaxUserId,
+            'is_manual' => false,
+            'restaurant_id' => $restaurantId,
+            'status' => OrderStatus::Confirmed,
+            'address_review_status' => OrderReviewStatus::Approved,
+            'composition_review_status' => OrderReviewStatus::Approved,
+            'payment_review_status' => OrderReviewStatus::Approved,
+            'total' => 100,
+            'items_total' => 100,
+            'delivery_cost' => 0,
+            'delivery_address' => 'ул. Обычная, 2',
+            'items_snapshot' => [],
+        ]);
+
+        FoodOrder::query()->whereKey($order->id)->update([
+            'created_at' => $createdAt,
+            'updated_at' => $createdAt,
+        ]);
+
+        return $order->refresh();
     }
 }

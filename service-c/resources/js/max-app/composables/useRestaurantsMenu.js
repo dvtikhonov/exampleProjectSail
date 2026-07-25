@@ -65,7 +65,9 @@ export function useRestaurantsMenu({ currentView, cart, getTargetMaxUserId = () 
         menuError.value = '';
 
         try {
-            menu.value = await fetchMenu(restaurant.id);
+            menu.value = await fetchMenu(restaurant.id, {
+                includeUnavailable: resolveManualUserId() !== null,
+            });
         } catch (error) {
             menuError.value = extractErrorMessage(error);
         } finally {
@@ -144,7 +146,9 @@ export function useRestaurantsMenu({ currentView, cart, getTargetMaxUserId = () 
         menuError.value = '';
 
         try {
-            menu.value = await fetchMenu(selectedRestaurant.value.id);
+            menu.value = await fetchMenu(selectedRestaurant.value.id, {
+                includeUnavailable: resolveManualUserId() !== null,
+            });
         } catch (error) {
             menuError.value = extractErrorMessage(error);
         } finally {
