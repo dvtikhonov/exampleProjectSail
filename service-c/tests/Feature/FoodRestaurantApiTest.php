@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\Food\FoodOrderAdminRole;
 use App\Models\Dish;
+use App\Models\MaxUser;
 use App\Models\MenuCategory;
 use App\Models\Restaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -117,6 +119,44 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonCount(1, 'menu.categories.0.dishes')
             ->assertJsonPath('menu.categories.0.dishes.0.id', $fixture['dish']->id)
             ->assertJsonMissing(['name' => 'Hidden Soup']);
+    }
+
+    /** max_manager с include_unavailable=1 получает недоступные блюда (ручной заказ). */
+    public function test_menu_endpoint_includes_unavailable_dishes_for_max_manager(): void
+    {
+        $manager = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_106,
+                'first_name' => 'MenuMaxManager',
+            ])),
+            FoodOrderAdminRole::MaxManager,
+        );
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['is_available' => false]);
+
+        $this->getJson(
+            '/api/food/restaurants/'.$fixture['restaurant']->id.'/menu?include_unavailable=1',
+            $manager['headers'],
+        )
+            ->assertOk()
+            ->assertJsonCount(1, 'menu.categories.0.dishes')
+            ->assertJsonPath('menu.categories.0.dishes.0.id', $fixture['dish']->id)
+            ->assertJsonPath('menu.categories.0.dishes.0.is_available', false);
+    }
+
+    /** Без роли max_manager параметр include_unavailable игнорируется. */
+    public function test_menu_endpoint_ignores_include_unavailable_for_regular_user(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['is_available' => false]);
+
+        $this->getJson(
+            '/api/food/restaurants/'.$fixture['restaurant']->id.'/menu?include_unavailable=1',
+            $auth['headers'],
+        )
+            ->assertOk()
+            ->assertJsonCount(0, 'menu.categories');
     }
 
     /** Эндпоинт меню скрывает категории без доступных блюд. */

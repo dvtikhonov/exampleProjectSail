@@ -107,6 +107,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::prefix('manual-orders')
                 ->middleware('food.order.admin:max_manager')
                 ->group(function () {
+                    Route::get('/', [AdminManualOrderController::class, 'index']);
                     Route::get('/users', [AdminManualOrderController::class, 'users']);
                     Route::get('/cart', [AdminManualOrderController::class, 'showCart']);
                     Route::patch('/cart', [AdminManualOrderController::class, 'updateDeliveryAddress']);
@@ -117,6 +118,8 @@ Route::middleware('max.miniapp.auth')->group(function () {
                     Route::delete('/cart/items/{item}', [AdminManualOrderController::class, 'destroyItem'])
                         ->whereNumber('item');
                     Route::post('/submit', [AdminManualOrderController::class, 'submit']);
+                    Route::get('/{order}', [AdminManualOrderController::class, 'show'])
+                        ->whereNumber('order');
                 });
         });
     });

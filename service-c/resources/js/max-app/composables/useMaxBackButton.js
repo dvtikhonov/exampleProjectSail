@@ -61,6 +61,10 @@ export function useMaxBackButton({
             return false;
         }
 
+        if (manualOrder?.isOrderDetailOpen?.value) {
+            return false;
+        }
+
         if (!manualOrder?.isOrdering?.value) {
             return true;
         }
@@ -74,6 +78,12 @@ export function useMaxBackButton({
      */
     function handleBack() {
         if (hasAdminRoles.value) {
+            if (isMaxManagerSection() && manualOrder?.isOrderDetailOpen?.value) {
+                manualOrder.closeOrderDetail();
+
+                return;
+            }
+
             if (isManualOrdering()) {
                 if (nav.currentView.value === VIEWS.cart && cart.cartPageRef.value?.handleBackRequest?.()) {
                     return;
@@ -276,6 +286,10 @@ export function useMaxBackButton({
 
     if (manualOrder?.isOrdering) {
         watch(manualOrder.isOrdering, setupBackButton);
+    }
+
+    if (manualOrder?.isOrderDetailOpen) {
+        watch(manualOrder.isOrderDetailOpen, setupBackButton);
     }
 
     function cleanup() {

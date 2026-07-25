@@ -94,4 +94,23 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $this->assertSame('Starters', $loaded->menuCategories->first()->name);
         $this->assertSame('Desserts', $loaded->menuCategories->last()->name);
     }
+
+    /** findActiveWithMenu с includeUnavailable включает недоступные блюда. */
+    public function test_find_active_with_menu_can_include_unavailable_dishes(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['is_available' => false]);
+
+        $repository = app(EloquentRestaurantRepository::class);
+
+        $withoutUnavailable = $repository->findActiveWithMenu($fixture['restaurant']->id);
+        $withUnavailable = $repository->findActiveWithMenu($fixture['restaurant']->id, true);
+
+        $this->assertNotNull($withoutUnavailable);
+        $this->assertCount(0, $withoutUnavailable->menuCategories->first()->dishes);
+
+        $this->assertNotNull($withUnavailable);
+        $this->assertCount(1, $withUnavailable->menuCategories->first()->dishes);
+        $this->assertFalse($withUnavailable->menuCategories->first()->dishes->first()->is_available);
+    }
 }

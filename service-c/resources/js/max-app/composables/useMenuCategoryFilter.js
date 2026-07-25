@@ -4,7 +4,11 @@ import { computed, ref, unref } from 'vue';
  * Клиентская фильтрация меню по категории и поисковому запросу.
  *
  * @param {import('vue').MaybeRefOrGetter<Object|null>} menu
- * @param {{ comboBuilderOpen?: import('vue').Ref<boolean>, comboFirstDish?: import('vue').Ref<Object|null> }} [options]
+ * @param {{
+ *   comboBuilderOpen?: import('vue').Ref<boolean>,
+ *   comboFirstDish?: import('vue').Ref<Object|null>,
+ *   includeUnavailable?: import('vue').MaybeRefOrGetter<boolean>,
+ * }} [options]
  */
 export function useMenuCategoryFilter(menu, options = {}) {
     const activeCategoryId = ref(null);
@@ -12,6 +16,7 @@ export function useMenuCategoryFilter(menu, options = {}) {
 
     const availableCategories = computed(() => {
         const menuValue = unref(menu);
+        const includeUnavailable = Boolean(unref(options.includeUnavailable));
 
         if (!menuValue?.categories) {
             return [];
@@ -20,7 +25,9 @@ export function useMenuCategoryFilter(menu, options = {}) {
         return menuValue.categories
             .map((category) => ({
                 ...category,
-                dishes: category.dishes.filter((dish) => dish.is_available),
+                dishes: includeUnavailable
+                    ? category.dishes
+                    : category.dishes.filter((dish) => dish.is_available),
             }))
             .filter((category) => category.dishes.length > 0);
     });

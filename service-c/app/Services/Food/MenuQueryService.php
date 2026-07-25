@@ -46,11 +46,13 @@ class MenuQueryService
     /**
      * Возвращает меню ресторана с категориями и блюдами.
      *
+     * @param  bool  $includeUnavailable  true — включать недоступные блюда (ручной заказ)
+     *
      * @throws FoodDomainException
      */
-    public function getRestaurantMenu(int $restaurantId): MenuDto
+    public function getRestaurantMenu(int $restaurantId, bool $includeUnavailable = false): MenuDto
     {
-        $restaurant = $this->menuReadRepository->findActiveWithMenu($restaurantId);
+        $restaurant = $this->menuReadRepository->findActiveWithMenu($restaurantId, $includeUnavailable);
 
         if ($restaurant === null) {
             throw new FoodDomainException('Restaurant not found.', 404);

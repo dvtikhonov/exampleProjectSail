@@ -89,10 +89,7 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
                 throw new FoodDomainException('Dish not found.', 404);
             }
 
-            if (! $dish->is_available) {
-                throw new FoodDomainException('Dish is not available.');
-            }
-
+            // Ручной режим: is_available не блокирует добавление в корзину.
             $restaurant = $dish->menuCategory->restaurant;
 
             if (! $restaurant->is_active) {
@@ -116,7 +113,7 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
             }
 
             if ($comboRef !== null && $comboPartnerDishId !== null) {
-                $this->comboPairValidator->validatePair($dish, $comboPartnerDishId);
+                $this->comboPairValidator->validatePair($dish, $comboPartnerDishId, requirePartnerAvailable: false);
                 $this->upsertComboCartItem($cart, $dish->id, $quantity, $comboRef, $comboPartnerDishId);
             } else {
                 $this->upsertRegularCartItem($cart, $dish->id, $quantity);

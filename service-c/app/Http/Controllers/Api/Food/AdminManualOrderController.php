@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\ManualOrderCartServiceInterface;
+use App\Contracts\Food\ManualOrderQueryServiceInterface;
 use App\Contracts\Food\ManualOrderUserQueryServiceInterface;
 use App\Contracts\Food\OrderSubmissionServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\ListManualOrdersRequest;
 use App\Http\Requests\Food\Admin\ListManualOrderUsersRequest;
 use App\Http\Requests\Food\Admin\ManualAddCartItemRequest;
 use App\Http\Requests\Food\Admin\ManualOrderCustomerFormRequest;
@@ -28,10 +30,50 @@ class AdminManualOrderController extends Controller
 {
     public function __construct(
         private readonly ManualOrderUserQueryServiceInterface $manualOrderUserQueryService,
+        private readonly ManualOrderQueryServiceInterface $manualOrderQueryService,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
         private readonly OrderSubmissionServiceInterface $orderSubmissionService,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
     ) {}
+
+    /**
+     * Список ручных заказов с фильтром по потребителю, периоду, статусу и/или ФИО.
+     */
+    public function index(ListManualOrdersRequest $request): JsonResponse
+    {
+        $result = $this->manualOrderQueryService->list(
+            $request->searchQuery(),
+            $request->dateFrom(),
+            $request->dateTo(),
+            $request->perPage(),
+            $request->customerMaxUserId(),
+            $request->status(),
+        );
+
+        return response()->json([
+            'orders' => array_map(
+                static fn ($order): array => $order->toArray(),
+                $result['orders'],
+            ),
+            'meta' => $result['meta'],
+        ]);
+    }
+
+    /**
+     * Детальный просмотр ручного заказа (состав как в корзине).
+     */
+    public function show(int $order): JsonResponse
+    {
+        try {
+            $detail = $this->manualOrderQueryService->show($order);
+        } catch (FoodDomainException $exception) {
+            return $this->domainError($exception);
+        }
+
+        return response()->json([
+            'order' => $detail->toArray(),
+        ]);
+    }
 
     /**
      * Поиск и список пользователей MAX для выбора клиента.
