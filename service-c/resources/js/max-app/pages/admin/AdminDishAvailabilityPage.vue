@@ -2,7 +2,7 @@
 /**
  * График доступности блюд: таблица дата × блюдо с редактированием будущих дат.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
 import { useScrollViewport } from '../../composables/useScrollViewport';
 
@@ -83,6 +83,7 @@ const emit = defineEmits([
 ]);
 
 const gridViewportRef = ref(null);
+const openDishNameId = ref(null);
 const { refreshViewport } = useScrollViewport(gridViewportRef, { autoFocus: true });
 
 const restaurantSelectOptions = computed(() => [
@@ -165,11 +166,35 @@ function parseIsoDate(date) {
  * @param {string} date
  */
 function onCellClick(dishId, date) {
+    closeDishNameTooltip();
+
     if (!props.isDateEditable(date)) {
         return;
     }
 
     emit('toggle', dishId, date);
+}
+
+/**
+ * @param {number} dishId
+ * @param {MouseEvent} event
+ */
+function toggleDishNameTooltip(dishId, event) {
+    event.stopPropagation();
+    openDishNameId.value = openDishNameId.value === dishId ? null : dishId;
+}
+
+function closeDishNameTooltip() {
+    openDishNameId.value = null;
+}
+
+/**
+ * @param {KeyboardEvent} event
+ */
+function onDocumentKeydown(event) {
+    if (event.key === 'Escape') {
+        closeDishNameTooltip();
+    }
 }
 
 /**
@@ -184,9 +209,27 @@ function onGridFocusIn(event) {
     }
 }
 
+onMounted(() => {
+    document.addEventListener('click', closeDishNameTooltip);
+    document.addEventListener('keydown', onDocumentKeydown);
+    document.addEventListener('scroll', closeDishNameTooltip, true);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', closeDishNameTooltip);
+    document.removeEventListener('keydown', onDocumentKeydown);
+    document.removeEventListener('scroll', closeDishNameTooltip, true);
+});
+
 watch(
-    () => [props.dishes.length, props.loading, props.filtersReady, visibleDates.value.length],
+    [
+        () => props.dishes.length,
+        () => props.loading,
+        () => props.filtersReady,
+        () => visibleDates.value.length,
+    ],
     () => {
+        closeDishNameTooltip();
         refreshViewport();
     },
 );
@@ -339,9 +382,24 @@ watch(
                     >
                         <th
                             scope="row"
-                            class="sticky left-0 z-10 w-[9rem] border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
+                            class="relative sticky left-0 z-10 w-[9rem] cursor-pointer border-r border-gray-100 bg-white px-3 py-2 text-left text-xs font-medium text-gray-900"
+                            :class="{ 'z-40': openDishNameId === dish.id }"
+                            :aria-expanded="openDishNameId === dish.id"
+                            :aria-label="`Название блюда: ${dish.name}`"
+                            @click="toggleDishNameTooltip(dish.id, $event)"
                         >
                             <span class="line-clamp-2">{{ dish.name }}</span>
+                            <span
+                                v-if="openDishNameId === dish.id"
+                                class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 w-max max-w-[14rem] -translate-y-1/2 rounded-xl bg-gray-900 px-3 py-1.5 text-xs font-medium leading-snug text-white shadow-lg"
+                                role="tooltip"
+                            >
+                                {{ dish.name }}
+                                <span
+                                    class="absolute right-full top-1/2 h-2 w-2 translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-900"
+                                    aria-hidden="true"
+                                />
+                            </span>
                         </th>
                         <td
                             v-for="date in visibleDates"

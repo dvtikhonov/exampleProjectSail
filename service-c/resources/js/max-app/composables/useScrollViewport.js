@@ -147,6 +147,21 @@ export function useScrollViewport(viewportRef, options = {}) {
         });
     }
 
+    /**
+     * @param {HTMLElement} element
+     * @returns {boolean}
+     */
+    function shouldAutoFocus(element) {
+        const active = document.activeElement;
+
+        // Не перехватывать фокус у полей вне viewport (например, «Поиск по названию»).
+        if (active && active !== document.body && active !== element && !element.contains(active)) {
+            return false;
+        }
+
+        return true;
+    }
+
     function refreshViewport() {
         const element = unref(viewportRef);
 
@@ -157,7 +172,7 @@ export function useScrollViewport(viewportRef, options = {}) {
         bindTouchHandlers(element);
         syncHeight(element);
 
-        if (autoFocus) {
+        if (autoFocus && shouldAutoFocus(element)) {
             element.focus({ preventScroll: true });
         }
     }
