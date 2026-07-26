@@ -2,10 +2,13 @@
 /**
  * Экран после успешной отправки заявки.
  * Клиентский заказ — ожидание проверки; ручной — сразу принят к исполнению.
+ *
+ * @typedef {import('../api/types.js').OrderDto} OrderDto
  */
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 
 defineProps({
+    /** Оформленный заказ (OrderDto после submit) */
     order: {
         type: Object,
         required: true,

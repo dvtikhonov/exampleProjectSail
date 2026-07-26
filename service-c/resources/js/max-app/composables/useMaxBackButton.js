@@ -1,5 +1,8 @@
 /**
  * Интеграция с кнопкой «Назад» MAX Bridge: навигация и закрытие mini-app.
+ *
+ * Зависимости опциональны: каждый shell/root передаёт только свой context
+ * (client / orders / manual / menu), без полного набора refs из App.vue.
  */
 import { onScopeDispose, watch } from 'vue';
 import { bindBackButton, closeMaxApp, getPlatform, hideBackButton } from '../bridge/maxBridge';
@@ -8,33 +11,33 @@ import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from '../constan
 /**
  * @param {object} deps
  * @param {import('vue').ComputedRef<boolean>} deps.hasAdminRoles
- * @param {import('vue').Ref<string>} deps.adminSection
+ * @param {import('vue').Ref<string>|import('vue').ComputedRef<string>} deps.adminSection
  * @param {import('vue').ComputedRef<boolean>} deps.hasMenuManagerRole
- * @param {import('vue').ComputedRef<boolean>} [deps.hasMaxManagerRole]
- * @param {ReturnType<import('./useAdminFlow').useAdminFlow>} deps.admin
- * @param {ReturnType<import('./useDishAdmin').useDishAdmin>} deps.dishAdmin
- * @param {ReturnType<import('./useMenuCategoryAdmin').useMenuCategoryAdmin>} deps.categoryAdmin
- * @param {ReturnType<import('./useManualOrder').useManualOrder>|null} [deps.manualOrder]
+ * @param {import('vue').ComputedRef<boolean>|null} [deps.hasMaxManagerRole]
+ * @param {ReturnType<import('./useAdminFlow').useAdminFlow>|null} [deps.admin]
+ * @param {ReturnType<import('./useDishAdmin').useDishAdmin>|null} [deps.dishAdmin]
+ * @param {ReturnType<import('./useMenuCategoryAdmin').useMenuCategoryAdmin}|null} [deps.categoryAdmin]
+ * @param {ReturnType<import('./useManualOrder').useManualOrder}|null} [deps.manualOrder]
  * @param {(() => void)|null} [deps.onManualExitOrdering]
- * @param {ReturnType<import('./useClientNavigation').useClientNavigation>} deps.nav
- * @param {ReturnType<import('./useCart').useCart>} deps.cart
- * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders
- * @param {import('vue').ComputedRef<boolean>} deps.isSingleRestaurantMode — меню как корень клиента
+ * @param {ReturnType<import('./useClientNavigation').useClientNavigation}|null} [deps.nav]
+ * @param {ReturnType<import('./useCart').useCart}|null} [deps.cart]
+ * @param {ReturnType<import('./useMyOrders').useMyOrders}|null} [deps.orders]
+ * @param {import('vue').ComputedRef<boolean>|null} [deps.isSingleRestaurantMode]
  */
 export function useMaxBackButton({
     hasAdminRoles,
     adminSection,
     hasMenuManagerRole,
     hasMaxManagerRole = null,
-    admin,
-    dishAdmin,
-    categoryAdmin,
+    admin = null,
+    dishAdmin = null,
+    categoryAdmin = null,
     manualOrder = null,
     onManualExitOrdering = null,
-    nav,
-    cart,
-    orders,
-    isSingleRestaurantMode,
+    nav = null,
+    cart = null,
+    orders = null,
+    isSingleRestaurantMode = null,
 }) {
     /** Снимает обработчик кнопки «Назад» при смене экрана */
     let unbindBackButton = () => {};
@@ -52,8 +55,12 @@ export function useMaxBackButton({
 
     /** Список ресторанов (multi) или меню единственного ресторана (single) */
     function isClientRootView() {
+        if (!nav?.currentView) {
+            return false;
+        }
+
         return nav.currentView.value === VIEWS.restaurants
-            || (nav.currentView.value === VIEWS.menu && isSingleRestaurantMode.value);
+            || (nav.currentView.value === VIEWS.menu && Boolean(isSingleRestaurantMode?.value));
     }
 
     function isManualOrderRootView() {
@@ -84,7 +91,7 @@ export function useMaxBackButton({
                 return;
             }
 
-            if (isManualOrdering()) {
+            if (isManualOrdering() && nav && cart) {
                 if (nav.currentView.value === VIEWS.cart && cart.cartPageRef.value?.handleBackRequest?.()) {
                     return;
                 }
@@ -96,7 +103,7 @@ export function useMaxBackButton({
                 }
 
                 if (nav.currentView.value === VIEWS.menu) {
-                    if (isSingleRestaurantMode.value) {
+                    if (isSingleRestaurantMode?.value) {
                         onManualExitOrdering?.();
 
                         return;
@@ -120,7 +127,7 @@ export function useMaxBackButton({
                 return;
             }
 
-            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
+            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value && dishAdmin && categoryAdmin) {
                 if (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.form) {
                     dishAdmin.closeDishForm();
 
@@ -136,10 +143,14 @@ export function useMaxBackButton({
                 return;
             }
 
-            if (admin.adminView.value === ADMIN_VIEWS.detail) {
+            if (admin?.adminView?.value === ADMIN_VIEWS.detail) {
                 admin.closeAdminOrderDetail();
             }
 
+            return;
+        }
+
+        if (!nav || !cart) {
             return;
         }
 
@@ -148,7 +159,7 @@ export function useMaxBackButton({
         }
 
         if (nav.currentView.value === VIEWS.menu) {
-            if (isSingleRestaurantMode.value) {
+            if (isSingleRestaurantMode?.value) {
                 if (getPlatform() === 'desktop') {
                     closeMaxApp();
                 }
@@ -161,7 +172,7 @@ export function useMaxBackButton({
         }
 
         if (nav.currentView.value === VIEWS.orderDetail) {
-            orders.closeOrderDetail();
+            orders?.closeOrderDetail?.();
             return;
         }
 
@@ -196,7 +207,7 @@ export function useMaxBackButton({
                     return;
                 }
 
-                if (nav.currentView.value === VIEWS.confirmation) {
+                if (nav?.currentView?.value === VIEWS.confirmation) {
                     hideBackButton();
 
                     return;
@@ -207,7 +218,7 @@ export function useMaxBackButton({
                 return;
             }
 
-            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value) {
+            if (adminSection.value === ADMIN_SECTIONS.menu && hasMenuManagerRole.value && dishAdmin) {
                 if (
                     (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
                         || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule
@@ -234,13 +245,13 @@ export function useMaxBackButton({
                 return;
             }
 
-            if (admin.adminView.value === ADMIN_VIEWS.list && getPlatform() === 'desktop') {
+            if (admin?.adminView?.value === ADMIN_VIEWS.list && getPlatform() === 'desktop') {
                 unbindBackButton = bindBackButton(closeMaxApp);
 
                 return;
             }
 
-            if (admin.adminView.value === ADMIN_VIEWS.list) {
+            if (admin?.adminView?.value === ADMIN_VIEWS.list) {
                 hideBackButton();
 
                 return;
@@ -248,6 +259,10 @@ export function useMaxBackButton({
 
             unbindBackButton = bindBackButton(handleBack);
 
+            return;
+        }
+
+        if (!nav) {
             return;
         }
 
@@ -278,11 +293,23 @@ export function useMaxBackButton({
         unbindBackButton = bindBackButton(handleBack);
     }
 
-    watch(nav.currentView, setupBackButton);
-    watch(admin.adminView, setupBackButton);
+    if (nav?.currentView) {
+        watch(nav.currentView, setupBackButton);
+    }
+
+    if (admin?.adminView) {
+        watch(admin.adminView, setupBackButton);
+    }
+
     watch(adminSection, setupBackButton);
-    watch(dishAdmin.dishAdminView, setupBackButton);
-    watch(isSingleRestaurantMode, setupBackButton);
+
+    if (dishAdmin?.dishAdminView) {
+        watch(dishAdmin.dishAdminView, setupBackButton);
+    }
+
+    if (isSingleRestaurantMode) {
+        watch(isSingleRestaurantMode, setupBackButton);
+    }
 
     if (manualOrder?.isOrdering) {
         watch(manualOrder.isOrdering, setupBackButton);
@@ -310,16 +337,16 @@ export function useMaxBackButton({
  *
  * @param {object} deps
  * @param {import('vue').ComputedRef<boolean>} deps.hasAdminRoles
- * @param {ReturnType<import('./useAdminFlow').useAdminFlow>} deps.admin
- * @param {ReturnType<import('./useClientNavigation').useClientNavigation>} deps.nav
- * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders
+ * @param {ReturnType<import('./useAdminFlow').useAdminFlow}|null} [deps.admin]
+ * @param {ReturnType<import('./useClientNavigation').useClientNavigation}|null} [deps.nav]
+ * @param {ReturnType<import('./useMyOrders').useMyOrders}|null} [deps.orders]
  */
-export function createChatMessagesReadHandler({ hasAdminRoles, admin, nav, orders }) {
+export function createChatMessagesReadHandler({ hasAdminRoles, admin = null, nav = null, orders = null }) {
     return function handleChatMessagesRead() {
-        if (hasAdminRoles.value && admin.adminView.value === ADMIN_VIEWS.detail) {
+        if (hasAdminRoles.value && admin?.adminView?.value === ADMIN_VIEWS.detail) {
             admin.loadAdminOrders({ silent: true });
-        } else if (nav.currentView.value === VIEWS.orderDetail) {
-            orders.loadMyOrders({ silent: true });
+        } else if (nav?.currentView?.value === VIEWS.orderDetail) {
+            orders?.loadMyOrders?.({ silent: true });
         }
     };
 }

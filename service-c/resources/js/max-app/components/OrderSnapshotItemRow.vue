@@ -1,16 +1,20 @@
 <script setup>
 /**
  * Строка состава заказа из items_snapshot с пометкой комбо.
+ *
+ * @typedef {import('../api/types.js').OrderSnapshotItem} OrderSnapshotItem
  */
 import { computed } from 'vue';
 import DishImage from './DishImage.vue';
 import { getComboPartnerName, isComboSnapshotItem } from '../utils/orderSnapshotCombo';
 
 const props = defineProps({
+    /** Позиция снимка (OrderSnapshotItem) */
     item: {
         type: Object,
         required: true,
     },
+    /** Полный items_snapshot для резолва партнёра комбо */
     itemsSnapshot: {
         type: Array,
         required: true,

@@ -3,7 +3,7 @@
  * Модалка просмотра истории чата ручного заказа (только чтение).
  */
 import { computed, ref, watch } from 'vue';
-import { extractErrorMessage, fetchOrderMessages } from '../api/foodClient';
+import { extractErrorMessage, fetchOrderMessages } from '../api';
 import { useAuth } from '../composables/useAuth';
 import OrderChatMessage from './OrderChatMessage.vue';
 

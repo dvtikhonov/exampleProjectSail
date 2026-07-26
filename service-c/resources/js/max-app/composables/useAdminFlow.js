@@ -12,11 +12,11 @@ import {
     rejectOrderAddress,
     rejectOrderComposition,
     rejectOrderPayment,
-} from '../api/foodClient';
+} from '../api';
 import { ADMIN_VIEWS } from '../constants/views';
 
 /**
- * @param {import('vue').Ref<string>} adminScope — активная вкладка (address / composition)
+ * @param {import('vue').Ref<'address'|'composition'|string>} adminScope — вкладка очереди (не adminSection)
  * @returns {object} Состояние и обработчики админ-интерфейса
  */
 export function useAdminFlow(adminScope) {

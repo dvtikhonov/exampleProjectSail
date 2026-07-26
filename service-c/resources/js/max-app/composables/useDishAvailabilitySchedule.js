@@ -6,7 +6,7 @@ import {
     extractErrorMessage,
     fetchDishAvailabilitySchedule,
     updateDishAvailabilitySchedule,
-} from '../api/foodClient';
+} from '../api';
 
 /**
  * @param {object[]} items

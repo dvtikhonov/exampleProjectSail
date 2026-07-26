@@ -1,11 +1,16 @@
 <script setup>
 /**
  * Бейдж агрегированного статуса заказа (Поступил, На проверке, Выполнен и т.д.).
+ *
+ * @typedef {import('../api/types.js').OrderDto} OrderDto
+ * @typedef {import('../api/types.js').AdminOrderListItemDto} AdminOrderListItemDto
+ * @typedef {import('../api/types.js').AdminOrderDetailDto} AdminOrderDetailDto
  */
 import { computed } from 'vue';
 import { getOrderStatusDisplay } from '../utils/orderStatus';
 
 const props = defineProps({
+    /** Заказ клиента или админ-очереди */
     order: {
         type: Object,
         required: true,

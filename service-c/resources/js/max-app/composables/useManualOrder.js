@@ -8,7 +8,7 @@ import {
     fetchManualOrder,
     fetchManualOrderUsers,
     fetchManualOrders,
-} from '../api/foodClient';
+} from '../api';
 import { formatCustomerFio } from '../utils/formatCustomerName';
 
 /** Задержка debounce поиска пользователей (мс) */

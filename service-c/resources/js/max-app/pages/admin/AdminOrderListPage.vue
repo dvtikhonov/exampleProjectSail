@@ -1,12 +1,16 @@
 <script setup>
 /**
  * Очередь заказов на проверку с pull-to-refresh на touch-устройствах.
+ *
+ * @typedef {import('../../api/types.js').AdminOrderListItemDto} AdminOrderListItemDto
  */
 import { onMounted, onUnmounted, ref } from 'vue';
 import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
+import { formatCustomerName } from '../../utils/formatCustomerName';
 
 const props = defineProps({
+    /** @type {{ type: ArrayConstructor, default: () => AdminOrderListItemDto[] }} */
     orders: {
         type: Array,
         default: () => [],
@@ -34,23 +38,6 @@ let scrollContainer = null;
 
 /** Порог смещения пальца (px) для срабатывания обновления списка */
 const PULL_THRESHOLD = 72;
-
-/**
- * @param {{ first_name?: string|null, last_name?: string|null, username?: string|null, max_user_id: number }} customer
- */
-function formatCustomerName(customer) {
-    const parts = [customer.first_name, customer.last_name].filter(Boolean);
-
-    if (parts.length > 0) {
-        return parts.join(' ');
-    }
-
-    if (customer.username) {
-        return `@${customer.username}`;
-    }
-
-    return `ID ${customer.max_user_id}`;
-}
 
 /**
  * @param {string} iso

@@ -12,6 +12,8 @@
  *
  * Адрес синхронизируется с сервером через debounce (родитель App.vue).
  * Модалка подтверждения перехватывает кнопку «Назад» через defineExpose.
+ *
+ * @typedef {import('../api/types.js').CartDto} CartDto
  */
 import { computed, ref, watch } from 'vue';
 import CartHeader from '../components/cart/CartHeader.vue';
@@ -21,6 +23,7 @@ import CartSummaryFooter from '../components/cart/CartSummaryFooter.vue';
 import { buildCartGroups } from '../utils/cartGroups';
 
 const props = defineProps({
+    /** Корзина с API (CartDto), null если пусто */
     cart: {
         type: Object,
         default: null,

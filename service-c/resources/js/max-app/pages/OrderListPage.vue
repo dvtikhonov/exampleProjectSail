@@ -1,10 +1,13 @@
 <script setup>
 /**
  * Список заказов клиента с статусом, суммой и счётчиком непрочитанных сообщений.
+ *
+ * @typedef {import('../api/types.js').OrderListItemDto} OrderListItemDto
  */
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 
 defineProps({
+    /** @type {{ type: ArrayConstructor, default: () => OrderListItemDto[] }} */
     orders: {
         type: Array,
         default: () => [],
@@ -42,7 +45,7 @@ function formatDate(iso) {
 }
 
 /**
- * @param {{ last_message_at?: string|null, created_at: string }} order
+ * @param {OrderListItemDto} order
  */
 function formatOrderDate(order) {
     return formatDate(order.last_message_at ?? order.created_at);

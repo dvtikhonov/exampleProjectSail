@@ -11,7 +11,7 @@ import {
     fetchAdminMenuCategory,
     fetchRestaurants,
     updateMenuCategory,
-} from '../api/foodClient';
+} from '../api';
 import { ADMIN_DISH_VIEWS } from '../constants/views';
 
 /**
@@ -35,6 +35,8 @@ export function useMenuCategoryAdmin({ filters, onCategoriesChanged = async () =
 
     const categoryDeleteLoadingId = ref(null);
     const categoryDeleteError = ref('');
+    /** Категория, ожидающая подтверждения удаления в модалке */
+    const pendingDeleteCategory = ref(null);
 
     const { filterRestaurantId } = filters;
 
@@ -155,11 +157,29 @@ export function useMenuCategoryAdmin({ filters, onCategoriesChanged = async () =
     }
 
     /**
-     * @param {import('vue').Ref<string>} dishAdminView
+     * Открывает модалку подтверждения удаления категории.
+     *
      * @param {object} category
      */
-    async function handleDeleteCategory(dishAdminView, category) {
-        if (!window.confirm(`Удалить категорию «${category.name}»?`)) {
+    function requestDeleteCategory(category) {
+        pendingDeleteCategory.value = category;
+        categoryDeleteError.value = '';
+    }
+
+    function cancelDeleteCategory() {
+        if (categoryDeleteLoadingId.value !== null) {
+            return;
+        }
+
+        pendingDeleteCategory.value = null;
+        categoryDeleteError.value = '';
+    }
+
+    /** Подтверждённое удаление категории из модалки */
+    async function confirmDeleteCategory() {
+        const category = pendingDeleteCategory.value;
+
+        if (!category) {
             return;
         }
 
@@ -168,6 +188,7 @@ export function useMenuCategoryAdmin({ filters, onCategoriesChanged = async () =
 
         try {
             await deleteMenuCategory(category.id);
+            pendingDeleteCategory.value = null;
             await loadMenuCategories();
             await onCategoriesChanged();
         } catch (error) {
@@ -198,6 +219,7 @@ export function useMenuCategoryAdmin({ filters, onCategoriesChanged = async () =
         categoryFormFieldErrors,
         categoryDeleteLoadingId,
         categoryDeleteError,
+        pendingDeleteCategory,
         loadRestaurantOptions,
         loadMenuCategories,
         openCategoryListView,
@@ -205,7 +227,9 @@ export function useMenuCategoryAdmin({ filters, onCategoriesChanged = async () =
         openEditCategoryForm,
         closeCategoryForm,
         submitCategoryForm,
-        handleDeleteCategory,
+        requestDeleteCategory,
+        cancelDeleteCategory,
+        confirmDeleteCategory,
         handleCategoryFilterRestaurantChange,
     };
 }

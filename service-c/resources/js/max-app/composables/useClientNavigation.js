@@ -7,7 +7,7 @@ import { resolveOrderChatDeepLinkOrderId } from '../utils/orderChatDeepLink';
 
 /**
  * @param {object} deps — доменные composables клиентского потока
- * @param {import('vue').Ref<string>} deps.currentView — общий ref экрана (создаётся в App.vue)
+ * @param {import('vue').Ref<string>} deps.currentView — общий ref экрана (создаётся в ClientAppShell / ManualOrdersRoot)
  * @param {ReturnType<import('./useRestaurantsMenu').useRestaurantsMenu>} deps.restaurantsMenu
  * @param {ReturnType<import('./useCart').useCart>} deps.cart
  * @param {ReturnType<import('./useMyOrders').useMyOrders>} deps.orders

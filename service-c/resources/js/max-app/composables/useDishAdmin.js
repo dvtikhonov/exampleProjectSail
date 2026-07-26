@@ -11,14 +11,10 @@ import {
     fetchAdminDishes,
     fetchAdminMenuCategories,
     importDishesSpreadsheet,
-    sendAdminTestBotMessage,
-    sendAdminTestBot2Message,
     updateDish,
-} from '../api/foodClient';
+} from '../api';
+import { NAME_SEARCH_DEBOUNCE_MS } from '../constants/dishAdmin';
 import { ADMIN_DISH_VIEWS } from '../constants/views';
-
-/** Задержка debounce поиска по названию (мс) */
-const NAME_SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * @param {{ filters: ReturnType<typeof import('./useDishAdminFilters').useDishAdminFilters> }} options
@@ -46,18 +42,12 @@ export function useDishAdmin({ filters }) {
 
     const deleteLoadingId = ref(null);
     const deleteError = ref('');
+    /** Блюдо, ожидающее подтверждения удаления в модалке */
+    const pendingDeleteDish = ref(null);
 
     const importLoading = ref(false);
     const importError = ref('');
     const importSuccessMessage = ref('');
-
-    const testBotLoading = ref(false);
-    const testBotError = ref('');
-    const testBotSuccessMessage = ref('');
-
-    const testBot2Loading = ref(false);
-    const testBot2Error = ref('');
-    const testBot2SuccessMessage = ref('');
 
     const restaurantOptions = computed(() => {
         const map = new Map();
@@ -374,47 +364,30 @@ export function useDishAdmin({ filters }) {
         return extractErrorMessage(error);
     }
 
-    async function handleTestBotClick() {
-        testBotSuccessMessage.value = '';
-        testBotError.value = '';
-        testBot2SuccessMessage.value = '';
-        testBot2Error.value = '';
-        testBotLoading.value = true;
-
-        try {
-            const result = await sendAdminTestBotMessage();
-            const botUsername = result.bot_username ? `@${result.bot_username}` : 'боту MAX';
-            testBotSuccessMessage.value = `${result.message} (${botUsername})`;
-        } catch (error) {
-            testBotError.value = extractErrorMessage(error);
-        } finally {
-            testBotLoading.value = false;
-        }
-    }
-
-    async function handleTestBot2Click() {
-        testBot2SuccessMessage.value = '';
-        testBot2Error.value = '';
-        testBotSuccessMessage.value = '';
-        testBotError.value = '';
-        testBot2Loading.value = true;
-
-        try {
-            const result = await sendAdminTestBot2Message();
-            const botUsername = result.bot_username ? `@${result.bot_username}` : 'боту MAX';
-            testBot2SuccessMessage.value = `${result.message} (${botUsername})`;
-        } catch (error) {
-            testBot2Error.value = extractErrorMessage(error);
-        } finally {
-            testBot2Loading.value = false;
-        }
-    }
-
     /**
+     * Открывает модалку подтверждения удаления блюда.
+     *
      * @param {object} dish
      */
-    async function handleDeleteDish(dish) {
-        if (!window.confirm(`Удалить блюдо «${dish.name}»?`)) {
+    function requestDeleteDish(dish) {
+        pendingDeleteDish.value = dish;
+        deleteError.value = '';
+    }
+
+    function cancelDeleteDish() {
+        if (deleteLoadingId.value !== null) {
+            return;
+        }
+
+        pendingDeleteDish.value = null;
+        deleteError.value = '';
+    }
+
+    /** Подтверждённое удаление блюда из модалки */
+    async function confirmDeleteDish() {
+        const dish = pendingDeleteDish.value;
+
+        if (!dish) {
             return;
         }
 
@@ -423,6 +396,7 @@ export function useDishAdmin({ filters }) {
 
         try {
             await deleteDish(dish.id);
+            pendingDeleteDish.value = null;
             await loadDishes();
         } catch (error) {
             deleteError.value = extractErrorMessage(error);
@@ -451,15 +425,10 @@ export function useDishAdmin({ filters }) {
         formFieldErrors,
         deleteLoadingId,
         deleteError,
+        pendingDeleteDish,
         importLoading,
         importError,
         importSuccessMessage,
-        testBotLoading,
-        testBotError,
-        testBotSuccessMessage,
-        testBot2Loading,
-        testBot2Error,
-        testBot2SuccessMessage,
         initDishAdminSession,
         loadCategories,
         loadDishes,
@@ -473,10 +442,10 @@ export function useDishAdmin({ filters }) {
         closeDishForm,
         handleFormRestaurantChange,
         submitDishForm,
-        handleDeleteDish,
+        requestDeleteDish,
+        cancelDeleteDish,
+        confirmDeleteDish,
         handleImportClick,
         handleImportFile,
-        handleTestBotClick,
-        handleTestBot2Click,
     };
 }

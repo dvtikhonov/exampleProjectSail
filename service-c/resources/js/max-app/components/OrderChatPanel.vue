@@ -1,11 +1,12 @@
 <script setup>
 /**
- * Панель чата по заказу: загрузка истории, отправка, polling новых сообщений.
- * perspective влияет на fallback-подписи; «своё» — по sender_max_user_id текущего пользователя.
+ * Панель чата по заказу: UI ленты и поля ввода.
+ * Загрузка / отправка / polling — в useOrderChat.
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { extractErrorMessage, fetchOrderMessages, sendOrderMessage } from '../api/foodClient';
+import { computed, nextTick, ref, toRef, watch } from 'vue';
 import { useAuth } from '../composables/useAuth';
+import { useOrderChat } from '../composables/useOrderChat';
+import { ORDER_CHAT_MAX_BODY_LENGTH } from '../constants/orderChat';
 import OrderChatMessage from './OrderChatMessage.vue';
 
 const props = defineProps({
@@ -38,6 +39,7 @@ const props = defineProps({
 const emit = defineEmits(['messages-read', 'activate']);
 
 const { maxUserId } = useAuth();
+const messagesContainer = ref(null);
 
 /**
  * Равные отступы сверху/снизу у поля ввода; safe-area добавляется к нижнему, не заменяет его.
@@ -58,18 +60,19 @@ function emitActivate() {
     emit('activate');
 }
 
-const messages = ref([]);
-const loading = ref(true);
-const loadError = ref('');
-const sending = ref(false);
-const sendError = ref('');
-const body = ref('');
-const messagesContainer = ref(null);
-
-const POLL_INTERVAL_MS = 8000;
-const MAX_BODY_LENGTH = 2000;
-
-let pollTimer = null;
+const {
+    messages,
+    loading,
+    loadError,
+    sending,
+    sendError,
+    body,
+    loadMessages,
+    sendMessage,
+} = useOrderChat({
+    orderId: toRef(props, 'orderId'),
+    onMessagesRead: () => emit('messages-read'),
+});
 
 /**
  * Сообщения текущего пользователя выравниваются справа.
@@ -100,61 +103,20 @@ async function scrollToBottom() {
     }
 }
 
-async function loadMessages() {
-    loading.value = true;
-    loadError.value = '';
-
-    try {
-        messages.value = await fetchOrderMessages(props.orderId);
-        await scrollToBottom();
-        emit('messages-read');
-    } catch (error) {
-        loadError.value = extractErrorMessage(error);
-    } finally {
-        loading.value = false;
-    }
-}
-
-/** Инкрементальная подгрузка только сообщений новее lastId */
-async function pollNewMessages() {
-    if (loading.value || messages.value.length === 0) {
-        return;
-    }
-
-    const lastId = messages.value[messages.value.length - 1].id;
-
-    try {
-        const newMessages = await fetchOrderMessages(props.orderId, { afterId: lastId });
-
-        if (newMessages.length > 0) {
-            messages.value = [...messages.value, ...newMessages];
+watch(
+    () => messages.value.length,
+    async (length, previousLength) => {
+        if (length > 0 && length !== previousLength) {
             await scrollToBottom();
-            emit('messages-read');
         }
-    } catch {
-        // Ошибки polling не перекрывают уже загруженную ленту.
-    }
-}
+    },
+);
 
 async function handleSend() {
-    const trimmed = body.value.trim();
+    const sent = await sendMessage();
 
-    if (trimmed === '' || sending.value) {
-        return;
-    }
-
-    sending.value = true;
-    sendError.value = '';
-
-    try {
-        const message = await sendOrderMessage(props.orderId, trimmed);
-        messages.value = [...messages.value, message];
-        body.value = '';
+    if (sent) {
         await scrollToBottom();
-    } catch (error) {
-        sendError.value = extractErrorMessage(error);
-    } finally {
-        sending.value = false;
     }
 }
 
@@ -165,34 +127,10 @@ function handleKeydown(event) {
     }
 }
 
-function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(pollNewMessages, POLL_INTERVAL_MS);
-}
-
-function stopPolling() {
-    if (pollTimer !== null) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
-
-watch(
-    () => props.orderId,
-    async () => {
-        messages.value = [];
-        await loadMessages();
-    },
-);
-
-onMounted(async () => {
+async function handleRetryLoad() {
     await loadMessages();
-    startPolling();
-});
-
-onUnmounted(() => {
-    stopPolling();
-});
+    await scrollToBottom();
+}
 </script>
 
 <template>
@@ -226,7 +164,7 @@ onUnmounted(() => {
                 <button
                     type="button"
                     class="mt-2 block font-medium text-red-800 underline"
-                    @click="loadMessages"
+                    @click="handleRetryLoad"
                 >
                     Повторить
                 </button>
@@ -263,7 +201,7 @@ onUnmounted(() => {
                 <textarea
                     v-model="body"
                     :rows="compact ? 1 : 2"
-                    :maxlength="MAX_BODY_LENGTH"
+                    :maxlength="ORDER_CHAT_MAX_BODY_LENGTH"
                     :disabled="loading || !!loadError || sending"
                     placeholder="Ваше сообщение…"
                     class="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 placeholder:text-max-muted focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary disabled:opacity-50"
