@@ -4,9 +4,10 @@
  * Состояние общее для всех вызовов useAuth() (singleton).
  */
 import { computed, ref } from 'vue';
-import { authenticate, extractErrorMessage } from '../api/foodClient';
+import { authenticate, extractErrorMessage } from '../api';
 import { getInitData } from '../bridge/maxBridge';
 import {
+    ADMIN_SCOPES,
     ADMIN_SECTIONS,
     ROLE_ADDRESS,
     ROLE_COMPOSITION,
@@ -18,7 +19,9 @@ const authLoading = ref(true);
 const authError = ref('');
 const maxUserId = ref(null);
 const adminRoles = ref([]);
-const adminScope = ref('address');
+/** @type {import('vue').Ref<'address'|'composition'>} adminScope — вкладка очереди, не adminSection */
+const adminScope = ref(ADMIN_SCOPES.address);
+/** @type {import('vue').Ref<string>} adminSection — раздел shell (orders|manualOrders|menu) */
 const adminSection = ref(ADMIN_SECTIONS.orders);
 
 const hasOrderReviewRoles = computed(() =>
@@ -56,25 +59,25 @@ const availableAdminSections = computed(() => {
 const showAdminSectionSwitcher = computed(() => availableAdminSections.value.length > 1);
 
 /**
- * Выбирает вкладку админки по приоритету ролей пользователя.
+ * Выбирает вкладку очереди проверки (adminScope) по приоритету ролей.
  *
  * @param {string[]} roles
  * @returns {'address'|'composition'}
  */
 function resolveDefaultAdminScope(roles) {
     if (roles.includes(ROLE_ADDRESS)) {
-        return 'address';
+        return ADMIN_SCOPES.address;
     }
 
     if (roles.includes(ROLE_COMPOSITION)) {
-        return 'composition';
+        return ADMIN_SCOPES.composition;
     }
 
-    return 'address';
+    return ADMIN_SCOPES.address;
 }
 
 /**
- * Определяет начальный раздел админки: заказы, ручные заказы или меню.
+ * Определяет начальный раздел админки (adminSection): заказы, ручные заказы или меню.
  *
  * @param {string[]} roles
  * @returns {string}
@@ -99,7 +102,7 @@ function resolveDefaultAdminSection(roles) {
     return ADMIN_SECTIONS.orders;
 }
 
-/** Авторизация по initData; заполняет maxUserId, adminRoles и начальный adminScope */
+/** Авторизация по initData; заполняет maxUserId, adminRoles, начальные adminSection и adminScope */
 async function initAuth() {
     authLoading.value = true;
     authError.value = '';

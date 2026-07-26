@@ -1,5 +1,10 @@
 /**
  * Маппинг статусов заказа и этапов проверки в подписи и CSS-классы бейджей.
+ *
+ * @typedef {import('../api/types.js').ReviewStatus} ReviewStatus
+ * @typedef {import('../api/types.js').OrderDto} OrderDto
+ * @typedef {import('../api/types.js').AdminOrderListItemDto} AdminOrderListItemDto
+ * @typedef {import('../api/types.js').AdminOrderDetailDto} AdminOrderDetailDto
  */
 
 /**
@@ -17,7 +22,7 @@ function isReviewStagePending(reviewStatus) {
 /**
  * Человекочитаемый статус заказа и классы бейджа для карточки.
  *
- * @param {{ status: string, address_review_status?: string, composition_review_status?: string, payment_review_status?: string }} order
+ * @param {OrderDto|AdminOrderListItemDto|AdminOrderDetailDto|{ status: string, address_review_status?: string, composition_review_status?: string, payment_review_status?: string }} order
  * @returns {OrderStatusDisplay}
  */
 export function getOrderStatusDisplay(order) {
@@ -63,7 +68,7 @@ export function getOrderStatusDisplay(order) {
 
 /**
  * @param {'address'|'composition'|'payment'} scope
- * @param {string} reviewStatus
+ * @param {ReviewStatus|string} reviewStatus
  * @returns {OrderStatusDisplay}
  */
 export function getReviewStageDisplay(scope, reviewStatus) {

@@ -2,7 +2,7 @@
  * История заказов клиента: список, детали, счётчик непрочитанных.
  */
 import { computed, ref } from 'vue';
-import { extractErrorMessage, fetchMyOrders, fetchOrder } from '../api/foodClient';
+import { extractErrorMessage, fetchMyOrders, fetchOrder } from '../api';
 import { VIEWS } from '../constants/views';
 
 /**

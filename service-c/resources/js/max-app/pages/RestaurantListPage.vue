@@ -2,10 +2,13 @@
 /**
  * Стартовый экран клиента: список ресторанов.
  * Шапка содержит переход в «Мои заказы» и корзину с бейджем количества.
+ *
+ * @typedef {import('../api/types.js').RestaurantDto} RestaurantDto
  */
 import MyOrdersButton from '../components/MyOrdersButton.vue';
 
 defineProps({
+    /** @type {{ type: ArrayConstructor, default: () => RestaurantDto[] }} */
     restaurants: {
         type: Array,
         default: () => [],

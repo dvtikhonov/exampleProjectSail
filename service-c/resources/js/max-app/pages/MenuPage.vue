@@ -3,6 +3,8 @@
  * Меню ресторана: категории и блюда в сетке 3 колонки.
  * В категориях с is_combo_available — сборка комбо через панель под шапкой.
  * При непустой корзине показывает фиксированную панель внизу с итогом.
+ *
+ * @typedef {import('../api/types.js').MenuDto} MenuDto
  */
 import { computed, nextTick, ref, toRef, watch } from 'vue';
 import MenuCategoryTabs from '../components/menu/MenuCategoryTabs.vue';
@@ -12,6 +14,7 @@ import MenuHeader from '../components/menu/MenuHeader.vue';
 import { useMenuCategoryFilter } from '../composables/useMenuCategoryFilter';
 
 const props = defineProps({
+    /** Меню ресторана (MenuDto) */
     menu: {
         type: Object,
         default: null,

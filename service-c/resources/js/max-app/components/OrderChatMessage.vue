@@ -1,10 +1,14 @@
 <script setup>
 /**
  * Одно сообщение в чате заказа: пузырь с подписью отправителя и временем.
+ *
+ * @typedef {import('../api/types.js').OrderMessageDto} OrderMessageDto
  */
 import { computed } from 'vue';
+import { formatCustomerName } from '../utils/formatCustomerName';
 
 const props = defineProps({
+    /** Сообщение чата (OrderMessageDto) */
     message: {
         type: Object,
         required: true,
@@ -37,28 +41,15 @@ const senderLabel = computed(() => {
     }
 
     const sender = props.message.sender ?? {};
-    const parts = [sender.first_name, sender.last_name].filter(Boolean);
-    const fullName = parts.length > 0 ? parts.join(' ') : '';
+    const name = formatCustomerName(sender);
 
-    // Чужой админ: «Админ» + ФИО (если есть)
+    // Чужой админ: «Админ» + ФИО / username / id (если есть)
     if (props.message.author_type === 'admin') {
-        if (fullName) {
-            return `Админ ${fullName}`;
-        }
-
-        if (sender.username) {
-            return `Админ @${sender.username}`;
-        }
-
-        return 'Админ';
+        return name !== '' ? `Админ ${name}` : 'Админ';
     }
 
-    if (fullName) {
-        return fullName;
-    }
-
-    if (sender.username) {
-        return `@${sender.username}`;
+    if (name !== '') {
+        return name;
     }
 
     return props.perspective === 'admin' ? 'Клиент' : 'Оператор';

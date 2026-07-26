@@ -2,6 +2,8 @@
 /**
  * Карточка заказа для проверяющего: клиент, адрес, оплата, состав, чат, approve/reject.
  * В разделе «Адреса» проверяющий подтверждает адрес и оплату независимо.
+ *
+ * @typedef {import('../../api/types.js').AdminOrderDetailDto} AdminOrderDetailDto
  */
 import { computed, toRef } from 'vue';
 import CompositionEditItemList from '../../components/admin/CompositionEditItemList.vue';
@@ -12,18 +14,22 @@ import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue'
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 import { useCompositionEdit } from '../../composables/useCompositionEdit';
 import { useOrderDetailPaneLayout } from '../../composables/useOrderDetailPaneLayout';
+import { ADMIN_SCOPES } from '../../constants/views';
+import { formatCustomerName } from '../../utils/formatCustomerName';
 import ConfirmCompositionSaveModal from './ConfirmCompositionSaveModal.vue';
 import RejectOrderModal from './RejectOrderModal.vue';
 
 const props = defineProps({
+    /** Деталь админ-заказа (AdminOrderDetailDto) */
     order: {
         type: Object,
         required: true,
     },
+    /** adminScope: address | composition (не adminSection) */
     scope: {
         type: String,
         required: true,
-        validator: (value) => ['address', 'composition'].includes(value),
+        validator: (value) => Object.values(ADMIN_SCOPES).includes(value),
     },
     loading: {
         type: Boolean,
@@ -147,23 +153,6 @@ const rejectModalTitle = computed(() => {
 
     return 'Отклонить адрес доставки';
 });
-
-/**
- * @param {{ first_name?: string|null, last_name?: string|null, username?: string|null, max_user_id: number }} customer
- */
-function formatCustomerName(customer) {
-    const parts = [customer.first_name, customer.last_name].filter(Boolean);
-
-    if (parts.length > 0) {
-        return parts.join(' ');
-    }
-
-    if (customer.username) {
-        return `@${customer.username}`;
-    }
-
-    return `ID ${customer.max_user_id}`;
-}
 
 function handleConfirmSave() {
     confirmSave((updatedOrder) => {

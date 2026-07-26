@@ -1,6 +1,20 @@
 /**
  * Идентификаторы экранов и ролей MAX mini-app.
  * Единый источник правды для навигации без vue-router.
+ *
+ * Глоссарий админ-навигации (не путать):
+ *
+ * - **adminScope** — вкладка очереди проверки заказов: `address` | `composition`
+ *   (роли address_reviewer / composition_reviewer). Задаётся в useAuth / useAdminFlow
+ *   и уходит в API как query `scope` при загрузке админ-заказов.
+ *   См. {@link ADMIN_SCOPES}.
+ *
+ * - **adminSection** — верхний раздел AdminAppShell: заказы / ручные заказы / меню
+ *   (`orders` | `manualOrders` | `menu`). Переключается в AdminSectionNav.
+ *   См. {@link ADMIN_SECTIONS}.
+ *
+ * Scope ≠ section: у пользователя с ролями address+menu одновременно могут быть
+ * adminSection=menu и (неиспользуемый до возврата в orders) adminScope=address.
  */
 
 /** Роль проверяющего адрес доставки и оплату */
@@ -15,7 +29,19 @@ export const ROLE_MENU = 'menu_manager';
 /** Роль ручного оформления заказов от имени клиента */
 export const ROLE_MAX_MANAGER = 'max_manager';
 
-/** Разделы админ-интерфейса: проверка заказов, ручные заказы или меню */
+/**
+ * Вкладки очереди проверки (adminScope).
+ * Не путать с {@link ADMIN_SECTIONS} (adminSection).
+ */
+export const ADMIN_SCOPES = {
+    address: 'address',
+    composition: 'composition',
+};
+
+/**
+ * Разделы админ-интерфейса (adminSection): проверка заказов, ручные заказы или меню.
+ * Не путать с {@link ADMIN_SCOPES} (adminScope).
+ */
 export const ADMIN_SECTIONS = {
     orders: 'orders',
     manualOrders: 'manualOrders',

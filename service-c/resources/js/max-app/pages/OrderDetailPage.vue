@@ -2,6 +2,8 @@
 /**
  * Карточка заказа клиента: снимок состава, адрес, итог и чат с оператором.
  * Активная зона (состав или чат) занимает 3/5 высоты, вторая — 2/5.
+ *
+ * @typedef {import('../api/types.js').OrderDto} OrderDto
  */
 import OrderChatPanel from '../components/OrderChatPanel.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
@@ -9,6 +11,7 @@ import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 import { useOrderDetailPaneLayout } from '../composables/useOrderDetailPaneLayout';
 
 defineProps({
+    /** @type {{ type: ObjectConstructor, required: true }} Деталь заказа (OrderDto) */
     order: {
         type: Object,
         required: true,

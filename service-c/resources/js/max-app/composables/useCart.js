@@ -1,35 +1,20 @@
 /**
  * Корзина: загрузка, изменение позиций, адрес доставки, оформление заказа.
- * При getTargetMaxUserId() → number использует admin manual-orders API.
+ * HTTP client/manual — через CartTransport (см. api/cartTransport.js).
  */
 import { computed, onScopeDispose, ref, watch } from 'vue';
-import {
-    clearCart,
-    clearManualCart,
-    extractErrorMessage,
-    fetchCart,
-    fetchManualCart,
-    removeCartItem,
-    removeManualCartItem,
-    submitManualOrder,
-    submitOrder,
-    updateCartDeliveryAddress,
-    updateCartItem,
-    updateManualCartDeliveryAddress,
-    updateManualCartItem,
-} from '../api/foodClient';
+import { createClientCartTransport } from '../api/cartTransport';
+import { extractErrorMessage } from '../api';
+import { ADDRESS_DEBOUNCE_MS } from '../constants/cart';
 import { VIEWS } from '../constants/views';
 import { buildCartGroups, countCartGroupsQuantity } from '../utils/cartGroups';
-
-/** Задержка debounce автосохранения адреса (мс) */
-const ADDRESS_DEBOUNCE_MS = 500;
 
 /**
  * @param {object} deps
  * @param {import('vue').Ref<string>} deps.currentView — для перехода на экран подтверждения
- * @param {(() => number|null)=} deps.getTargetMaxUserId — клиент ручного заказа или null
+ * @param {import('../api/cartTransport').CartTransport=} deps.cartTransport — client или manual
  */
-export function useCart({ currentView, getTargetMaxUserId = () => null }) {
+export function useCart({ currentView, cartTransport = createClientCartTransport() }) {
     const cart = ref(null);
     /** Сохранённый адрес профиля — показывается в меню даже без корзины */
     const savedDeliveryAddress = ref('');
@@ -90,27 +75,12 @@ export function useCart({ currentView, getTargetMaxUserId = () => null }) {
         }
     }
 
-    /**
-     * @returns {number|null}
-     */
-    function resolveManualUserId() {
-        const id = getTargetMaxUserId();
-
-        return typeof id === 'number' && id > 0 ? id : null;
-    }
-
     async function loadCart() {
         cartLoading.value = true;
         cartError.value = '';
 
         try {
-            const manualUserId = resolveManualUserId();
-
-            applyCartEnvelope(
-                manualUserId !== null
-                    ? await fetchManualCart(manualUserId)
-                    : await fetchCart(),
-            );
+            applyCartEnvelope(await cartTransport.fetch());
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -121,13 +91,10 @@ export function useCart({ currentView, getTargetMaxUserId = () => null }) {
     async function handleUpdateQuantity(item, quantity) {
         const items = item.items ?? [item];
         updatingItemId.value = item.key ?? item.id;
-        const manualUserId = resolveManualUserId();
 
         try {
             for (const cartItem of items) {
-                cart.value = manualUserId !== null
-                    ? await updateManualCartItem(manualUserId, cartItem.id, quantity)
-                    : await updateCartItem(cartItem.id, quantity);
+                cart.value = await cartTransport.updateItem(cartItem.id, quantity);
                 rememberDeliveryAddress(cart.value?.delivery_address);
             }
         } catch (error) {
@@ -140,13 +107,10 @@ export function useCart({ currentView, getTargetMaxUserId = () => null }) {
     async function handleRemoveItem(item) {
         const items = item.items ?? [item];
         updatingItemId.value = item.key ?? item.id;
-        const manualUserId = resolveManualUserId();
 
         try {
             for (const cartItem of items) {
-                cart.value = manualUserId !== null
-                    ? await removeManualCartItem(manualUserId, cartItem.id)
-                    : await removeCartItem(cartItem.id);
+                cart.value = await cartTransport.removeItem(cartItem.id);
                 rememberDeliveryAddress(cart.value?.delivery_address);
             }
         } catch (error) {
@@ -159,12 +123,9 @@ export function useCart({ currentView, getTargetMaxUserId = () => null }) {
     async function handleClearCart() {
         clearingCart.value = true;
         cartError.value = '';
-        const manualUserId = resolveManualUserId();
 
         try {
-            cart.value = manualUserId !== null
-                ? await clearManualCart(manualUserId)
-                : await clearCart();
+            cart.value = await cartTransport.clear();
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -182,14 +143,9 @@ export function useCart({ currentView, getTargetMaxUserId = () => null }) {
 
         savingAddress.value = true;
         cartError.value = '';
-        const manualUserId = resolveManualUserId();
 
         try {
-            applyCartEnvelope(
-                manualUserId !== null
-                    ? await updateManualCartDeliveryAddress(manualUserId, trimmed)
-                    : await updateCartDeliveryAddress(trimmed),
-            );
+            applyCartEnvelope(await cartTransport.updateDeliveryAddress(trimmed));
         } catch (error) {
             cartError.value = extractErrorMessage(error);
         } finally {
@@ -226,17 +182,10 @@ export function useCart({ currentView, getTargetMaxUserId = () => null }) {
 
         submitting.value = true;
         cartError.value = '';
-        const manualUserId = resolveManualUserId();
 
         try {
-            applyCartEnvelope(
-                manualUserId !== null
-                    ? await updateManualCartDeliveryAddress(manualUserId, trimmed)
-                    : await updateCartDeliveryAddress(trimmed),
-            );
-            submittedOrder.value = manualUserId !== null
-                ? await submitManualOrder(manualUserId)
-                : await submitOrder();
+            applyCartEnvelope(await cartTransport.updateDeliveryAddress(trimmed));
+            submittedOrder.value = await cartTransport.submit();
             rememberDeliveryAddress(trimmed);
             cart.value = null;
             currentView.value = VIEWS.confirmation;
