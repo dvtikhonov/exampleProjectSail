@@ -332,7 +332,7 @@ watch(
 
 <template>
     <div class="flex h-full min-h-0 flex-col overflow-hidden">
-        <header class="shrink-0 border-b border-gray-200 bg-white safe-area-top">
+        <header class="shrink-0 border-b border-gray-200 bg-white">
             <div class="px-4 py-3">
                 <h1 class="text-lg font-semibold text-gray-900">Ручные заказы</h1>
                 <p class="text-sm text-max-muted">

@@ -1,8 +1,9 @@
 <script setup>
 /**
- * Превью блюда: lazy-load изображения с fallback на эмодзи при ошибке или отсутствии URL.
+ * Превью блюда: lazy-load изображения с fallback на SVG при ошибке или отсутствии URL.
  */
 import { computed, ref, watch } from 'vue';
+import EmptyStateIcon from './EmptyStateIcon.vue';
 
 const props = defineProps({
     imageUrl: {
@@ -38,16 +39,17 @@ const sizeClasses = computed(() => {
 
 const imageObjectFitClass = computed(() => (props.size === 'lg' ? 'object-contain' : 'object-cover'));
 
-const emojiSizeClass = computed(() => {
+/** @type {import('vue').ComputedRef<'sm' | 'md' | 'lg'>} */
+const fallbackIconSize = computed(() => {
     if (props.size === 'sm') {
-        return 'text-xl';
+        return 'sm';
     }
 
     if (props.size === 'lg') {
-        return 'text-3xl';
+        return 'lg';
     }
 
-    return 'text-2xl';
+    return 'md';
 });
 
 watch(
@@ -69,7 +71,6 @@ function onError() {
             sizeClasses,
             size !== 'lg' && 'shrink-0',
             !showImage && 'flex items-center justify-center',
-            !showImage && emojiSizeClass,
         ]"
     >
         <img
@@ -80,6 +81,10 @@ function onError() {
             loading="lazy"
             @error="onError"
         >
-        <span v-else aria-hidden="true">🍽️</span>
+        <EmptyStateIcon
+            v-else
+            name="restaurant"
+            :size="fallbackIconSize"
+        />
     </div>
 </template>

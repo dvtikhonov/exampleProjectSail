@@ -4,6 +4,7 @@
  *
  * @typedef {import('../api/types.js').OrderListItemDto} OrderListItemDto
  */
+import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 
 defineProps({
@@ -100,8 +101,10 @@ function formatOrderDate(order) {
                 </button>
             </div>
 
-            <div v-else-if="orders.length === 0" class="py-16 text-center">
-                <div class="mb-4 text-5xl">📋</div>
+            <div v-else-if="orders.length === 0" class="flex flex-col items-center py-16 text-center">
+                <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                    <EmptyStateIcon name="list" size="lg" />
+                </div>
                 <p class="text-base font-medium text-gray-900">Заказов пока нет</p>
                 <p class="mt-1 text-sm text-max-muted">Оформите заказ в ресторане — он появится здесь</p>
             </div>
@@ -110,7 +113,7 @@ function formatOrderDate(order) {
                 <li v-for="order in orders" :key="order.id">
                     <button
                         type="button"
-                        class="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.98] hover:border-max-primary/30 hover:shadow-md"
+                        class="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.98] hover:border-max-primary/30"
                         @click="emit('select-order', order)"
                     >
                         <div class="flex items-start justify-between gap-3">

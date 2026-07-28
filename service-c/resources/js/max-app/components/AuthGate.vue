@@ -3,6 +3,8 @@
  * Экран ожидания/ошибки авторизации MAX mini-app.
  * При успехе рендерит слот (ClientAppShell / AdminAppShell).
  */
+import EmptyStateIcon from './EmptyStateIcon.vue';
+
 defineProps({
     loading: {
         type: Boolean,
@@ -31,7 +33,9 @@ defineProps({
             v-else-if="error"
             class="flex min-h-dvh flex-col items-center justify-center px-6 text-center"
         >
-            <div class="mb-4 text-5xl">🔒</div>
+            <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                <EmptyStateIcon name="lock" size="lg" />
+            </div>
             <h1 class="text-lg font-semibold text-gray-900">Не удалось войти</h1>
             <p class="mt-2 text-sm text-max-muted">{{ error }}</p>
         </div>

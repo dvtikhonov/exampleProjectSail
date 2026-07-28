@@ -5,6 +5,7 @@
  *
  * @typedef {import('../api/types.js').OrderDto} OrderDto
  */
+import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 
 defineProps({
@@ -17,7 +18,7 @@ defineProps({
         type: Boolean,
         default: false,
     },
-    /** Ручной заказ менеджера: другой текст и CTA к выбору потребителя */
+    /** Ручной заказ менеджера: другой текст и CTA «Назад к списку» */
     manualOrderMode: {
         type: Boolean,
         default: false,
@@ -34,10 +35,13 @@ const emit = defineEmits(['back-to-restaurants', 'go-to-order', 'back-to-users']
 <template>
     <div class="flex min-h-dvh flex-col items-center justify-center px-6 py-12 text-center">
         <div
-            class="mb-6 flex h-20 w-20 items-center justify-center rounded-full text-4xl"
+            class="mb-6 flex h-20 w-20 items-center justify-center rounded-full"
             :class="manualOrderMode ? 'bg-green-100' : 'bg-amber-100'"
         >
-            {{ manualOrderMode ? '✓' : '⏳' }}
+            <EmptyStateIcon
+                :name="manualOrderMode ? 'check' : 'clock'"
+                size="xl"
+            />
         </div>
         <h1 class="text-2xl font-bold text-gray-900">
             {{ manualOrderMode ? 'Заявка оформлена' : 'Заявка отправлена на проверку' }}
@@ -98,7 +102,7 @@ const emit = defineEmits(['back-to-restaurants', 'go-to-order', 'back-to-users']
             class="mt-8 w-full max-w-sm rounded-2xl bg-max-primary px-6 py-3.5 font-medium text-white transition hover:bg-max-primary-hover"
             @click="emit('back-to-users')"
         >
-            Выбрать другого потребителя
+            Назад к списку
         </button>
 
         <template v-else>

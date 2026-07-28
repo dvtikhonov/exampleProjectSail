@@ -190,6 +190,7 @@ defineProps({
         @select-restaurant="openRestaurant"
         @open-cart="goToCart"
         @open-orders="openOrders?.()"
+        @go-back="handleBack"
     />
 
     <MenuPage
@@ -211,6 +212,7 @@ defineProps({
         @add-combo-to-cart="handleAddComboToCart"
         @open-cart="goToCart"
         @open-orders="openOrders?.()"
+        @go-back="handleBack"
         @delivery-address-input="handleDeliveryAddressInput"
         @delivery-address-blur="handleDeliveryAddressBlur"
     />

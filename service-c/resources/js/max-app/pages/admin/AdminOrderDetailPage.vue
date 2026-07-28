@@ -163,11 +163,11 @@ function handleConfirmSave() {
 
 <template>
     <div class="flex h-full min-h-0 flex-col overflow-hidden">
-        <header class="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-3 py-2">
+        <header class="sticky top-0 z-10 shrink-0 border-b border-gray-200 bg-white px-4 py-3">
             <div class="flex items-center gap-2">
                 <button
                     type="button"
-                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
                     aria-label="Назад"
                     @click="emit('back')"
                 >
@@ -177,7 +177,7 @@ function handleConfirmSave() {
                 </button>
                 <div class="min-w-0 flex-1">
                     <div class="flex min-w-0 items-center gap-1.5">
-                        <h1 class="truncate text-base font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
+                        <h1 class="truncate text-lg font-semibold text-gray-900">Заказ №{{ order.id }}</h1>
                         <OrderStatusBadge :order="order" size="sm" />
                         <span class="hidden min-w-0 truncate text-xs text-max-muted sm:inline">{{ order.restaurant_name }}</span>
                     </div>
@@ -189,7 +189,7 @@ function handleConfirmSave() {
             </div>
         </header>
 
-        <main class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-3 py-2">
+        <main class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-4 py-3">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>
@@ -339,12 +339,12 @@ function handleConfirmSave() {
 
         <footer
             v-if="!loading && isCompositionScope && isEditMode"
-            class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
+            class="shrink-0 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom"
         >
             <div class="flex gap-2">
                 <button
                     type="button"
-                    class="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
                     :disabled="saveLoading"
                     @click="cancelEdit"
                 >
@@ -352,23 +352,24 @@ function handleConfirmSave() {
                 </button>
                 <button
                     type="button"
-                    class="flex-1 rounded-xl bg-max-primary px-3 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-max-primary px-3 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                     :disabled="saveLoading || draftGroups.length === 0"
                     @click="openSaveConfirm"
                 >
-                    Сохранить
+                    <span v-if="saveLoading">Обработка…</span>
+                    <span v-else>Сохранить</span>
                 </button>
             </div>
         </footer>
 
         <footer
             v-else-if="!loading && isCompositionScope"
-            class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
+            class="shrink-0 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom"
         >
             <div class="flex gap-2">
                 <button
                     type="button"
-                    class="flex-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                     :disabled="loading || actionLoading"
                     @click="emit('open-reject', 'composition')"
                 >
@@ -376,7 +377,7 @@ function handleConfirmSave() {
                 </button>
                 <button
                     type="button"
-                    class="flex-1 rounded-xl bg-max-primary px-3 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-max-primary px-3 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                     :disabled="loading || actionLoading"
                     @click="emit('approve-composition')"
                 >
@@ -388,14 +389,14 @@ function handleConfirmSave() {
 
         <footer
             v-else-if="!loading && isAddressScope && (isAddressPending || isPaymentPending)"
-            class="shrink-0 space-y-1.5 border-t border-gray-200 bg-white px-3 py-2 safe-area-bottom"
+            class="shrink-0 space-y-1.5 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom"
         >
             <div v-if="isAddressPending" class="flex items-center gap-2">
                 <span class="w-12 shrink-0 text-[10px] font-medium uppercase leading-tight tracking-wide text-max-muted">Адрес</span>
                 <div class="flex min-w-0 flex-1 gap-2">
                     <button
                         type="button"
-                        class="flex-1 rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                        class="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('open-reject', 'address')"
                     >
@@ -403,11 +404,11 @@ function handleConfirmSave() {
                     </button>
                     <button
                         type="button"
-                        class="flex-1 rounded-xl bg-max-primary px-2 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                        class="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-max-primary px-2 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('approve-address')"
                     >
-                        <span v-if="actionLoading">…</span>
+                        <span v-if="actionLoading">Обработка…</span>
                         <span v-else>Подтвердить</span>
                     </button>
                 </div>
@@ -418,7 +419,7 @@ function handleConfirmSave() {
                 <div class="flex min-w-0 flex-1 gap-2">
                     <button
                         type="button"
-                        class="flex-1 rounded-xl border border-red-200 bg-red-50 px-2 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                        class="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-3 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('open-reject', 'payment')"
                     >
@@ -426,11 +427,11 @@ function handleConfirmSave() {
                     </button>
                     <button
                         type="button"
-                        class="flex-1 rounded-xl bg-max-primary px-2 py-2 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
+                        class="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-max-primary px-2 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50"
                         :disabled="actionLoading"
                         @click="emit('approve-payment')"
                     >
-                        <span v-if="actionLoading">…</span>
+                        <span v-if="actionLoading">Обработка…</span>
                         <span v-else>Получена</span>
                     </button>
                 </div>

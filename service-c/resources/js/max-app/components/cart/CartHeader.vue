@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Шапка корзины: назад, адрес доставки, заказы, очистить.
- * Клик по значку pin — редактирование адреса в шапке (как в MenuHeader).
+ * Клик по блоку адреса (pin + текст) — редактирование адреса;
+ * кнопка «Назад» остаётся отдельной.
  * Визуально согласована с MenuHeader (bg-max-surface, скругление снизу).
  */
 import { nextTick, ref } from 'vue';
@@ -96,13 +97,16 @@ function handleAddressBlur(value) {
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
-                    <div class="flex min-w-0 flex-1 items-center gap-2">
-                        <button
-                            type="button"
-                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-max-primary transition hover:bg-white/80 disabled:opacity-40"
-                            :disabled="loading || isEmpty"
-                            aria-label="Редактировать адрес доставки"
-                            @click="startAddressEdit"
+                    <button
+                        type="button"
+                        class="flex min-w-0 flex-1 items-center gap-2 text-left disabled:opacity-40"
+                        :disabled="loading || isEmpty"
+                        aria-label="Редактировать адрес доставки"
+                        @click="startAddressEdit"
+                    >
+                        <span
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-max-primary"
+                            aria-hidden="true"
                         >
                             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path
@@ -112,14 +116,14 @@ function handleAddressBlur(value) {
                                 />
                                 <circle cx="12" cy="11" r="2.5" />
                             </svg>
-                        </button>
+                        </span>
                         <p
                             class="min-w-0 flex-1 truncate text-sm font-medium text-max-text"
                             :class="!deliveryAddress && 'text-max-muted'"
                         >
                             {{ deliveryAddress || addressPlaceholder }}
                         </p>
-                    </div>
+                    </button>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                     <MyOrdersButton

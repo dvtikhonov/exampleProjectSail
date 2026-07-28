@@ -58,7 +58,7 @@ const showTabs = computed(() => tabs.value.length > 1);
 
 <template>
     <div class="flex h-full min-h-0 flex-col">
-        <header class="sticky top-0 z-10 border-b border-gray-200 bg-white safe-area-top">
+        <header class="sticky top-0 z-10 border-b border-gray-200 bg-white">
             <div class="px-4 py-3">
                 <h1 class="text-lg font-semibold text-gray-900">Проверка заказов</h1>
                 <p class="text-sm text-max-muted">Очередь на подтверждение</p>

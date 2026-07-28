@@ -2,9 +2,10 @@
 /**
  * Раздел ручных заказов: выбор пользователя + OrderingFlow от имени клиента.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { createManualCartTransport } from '../../api/cartTransport';
 import OrderingFlow from '../../components/ordering/OrderingFlow.vue';
+import { useAdminChrome } from '../../composables/useAdminChrome';
 import { useAuth } from '../../composables/useAuth';
 import { useCart } from '../../composables/useCart';
 import { useClientNavigation } from '../../composables/useClientNavigation';
@@ -21,6 +22,8 @@ const {
     hasMenuManagerRole,
     hasMaxManagerRole,
 } = useAuth();
+
+const { sectionNavVisible } = useAdminChrome();
 
 const manualOrder = useManualOrder();
 const {
@@ -190,6 +193,14 @@ const showOrderDetail = computed(() =>
     Boolean(manualOrderDetail.value || manualOrderDetailLoading.value || manualOrderDetailError.value),
 );
 
+watch(
+    [showOrderDetail, showOrdering],
+    ([detail, ordering]) => {
+        sectionNavVisible.value = !(detail || ordering);
+    },
+    { immediate: true },
+);
+
 onMounted(() => {
     if (adminSection.value === ADMIN_SECTIONS.manualOrders) {
         initManualOrderSession();
@@ -199,6 +210,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    sectionNavVisible.value = true;
     clearManualTargetUser();
     resetLocalCartState();
 });

@@ -67,11 +67,11 @@ function openChat() {
 
 <template>
     <div class="flex h-full min-h-0 flex-col overflow-hidden bg-white">
-        <header class="shrink-0 rounded-b-2xl bg-max-surface px-4 pb-4 pt-3 safe-area-top">
+        <header class="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
             <div class="flex items-center gap-3">
                 <button
                     type="button"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-white/60"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
                     aria-label="Назад"
                     @click="$emit('back')"
                 >
@@ -115,20 +115,6 @@ function openChat() {
                     Чат
                 </button>
             </div>
-
-            <div
-                v-if="order && !loading"
-                class="mt-3 rounded-xl border border-white/60 bg-white/70 px-3 py-2.5"
-            >
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
-                <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
-                <p
-                    v-if="customerLabel"
-                    class="mt-1 truncate text-xs text-max-muted"
-                >
-                    {{ customerLabel }}
-                </p>
-            </div>
         </header>
 
         <main class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -143,8 +129,23 @@ function openChat() {
                 {{ error }}
             </div>
 
+            <template v-else>
             <div
-                v-else-if="orderGroups.length === 0"
+                v-if="order"
+                class="mb-4 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm"
+            >
+                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
+                <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
+                <p
+                    v-if="customerLabel"
+                    class="mt-1 truncate text-xs text-max-muted"
+                >
+                    {{ customerLabel }}
+                </p>
+            </div>
+
+            <div
+                v-if="orderGroups.length === 0"
                 class="py-16 text-center text-sm text-max-muted"
             >
                 В заказе нет позиций
@@ -216,6 +217,7 @@ function openChat() {
                     </div>
                 </li>
             </ul>
+            </template>
         </main>
 
         <div

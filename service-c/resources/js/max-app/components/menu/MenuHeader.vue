@@ -1,7 +1,8 @@
 <script setup>
 /**
- * Шапка меню: адрес доставки, название ресторана, кнопка заказов.
- * Клик по значку pin — редактирование адреса; клик по тексту адреса — переход в корзину.
+ * Шапка меню: адрес доставки, название ресторана, кнопки корзины и заказов.
+ * Клик по блоку адреса (pin + текст) — редактирование адреса;
+ * отдельная кнопка «Корзина» — переход в корзину.
  */
 import { nextTick, ref } from 'vue';
 import DeliveryAddressInput from '../DeliveryAddressInput.vue';
@@ -33,11 +34,17 @@ defineProps({
         type: String,
         default: '',
     },
+    /** Показывать кнопку «Назад» (ручной заказ) */
+    showBackButton: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits([
     'open-cart',
     'open-orders',
+    'go-back',
     'update:deliveryAddress',
     'delivery-address-input',
     'delivery-address-blur',
@@ -77,63 +84,71 @@ function handleAddressBlur(value) {
             <div class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 flex-1 items-start gap-2">
                     <button
+                        v-if="showBackButton"
                         type="button"
                         class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-max-primary transition hover:bg-white/80"
-                        aria-label="Редактировать адрес доставки"
-                        @click="startAddressEdit"
+                        aria-label="Назад"
+                        @click="$emit('go-back')"
                     >
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M12 21s7-4.5 7-10a7 7 0 1 0-14 0c0 5.5 7 10 7 10Z"
-                            />
-                            <circle cx="12" cy="11" r="2.5" />
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>
                     <button
                         type="button"
-                        class="min-w-0 flex-1 text-left"
-                        @click="$emit('open-cart')"
+                        class="flex min-w-0 flex-1 items-start gap-2 text-left"
+                        aria-label="Редактировать адрес доставки"
+                        @click="startAddressEdit"
                     >
-                        <div class="flex items-center gap-2">
-                            <div class="min-w-0 flex-1">
-                                <p
-                                    class="truncate text-sm font-medium text-max-text"
-                                    :class="!deliveryAddress && 'text-max-muted'"
-                                >
-                                    {{ deliveryAddress || addressPlaceholder }}
-                                </p>
-                                <p v-if="restaurantName" class="truncate text-xs text-max-muted">
-                                    {{ restaurantName }}
-                                </p>
-                                <p
-                                    v-if="manualOrderMode && customerLabel"
-                                    class="truncate text-xs text-max-muted"
-                                >
-                                    Заказ для потребителя: {{ customerLabel }}
-                                </p>
-                            </div>
-                            <svg
-                                class="h-4 w-4 shrink-0 text-max-muted"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                aria-hidden="true"
-                            >
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m9 18 6-6-6-6" />
+                        <span
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-max-primary"
+                            aria-hidden="true"
+                        >
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M12 21s7-4.5 7-10a7 7 0 1 0-14 0c0 5.5 7 10 7 10Z"
+                                />
+                                <circle cx="12" cy="11" r="2.5" />
                             </svg>
-                        </div>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <p
+                                class="truncate text-sm font-medium text-max-text"
+                                :class="!deliveryAddress && 'text-max-muted'"
+                            >
+                                {{ deliveryAddress || addressPlaceholder }}
+                            </p>
+                            <p v-if="restaurantName" class="truncate text-xs text-max-muted">
+                                {{ restaurantName }}
+                            </p>
+                            <p
+                                v-if="manualOrderMode && customerLabel"
+                                class="truncate text-xs text-max-muted"
+                            >
+                                Заказ для потребителя: {{ customerLabel }}
+                            </p>
+                        </span>
                     </button>
                 </div>
-                <MyOrdersButton
-                    v-if="!manualOrderMode"
-                    label="Заказы"
-                    :unread-count="ordersUnreadCount"
-                    button-class="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-white/80"
-                    @click="$emit('open-orders')"
-                />
+                <div class="flex shrink-0 items-center gap-2">
+                    <button
+                        type="button"
+                        class="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-white/80"
+                        aria-label="Корзина"
+                        @click="$emit('open-cart')"
+                    >
+                        Корзина
+                    </button>
+                    <MyOrdersButton
+                        v-if="!manualOrderMode"
+                        label="Заказы"
+                        :unread-count="ordersUnreadCount"
+                        button-class="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-max-primary transition hover:bg-white/80"
+                        @click="$emit('open-orders')"
+                    />
+                </div>
             </div>
             <div v-if="isEditingAddress" class="mt-3">
                 <DeliveryAddressInput

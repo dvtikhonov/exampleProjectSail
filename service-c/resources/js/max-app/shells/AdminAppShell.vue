@@ -4,6 +4,7 @@
  */
 import { onMounted, ref } from 'vue';
 import AdminSectionNav from '../components/admin/AdminSectionNav.vue';
+import { useAdminChrome } from '../composables/useAdminChrome';
 import { useAuth } from '../composables/useAuth';
 import { ADMIN_SECTIONS } from '../constants/views';
 import { getStartParam } from '../bridge/maxBridge';
@@ -19,6 +20,8 @@ const {
     hasMaxManagerRole,
     showAdminSectionSwitcher,
 } = useAuth();
+
+const { sectionNavVisible } = useAdminChrome();
 
 /** Deep link order_{id}_chat — открыть карточку в разделе заказов */
 const deepLinkOrderId = ref(null);
@@ -48,12 +51,18 @@ onMounted(() => {
 <template>
     <div class="flex h-dvh flex-col overflow-hidden">
         <AdminSectionNav
-            v-if="showAdminSectionSwitcher"
+            v-if="showAdminSectionSwitcher && sectionNavVisible"
             :admin-section="adminSection"
             :has-order-review-roles="hasOrderReviewRoles"
             :has-max-manager-role="hasMaxManagerRole"
             :has-menu-manager-role="hasMenuManagerRole"
             @change="handleAdminSectionChange"
+        />
+        <!-- safe-area один раз: на nav либо spacer -->
+        <div
+            v-else
+            class="safe-area-top shrink-0"
+            aria-hidden="true"
         />
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">

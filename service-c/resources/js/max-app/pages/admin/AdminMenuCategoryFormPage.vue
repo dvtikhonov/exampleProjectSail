@@ -117,15 +117,20 @@ function handleSubmit() {
 
 <template>
     <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header class="shrink-0 border-b border-gray-100 px-4 py-3">
-            <button
-                type="button"
-                class="mb-2 text-sm font-medium text-max-primary"
-                @click="emit('back')"
-            >
-                ← Назад
-            </button>
-            <h1 class="text-lg font-semibold text-gray-900">{{ pageTitle }}</h1>
+        <header class="shrink-0 border-b border-gray-200 bg-white px-4 py-3">
+            <div class="flex items-center gap-3">
+                <button
+                    type="button"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
+                    aria-label="Назад"
+                    @click="emit('back')"
+                >
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <h1 class="min-w-0 truncate text-lg font-semibold text-gray-900">{{ pageTitle }}</h1>
+            </div>
         </header>
 
         <div class="max-app-scroll-viewport flex-1 px-4 py-4">

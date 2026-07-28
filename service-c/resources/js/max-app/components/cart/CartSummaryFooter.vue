@@ -17,6 +17,14 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    hasAddress: {
+        type: Boolean,
+        default: false,
+    },
+    savingAddress: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 defineEmits(['submit']);
@@ -46,6 +54,18 @@ defineEmits(['submit']);
                 <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
             </div>
         </div>
+        <p
+            v-if="!hasAddress"
+            class="mb-2 text-center text-xs text-amber-600"
+        >
+            Сначала укажите адрес
+        </p>
+        <p
+            v-else-if="hasAddress && !canSubmit && savingAddress"
+            class="mb-2 text-center text-xs text-amber-600"
+        >
+            Сохранение адреса…
+        </p>
         <button
             type="button"
             class="flex w-full items-center justify-center rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"

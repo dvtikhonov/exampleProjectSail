@@ -97,7 +97,7 @@ function commitQuantity(group) {
                         <div class="flex items-center gap-3">
                             <button
                                 type="button"
-                                class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
+                                class="flex h-10 w-10 min-h-10 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
                                 :disabled="group.quantity <= MIN_QUANTITY"
                                 @click="emit('update-quantity', group, group.quantity - 1)"
                             >
@@ -108,7 +108,7 @@ function commitQuantity(group) {
                                 inputmode="numeric"
                                 pattern="[0-9]*"
                                 autocomplete="off"
-                                class="h-9 w-12 rounded-xl border border-gray-200 bg-gray-50 text-center text-sm font-medium text-gray-900 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary"
+                                class="h-10 min-h-10 w-12 rounded-xl border border-gray-200 bg-gray-50 text-center text-sm font-medium text-gray-900 focus:border-max-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-max-primary"
                                 :value="getQuantityDisplay(group)"
                                 :aria-label="`Количество: ${getSnapshotGroupTitle(group)}`"
                                 @focus="handleQuantityFocus(group)"
@@ -118,7 +118,7 @@ function commitQuantity(group) {
                             />
                             <button
                                 type="button"
-                                class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
+                                class="flex h-10 w-10 min-h-10 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-lg font-medium transition hover:bg-gray-100 disabled:opacity-40"
                                 :disabled="group.quantity >= MAX_QUANTITY"
                                 @click="emit('update-quantity', group, group.quantity + 1)"
                             >
