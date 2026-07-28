@@ -7,11 +7,13 @@
  * @typedef {import('../api/types.js').MenuDto} MenuDto
  */
 import { computed, nextTick, ref, toRef, watch } from 'vue';
+import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import MenuCategoryTabs from '../components/menu/MenuCategoryTabs.vue';
 import MenuComboBuilderSheet from '../components/menu/MenuComboBuilderSheet.vue';
 import MenuDishGrid from '../components/menu/MenuDishGrid.vue';
 import MenuHeader from '../components/menu/MenuHeader.vue';
 import { useMenuCategoryFilter } from '../composables/useMenuCategoryFilter';
+import { pluralRu } from '../utils/pluralRu';
 
 const props = defineProps({
     /** Меню ресторана (MenuDto) */
@@ -70,6 +72,7 @@ const emit = defineEmits([
     'add-combo-to-cart',
     'open-cart',
     'open-orders',
+    'go-back',
     'delivery-address-input',
     'delivery-address-blur',
     'delivery-address-focus',
@@ -285,12 +288,14 @@ watch(comboBuilderOpen, (open) => {
                 :saving-address="savingAddress"
                 :manual-order-mode="manualOrderMode"
                 :customer-label="customerLabel"
+                :show-back-button="manualOrderMode"
                 @update:delivery-address="localAddress = $event"
                 @delivery-address-focus="handleAddressFocus"
                 @delivery-address-input="handleAddressInput"
                 @delivery-address-blur="handleAddressBlur"
                 @open-cart="emit('open-cart')"
                 @open-orders="emit('open-orders')"
+                @go-back="emit('go-back')"
             />
 
             <MenuComboBuilderSheet
@@ -331,12 +336,15 @@ watch(comboBuilderOpen, (open) => {
                     />
                 </div>
 
-                <p
+                <div
                     v-if="filteredDishes.length === 0"
-                    class="py-16 text-center text-sm text-max-muted"
+                    class="flex flex-col items-center py-16 text-center"
                 >
-                    Сейчас нет доступных блюд
-                </p>
+                    <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                        <EmptyStateIcon name="restaurant" size="lg" />
+                    </div>
+                    <p class="text-base font-medium text-gray-900">Сейчас нет доступных блюд</p>
+                </div>
 
                 <MenuDishGrid
                     v-else
@@ -362,7 +370,7 @@ watch(comboBuilderOpen, (open) => {
                 class="flex w-full items-center justify-between rounded-2xl bg-max-primary px-4 py-3.5 text-white transition hover:bg-max-primary-hover"
                 @click="emit('open-cart')"
             >
-                <span class="font-medium">Корзина · {{ cartItemCount }} {{ cartItemCount === 1 ? 'позиция' : 'позиций' }}</span>
+                <span class="font-medium">Корзина · {{ cartItemCount }} {{ pluralRu(cartItemCount, 'позиция', 'позиции', 'позиций') }}</span>
                 <span class="font-semibold">{{ cartTotal }} ₽</span>
             </button>
         </div>

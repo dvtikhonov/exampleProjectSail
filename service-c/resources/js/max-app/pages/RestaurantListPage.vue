@@ -5,6 +5,7 @@
  *
  * @typedef {import('../api/types.js').RestaurantDto} RestaurantDto
  */
+import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import MyOrdersButton from '../components/MyOrdersButton.vue';
 
 defineProps({
@@ -40,7 +41,7 @@ defineProps({
     },
 });
 
-const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders']);
+const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders', 'go-back']);
 </script>
 
 <template>
@@ -53,12 +54,25 @@ const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders']);
             :class="manualOrderMode ? 'shrink-0' : 'sticky top-0'"
         >
             <div class="flex items-center justify-between">
-                <div class="min-w-0 flex-1 pr-3">
-                    <h1 class="text-lg font-semibold text-gray-900">Рестораны</h1>
-                    <p v-if="manualOrderMode && customerLabel" class="truncate text-sm text-max-muted">
-                        Потребитель: {{ customerLabel }}
-                    </p>
-                    <p v-else class="text-sm text-max-muted">Выберите, где заказать</p>
+                <div class="flex min-w-0 flex-1 items-start gap-2 pr-3">
+                    <button
+                        v-if="manualOrderMode"
+                        type="button"
+                        class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-200"
+                        aria-label="Назад к ручным заказам"
+                        @click="emit('go-back')"
+                    >
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <div class="min-w-0 flex-1">
+                        <h1 class="text-lg font-semibold text-gray-900">Рестораны</h1>
+                        <p v-if="manualOrderMode && customerLabel" class="truncate text-sm text-max-muted">
+                            Потребитель: {{ customerLabel }}
+                        </p>
+                        <p v-else class="text-sm text-max-muted">Выберите, где заказать</p>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <MyOrdersButton
@@ -101,20 +115,26 @@ const emit = defineEmits(['select-restaurant', 'open-cart', 'open-orders']);
                 {{ error }}
             </div>
 
-            <div v-else-if="restaurants.length === 0" class="py-16 text-center text-sm text-max-muted">
-                Нет доступных ресторанов
+            <div
+                v-else-if="restaurants.length === 0"
+                class="flex flex-col items-center py-16 text-center"
+            >
+                <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                    <EmptyStateIcon name="restaurant" size="lg" />
+                </div>
+                <p class="text-base font-medium text-gray-900">Нет доступных ресторанов</p>
             </div>
 
             <ul v-else class="space-y-3">
                 <li v-for="restaurant in restaurants" :key="restaurant.id">
                     <button
                         type="button"
-                        class="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.98] hover:border-max-primary/30 hover:shadow-md"
+                        class="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.98] hover:border-max-primary/30"
                         @click="emit('select-restaurant', restaurant)"
                     >
                         <div class="flex items-start gap-3">
-                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl">
-                                🍽️
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                                <EmptyStateIcon name="restaurant" size="md" />
                             </div>
                             <div class="min-w-0 flex-1">
                                 <h2 class="truncate font-semibold text-gray-900">{{ restaurant.name }}</h2>

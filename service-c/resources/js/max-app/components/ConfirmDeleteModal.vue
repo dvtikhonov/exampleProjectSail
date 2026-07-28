@@ -28,6 +28,10 @@ defineProps({
         type: String,
         default: 'Удалить',
     },
+    loadingLabel: {
+        type: String,
+        default: 'Удаление…',
+    },
 });
 
 defineEmits(['close', 'confirm']);
@@ -72,7 +76,7 @@ defineEmits(['close', 'confirm']);
                         :disabled="loading"
                         @click="$emit('confirm')"
                     >
-                        <span v-if="loading">Удаление…</span>
+                        <span v-if="loading">{{ loadingLabel }}</span>
                         <span v-else>{{ confirmLabel }}</span>
                     </button>
                 </div>

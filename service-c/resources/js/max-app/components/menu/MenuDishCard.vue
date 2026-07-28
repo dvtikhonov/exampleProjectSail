@@ -87,7 +87,7 @@ function handleSelectSecond() {
 
 <template>
     <article
-        class="flex flex-col overflow-hidden rounded-[var(--radius-menu-card)] bg-menu-card p-2"
+        class="flex h-full flex-col overflow-hidden rounded-[var(--radius-menu-card)] bg-menu-card p-2"
         :class="canSelectAsSecondDish && 'ring-2 ring-max-primary/30'"
     >
         <div class="mb-2 flex justify-center">
@@ -127,11 +127,15 @@ function handleSelectSecond() {
                 {{ priceLabel }}
             </button>
 
+            <!-- Слот фиксированной высоты: без «собрать» цена остаётся на одной линии с соседями -->
             <button
-                v-if="showComboBuilderAction"
+                v-if="!comboBuilderOpen"
                 type="button"
-                class="w-full text-center text-[10px] font-medium leading-tight text-max-primary transition hover:text-max-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
-                :disabled="addingComboRef !== null"
+                class="flex w-full items-center justify-center rounded-full border border-max-primary/40 bg-white px-2 py-1.5 text-xs font-medium text-max-primary transition hover:bg-max-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                :class="{ 'invisible pointer-events-none': !showComboBuilderAction }"
+                :disabled="!showComboBuilderAction || addingComboRef !== null"
+                :tabindex="showComboBuilderAction ? undefined : -1"
+                :aria-hidden="!showComboBuilderAction"
                 @click="handleStartCombo"
             >
                 собрать блюдо

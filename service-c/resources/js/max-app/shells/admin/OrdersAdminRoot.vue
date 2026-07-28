@@ -2,8 +2,9 @@
 /**
  * Раздел проверки заказов: очередь address/composition + деталь заказа.
  */
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted, watch } from 'vue';
 import { getStartParam } from '../../bridge/maxBridge';
+import { useAdminChrome } from '../../composables/useAdminChrome';
 import { useAdminFlow } from '../../composables/useAdminFlow';
 import { useAuth } from '../../composables/useAuth';
 import { createChatMessagesReadHandler, useMaxBackButton } from '../../composables/useMaxBackButton';
@@ -27,6 +28,8 @@ const {
     hasAdminRoles,
     hasMenuManagerRole,
 } = useAuth();
+
+const { sectionNavVisible } = useAdminChrome();
 
 const admin = useAdminFlow(adminScope);
 const {
@@ -69,6 +72,14 @@ const handleChatMessagesRead = createChatMessagesReadHandler({
     admin,
 });
 
+watch(
+    adminView,
+    (view) => {
+        sectionNavVisible.value = view !== ADMIN_VIEWS.detail;
+    },
+    { immediate: true },
+);
+
 onMounted(async () => {
     initAdminSession();
 
@@ -79,6 +90,10 @@ onMounted(async () => {
     }
 
     back.setupBackButton();
+});
+
+onUnmounted(() => {
+    sectionNavVisible.value = true;
 });
 </script>
 

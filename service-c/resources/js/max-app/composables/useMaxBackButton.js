@@ -207,12 +207,7 @@ export function useMaxBackButton({
                     return;
                 }
 
-                if (nav?.currentView?.value === VIEWS.confirmation) {
-                    hideBackButton();
-
-                    return;
-                }
-
+                // confirmation в manual: «Назад» → к списку ручных заказов
                 unbindBackButton = bindBackButton(handleBack);
 
                 return;

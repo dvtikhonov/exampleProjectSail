@@ -2,8 +2,9 @@
 /**
  * Раздел управления меню: блюда, категории, график доступности.
  */
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.vue';
+import { useAdminChrome } from '../../composables/useAdminChrome';
 import { useAuth } from '../../composables/useAuth';
 import { useDishAdmin } from '../../composables/useDishAdmin';
 import { useDishAdminFilters } from '../../composables/useDishAdminFilters';
@@ -22,6 +23,8 @@ const {
     hasAdminRoles,
     hasMenuManagerRole,
 } = useAuth();
+
+const { sectionNavVisible } = useAdminChrome();
 
 const dishFilters = useDishAdminFilters();
 const dishAdmin = useDishAdmin({ filters: dishFilters });
@@ -219,12 +222,25 @@ function handleScheduleToggle(dishId, date) {
     toggleScheduleAvailability(dishId, date);
 }
 
+watch(
+    dishAdminView,
+    (view) => {
+        sectionNavVisible.value = view !== ADMIN_DISH_VIEWS.form
+            && view !== ADMIN_DISH_VIEWS.categoryForm;
+    },
+    { immediate: true },
+);
+
 onMounted(() => {
     if (adminSection.value === ADMIN_SECTIONS.menu) {
         initDishAdminSession();
     }
 
     back.setupBackButton();
+});
+
+onUnmounted(() => {
+    sectionNavVisible.value = true;
 });
 </script>
 

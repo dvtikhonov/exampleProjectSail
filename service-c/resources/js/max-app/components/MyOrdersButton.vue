@@ -3,6 +3,7 @@
  * Кнопка перехода к списку заказов с бейджем непрочитанных сообщений.
  */
 import { computed } from 'vue';
+import { pluralRu } from '../utils/pluralRu';
 
 const props = defineProps({
     label: {
@@ -24,25 +25,10 @@ defineEmits(['click']);
 
 const displayCount = computed(() => (props.unreadCount > 99 ? '99+' : String(props.unreadCount)));
 
-const hintText = computed(() => `${props.unreadCount} ${pluralizeMessages(props.unreadCount)}`);
-
-/**
- * @param {number} count
- */
-function pluralizeMessages(count) {
-    const mod10 = count % 10;
-    const mod100 = count % 100;
-
-    if (mod10 === 1 && mod100 !== 11) {
-        return 'новое сообщение';
-    }
-
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
-        return 'новых сообщения';
-    }
-
-    return 'новых сообщений';
-}
+const hintText = computed(
+    () =>
+        `${props.unreadCount} ${pluralRu(props.unreadCount, 'новое сообщение', 'новых сообщения', 'новых сообщений')}`,
+);
 </script>
 
 <template>

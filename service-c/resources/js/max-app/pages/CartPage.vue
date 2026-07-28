@@ -1,9 +1,9 @@
 <script setup>
 /**
- * Экран корзины: позиции, адрес доставки, итоги, подтверждение заявки.
+ * Экран корзины: позиции, адрес доставки, итоги, подтверждение заявки и очистки.
  *
  * Scope (см. ../components/cart/cartScope.js):
- * - header (в т.ч. адрес доставки), список позиций, fixed footer с итогами, модалка подтверждения
+ * - header (в т.ч. адрес доставки), список позиций, fixed footer с итогами, модалки подтверждения
  *
  * Вне scope — не добавлять на этот экран:
  * - upsell «Добавить к заказу?», блок «Акции»
@@ -11,7 +11,7 @@
  * - API /api/food/cart/messages
  *
  * Адрес синхронизируется с сервером через debounce (родитель App.vue).
- * Модалка подтверждения перехватывает кнопку «Назад» через defineExpose.
+ * Модалки подтверждения перехватывают кнопку «Назад» через defineExpose.
  *
  * @typedef {import('../api/types.js').CartDto} CartDto
  */
@@ -20,6 +20,8 @@ import CartHeader from '../components/cart/CartHeader.vue';
 import CartItemList from '../components/cart/CartItemList.vue';
 import CartOrderConfirmModal from '../components/cart/CartOrderConfirmModal.vue';
 import CartSummaryFooter from '../components/cart/CartSummaryFooter.vue';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal.vue';
+import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import { buildCartGroups } from '../utils/cartGroups';
 
 const props = defineProps({
@@ -81,6 +83,7 @@ const emit = defineEmits([
 
 const localAddress = ref('');
 const showOrderConfirm = ref(false);
+const showClearConfirm = ref(false);
 const isAddressFocused = ref(false);
 
 /** Не перезаписывать localAddress с сервера, пока пользователь редактирует поле */
@@ -158,11 +161,35 @@ function confirmOrder() {
     emit('submit-order', localAddress.value);
 }
 
+function openClearConfirm() {
+    if (props.clearing || props.submitting || props.savingAddress || isEmpty.value) {
+        return;
+    }
+
+    showClearConfirm.value = true;
+}
+
+function closeClearConfirm() {
+    if (!props.clearing) {
+        showClearConfirm.value = false;
+    }
+}
+
+function confirmClearCart() {
+    emit('clear-cart');
+}
+
 /**
- * Перехват «Назад» из App.vue: сначала закрыть модалку подтверждения.
+ * Перехват «Назад» из App.vue: сначала закрыть открытую модалку.
  * @returns {boolean} true — событие обработано, навигацию не продолжать
  */
 function handleBackRequest() {
+    if (showClearConfirm.value) {
+        closeClearConfirm();
+
+        return true;
+    }
+
     if (showOrderConfirm.value) {
         closeOrderConfirm();
 
@@ -188,6 +215,15 @@ watch(
         }
     },
 );
+
+watch(
+    () => props.clearing,
+    (clearing, wasClearing) => {
+        if (wasClearing && !clearing) {
+            showClearConfirm.value = false;
+        }
+    },
+);
 </script>
 
 <template>
@@ -210,7 +246,7 @@ watch(
             class="shrink-0"
             @go-back="handleGoBack"
             @open-orders="emit('open-orders')"
-            @clear-cart="emit('clear-cart')"
+            @clear-cart="openClearConfirm"
             @update:delivery-address="localAddress = $event"
             @delivery-address-focus="handleAddressFocus"
             @delivery-address-input="handleAddressInput"
@@ -226,7 +262,9 @@ watch(
             </div>
 
             <div v-else-if="isEmpty" class="flex flex-col items-center py-16 text-center">
-                <div class="mb-4 text-5xl">🛒</div>
+                <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
+                    <EmptyStateIcon name="cart" size="lg" />
+                </div>
                 <p class="text-base font-medium text-gray-900">Корзина пуста</p>
                 <p class="mt-1 text-sm text-max-muted">Добавьте блюда из меню ресторана</p>
                 <button
@@ -260,6 +298,8 @@ watch(
             :cart="cart"
             :delivery-applicable="deliveryApplicable"
             :can-submit="canSubmit"
+            :has-address="hasAddress"
+            :saving-address="savingAddress"
             @submit="openOrderConfirm"
         />
 
@@ -272,6 +312,17 @@ watch(
             :submitting="submitting"
             @close="closeOrderConfirm"
             @confirm="confirmOrder"
+        />
+
+        <ConfirmDeleteModal
+            :open="showClearConfirm"
+            title="Очистить корзину?"
+            message="Все позиции будут удалены. Это действие нельзя отменить."
+            confirm-label="Очистить"
+            loading-label="Очистка…"
+            :loading="clearing"
+            @close="closeClearConfirm"
+            @confirm="confirmClearCart"
         />
     </div>
 </template>

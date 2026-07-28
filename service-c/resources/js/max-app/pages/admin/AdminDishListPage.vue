@@ -431,14 +431,14 @@ defineExpose({ openFilePicker });
                             <div class="mt-3 flex gap-2">
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary"
+                                    class="min-h-10 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-max-primary/30 hover:text-max-primary"
                                     @click="onEditClick(dish)"
                                 >
                                     Редактировать
                                 </button>
                                 <button
                                     type="button"
-                                    class="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                                    class="min-h-10 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                                     :disabled="deleteLoadingId === dish.id"
                                     @click="emit('delete', dish)"
                                 >
