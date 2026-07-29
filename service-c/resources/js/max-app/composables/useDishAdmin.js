@@ -13,7 +13,7 @@ import {
     importDishesSpreadsheet,
     updateDish,
 } from '../api';
-import { NAME_SEARCH_DEBOUNCE_MS } from '../constants/dishAdmin';
+import { NAME_SEARCH_DEBOUNCE_MS, DISH_AVAILABILITY_FILTER } from '../constants/dishAdmin';
 import { ADMIN_DISH_VIEWS } from '../constants/views';
 
 /**
@@ -30,6 +30,8 @@ export function useDishAdmin({ filters }) {
     const dishesError = ref('');
 
     const { filterRestaurantId, filterCategoryId, filterNameSearch } = filters;
+    /** @type {import('vue').Ref<string>} */
+    const filterAvailability = ref(DISH_AVAILABILITY_FILTER.all);
     const formRestaurantId = ref('');
 
     /** Таймер debounce для поиска по названию */
@@ -145,6 +147,7 @@ export function useDishAdmin({ filters }) {
                 restaurantId,
                 categoryId,
                 name: nameSearch || null,
+                availability: filterAvailability.value,
             });
         } catch (error) {
             dishesError.value = extractErrorMessage(error);
@@ -172,6 +175,14 @@ export function useDishAdmin({ filters }) {
             nameSearchDebounceTimer = null;
             loadDishes();
         }, NAME_SEARCH_DEBOUNCE_MS);
+    }
+
+    /**
+     * @param {string} value
+     */
+    function handleFilterAvailabilityChange(value) {
+        filterAvailability.value = value || DISH_AVAILABILITY_FILTER.all;
+        loadDishes();
     }
 
     function openCreateForm() {
@@ -415,6 +426,7 @@ export function useDishAdmin({ filters }) {
         filterRestaurantId,
         filterCategoryId,
         filterNameSearch,
+        filterAvailability,
         formRestaurantId,
         restaurantOptions,
         categoryFilterOptions,
@@ -435,6 +447,7 @@ export function useDishAdmin({ filters }) {
         handleFilterRestaurantChange,
         handleFilterCategoryChange,
         handleFilterNameSearchChange,
+        handleFilterAvailabilityChange,
         openCreateForm,
         openEditForm,
         openDishListView,

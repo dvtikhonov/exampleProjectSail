@@ -13,6 +13,7 @@ use App\DTO\Food\AdminDishDto;
 use App\DTO\Food\CreateDishDto;
 use App\DTO\Food\ImportDishRowDto;
 use App\DTO\Food\UpdateDishDto;
+use App\Enums\Food\AdminDishAvailabilityFilter;
 use App\Enums\Food\DishVatRate;
 use App\Enums\Food\DishWeightUnit;
 use App\Exceptions\Food\FoodDomainException;
@@ -39,9 +40,18 @@ class DishAdminService implements DishAdminServiceInterface
      *
      * @return list<AdminDishDto>
      */
-    public function list(?int $restaurantId = null, ?int $categoryId = null, ?string $nameSearch = null): array
-    {
-        $paginator = $this->dishRepository->paginateForAdmin($restaurantId, $categoryId, $nameSearch);
+    public function list(
+        ?int $restaurantId = null,
+        ?int $categoryId = null,
+        ?string $nameSearch = null,
+        AdminDishAvailabilityFilter $availability = AdminDishAvailabilityFilter::All,
+    ): array {
+        $paginator = $this->dishRepository->paginateForAdmin(
+            $restaurantId,
+            $categoryId,
+            $nameSearch,
+            $availability->toIsAvailable(),
+        );
 
         return array_map(
             fn (Dish $dish): AdminDishDto => $this->mapToAdminDto($dish),

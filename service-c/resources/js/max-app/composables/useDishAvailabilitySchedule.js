@@ -263,6 +263,7 @@ export function useDishAvailabilitySchedule({ categories, filters }) {
         dishes,
         filteredDishes,
         dates,
+        localSchedule,
         editableFrom,
         loading,
         saving,
