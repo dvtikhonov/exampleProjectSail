@@ -6,10 +6,20 @@
 import { client } from '../http';
 
 /**
- * @param {{ restaurantId?: number|null, categoryId?: number|null, name?: string|null }} [filters]
+ * @param {{
+ *   restaurantId?: number|null,
+ *   categoryId?: number|null,
+ *   name?: string|null,
+ *   availability?: string|null,
+ * }} [filters]
  * @returns {Promise<AdminDishDto[]>}
  */
-export async function fetchAdminDishes({ restaurantId = null, categoryId = null, name = null } = {}) {
+export async function fetchAdminDishes({
+    restaurantId = null,
+    categoryId = null,
+    name = null,
+    availability = null,
+} = {}) {
     const params = {};
 
     if (restaurantId !== null) {
@@ -22,6 +32,10 @@ export async function fetchAdminDishes({ restaurantId = null, categoryId = null,
 
     if (name !== null && name !== '') {
         params.name = name;
+    }
+
+    if (availability !== null && availability !== '' && availability !== 'all') {
+        params.availability = availability;
     }
 
     const { data } = await client.get('/food/admin/dishes', { params });

@@ -166,6 +166,36 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('dishes.0.name', 'Miso Soup');
     }
 
+    /** Менеджер меню может фильтровать блюда по доступности. */
+    public function test_menu_manager_can_filter_dishes_by_availability(): void
+    {
+        $available = FoodTestDataBuilder::createRestaurantWithDish('Sushi Bar', 'Available Roll');
+        $hidden = FoodTestDataBuilder::createRestaurantWithDish('Sushi Bar', 'Hidden Roll');
+        $hidden['dish']->update(['is_available' => false]);
+
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes?availability=available', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'dishes')
+            ->assertJsonPath('dishes.0.id', $available['dish']->id)
+            ->assertJsonPath('dishes.0.is_available', true);
+
+        $this->getJson('/api/food/admin/dishes?availability=hidden', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'dishes')
+            ->assertJsonPath('dishes.0.id', $hidden['dish']->id)
+            ->assertJsonPath('dishes.0.is_available', false);
+
+        $this->getJson('/api/food/admin/dishes?availability=all', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(2, 'dishes');
+
+        $this->getJson('/api/food/admin/dishes', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(2, 'dishes');
+    }
+
     /** CRUD блюд менеджером меню проходит по успешному сценарию. */
     public function test_menu_manager_crud_happy_path(): void
     {

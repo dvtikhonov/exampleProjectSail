@@ -71,6 +71,14 @@ const props = defineProps({
         type: Function,
         required: true,
     },
+    /**
+     * Локальный график: dishId → даты доступности.
+     * Нужен для реактивного пересчёта бейджей в заголовках дат.
+     */
+    schedule: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const emit = defineEmits([
@@ -84,6 +92,8 @@ const emit = defineEmits([
 
 const gridViewportRef = ref(null);
 const openDishNameId = ref(null);
+/** @type {import('vue').Ref<string|null>} */
+const openDateTooltip = ref(null);
 const { refreshViewport } = useScrollViewport(gridViewportRef, { autoFocus: true });
 
 const restaurantSelectOptions = computed(() => [
@@ -95,6 +105,27 @@ const restaurantSelectOptions = computed(() => [
 ]);
 
 const visibleDates = computed(() => props.dates.filter((date) => props.isDateEditable(date)));
+
+/**
+ * Блюда, выбранные на дату (по текущему фильтру списка).
+ *
+ * @returns {Record<string, { id: number, name: string }[]>}
+ */
+const selectedDishesByDate = computed(() => {
+    /** @type {Record<string, { id: number, name: string }[]>} */
+    const result = {};
+    const schedule = props.schedule;
+
+    for (const date of visibleDates.value) {
+        result[date] = props.dishes.filter((dish) => {
+            const dishDates = schedule[String(dish.id)] ?? [];
+
+            return dishDates.includes(date);
+        });
+    }
+
+    return result;
+});
 
 const categorySelectOptions = computed(() => {
     if (!props.filterRestaurantId) {
@@ -162,11 +193,35 @@ function parseIsoDate(date) {
 }
 
 /**
+ * @param {string} date
+ * @returns {{ id: number, name: string }[]}
+ */
+function dishesForDate(date) {
+    return selectedDishesByDate.value[date] ?? [];
+}
+
+/**
+ * @param {string} date
+ * @returns {number}
+ */
+function countForDate(date) {
+    return dishesForDate(date).length;
+}
+
+/**
+ * @param {number} count
+ * @returns {string}
+ */
+function formatBadgeCount(count) {
+    return count > 99 ? '99+' : String(count);
+}
+
+/**
  * @param {number} dishId
  * @param {string} date
  */
 function onCellClick(dishId, date) {
-    closeDishNameTooltip();
+    closeTooltips();
 
     if (!props.isDateEditable(date)) {
         return;
@@ -181,11 +236,28 @@ function onCellClick(dishId, date) {
  */
 function toggleDishNameTooltip(dishId, event) {
     event.stopPropagation();
+    openDateTooltip.value = null;
     openDishNameId.value = openDishNameId.value === dishId ? null : dishId;
 }
 
-function closeDishNameTooltip() {
+/**
+ * @param {string} date
+ * @param {MouseEvent} event
+ */
+function toggleDateTooltip(date, event) {
+    event.stopPropagation();
+
+    if (countForDate(date) === 0) {
+        return;
+    }
+
     openDishNameId.value = null;
+    openDateTooltip.value = openDateTooltip.value === date ? null : date;
+}
+
+function closeTooltips() {
+    openDishNameId.value = null;
+    openDateTooltip.value = null;
 }
 
 /**
@@ -193,8 +265,21 @@ function closeDishNameTooltip() {
  */
 function onDocumentKeydown(event) {
     if (event.key === 'Escape') {
-        closeDishNameTooltip();
+        closeTooltips();
     }
+}
+
+/**
+ * @param {Event} event
+ */
+function onDocumentScroll(event) {
+    const target = event.target;
+
+    if (target instanceof Element && target.closest('[role="tooltip"]')) {
+        return;
+    }
+
+    closeTooltips();
 }
 
 /**
@@ -210,15 +295,15 @@ function onGridFocusIn(event) {
 }
 
 onMounted(() => {
-    document.addEventListener('click', closeDishNameTooltip);
+    document.addEventListener('click', closeTooltips);
     document.addEventListener('keydown', onDocumentKeydown);
-    document.addEventListener('scroll', closeDishNameTooltip, true);
+    document.addEventListener('scroll', onDocumentScroll, true);
 });
 
 onUnmounted(() => {
-    document.removeEventListener('click', closeDishNameTooltip);
+    document.removeEventListener('click', closeTooltips);
     document.removeEventListener('keydown', onDocumentKeydown);
-    document.removeEventListener('scroll', closeDishNameTooltip, true);
+    document.removeEventListener('scroll', onDocumentScroll, true);
 });
 
 watch(
@@ -229,10 +314,18 @@ watch(
         () => visibleDates.value.length,
     ],
     () => {
-        closeDishNameTooltip();
+        closeTooltips();
         refreshViewport();
     },
 );
+
+watch(selectedDishesByDate, (map) => {
+    const openDate = openDateTooltip.value;
+
+    if (openDate && (map[openDate]?.length ?? 0) === 0) {
+        openDateTooltip.value = null;
+    }
+});
 </script>
 
 <template>
@@ -365,12 +458,44 @@ watch(
                             v-for="date in visibleDates"
                             :key="date"
                             scope="col"
-                            class="sticky top-0 z-20 w-[3.25rem] whitespace-nowrap border-b border-gray-200 bg-gray-50 px-1 py-2 text-center text-xs font-medium text-gray-700"
+                            class="relative sticky top-0 z-20 w-[3.25rem] border-b border-gray-200 bg-gray-50 px-1 py-2 text-center text-xs font-medium text-gray-700"
+                            :class="{ 'z-40': openDateTooltip === date }"
                         >
-                            <span class="block leading-tight">{{ formatDateLabel(date) }}</span>
-                            <span class="block text-[10px] font-normal uppercase leading-tight text-max-muted">
+                            <span class="block whitespace-nowrap leading-tight">{{ formatDateLabel(date) }}</span>
+                            <span class="block whitespace-nowrap text-[10px] font-normal uppercase leading-tight text-max-muted">
                                 {{ formatWeekdayLabel(date) }}
                             </span>
+                            <button
+                                v-if="countForDate(date) > 0"
+                                type="button"
+                                tabindex="-1"
+                                class="mx-auto mt-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-green-600 px-1 text-[10px] font-bold leading-none text-white transition hover:bg-green-700 active:scale-95"
+                                :aria-expanded="openDateTooltip === date"
+                                :aria-label="`Выбрано блюд: ${countForDate(date)}. Показать список`"
+                                @click="toggleDateTooltip(date, $event)"
+                            >
+                                {{ formatBadgeCount(countForDate(date)) }}
+                            </button>
+                            <div
+                                v-if="openDateTooltip === date"
+                                class="absolute left-1/2 top-full z-50 mt-1.5 w-56 max-w-[min(14rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-xl bg-gray-900 text-left shadow-lg"
+                                role="tooltip"
+                                @click.stop
+                            >
+                                <ul class="max-h-48 overflow-y-auto overflow-x-hidden text-xs font-medium leading-snug text-white">
+                                    <li
+                                        v-for="dish in dishesForDate(date)"
+                                        :key="dish.id"
+                                        class="whitespace-normal break-words border-b border-white/15 px-3 py-2 last:border-b-0"
+                                    >
+                                        {{ dish.name }}
+                                    </li>
+                                </ul>
+                                <span
+                                    class="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900"
+                                    aria-hidden="true"
+                                />
+                            </div>
                         </th>
                     </tr>
                 </thead>
@@ -391,7 +516,7 @@ watch(
                             <span class="line-clamp-2">{{ dish.name }}</span>
                             <span
                                 v-if="openDishNameId === dish.id"
-                                class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 w-max max-w-[14rem] -translate-y-1/2 rounded-xl bg-gray-900 px-3 py-1.5 text-xs font-medium leading-snug text-white shadow-lg"
+                                class="pointer-events-none absolute left-full top-1/2 z-50 ml-2 w-max max-w-[calc(3*3.25rem)] -translate-y-1/2 rounded-xl bg-gray-900 px-3 py-1.5 text-xs font-medium leading-snug text-white shadow-lg"
                                 role="tooltip"
                             >
                                 {{ dish.name }}

@@ -8,6 +8,7 @@ use App\Contracts\Food\DishAdminServiceInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\DTO\Food\AdminDishDto;
 use App\DTO\Max\MaxAdminBotTestSendResultDto;
+use App\Enums\Food\AdminDishAvailabilityFilter;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
@@ -37,8 +38,14 @@ class AdminDishController extends Controller
         $restaurantId = $this->optionalPositiveIntQuery($request, 'restaurant_id');
         $categoryId = $this->optionalPositiveIntQuery($request, 'category_id');
         $nameSearch = $this->optionalTrimmedStringQuery($request, 'name', 255);
+        $availability = $this->optionalAvailabilityQuery($request);
 
-        $dishes = $this->dishAdminService->list($restaurantId, $categoryId, $nameSearch);
+        $dishes = $this->dishAdminService->list(
+            $restaurantId,
+            $categoryId,
+            $nameSearch,
+            $availability,
+        );
 
         return response()->json([
             'dishes' => array_map(
@@ -221,5 +228,20 @@ class AdminDishController extends Controller
         }
 
         return mb_substr($trimmed, 0, $maxLength);
+    }
+
+    /**
+     * Режим отображения по availability: all|available|hidden (по умолчанию all).
+     */
+    private function optionalAvailabilityQuery(Request $request): AdminDishAvailabilityFilter
+    {
+        $value = $this->optionalTrimmedStringQuery($request, 'availability', 32);
+
+        if ($value === null) {
+            return AdminDishAvailabilityFilter::All;
+        }
+
+        return AdminDishAvailabilityFilter::tryFrom($value)
+            ?? AdminDishAvailabilityFilter::All;
     }
 }

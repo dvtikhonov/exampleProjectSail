@@ -7,6 +7,7 @@
 import { computed, nextTick, onActivated, onDeactivated, onUnmounted, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
 import DishImage from '../../components/DishImage.vue';
+import { DISH_AVAILABILITY_FILTER, DISH_AVAILABILITY_FILTER_OPTIONS } from '../../constants/dishAdmin';
 import { useScrollViewport } from '../../composables/useScrollViewport';
 
 const props = defineProps({
@@ -55,6 +56,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    filterAvailability: {
+        type: String,
+        default: DISH_AVAILABILITY_FILTER.all,
+    },
     importLoading: {
         type: Boolean,
         default: false,
@@ -77,6 +82,7 @@ const emit = defineEmits([
     'filter-restaurant',
     'filter-category',
     'filter-name-search',
+    'filter-availability',
     'import-click',
     'import',
 ]);
@@ -116,6 +122,8 @@ const categorySelectOptions = computed(() => [
             : `${category.name} (${category.restaurantName})`,
     })),
 ]);
+
+const availabilitySelectOptions = DISH_AVAILABILITY_FILTER_OPTIONS;
 
 function onTouchStart(event) {
     if (readScrollTop() > 0 || props.loading || props.refreshing) {
@@ -320,14 +328,23 @@ defineExpose({ openFilePicker });
                 />
             </div>
 
-            <input
-                type="search"
-                :value="filterNameSearch"
-                placeholder="Поиск по названию"
-                autocomplete="off"
-                class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
-                @input="emit('filter-name-search', ($event.target).value)"
-            >
+            <div class="grid grid-cols-2 gap-2">
+                <input
+                    type="search"
+                    :value="filterNameSearch"
+                    placeholder="Поиск по названию"
+                    autocomplete="off"
+                    class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
+                    @input="emit('filter-name-search', ($event.target).value)"
+                >
+
+                <AppSelect
+                    :model-value="filterAvailability"
+                    :options="availabilitySelectOptions"
+                    size="sm"
+                    @update:model-value="emit('filter-availability', $event)"
+                />
+            </div>
 
             <div
                 v-if="importError"

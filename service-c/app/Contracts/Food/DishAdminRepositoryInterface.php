@@ -31,6 +31,7 @@ interface DishAdminRepositoryInterface
         ?int $restaurantId,
         ?int $categoryId,
         ?string $nameSearch = null,
+        ?bool $isAvailable = null,
         int $perPage = 50,
     ): LengthAwarePaginator;
 

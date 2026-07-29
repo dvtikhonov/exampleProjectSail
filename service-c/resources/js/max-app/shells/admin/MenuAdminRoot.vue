@@ -42,6 +42,7 @@ const {
     filterRestaurantId,
     filterCategoryId,
     filterNameSearch,
+    filterAvailability,
     formRestaurantId,
     restaurantOptions,
     categoryFilterOptions,
@@ -61,6 +62,7 @@ const {
     handleFilterRestaurantChange,
     handleFilterCategoryChange,
     handleFilterNameSearchChange,
+    handleFilterAvailabilityChange,
     openCreateForm,
     openEditForm,
     openDishListView,
@@ -106,6 +108,7 @@ const {
     categoryOptions: scheduleCategoryOptions,
     filteredDishes: scheduleFilteredDishes,
     dates: scheduleDates,
+    localSchedule: scheduleLocalSchedule,
     editableFrom: scheduleEditableFrom,
     loading: scheduleLoading,
     saving: scheduleSaving,
@@ -355,6 +358,7 @@ onUnmounted(() => {
                 :filter-restaurant-id="filterRestaurantId"
                 :filter-category-id="filterCategoryId"
                 :filter-name-search="filterNameSearch"
+                :filter-availability="filterAvailability"
                 :import-loading="importLoading"
                 :import-error="importError"
                 :import-success-message="importSuccessMessage"
@@ -365,6 +369,7 @@ onUnmounted(() => {
                 @filter-restaurant="handleFilterRestaurantChange"
                 @filter-category="handleFilterCategoryChange"
                 @filter-name-search="handleFilterNameSearchChange"
+                @filter-availability="handleFilterAvailabilityChange"
                 @import-click="onDishImportClick"
                 @import="onDishImportFile"
             />
@@ -389,6 +394,7 @@ onUnmounted(() => {
             :filter-name-search="filterNameSearch"
             :is-date-editable="isScheduleDateEditable"
             :is-available="isScheduleDateAvailable"
+            :schedule="scheduleLocalSchedule"
             @filter-restaurant="handleScheduleFilterRestaurantChange"
             @filter-category="handleScheduleFilterCategoryChange"
             @filter-name-search="handleScheduleFilterNameSearchChange"

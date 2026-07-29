@@ -53,6 +53,7 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
         ?int $restaurantId,
         ?int $categoryId,
         ?string $nameSearch = null,
+        ?bool $isAvailable = null,
         int $perPage = 50,
     ): LengthAwarePaginator {
         $query = Dish::query()
@@ -72,6 +73,10 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
 
         if ($nameSearch !== null && $nameSearch !== '') {
             $query->whereLike('name', '%'.$nameSearch.'%');
+        }
+
+        if ($isAvailable !== null) {
+            $query->where('is_available', $isAvailable);
         }
 
         return $query->paginate($perPage);

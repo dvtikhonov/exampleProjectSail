@@ -8,6 +8,7 @@ use App\DTO\Food\AdminDishDto;
 use App\DTO\Food\CreateDishDto;
 use App\DTO\Food\ImportDishRowDto;
 use App\DTO\Food\UpdateDishDto;
+use App\Enums\Food\AdminDishAvailabilityFilter;
 use App\Exceptions\Food\FoodDomainException;
 use Illuminate\Http\UploadedFile;
 
@@ -19,7 +20,12 @@ interface DishAdminServiceInterface
     /**
      * @return list<AdminDishDto>
      */
-    public function list(?int $restaurantId = null, ?int $categoryId = null, ?string $nameSearch = null): array;
+    public function list(
+        ?int $restaurantId = null,
+        ?int $categoryId = null,
+        ?string $nameSearch = null,
+        AdminDishAvailabilityFilter $availability = AdminDishAvailabilityFilter::All,
+    ): array;
 
     /**
      * @throws FoodDomainException
