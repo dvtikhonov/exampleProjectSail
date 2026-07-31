@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
-use App\DTO\Food\DishAvailabilityChangeDto;
-use App\DTO\Food\DishAvailabilityUpdateDto;
+use App\DTO\Food\Menu\DishAvailabilityChangeDto;
+use App\DTO\Food\Menu\DishAvailabilityUpdateDto;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**

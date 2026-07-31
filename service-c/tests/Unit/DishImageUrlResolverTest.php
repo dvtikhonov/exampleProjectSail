@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Services\Food\DishImageUrlResolver;
+use App\Services\Food\Menu\DishImageUrlResolver;
 use Tests\TestCase;
 
 class DishImageUrlResolverTest extends TestCase

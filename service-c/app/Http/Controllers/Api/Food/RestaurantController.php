@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Enums\Food\FoodOrderAdminRole;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
-use App\Models\MaxUser;
-use App\Services\Food\MenuQueryService;
+use App\Models\Max\MaxUser;
+use App\Services\Food\Menu\MenuQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

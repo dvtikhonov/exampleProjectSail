@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Max;
 
-use App\Models\MaxUser;
+use App\Contracts\Max\MaxUserDeliveryAddressInterface;
+use App\Models\Max\MaxUser;
 
 /**
  * Хранение и чтение адреса доставки пользователя MAX.
  */
-class MaxUserDeliveryAddressService
+class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
 {
     /**
      * Возвращает сохранённый адрес доставки пользователя.

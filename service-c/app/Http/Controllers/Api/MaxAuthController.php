@@ -9,7 +9,7 @@ use App\Exceptions\Max\MaxWebAppInitDataException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Max\ValidateInitDataRequest;
 use App\Services\Max\MaxMiniAppAuthService;
-use App\Support\MaxMiniAppAccessLogger;
+use App\Support\Max\MaxMiniAppAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 

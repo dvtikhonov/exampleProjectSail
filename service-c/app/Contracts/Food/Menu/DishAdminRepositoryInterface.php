@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Contracts\Food\Menu;
+
+use App\Models\Food\Dish;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
+/**
+ * Репозиторий блюд для административного CRUD.
+ */
+interface DishAdminRepositoryInterface
+{
+    /**
+     * Находит блюдо по идентификатору.
+     */
+    public function findById(int $id): ?Dish;
+
+    /**
+     * Ищет блюдо по точному совпадению названия в категории меню.
+     */
+    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?Dish;
+
+    /**
+     * Список блюд для админки с опциональными фильтрами.
+     *
+     * @return LengthAwarePaginator<int, Dish>
+     */
+    public function paginateForAdmin(
+        ?int $restaurantId,
+        ?int $categoryId,
+        ?string $nameSearch = null,
+        ?bool $isAvailable = null,
+        int $perPage = 50,
+    ): LengthAwarePaginator;
+
+    /**
+     * Создаёт блюдо.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function create(array $attributes): Dish;
+
+    /**
+     * Обновляет блюдо.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function update(Dish $dish, array $attributes): Dish;
+
+    /**
+     * Удаляет блюдо.
+     */
+    public function delete(Dish $dish): void;
+
+    /**
+     * Проверяет, есть ли блюдо в черновых корзинах пользователей.
+     */
+    public function existsInDraftCarts(int $dishId): bool;
+}

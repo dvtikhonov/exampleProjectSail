@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Max\UiStand;
 
-use App\Contracts\Food\DailyMenuLineCollectorInterface;
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Contracts\Food\MaxManagerDailyMenuMessageBuilderInterface;
+use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Support\MaxUiStandRecipientResolver;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Support\Max\MaxUiStandRecipientResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;

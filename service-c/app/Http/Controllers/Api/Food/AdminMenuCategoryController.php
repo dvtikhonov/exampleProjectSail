@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\MenuCategoryAdminServiceInterface;
-use App\Contracts\Food\MenuCategoryRepositoryInterface;
-use App\DTO\Food\AdminMenuCategoryDto;
+use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
+use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\DTO\Food\Menu\AdminMenuCategoryDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\StoreMenuCategoryRequest;

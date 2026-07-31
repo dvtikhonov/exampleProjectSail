@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\MaxAppRequestContext;
+use App\Support\Max\MaxAppRequestContext;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 

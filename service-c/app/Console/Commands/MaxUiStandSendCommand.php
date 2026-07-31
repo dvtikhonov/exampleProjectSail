@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Services\Max\UiStand\MaxUiStandGreetingSender;
-use App\Support\MaxOpenAppTargetResolver;
+use App\Support\Max\MaxOpenAppTargetResolver;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;

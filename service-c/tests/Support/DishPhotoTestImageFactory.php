@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Support\DishPhotoAllowedExtensions;
+use App\Support\Food\Menu\DishPhotoAllowedExtensions;
 use Illuminate\Http\UploadedFile;
 
 /**

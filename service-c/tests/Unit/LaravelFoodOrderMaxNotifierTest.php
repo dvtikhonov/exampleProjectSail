@@ -6,14 +6,15 @@ namespace Tests\Unit;
 
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
-use App\DTO\Food\OrderDto;
+use App\DTO\Food\Order\OrderDto;
 use App\DTO\Max\MaxOrderNotificationConfig;
-use App\Models\MaxUser;
-use App\Services\Food\FoodOrderMaxMessageBuilder;
-use App\Services\Food\LaravelFoodOrderMaxNotifier;
-use App\Support\MaxOpenAppTargetResolver;
-use App\Support\OrderSnapshotComboResolver;
+use App\Models\Max\MaxUser;
+use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
+use App\Services\Max\Food\LaravelFoodOrderMaxNotifier;
+use App\Support\Max\MaxOpenAppTargetResolver;
+use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -25,6 +26,16 @@ use Tests\TestCase;
 
 class LaravelFoodOrderMaxNotifierTest extends TestCase
 {
+    /** Сбрасывает кэш webhook-получателей UI Stand (не тянуть chatId из других тестов). */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Cache::forget('max.ui_stand.known_recipients');
+        Config::set('max.ui_stand.recipient_chat_ids', []);
+        Config::set('max.ui_stand.recipient_user_ids', []);
+    }
+
     /** Notify шлёт inline-keyboard каждому получателю, если mini-app настроен. */
     public function test_notify_calls_send_inline_keyboard_for_each_recipient_when_mini_app_configured(): void
     {

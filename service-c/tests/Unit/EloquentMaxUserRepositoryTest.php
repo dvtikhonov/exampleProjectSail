@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Max\MaxUserRepositoryInterface;
-use App\Models\MaxUser;
+use App\Models\Max\MaxUser;
 use Tests\TestCase;
 
 class EloquentMaxUserRepositoryTest extends TestCase

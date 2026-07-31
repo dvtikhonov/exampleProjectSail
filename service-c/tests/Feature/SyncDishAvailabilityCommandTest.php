@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
-use App\Services\Food\DishAvailabilitySyncService;
+use App\Services\Food\Menu\DishAvailabilitySyncService;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 

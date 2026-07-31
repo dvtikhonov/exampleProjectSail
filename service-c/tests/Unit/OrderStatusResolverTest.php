@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
-use App\Services\Food\OrderStatusResolver;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Enums\Food\Order\OrderStatus;
+use App\Services\Food\Review\OrderStatusResolver;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 

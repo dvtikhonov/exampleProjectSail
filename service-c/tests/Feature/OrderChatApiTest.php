@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\Contracts\Food\OrderChatNotifierInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Enums\Food\OrderMessageAuthorType;
-use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
-use App\Models\FoodOrder;
-use App\Models\FoodOrderMessage;
-use App\Models\MaxUser;
+use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\Chat\OrderChatNotifierInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Chat\OrderMessageAuthorType;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Enums\Food\Order\OrderStatus;
+use App\Models\Food\FoodOrder;
+use App\Models\Food\FoodOrderMessage;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -84,13 +84,13 @@ class OrderChatApiTest extends TestCase
 
         $this->getJson("/api/food/orders/{$orderId}/messages", $otherAuth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
 
         $this->postJson("/api/food/orders/{$orderId}/messages", [
             'body' => 'Чужое сообщение',
         ], $otherAuth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Админ может читать и писать сообщения по любому заказу. */
@@ -273,7 +273,7 @@ class OrderChatApiTest extends TestCase
 
         $this->getJson('/api/food/orders/999999/messages', $auth['headers'])
             ->assertNotFound()
-            ->assertJsonPath('message', 'Order not found.');
+            ->assertJsonPath('message', 'Заказ не найден.');
     }
 
     /** Не-админ и не-владелец не могут получить доступ к чату. */

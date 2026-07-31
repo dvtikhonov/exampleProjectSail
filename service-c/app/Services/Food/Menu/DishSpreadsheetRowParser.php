@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Food\Menu;
+
+use App\DTO\Food\Menu\ImportDishRowDto;
+use App\Enums\Food\Menu\DishVatRate;
+use App\Enums\Food\Menu\DishWeightUnit;
+use App\Exceptions\Food\FoodDomainException;
+use App\Services\Food\Shared\FoodMoneyFormatter;
+
+/**
+ * Парсер строки импорта блюд: колонка A — «Название. {вес}г», колонка B — цена.
+ */
+class DishSpreadsheetRowParser
+{
+    public function __construct(
+        private readonly FoodMoneyFormatter $moneyFormatter,
+    ) {}
+
+    /**
+     * Разбирает строку таблицы импорта в DTO блюда.
+     *
+     * @throws FoodDomainException
+     */
+    public function parse(mixed $nameCell, mixed $priceCell): ImportDishRowDto
+    {
+        $nameRaw = trim((string) $nameCell);
+
+        if ($nameRaw === '') {
+            throw new FoodDomainException('Укажите название блюда в колонке A.');
+        }
+
+        if (! preg_match('/^(.+?)\.\s*(\d+)\s*г$/u', $nameRaw, $matches)) {
+            throw new FoodDomainException('Колонка A должна быть в формате «Название. 300г».');
+        }
+
+        $price = $this->parsePrice($priceCell);
+
+        return new ImportDishRowDto(
+            name: trim($matches[1]),
+            description: null,
+            weight: (string) (int) $matches[2],
+            weightUnit: DishWeightUnit::Gram,
+            price: $this->moneyFormatter->format($price),
+            vatRate: DishVatRate::Exempt,
+            isAvailable: false,
+        );
+    }
+
+    /**
+     * Разбирает цену из ячейки таблицы импорта.
+     *
+     * @throws FoodDomainException
+     */
+    private function parsePrice(mixed $priceCell): float
+    {
+        $priceRaw = trim((string) $priceCell);
+
+        if ($priceRaw === '') {
+            throw new FoodDomainException('Укажите цену в колонке B.');
+        }
+
+        $normalized = str_replace([' ', "\xc2\xa0"], '', $priceRaw);
+        $normalized = str_replace(',', '.', $normalized);
+
+        if (! is_numeric($normalized)) {
+            throw new FoodDomainException('Цена в колонке B должна быть числом.');
+        }
+
+        $price = (float) $normalized;
+
+        if ($price < 0) {
+            throw new FoodDomainException('Цена не может быть отрицательной.');
+        }
+
+        return $price;
+    }
+}

@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
-use App\Enums\Food\OrderRejectionScope;
-use App\Models\FoodOrder;
-use App\Models\MaxUser;
-use App\Models\Restaurant;
-use App\Services\Food\FoodOrderMaxMessageBuilder;
-use App\Services\Food\LaravelFoodOrderCustomerNotifier;
-use App\Support\MaxOpenAppTargetResolver;
-use App\Support\OrderSnapshotComboResolver;
+use App\Enums\Food\Review\OrderRejectionScope;
+use App\Models\Food\FoodOrder;
+use App\Models\Max\MaxUser;
+use App\Models\Food\Restaurant;
+use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
+use App\Services\Max\Food\LaravelFoodOrderCustomerNotifier;
+use App\Support\Max\MaxOpenAppTargetResolver;
+use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;

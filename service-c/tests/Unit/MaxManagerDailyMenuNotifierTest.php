@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Food\DailyMenuLineCollectorInterface;
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Contracts\Food\MaxManagerDailyMenuMessageBuilderInterface;
+use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
-use App\DTO\Food\MaxManagerDailyMenuMessagesDto;
-use App\Enums\Food\FoodOrderAdminRole;
+use App\DTO\Max\MaxManagerDailyMenuMessagesDto;
+use App\Enums\Food\Review\FoodOrderAdminRole;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;

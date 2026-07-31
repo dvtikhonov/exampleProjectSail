@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\DishVatRate;
-use App\Enums\Food\DishWeightUnit;
+use App\Enums\Food\Menu\DishVatRate;
+use App\Enums\Food\Menu\DishWeightUnit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 

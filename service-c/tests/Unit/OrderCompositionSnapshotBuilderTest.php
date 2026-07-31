@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Dish;
-use App\Models\MaxUser;
-use App\Models\MenuCategory;
-use App\Services\Food\OrderCompositionSnapshotBuilder;
+use App\Models\Food\Dish;
+use App\Models\Max\MaxUser;
+use App\Models\Food\MenuCategory;
+use App\Services\Food\Composition\OrderCompositionSnapshotBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Support\FoodTestDataBuilder;
@@ -124,7 +124,7 @@ class OrderCompositionSnapshotBuilderTest extends TestCase
         $customer = $this->createCustomerWithoutDelivery();
 
         $this->expectException(FoodDomainException::class);
-        $this->expectExceptionMessage('Dish does not belong to the order restaurant.');
+        $this->expectExceptionMessage('Блюдо не принадлежит ресторану заказа.');
 
         app(OrderCompositionSnapshotBuilder::class)->build(
             restaurantId: $fixture['restaurant']->id,
@@ -148,7 +148,7 @@ class OrderCompositionSnapshotBuilderTest extends TestCase
         $comboRef = (string) Str::uuid();
 
         $this->expectException(FoodDomainException::class);
-        $this->expectExceptionMessage(sprintf('Combo pair "%s" must contain exactly two items.', $comboRef));
+        $this->expectExceptionMessage(sprintf('Комбо-пара «%s» должна содержать ровно два элемента.', $comboRef));
 
         app(OrderCompositionSnapshotBuilder::class)->build(
             restaurantId: $fixture['restaurant']->id,

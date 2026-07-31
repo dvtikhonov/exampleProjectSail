@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
-use App\DTO\Food\CreateMenuCategoryDto;
+use App\DTO\Food\Menu\CreateMenuCategoryDto;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**

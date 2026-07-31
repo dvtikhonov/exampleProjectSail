@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Enums\Food\DishWeightUnit;
-use App\Models\Dish;
-use App\Models\MenuCategory;
+use App\Enums\Food\Menu\DishWeightUnit;
+use App\Models\Food\Dish;
+use App\Models\Food\MenuCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

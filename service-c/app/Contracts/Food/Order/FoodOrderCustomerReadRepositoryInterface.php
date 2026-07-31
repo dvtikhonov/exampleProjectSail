@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Contracts\Food\Order;
+
+use App\Models\Food\FoodOrder;
+
+/**
+ * Чтение заказов еды для клиентского API MAX mini-app.
+ */
+interface FoodOrderCustomerReadRepositoryInterface
+{
+    /**
+     * Находит заказ по идентификатору.
+     */
+    public function findById(int $id): ?FoodOrder;
+
+    /**
+     * Заказы клиента в хронологическом порядке (новые первыми).
+     *
+     * @return list<FoodOrder>
+     */
+    public function findByMaxUserId(int $maxUserId): array;
+}

@@ -1,8 +1,8 @@
 <?php
 
-use App\Support\MaxAppRequestContext;
-use App\Support\MaxLocalDevInitData;
-use App\Support\MaxMiniAppAccessLogger;
+use App\Support\Max\MaxAppRequestContext;
+use App\Support\Max\MaxLocalDevInitData;
+use App\Support\Max\MaxMiniAppAccessLogger;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
 

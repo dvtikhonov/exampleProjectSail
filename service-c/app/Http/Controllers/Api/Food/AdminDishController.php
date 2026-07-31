@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\DishAdminServiceInterface;
+use App\Contracts\Food\Menu\DishAdminServiceInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
-use App\DTO\Food\AdminDishDto;
+use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Max\MaxAdminBotTestSendResultDto;
-use App\Enums\Food\AdminDishAvailabilityFilter;
+use App\Enums\Food\Menu\AdminDishAvailabilityFilter;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
-use App\Services\Food\DishSpreadsheetImportService;
+use App\Services\Food\Menu\DishSpreadsheetImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

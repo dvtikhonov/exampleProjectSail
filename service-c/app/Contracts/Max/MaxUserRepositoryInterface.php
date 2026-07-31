@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Max;
 
-use App\Models\MaxUser;
+use App\Models\Max\MaxUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\Food\CustomerCategoryName;
-use App\Models\CustomerCategory;
-use App\Models\MaxUser;
+use App\Enums\Food\Delivery\CustomerCategoryName;
+use App\Models\Food\CustomerCategory;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;

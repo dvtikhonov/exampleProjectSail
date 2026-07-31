@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
-use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\DTO\Food\OrderDto;
-use App\Enums\Food\CartStatus;
-use App\Enums\Food\OrderStatus;
-use App\Models\Dish;
-use App\Models\FoodOrder;
-use App\Models\MaxUser;
-use App\Models\MenuCategory;
+use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\DTO\Food\Order\OrderDto;
+use App\Enums\Food\Cart\CartStatus;
+use App\Enums\Food\Order\OrderStatus;
+use App\Models\Food\Dish;
+use App\Models\Food\FoodOrder;
+use App\Models\Max\MaxUser;
+use App\Models\Food\MenuCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -50,7 +50,7 @@ class FoodOrderApiTest extends TestCase
 
         $this->postJson('/api/food/orders/submit', [], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Cart is empty.');
+            ->assertJsonPath('message', 'Корзина пуста.');
     }
 
     /** Submit заказа отправляет уведомление в MAX. */

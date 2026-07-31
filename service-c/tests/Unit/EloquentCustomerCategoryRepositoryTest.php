@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\CustomerCategoryName;
-use App\Models\CustomerCategory;
-use App\Repositories\Food\EloquentCustomerCategoryRepository;
+use App\Enums\Food\Delivery\CustomerCategoryName;
+use App\Models\Food\CustomerCategory;
+use App\Repositories\Food\Delivery\EloquentCustomerCategoryRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

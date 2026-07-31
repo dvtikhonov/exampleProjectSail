@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\FoodOrder;
-use App\Services\Food\OrderCustomerNotifyRecipientResolver;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\FoodOrder;
+use App\Services\Food\Review\OrderCustomerNotifyRecipientResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
 use Tests\Support\MessMaxLogTestHelper;

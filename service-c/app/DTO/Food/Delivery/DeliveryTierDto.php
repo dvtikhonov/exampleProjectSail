@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\DTO\Food\Delivery;
+
+/**
+ * Тариф доставки: минимальная сумма заказа и стоимость доставки.
+ */
+readonly class DeliveryTierDto
+{
+    public function __construct(
+        public float $minItemsTotal,
+        public float $deliveryCost,
+    ) {}
+}

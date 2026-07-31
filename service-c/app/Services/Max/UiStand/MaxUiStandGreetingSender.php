@@ -3,7 +3,7 @@
 namespace App\Services\Max\UiStand;
 
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
-use App\Support\MaxOpenAppTargetResolver;
+use App\Support\Max\MaxOpenAppTargetResolver;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;

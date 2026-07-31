@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\DishImageDeliveryInterface;
+use App\Contracts\Food\Menu\DishImageDeliveryInterface;
 use App\Http\Controllers\Controller;
 use Symfony\Component\HttpFoundation\Response;
 

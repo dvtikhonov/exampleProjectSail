@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\OrderSnapshotComboResolver;
+use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use Tests\TestCase;
 
 class OrderSnapshotComboResolverTest extends TestCase

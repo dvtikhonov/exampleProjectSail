@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\MaxUser;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Max\MaxUser;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -46,7 +46,7 @@ class EnsureFoodOrderAdmin
 
         if (! $this->foodOrderAdminRepository->hasActiveRole($maxUser->max_user_id, $adminRole)) {
             return response()->json([
-                'message' => 'Forbidden.',
+                'message' => 'Доступ запрещён.',
             ], Response::HTTP_FORBIDDEN);
         }
 

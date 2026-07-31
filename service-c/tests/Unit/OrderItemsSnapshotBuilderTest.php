@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Models\CartItem;
-use App\Models\Dish;
-use App\Models\MenuCategory;
-use App\Services\Food\OrderItemsSnapshotBuilder;
+use App\Models\Food\CartItem;
+use App\Models\Food\Dish;
+use App\Models\Food\MenuCategory;
+use App\Services\Food\Order\OrderItemsSnapshotBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Support\FoodTestDataBuilder;

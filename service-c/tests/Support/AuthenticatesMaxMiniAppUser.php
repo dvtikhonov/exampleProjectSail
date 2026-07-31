@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\FoodOrderAdmin;
-use App\Models\MaxUser;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\FoodOrderAdmin;
+use App\Models\Max\MaxUser;
 
 trait AuthenticatesMaxMiniAppUser
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Support\MaxAppRequestContext;
+use App\Support\Max\MaxAppRequestContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 

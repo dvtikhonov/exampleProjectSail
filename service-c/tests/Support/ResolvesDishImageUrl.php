@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Contracts\Food\DishImageUrlResolverInterface;
-use App\Models\Dish;
+use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\Models\Food\Dish;
 
 /**
  * Ожидаемый публичный URL изображения блюда (с параметром ?v=).

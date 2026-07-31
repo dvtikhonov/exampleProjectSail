@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\DishAvailabilityScheduleServiceInterface;
+use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ShowDishAvailabilityScheduleRequest;

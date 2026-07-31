@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Enums\Food\OrderStatus;
-use App\Models\FoodOrder;
-use App\Models\FoodOrderMessage;
-use App\Models\MaxUser;
+use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Order\OrderStatus;
+use App\Models\Food\FoodOrder;
+use App\Models\Food\FoodOrderMessage;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -132,7 +132,7 @@ class CustomerOrderListApiTest extends TestCase
 
         $this->getJson("/api/food/orders/{$orderId}", $otherAuth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Список заказов возвращает несколько заказов, сначала новые. */

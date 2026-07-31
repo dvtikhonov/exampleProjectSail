@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\DTO\Food\OrderDto;
-use App\Models\FoodOrder;
-use App\Models\MaxUser;
-use App\Models\Restaurant;
-use App\Services\Food\FoodOrderMaxMessageBuilder;
-use App\Support\OrderSnapshotComboResolver;
+use App\DTO\Food\Order\OrderDto;
+use App\Models\Food\FoodOrder;
+use App\Models\Max\MaxUser;
+use App\Models\Food\Restaurant;
+use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
+use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use Tests\TestCase;
 
 class FoodOrderMaxMessageBuilderTest extends TestCase

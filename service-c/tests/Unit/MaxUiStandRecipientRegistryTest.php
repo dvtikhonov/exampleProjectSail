@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\MaxUiStandRecipientRegistry;
+use App\Support\Max\MaxUiStandRecipientRegistry;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 

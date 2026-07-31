@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories\Food\Shared;
+
+use App\Contracts\Food\Shared\MenuReadRepositoryInterface;
+use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
+use App\Models\Food\Restaurant;
+
+/**
+ * Eloquent-реализация репозитория ресторанов и чтения меню.
+ */
+class EloquentRestaurantRepository implements MenuReadRepositoryInterface, RestaurantRepositoryInterface
+{
+    /**
+     * {@inheritDoc}
+     */
+    public function findAllActive(): array
+    {
+        return Restaurant::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->all();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findActiveById(int $restaurantId): ?Restaurant
+    {
+        return Restaurant::query()
+            ->where('is_active', true)
+            ->find($restaurantId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findActiveWithMenu(int $restaurantId, bool $includeUnavailable = false): ?Restaurant
+    {
+        return Restaurant::query()
+            ->where('is_active', true)
+            ->with([
+                'menuCategories.dishes' => static function ($query) use ($includeUnavailable): void {
+                    if (! $includeUnavailable) {
+                        $query->where('is_available', true);
+                    }
+
+                    $query->orderBy('name');
+                },
+            ])
+            ->find($restaurantId);
+    }
+}

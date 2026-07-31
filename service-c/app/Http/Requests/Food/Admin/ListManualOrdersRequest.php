@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
-use App\Enums\Food\OrderStatus;
+use App\Enums\Food\Order\OrderStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
