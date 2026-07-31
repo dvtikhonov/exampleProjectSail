@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
-use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\Enums\Food\CartStatus;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
-use App\Models\Cart;
-use App\Models\FoodOrder;
-use App\Models\MaxUser;
+use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Enums\Food\Cart\CartStatus;
+use App\Enums\Food\Order\OrderStatus;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Models\Food\Cart;
+use App\Models\Food\FoodOrder;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
@@ -51,7 +51,7 @@ class AdminManualOrderApiTest extends TestCase
 
         $this->getJson('/api/food/admin/manual-orders/users', $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Чужая админ-роль не открывает manual-orders. */
@@ -67,7 +67,7 @@ class AdminManualOrderApiTest extends TestCase
 
         $this->getJson('/api/food/admin/manual-orders/users', $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** max_manager может получить список пользователей. */
@@ -135,7 +135,7 @@ class AdminManualOrderApiTest extends TestCase
 
         $this->getJson('/api/food/admin/manual-orders', $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** max_manager видит только ручные заказы. */

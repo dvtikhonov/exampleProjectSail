@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Http\Middleware\AuthenticateMaxMiniApp;
-use App\Models\MaxUser;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

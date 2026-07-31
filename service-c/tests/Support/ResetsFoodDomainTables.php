@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\CustomerCategory;
-use App\Models\Dish;
-use App\Models\DishAvailabilityDate;
-use App\Models\FoodOrder;
-use App\Models\FoodOrderAdmin;
-use App\Models\MaxUser;
-use App\Models\MenuCategory;
-use App\Models\Restaurant;
-use App\Models\RestaurantCategoryDeliveryTier;
+use App\Models\Food\Cart;
+use App\Models\Food\CartItem;
+use App\Models\Food\CustomerCategory;
+use App\Models\Food\Dish;
+use App\Models\Food\DishAvailabilityDate;
+use App\Models\Food\FoodOrder;
+use App\Models\Food\FoodOrderAdmin;
+use App\Models\Food\MenuCategory;
+use App\Models\Food\Restaurant;
+use App\Models\Food\RestaurantCategoryDeliveryTier;
+use App\Models\Max\MaxUser;
 use Illuminate\Support\Facades\DB;
 
 trait ResetsFoodDomainTables

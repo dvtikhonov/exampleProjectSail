@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\MaxUser;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Max\MaxUser;
 use Illuminate\Console\Command;
 
 /**

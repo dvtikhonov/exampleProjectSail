@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Models\DishAvailabilityDate;
-use App\Repositories\Food\EloquentDishAvailabilityRepository;
+use App\Models\Food\DishAvailabilityDate;
+use App\Repositories\Food\Menu\EloquentDishAvailabilityRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;

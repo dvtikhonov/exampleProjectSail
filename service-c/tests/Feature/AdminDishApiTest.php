@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\Food\DishWeightUnit;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\Dish;
-use App\Models\MaxUser;
+use App\Enums\Food\Menu\DishWeightUnit;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\Dish;
+use App\Models\Max\MaxUser;
 use App\Services\Max\LaravelMaxAdminBotTestSender;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -52,7 +52,7 @@ class AdminDishApiTest extends TestCase
 
         $this->getJson('/api/food/admin/dishes', $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Менеджер меню может отправить тестовое сообщение бота. */
@@ -92,7 +92,7 @@ class AdminDishApiTest extends TestCase
 
         $this->postJson('/api/food/admin/dishes/test-bot', [], $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Эндпоинт теста бота возвращает 503, если получатели не заданы. */

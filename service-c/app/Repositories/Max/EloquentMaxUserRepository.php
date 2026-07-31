@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Max;
 
 use App\Contracts\Max\MaxUserRepositoryInterface;
-use App\Models\MaxUser;
+use App\Models\Max\MaxUser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\Food\DishWeightUnit;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\Dish;
-use App\Models\MaxUser;
+use App\Enums\Food\Menu\DishWeightUnit;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\Dish;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\DTO\Food\DeliveryTierDto;
-use App\Models\CustomerCategory;
-use App\Models\MaxUser;
-use App\Services\Food\DeliveryCostResolver;
+use App\DTO\Food\Delivery\DeliveryTierDto;
+use App\Models\Food\CustomerCategory;
+use App\Models\Max\MaxUser;
+use App\Services\Food\Delivery\DeliveryCostResolver;
 use Tests\TestCase;
 
 class DeliveryCostResolverTest extends TestCase

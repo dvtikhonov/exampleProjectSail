@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Models\MenuCategory;
-use App\Models\Restaurant;
-use App\Repositories\Food\EloquentRestaurantRepository;
+use App\Models\Food\MenuCategory;
+use App\Models\Food\Restaurant;
+use App\Repositories\Food\Shared\EloquentRestaurantRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;

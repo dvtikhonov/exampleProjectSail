@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\DishAvailabilityDate;
-use App\Models\MaxUser;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\DishAvailabilityDate;
+use App\Models\Max\MaxUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -53,7 +53,7 @@ class AdminDishAvailabilityApiTest extends TestCase
 
         $this->getJson('/api/food/admin/dish-availability-schedule?restaurant_id=1&category_id=1', $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
 
         $this->putJson('/api/food/admin/dish-availability-schedule', [
             'restaurant_id' => 1,
@@ -61,7 +61,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             'changes' => [],
         ], $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** GET требует фильтры ресторана и категории. */

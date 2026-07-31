@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\MaxMiniAppAccessLogger;
+use App\Support\Max\MaxMiniAppAccessLogger;
 use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\CartStatus;
+use App\Enums\Food\Cart\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Cart;
-use App\Models\MaxUser;
-use App\Services\Food\CartService;
+use App\Models\Food\Cart;
+use App\Models\Max\MaxUser;
+use App\Services\Food\Cart\CartService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -49,7 +49,7 @@ class CartServiceTest extends TestCase
         ]);
 
         $this->expectException(FoodDomainException::class);
-        $this->expectExceptionMessage('Dish not found.');
+        $this->expectExceptionMessage('Блюдо не найдено.');
 
         app(CartService::class)->addItem($maxUser, 99_999, 1);
     }

@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Food\OrderCustomerNotifyRecipientResolverInterface;
-use App\DTO\Food\OrderMessageDto;
-use App\Enums\Food\OrderMessageAuthorType;
-use App\Models\FoodOrder;
-use App\Services\Food\FoodOrderMaxMessageBuilder;
-use App\Services\Food\LaravelOrderChatNotifier;
-use App\Support\MaxOpenAppTargetResolver;
-use App\Support\MaxUiStandRecipientResolver;
-use App\Support\OrderSnapshotComboResolver;
+use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
+use App\DTO\Food\Chat\OrderMessageDto;
+use App\Enums\Food\Chat\OrderMessageAuthorType;
+use App\Models\Food\FoodOrder;
+use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
+use App\Services\Max\Food\LaravelOrderChatNotifier;
+use App\Support\Food\Composition\OrderSnapshotComboResolver;
+use App\Support\Max\MaxOpenAppTargetResolver;
+use App\Support\Max\MaxUiStandRecipientResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;

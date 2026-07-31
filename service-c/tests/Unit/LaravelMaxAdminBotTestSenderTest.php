@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Exceptions\Food\FoodDomainException;
 use App\Services\Max\LaravelMaxAdminBotTestSender;
-use App\Support\MaxUiStandRecipientRegistry;
+use App\Support\Max\MaxUiStandRecipientRegistry;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Max;
 
-use App\Contracts\Food\CustomerCategoryRepositoryInterface;
-use App\Contracts\Food\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\DTO\Max\MaxWebAppInitDataDto;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\MaxUser;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Max\MaxUser;
 use Illuminate\Contracts\Config\Repository;
 
 /**

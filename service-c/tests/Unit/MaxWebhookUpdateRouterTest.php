@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
-use App\Support\MaxUiStandRecipientRegistry;
+use App\Support\Max\MaxUiStandRecipientRegistry;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;

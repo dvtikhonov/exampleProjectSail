@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\DishVatRate;
-use App\Enums\Food\DishWeightUnit;
+use App\Enums\Food\Menu\DishVatRate;
+use App\Enums\Food\Menu\DishWeightUnit;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\DishSpreadsheetRowParser;
-use App\Services\Food\FoodMoneyFormatter;
+use App\Services\Food\Menu\DishSpreadsheetRowParser;
+use App\Services\Food\Shared\FoodMoneyFormatter;
 use Tests\TestCase;
 
 class DishSpreadsheetRowParserTest extends TestCase

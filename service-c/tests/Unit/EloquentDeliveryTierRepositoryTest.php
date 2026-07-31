@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Repositories\Food\EloquentDeliveryTierRepository;
+use App\Repositories\Food\Delivery\EloquentDeliveryTierRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;

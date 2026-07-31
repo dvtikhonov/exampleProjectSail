@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Models\FoodOrderAdmin;
-use App\Models\MaxUser;
-use App\Repositories\Food\EloquentFoodOrderAdminRepository;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\FoodOrderAdmin;
+use App\Models\Max\MaxUser;
+use App\Repositories\Food\Order\EloquentFoodOrderAdminRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;

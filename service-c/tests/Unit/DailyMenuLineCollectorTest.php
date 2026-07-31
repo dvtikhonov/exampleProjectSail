@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\Food\DailyMenuLineType;
-use App\Enums\Food\DishWeightUnit;
-use App\Models\Dish;
-use App\Models\MenuCategory;
-use App\Models\Restaurant;
-use App\Services\Food\DailyMenuLineCollector;
+use App\Enums\Food\Menu\DailyMenuLineType;
+use App\Enums\Food\Menu\DishWeightUnit;
+use App\Models\Food\Dish;
+use App\Models\Food\MenuCategory;
+use App\Models\Food\Restaurant;
+use App\Services\Food\Menu\DailyMenuLineCollector;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 

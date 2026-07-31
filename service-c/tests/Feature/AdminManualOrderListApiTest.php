@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\Food\CartStatus;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
-use App\Models\Cart;
-use App\Models\FoodOrder;
-use App\Models\FoodOrderMessage;
-use App\Models\MaxUser;
+use App\Enums\Food\Cart\CartStatus;
+use App\Enums\Food\Order\OrderStatus;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Models\Food\Cart;
+use App\Models\Food\FoodOrder;
+use App\Models\Food\FoodOrderMessage;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -230,7 +230,7 @@ class AdminManualOrderListApiTest extends TestCase
 
         $this->getJson("/api/food/admin/manual-orders/{$order->id}", $auth['headers'])
             ->assertNotFound()
-            ->assertJsonPath('message', 'Order not found.');
+            ->assertJsonPath('message', 'Заказ не найден.');
     }
 
     /** Список и карточка недоступны без роли max_manager. */

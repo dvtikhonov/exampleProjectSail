@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use App\Models\CustomerCategory;
-use App\Models\Dish;
-use App\Models\MaxUser;
-use App\Models\MenuCategory;
-use App\Models\Restaurant;
-use App\Models\RestaurantCategoryDeliveryTier;
+use App\Models\Food\CustomerCategory;
+use App\Models\Food\Dish;
+use App\Models\Food\MenuCategory;
+use App\Models\Food\Restaurant;
+use App\Models\Food\RestaurantCategoryDeliveryTier;
+use App\Models\Max\MaxUser;
 
 class FoodTestDataBuilder
 {

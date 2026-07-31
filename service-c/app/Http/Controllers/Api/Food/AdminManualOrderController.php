@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\ManualOrderCartServiceInterface;
-use App\Contracts\Food\ManualOrderQueryServiceInterface;
-use App\Contracts\Food\ManualOrderUserQueryServiceInterface;
-use App\Contracts\Food\OrderSubmissionServiceInterface;
+use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
+use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
+use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
+use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ListManualOrdersRequest;
@@ -18,7 +18,7 @@ use App\Http\Requests\Food\Admin\ManualUpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\Admin\ManualUpdateCartItemRequest;
 use App\Http\Requests\Food\Admin\ShowManualOrderCartRequest;
 use App\Http\Requests\Food\Admin\SubmitManualOrderRequest;
-use App\Models\MaxUser;
+use App\Models\Max\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

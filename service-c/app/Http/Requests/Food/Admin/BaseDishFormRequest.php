@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
-use App\DTO\Food\AdminDishDto;
-use App\DTO\Food\CreateDishDto;
-use App\DTO\Food\UpdateDishDto;
-use App\Enums\Food\DishVatRate;
-use App\Enums\Food\DishWeightUnit;
+use App\DTO\Food\Menu\AdminDishDto;
+use App\DTO\Food\Menu\CreateDishDto;
+use App\DTO\Food\Menu\UpdateDishDto;
+use App\Enums\Food\Menu\DishVatRate;
+use App\Enums\Food\Menu\DishWeightUnit;
 use App\Rules\MinImageDimensions;
 use App\Rules\ValidDishPhotoMime;
-use App\Support\DishPhotoAllowedExtensions;
+use App\Support\Food\Menu\DishPhotoAllowedExtensions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;

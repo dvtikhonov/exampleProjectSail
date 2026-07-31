@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Contracts\Food\Order;
+
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Food\FoodOrderAdmin;
+
+/**
+ * Репозиторий ролей администратора проверки заказов еды.
+ */
+interface FoodOrderAdminRepositoryInterface
+{
+    /**
+     * Проверяет наличие активной роли администратора у пользователя MAX.
+     */
+    public function hasActiveRole(int $maxUserId, FoodOrderAdminRole $role): bool;
+
+    /**
+     * Возвращает активные роли администратора пользователя MAX.
+     *
+     * @return list<FoodOrderAdminRole>
+     */
+    public function getActiveRoles(int $maxUserId): array;
+
+    /**
+     * Назначает или реактивирует роль администратора для пользователя MAX.
+     */
+    public function assignActiveRole(int $maxUserId, FoodOrderAdminRole $role): FoodOrderAdmin;
+
+    /**
+     * Уникальные max_user_id всех активных администраторов заказов.
+     *
+     * @return list<int>
+     */
+    public function listActiveAdminMaxUserIds(): array;
+
+    /**
+     * Уникальные max_user_id активных администраторов с указанной ролью.
+     *
+     * @return list<int>
+     */
+    public function listActiveMaxUserIdsByRole(FoodOrderAdminRole $role): array;
+}

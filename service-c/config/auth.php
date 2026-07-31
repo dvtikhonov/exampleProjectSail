@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\MaxUser;
+use App\Models\Max\MaxUser;
 use App\Models\User;
 
 return [

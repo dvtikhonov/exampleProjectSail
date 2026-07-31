@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\FoodOrderCustomerNotifierInterface;
-use App\Contracts\Food\FoodOrderMaxNotifierInterface;
-use App\Enums\Food\FoodOrderAdminRole;
-use App\Enums\Food\OrderRejectionScope;
-use App\Enums\Food\OrderReviewStatus;
-use App\Enums\Food\OrderStatus;
-use App\Models\Dish;
-use App\Models\FoodOrder;
-use App\Models\MaxUser;
-use App\Models\MenuCategory;
-use App\Models\Restaurant;
+use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Enums\Food\Order\OrderStatus;
+use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Review\OrderRejectionScope;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Models\Food\Dish;
+use App\Models\Food\FoodOrder;
+use App\Models\Food\MenuCategory;
+use App\Models\Food\Restaurant;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -80,7 +80,7 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->getJson('/api/food/admin/orders?scope=address&status=pending', $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Админ состава может видеть ожидающие заказы без одобрения адреса. */
@@ -327,7 +327,7 @@ class AdminOrderReviewApiTest extends TestCase
             'comment' => 'Нет блюда',
         ], $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Повторное одобрение адреса возвращает 422. */
@@ -347,7 +347,7 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Address review already completed.');
+            ->assertJsonPath('message', 'Проверка адреса уже завершена.');
     }
 
     /** Одобрение адреса возвращает 403 без роли. */
@@ -358,7 +358,7 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Отклонение состава требует комментарий. */
@@ -434,7 +434,7 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Composition review already completed.');
+            ->assertJsonPath('message', 'Проверка состава уже завершена.');
     }
 
     /** Просмотр деталей заказа требует scope и роль. */
@@ -451,7 +451,7 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->getJson("/api/food/admin/orders/{$orderId}", $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Query parameter scope is required.');
+            ->assertJsonPath('message', 'Параметр запроса scope обязателен.');
 
         $this->getJson("/api/food/admin/orders/{$orderId}?scope=address", $auth['headers'])
             ->assertOk()
@@ -639,7 +639,7 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->getJson('/api/food/admin/orders?scope=address&status=unknown', $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Invalid status. Use pending or all.');
+            ->assertJsonPath('message', 'Некорректный status. Используйте pending или all.');
     }
 
     /** Обновление состава меняет количество и пересчитывает суммы, включая доставку. */
@@ -809,7 +809,7 @@ class AdminOrderReviewApiTest extends TestCase
             ],
         ], $auth['headers'])
             ->assertForbidden()
-            ->assertJsonPath('message', 'Forbidden.');
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Обновление состава недоступно после завершения проверки состава. */
@@ -832,7 +832,7 @@ class AdminOrderReviewApiTest extends TestCase
             ],
         ], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Composition review already completed.');
+            ->assertJsonPath('message', 'Проверка состава уже завершена.');
     }
 
     /** Обновление состава отклоняет пустой список позиций. */
@@ -878,7 +878,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath(
                 'message',
-                sprintf('Combo pair "%s" must contain exactly two items.', $comboRef),
+                sprintf('Комбо-пара «%s» должна содержать ровно два элемента.', $comboRef),
             );
     }
 
@@ -895,7 +895,7 @@ class AdminOrderReviewApiTest extends TestCase
             ],
         ], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Dish does not belong to the order restaurant.');
+            ->assertJsonPath('message', 'Блюдо не принадлежит ресторану заказа.');
     }
 
     /** Можно менять количество уже принятого в заказ блюда, даже если оно стало недоступным. */
@@ -936,7 +936,7 @@ class AdminOrderReviewApiTest extends TestCase
             ],
         ], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Dish is not available.');
+            ->assertJsonPath('message', 'Блюдо недоступно.');
     }
 
     /** Можно менять количество комбо, уже лежащего в заказе, если блюда стали недоступны. */

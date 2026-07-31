@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Enums\Food\DishVatRate;
-use App\Enums\Food\DishWeightUnit;
-use App\Models\Dish;
-use App\Models\MenuCategory;
-use App\Models\Restaurant;
+use App\Enums\Food\Menu\DishVatRate;
+use App\Enums\Food\Menu\DishWeightUnit;
+use App\Models\Food\Dish;
+use App\Models\Food\MenuCategory;
+use App\Models\Food\Restaurant;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;

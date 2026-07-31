@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Models\MaxUser;
-use App\Services\Food\CartTotalsCalculator;
+use App\Models\Max\MaxUser;
+use App\Services\Food\Cart\CartTotalsCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;

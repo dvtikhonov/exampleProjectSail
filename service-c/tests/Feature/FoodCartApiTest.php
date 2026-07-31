@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\Food\CartStatus;
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\Dish;
-use App\Models\MaxUser;
-use App\Models\MenuCategory;
+use App\Enums\Food\Cart\CartStatus;
+use App\Models\Food\Cart;
+use App\Models\Food\CartItem;
+use App\Models\Food\Dish;
+use App\Models\Food\MenuCategory;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -175,7 +175,7 @@ class FoodCartApiTest extends TestCase
             'quantity' => 1,
         ], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Dish is not available.');
+            ->assertJsonPath('message', 'Блюдо недоступно.');
     }
 
     /** Добавление позиции отклоняет блюдо другого ресторана, если корзина уже есть. */
@@ -195,7 +195,7 @@ class FoodCartApiTest extends TestCase
             'quantity' => 1,
         ], $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Cart already contains items from another restaurant. Clear the cart before adding dishes from a different restaurant.');
+            ->assertJsonPath('message', 'В корзине уже есть блюда из другого ресторана. Очистите корзину перед добавлением блюд из другого ресторана.');
     }
 
     /** Обновляет количество позиции корзины. */

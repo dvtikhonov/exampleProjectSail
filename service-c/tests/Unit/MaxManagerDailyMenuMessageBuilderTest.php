@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\DTO\Food\DailyMenuDishPartDto;
-use App\DTO\Food\DailyMenuLineDto;
-use App\Enums\Food\DailyMenuLineType;
-use App\Services\Food\MaxManagerDailyMenuMessageBuilder;
+use App\DTO\Food\Menu\DailyMenuDishPartDto;
+use App\DTO\Food\Menu\DailyMenuLineDto;
+use App\Enums\Food\Menu\DailyMenuLineType;
+use App\Services\Max\Menu\MaxManagerDailyMenuMessageBuilder;
 use Carbon\CarbonImmutable;
 use Tests\TestCase;
 

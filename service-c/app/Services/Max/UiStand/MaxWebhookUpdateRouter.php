@@ -6,7 +6,7 @@ namespace App\Services\Max\UiStand;
 
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
-use App\Support\MaxUiStandRecipientRegistry;
+use App\Support\Max\MaxUiStandRecipientRegistry;
 use Illuminate\Support\Facades\Log;
 
 /**

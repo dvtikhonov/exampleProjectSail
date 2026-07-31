@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\DishImageUploadService;
-use App\Support\DishPhotoAllowedExtensions;
+use App\Services\Food\Menu\DishImageUploadService;
+use App\Support\Food\Menu\DishPhotoAllowedExtensions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\DishPhotoTestImageFactory;

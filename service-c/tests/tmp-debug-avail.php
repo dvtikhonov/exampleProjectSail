@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\Dish;
-use App\Models\DishAvailabilityDate;
-use App\Models\MenuCategory;
+use App\Models\Food\Dish;
+use App\Models\Food\DishAvailabilityDate;
+use App\Models\Food\MenuCategory;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Console\Kernel;
 

@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
-use App\Contracts\Food\OrderCompositionUpdateServiceInterface;
-use App\Enums\Food\OrderReviewStep;
+use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
+use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
 use App\Http\Requests\Food\UpdateOrderCompositionRequest;
-use App\Models\FoodOrder;
-use App\Models\MaxUser;
-use App\Services\Food\AdminOrderQueryService;
-use App\Services\Food\OrderReviewStepHandler;
+use App\Models\Food\FoodOrder;
+use App\Models\Max\MaxUser;
+use App\Services\Food\Order\AdminOrderQueryService;
+use App\Services\Food\Review\OrderReviewStepHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -73,7 +73,7 @@ class AdminOrderReviewController extends Controller
             $scope = (string) $request->query('scope', '');
 
             if ($scope === '') {
-                throw new FoodDomainException('Query parameter scope is required.', 422);
+                throw new FoodDomainException('Параметр запроса scope обязателен.', 422);
             }
 
             $orderDto = $this->adminOrderQueryService->detail($this->maxUser($request), $order, $scope);
