@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\DTO\Food\Order\OrderDto;
 use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
 use App\Models\Food\Restaurant;
+use App\Models\Max\MaxUser;
 use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
 use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use Tests\TestCase;

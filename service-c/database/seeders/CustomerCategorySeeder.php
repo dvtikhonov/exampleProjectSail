@@ -6,9 +6,9 @@ namespace Database\Seeders;
 
 use App\Enums\Food\Delivery\CustomerCategoryName;
 use App\Models\Food\CustomerCategory;
-use App\Models\Max\MaxUser;
 use App\Models\Food\Restaurant;
 use App\Models\Food\RestaurantCategoryDeliveryTier;
+use App\Models\Max\MaxUser;
 use Illuminate\Database\Seeder;
 
 class CustomerCategorySeeder extends Seeder

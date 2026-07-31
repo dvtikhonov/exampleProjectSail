@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Order;
 
+use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
-use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Order\OrderListItemDto;
 use App\Exceptions\Food\FoodDomainException;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Food\Cart;
 
 use App\Contracts\Food\Cart\CartRepositoryInterface;
+use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\Models\Max\MaxUser;
-use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 
 /**
  * Обновление адреса доставки в черновике корзины.

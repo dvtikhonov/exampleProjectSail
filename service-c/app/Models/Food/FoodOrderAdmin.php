@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Food;
 
-use App\Models\Max\MaxUser;
 use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Models\Max\MaxUser;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

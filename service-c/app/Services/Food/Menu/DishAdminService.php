@@ -18,9 +18,9 @@ use App\Enums\Food\Menu\DishVatRate;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Dish;
+use App\Services\Food\Shared\FoodMoneyFormatter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Административный CRUD блюд меню.

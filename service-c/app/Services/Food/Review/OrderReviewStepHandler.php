@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
+use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\FoodOrder;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Chat;
 
-use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Chat\OrderChatNotifierInterface;
 use App\Contracts\Food\Chat\OrderChatServiceInterface;
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
+use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
 use App\Exceptions\Food\FoodDomainException;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\ManualOrder;
 
-use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
+use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\DTO\Food\ManualOrder\ManualOrderDetailDto;
 use App\DTO\Food\ManualOrder\ManualOrderListItemDto;
 use App\Enums\Food\Order\OrderStatus;

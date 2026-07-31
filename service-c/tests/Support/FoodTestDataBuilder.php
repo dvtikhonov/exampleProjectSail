@@ -6,10 +6,10 @@ namespace Tests\Support;
 
 use App\Models\Food\CustomerCategory;
 use App\Models\Food\Dish;
-use App\Models\Max\MaxUser;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
 use App\Models\Food\RestaurantCategoryDeliveryTier;
+use App\Models\Max\MaxUser;
 
 class FoodTestDataBuilder
 {

@@ -9,8 +9,8 @@ use App\DTO\Food\Order\OrderItemsSnapshotDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Models\Food\CartItem;
 use App\Models\Food\Dish;
-use Illuminate\Support\Collection;
 use App\Services\Food\Shared\FoodMoneyFormatter;
+use Illuminate\Support\Collection;
 
 /**
  * Построение снимка позиций заказа из позиций корзины или блюд каталога.

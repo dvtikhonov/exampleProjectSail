@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Max\Food;
 
-use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Chat\OrderMessageDto;
+use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Enums\Food\Review\OrderRejectionScope;
 use App\Models\Food\FoodOrder;

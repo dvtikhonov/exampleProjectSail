@@ -11,10 +11,10 @@ use App\Models\Food\Dish;
 use App\Models\Food\DishAvailabilityDate;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\FoodOrderAdmin;
-use App\Models\Max\MaxUser;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
 use App\Models\Food\RestaurantCategoryDeliveryTier;
+use App\Models\Max\MaxUser;
 use Illuminate\Support\Facades\DB;
 
 trait ResetsFoodDomainTables

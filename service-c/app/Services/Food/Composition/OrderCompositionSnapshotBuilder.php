@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Composition;
 
-use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
+use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\DTO\Food\Composition\OrderCompositionSnapshotDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Dish;

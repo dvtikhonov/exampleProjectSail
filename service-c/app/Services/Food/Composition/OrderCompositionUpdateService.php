@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Composition;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
-use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
+use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
+use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\FoodOrder;
 use App\Models\Max\MaxUser;
-use Illuminate\Support\Facades\DB;
 use App\Services\Food\Review\OrderReviewAuthorizationService;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Обновление состава заказа проверяющим composition_reviewer.

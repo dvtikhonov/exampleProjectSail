@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Models\Max\MaxUser;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
+use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;

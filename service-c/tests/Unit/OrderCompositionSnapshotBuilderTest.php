@@ -6,8 +6,8 @@ namespace Tests\Unit;
 
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Dish;
-use App\Models\Max\MaxUser;
 use App\Models\Food\MenuCategory;
+use App\Models\Max\MaxUser;
 use App\Services\Food\Composition\OrderCompositionSnapshotBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;

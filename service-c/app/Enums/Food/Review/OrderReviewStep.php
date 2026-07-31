@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Enums\Food\Review;
 
+use App\Enums\Food\Order\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\FoodOrder;
-use App\Enums\Food\Order\OrderStatus;
 
 /**
  * Конфигурация этапа проверки заказа: поля БД, роль администратора и область отклонения.

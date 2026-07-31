@@ -7,15 +7,15 @@ namespace App\Services\Food\Cart;
 use App\Contracts\Food\Cart\CartRepositoryInterface;
 use App\Contracts\Food\Cart\CartServiceInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
+use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\Enums\Food\Cart\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Cart;
 use App\Models\Food\CartItem;
 use App\Models\Max\MaxUser;
-use App\Contracts\Max\MaxUserDeliveryAddressInterface;
-use Illuminate\Support\Facades\DB;
 use App\Services\Food\Composition\ComboPairValidator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Управление корзиной пользователя MAX mini-app.

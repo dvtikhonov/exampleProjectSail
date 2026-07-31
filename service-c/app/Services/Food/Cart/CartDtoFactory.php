@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Food\Cart;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Cart\CartItemDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Models\Food\Cart;
 use App\Models\Max\MaxUser;
-use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**

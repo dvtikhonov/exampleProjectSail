@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
-use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
+use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\DTO\Max\MaxManagerDailyMenuMessagesDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
