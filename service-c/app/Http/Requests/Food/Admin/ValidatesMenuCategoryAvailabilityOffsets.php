@@ -6,13 +6,14 @@ namespace App\Http\Requests\Food\Admin;
 
 use App\DTO\Food\Menu\MenuCategoryAvailabilityOffsetDto;
 use App\Enums\Food\Menu\Weekday;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
  * Общие правила и разбор availability_offsets для store/update категории меню.
  *
- * @mixin \Illuminate\Foundation\Http\FormRequest
+ * @mixin FormRequest
  */
 trait ValidatesMenuCategoryAvailabilityOffsets
 {

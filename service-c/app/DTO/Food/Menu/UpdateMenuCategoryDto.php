@@ -11,7 +11,7 @@ readonly class UpdateMenuCategoryDto
 {
     /**
      * @param  list<MenuCategoryAvailabilityOffsetDto>|null  $availabilityOffsets
-     *                                                         null — не менять правила смещения
+     *                                                                             null — не менять правила смещения
      */
     public function __construct(
         public int $restaurantId,
