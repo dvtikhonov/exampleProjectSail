@@ -37,25 +37,21 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
         $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
     }
 
-    /** Notify шлёт получателям уведомлений о заказах, как тестовый бот. */
+    /** Notify шлёт получателям уведомлений о заказах с датой из аргумента. */
     public function test_notify_posts_to_order_notification_recipients_like_test_bot(): void
     {
-        CarbonImmutable::setTestNow(
-            CarbonImmutable::parse('2026-07-09 03:00:00', 'Europe/Moscow'),
-        );
+        $menuDate = CarbonImmutable::parse('2026-08-01', 'Europe/Moscow');
 
         Http::fake([
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
         ]);
 
-        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify($menuDate);
 
         $this->assertSame(2, $sentCount);
 
-        $expectedText = MaxMenuAvailabilityNotifier::messageTextForDate(
-            CarbonImmutable::parse('2026-07-10', 'Europe/Moscow'),
-        );
-        $this->assertSame('Доступно для заказов меню на 10.07.2026', $expectedText);
+        $expectedText = MaxMenuAvailabilityNotifier::messageTextForDate($menuDate);
+        $this->assertSame('Доступно для заказов меню на 01.08.2026', $expectedText);
 
         Http::assertSentCount(2);
         Http::assertSent(function ($request) use ($expectedText): bool {
@@ -71,10 +67,6 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
     /** Notify шлёт пользователям с адресом доставки. */
     public function test_notify_posts_to_users_with_delivery_address(): void
     {
-        CarbonImmutable::setTestNow(
-            CarbonImmutable::parse('2026-07-09 03:00:00', 'Europe/Moscow'),
-        );
-
         config([
             'max.order_notifications.chat_ids' => [],
             'max.order_notifications.user_ids' => [],
@@ -90,7 +82,8 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
         ]);
 
-        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(1, $sentCount);
         Http::assertSentCount(1);
@@ -102,10 +95,6 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
     /** Notify дедуплицирует настроенных и пользователей с адресом. */
     public function test_notify_deduplicates_configured_and_delivery_address_users(): void
     {
-        CarbonImmutable::setTestNow(
-            CarbonImmutable::parse('2026-07-09 03:00:00', 'Europe/Moscow'),
-        );
-
         config([
             'max.order_notifications.chat_ids' => [],
             'max.order_notifications.user_ids' => [222],
@@ -121,7 +110,8 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
         ]);
 
-        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(2, $sentCount);
         Http::assertSentCount(2);
@@ -137,7 +127,8 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
 
         Http::fake();
 
-        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(0, $sentCount);
         Http::assertNothingSent();
@@ -150,7 +141,8 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
 
         Http::fake();
 
-        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxMenuAvailabilityNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(0, $sentCount);
         Http::assertNothingSent();

@@ -128,7 +128,7 @@ export function useMenuCategoryAdmin({ filters, onCategoriesChanged = async () =
 
     /**
      * @param {import('vue').Ref<string>} dishAdminView
-     * @param {object} fields
+     * @param {import('../api/admin/categories.js').MenuCategoryWriteFields} fields
      */
     async function submitCategoryForm(dishAdminView, fields) {
         categoryFormLoading.value = true;

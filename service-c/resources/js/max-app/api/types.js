@@ -282,6 +282,15 @@
  */
 
 /**
+ * Правило смещения доступности блюд категории (админка).
+ * Дни недели — ISO: 1=Пн … 7=Вс.
+ *
+ * @typedef {object} MenuCategoryAvailabilityOffsetDto
+ * @property {number[]} weekdays
+ * @property {number} offset_days
+ */
+
+/**
  * @typedef {object} AdminMenuCategoryDto
  * @property {number} id
  * @property {string} name
@@ -290,6 +299,7 @@
  * @property {number} sort_order
  * @property {boolean} is_combo_available
  * @property {number} dishes_count
+ * @property {MenuCategoryAvailabilityOffsetDto[]} availability_offsets
  */
 
 /**

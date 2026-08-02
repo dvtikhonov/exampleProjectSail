@@ -9,9 +9,13 @@ use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\DTO\Food\Menu\AdminMenuCategoryDto;
 use App\DTO\Food\Menu\CreateMenuCategoryDto;
+use App\DTO\Food\Menu\MenuCategoryAvailabilityOffsetDto;
 use App\DTO\Food\Menu\UpdateMenuCategoryDto;
+use App\Enums\Food\Menu\Weekday;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\MenuCategory;
+use App\Models\Food\MenuCategoryAvailabilityOffset;
+use Illuminate\Support\Collection;
 
 /**
  * Административный CRUD категорий меню.
@@ -62,7 +66,9 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             'is_combo_available' => $dto->isComboAvailable,
         ]);
 
-        return $this->mapToAdminDto($category->load('restaurant'));
+        $this->menuCategoryRepository->syncAvailabilityOffsets($category, $dto->availabilityOffsets);
+
+        return $this->mapToAdminDto($category->load(['restaurant', 'availabilityOffsets']));
     }
 
     /**
@@ -90,6 +96,11 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             'sort_order' => $dto->sortOrder,
             'is_combo_available' => $dto->isComboAvailable,
         ]);
+
+        if ($dto->availabilityOffsets !== null) {
+            $this->menuCategoryRepository->syncAvailabilityOffsets($category, $dto->availabilityOffsets);
+            $category->load('availabilityOffsets');
+        }
 
         return $this->mapToAdminDto($category);
     }
@@ -154,6 +165,45 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             sortOrder: (int) $category->sort_order,
             isComboAvailable: (bool) $category->is_combo_available,
             dishesCount: $this->menuCategoryRepository->countDishes($category->id),
+            availabilityOffsets: $this->mapAvailabilityOffsets($category),
         );
+    }
+
+    /**
+     * Группирует строки смещений по group_key в список правил.
+     *
+     * @return list<MenuCategoryAvailabilityOffsetDto>
+     */
+    private function mapAvailabilityOffsets(MenuCategory $category): array
+    {
+        /** @var Collection<string, Collection<int, MenuCategoryAvailabilityOffset>> $grouped */
+        $grouped = $category->availabilityOffsets
+            ->groupBy(static fn (MenuCategoryAvailabilityOffset $row): string => (string) $row->group_key);
+
+        $result = [];
+
+        foreach ($grouped as $rows) {
+            /** @var list<int> $weekdays */
+            $weekdays = $rows
+                ->map(static function (MenuCategoryAvailabilityOffset $row): int {
+                    $weekday = $row->weekday;
+
+                    return $weekday instanceof Weekday ? $weekday->value : (int) $weekday;
+                })
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            /** @var MenuCategoryAvailabilityOffset $first */
+            $first = $rows->first();
+
+            $result[] = new MenuCategoryAvailabilityOffsetDto(
+                weekdays: $weekdays,
+                offsetDays: (int) $first->offset_days,
+            );
+        }
+
+        return $result;
     }
 }

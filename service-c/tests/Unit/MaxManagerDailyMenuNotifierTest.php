@@ -35,25 +35,16 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
 
         Cache::flush();
 
-        CarbonImmutable::setTestNow(
-            CarbonImmutable::parse('2026-07-21 03:00:00', 'Europe/Moscow'),
-        );
-
         $collector = $this->createMock(DailyMenuLineCollectorInterface::class);
         $collector->method('collect')->willReturn([]);
         $this->app->instance(DailyMenuLineCollectorInterface::class, $collector);
-
-        $builder = $this->createMock(MaxManagerDailyMenuMessageBuilderInterface::class);
-        $builder->method('build')->willReturn(new MaxManagerDailyMenuMessagesDto(
-            withoutDelivery: 'menu-without-delivery',
-            withDelivery: 'menu-with-delivery',
-        ));
-        $this->app->instance(MaxManagerDailyMenuMessageBuilderInterface::class, $builder);
     }
 
-    /** Notify шлёт по два сообщения каждому max_manager. */
+    /** Notify шлёт по два сообщения каждому max_manager; build() получает переданную дату. */
     public function test_notify_sends_two_messages_to_each_max_manager(): void
     {
+        $menuDate = CarbonImmutable::parse('2026-08-01', 'Europe/Moscow');
+
         $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
         $adminRepository
             ->expects($this->once())
@@ -62,11 +53,27 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
             ->willReturn([1006, 1007]);
         $this->app->instance(FoodOrderAdminRepositoryInterface::class, $adminRepository);
 
+        $builder = $this->createMock(MaxManagerDailyMenuMessageBuilderInterface::class);
+        $builder
+            ->expects($this->once())
+            ->method('build')
+            ->with(
+                $this->callback(
+                    fn (CarbonImmutable $date): bool => $date->equalTo($menuDate),
+                ),
+                [],
+            )
+            ->willReturn(new MaxManagerDailyMenuMessagesDto(
+                withoutDelivery: 'menu-without-delivery',
+                withDelivery: 'menu-with-delivery',
+            ));
+        $this->app->instance(MaxManagerDailyMenuMessageBuilderInterface::class, $builder);
+
         Http::fake([
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
         ]);
 
-        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)->notify($menuDate);
 
         $this->assertSame(4, $sentCount);
         Http::assertSentCount(4);
@@ -94,6 +101,13 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
             ->willReturn([1003]);
         $this->app->instance(FoodOrderAdminRepositoryInterface::class, $adminRepository);
 
+        $builder = $this->createMock(MaxManagerDailyMenuMessageBuilderInterface::class);
+        $builder->method('build')->willReturn(new MaxManagerDailyMenuMessagesDto(
+            withoutDelivery: 'menu-without-delivery',
+            withDelivery: 'menu-with-delivery',
+        ));
+        $this->app->instance(MaxManagerDailyMenuMessageBuilderInterface::class, $builder);
+
         Http::fake([
             'platform-api.max.ru/messages?user_id=1003' => Http::response([
                 'code' => 'chat.not.found',
@@ -102,7 +116,8 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
             'platform-api.max.ru/messages?chat_id=-75495934087316' => Http::response(['message' => ['id' => 1]], 200),
         ]);
 
-        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(2, $sentCount);
         Http::assertSentCount(4);
@@ -127,7 +142,8 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
 
         Http::fake();
 
-        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(0, $sentCount);
         Http::assertNothingSent();
@@ -146,7 +162,8 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
 
         Http::fake();
 
-        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)->notify();
+        $sentCount = $this->app->make(MaxManagerDailyMenuNotifierInterface::class)
+            ->notify(CarbonImmutable::parse('2026-08-01', 'Europe/Moscow'));
 
         $this->assertSame(0, $sentCount);
         Http::assertNothingSent();

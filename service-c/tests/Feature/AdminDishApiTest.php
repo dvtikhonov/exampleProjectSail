@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\Food\Menu\DishWeightUnit;
+use App\Enums\Food\Menu\Weekday;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Food\Dish;
+use App\Models\Food\MenuCategoryAvailabilityOffset;
 use App\Models\Max\MaxUser;
 use App\Services\Max\LaravelMaxAdminBotTestSender;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -123,6 +126,54 @@ class AdminDishApiTest extends TestCase
             ->assertJsonCount(1, 'categories')
             ->assertJsonPath('categories.0.id', $fixture['category']->id)
             ->assertJsonPath('categories.0.restaurant_name', $fixture['restaurant']->name);
+    }
+
+    /** Список блюд без offsets отдаёт menu_availability_error и не ломает dishes. */
+    public function test_dishes_index_returns_menu_availability_error_when_offsets_empty(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'Борщ');
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'dishes')
+            ->assertJsonPath('dishes.0.id', $fixture['dish']->id)
+            ->assertJsonPath('menu_availability_date', null)
+            ->assertJsonPath('menu_availability_error', 'нет данных');
+    }
+
+    /** Список блюд с offsets отдаёт рассчитанную menu_availability_date. */
+    public function test_dishes_index_returns_menu_availability_date_from_offsets(): void
+    {
+        // Два offset_days на один weekday — из разных категорий (unique category+weekday).
+        $first = FoodTestDataBuilder::createRestaurantWithDish('Cafe A', 'Суп');
+        $second = FoodTestDataBuilder::createRestaurantWithDish('Cafe B', 'Салат');
+        MenuCategoryAvailabilityOffset::query()->create([
+            'menu_category_id' => $first['category']->id,
+            'group_key' => '11111111-1111-1111-1111-111111111111',
+            'weekday' => Weekday::Friday,
+            'offset_days' => 1,
+        ]);
+        MenuCategoryAvailabilityOffset::query()->create([
+            'menu_category_id' => $second['category']->id,
+            'group_key' => '22222222-2222-2222-2222-222222222222',
+            'weekday' => Weekday::Friday,
+            'offset_days' => 2,
+        ]);
+
+        $auth = $this->menuManagerAuth();
+
+        $this->travelTo(CarbonImmutable::parse('2026-07-31 12:00:00', 'Europe/Moscow'));
+
+        try {
+            $this->getJson('/api/food/admin/dishes', $auth['headers'])
+                ->assertOk()
+                ->assertJsonCount(2, 'dishes')
+                ->assertJsonPath('menu_availability_date', '2026-08-01')
+                ->assertJsonPath('menu_availability_error', null);
+        } finally {
+            $this->travelBack();
+        }
     }
 
     /** Менеджер меню может фильтровать блюда по ресторану и категории. */

@@ -2,6 +2,18 @@
  * Админ: CRUD категорий меню.
  *
  * @typedef {import('../types.js').AdminMenuCategoryDto} AdminMenuCategoryDto
+ * @typedef {import('../types.js').MenuCategoryAvailabilityOffsetDto} MenuCategoryAvailabilityOffsetDto
+ */
+
+/**
+ * Поля create/update категории меню.
+ *
+ * @typedef {object} MenuCategoryWriteFields
+ * @property {number} restaurant_id
+ * @property {string} name
+ * @property {boolean} is_combo_available
+ * @property {number} [sort_order]
+ * @property {MenuCategoryAvailabilityOffsetDto[]} [availability_offsets]
  */
 import { client } from '../http';
 
@@ -32,7 +44,7 @@ export async function fetchAdminMenuCategory(categoryId) {
 }
 
 /**
- * @param {object} fields
+ * @param {MenuCategoryWriteFields} fields
  * @returns {Promise<AdminMenuCategoryDto>}
  */
 export async function createMenuCategory(fields) {
@@ -43,7 +55,7 @@ export async function createMenuCategory(fields) {
 
 /**
  * @param {number} categoryId
- * @param {object} fields
+ * @param {MenuCategoryWriteFields} fields
  * @returns {Promise<AdminMenuCategoryDto>}
  */
 export async function updateMenuCategory(categoryId, fields) {

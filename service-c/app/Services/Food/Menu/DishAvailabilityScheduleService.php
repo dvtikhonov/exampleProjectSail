@@ -6,6 +6,7 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\DishAvailabilityChangeDto;
 use App\DTO\Food\Menu\DishAvailabilityGridDto;
@@ -29,6 +30,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
         private readonly DishAvailabilityRepositoryInterface $availabilityRepository,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly DishAvailabilitySyncService $availabilitySyncService,
+        private readonly MenuAvailabilityDateResolverInterface $availabilityDateResolver,
     ) {}
 
     /**
@@ -107,7 +109,13 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
             }
         });
 
-        $this->availabilitySyncService->syncForToday();
+        $menuDate = $this->availabilityDateResolver->resolveForCurrentWeekday();
+
+        if ($menuDate->date === null) {
+            return;
+        }
+
+        $this->availabilitySyncService->syncForCurrentWeekdayCategoryOffsets();
     }
 
     /**

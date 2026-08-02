@@ -28,7 +28,9 @@ use App\Contracts\Food\Menu\DishImageDeliveryInterface;
 use App\Contracts\Food\Menu\DishImageUploadInterface;
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
 use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
+use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
@@ -57,6 +59,7 @@ use App\Repositories\Food\Delivery\EloquentDeliveryTierRepository;
 use App\Repositories\Food\Menu\EloquentDailyMenuCatalogRepository;
 use App\Repositories\Food\Menu\EloquentDishAvailabilityRepository;
 use App\Repositories\Food\Menu\EloquentDishRepository;
+use App\Repositories\Food\Menu\EloquentMenuCategoryAvailabilityOffsetRepository;
 use App\Repositories\Food\Menu\EloquentMenuCategoryRepository;
 use App\Repositories\Food\Order\EloquentFoodOrderAdminRepository;
 use App\Repositories\Food\Order\EloquentFoodOrderRepository;
@@ -78,6 +81,7 @@ use App\Services\Food\Menu\DishAvailabilityScheduleService;
 use App\Services\Food\Menu\DishImageDeliveryService;
 use App\Services\Food\Menu\DishImageUploadService;
 use App\Services\Food\Menu\DishImageUrlResolver;
+use App\Services\Food\Menu\MenuAvailabilityDateResolver;
 use App\Services\Food\Menu\MenuCategoryAdminService;
 use App\Services\Food\Order\CustomerOrderQueryService;
 use App\Services\Food\Order\OrderSubmissionService;
@@ -131,6 +135,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MenuCategoryAdminServiceInterface::class, MenuCategoryAdminService::class);
         $this->app->bind(DishAvailabilityRepositoryInterface::class, EloquentDishAvailabilityRepository::class);
         $this->app->bind(DishAvailabilityScheduleServiceInterface::class, DishAvailabilityScheduleService::class);
+        $this->app->bind(
+            MenuCategoryAvailabilityOffsetRepositoryInterface::class,
+            EloquentMenuCategoryAvailabilityOffsetRepository::class,
+        );
+        $this->app->bind(MenuAvailabilityDateResolverInterface::class, MenuAvailabilityDateResolver::class);
         $this->app->bind(OrderSubmissionServiceInterface::class, OrderSubmissionService::class);
         $this->app->bind(OrderCompositionSnapshotBuilderInterface::class, OrderCompositionSnapshotBuilder::class);
         $this->app->bind(OrderCompositionUpdateServiceInterface::class, OrderCompositionUpdateService::class);

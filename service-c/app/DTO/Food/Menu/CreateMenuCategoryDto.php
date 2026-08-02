@@ -9,10 +9,14 @@ namespace App\DTO\Food\Menu;
  */
 readonly class CreateMenuCategoryDto
 {
+    /**
+     * @param  list<MenuCategoryAvailabilityOffsetDto>  $availabilityOffsets
+     */
     public function __construct(
         public int $restaurantId,
         public string $name,
         public int $sortOrder,
         public bool $isComboAvailable,
+        public array $availabilityOffsets = [],
     ) {}
 }

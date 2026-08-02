@@ -47,10 +47,25 @@ interface DishAvailabilityRepositoryInterface
     public function dishesBelongToCategory(array $dishIds, int $categoryId, int $restaurantId): bool;
 
     /**
+     * Сбрасывает is_available = false у всех активных блюд (без soft delete).
+     *
+     * @return int Количество обновлённых записей max_dishes
+     */
+    public function clearAllDishesIsAvailable(): int;
+
+    /**
      * Синхронизирует max_dishes.is_available по графику на указанную дату.
      * Учитываются только активные блюда (без soft delete).
      *
      * @return int Количество обновлённых записей max_dishes
      */
     public function syncDishesIsAvailableForDate(string $date): int;
+
+    /**
+     * Синхронизирует is_available блюд одной категории по графику на дату.
+     * Блюда других категорий не изменяются. Учитываются только активные (без soft delete).
+     *
+     * @return int Количество обновлённых записей max_dishes
+     */
+    public function syncDishesIsAvailableForCategoryAndDate(int $menuCategoryId, string $date): int;
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Max\MaxAdminBotTestSendResultDto;
@@ -28,6 +29,7 @@ class AdminDishController extends Controller
         private readonly DishAdminServiceInterface $dishAdminService,
         private readonly DishSpreadsheetImportService $dishSpreadsheetImportService,
         private readonly MaxAdminBotTestSenderInterface $maxAdminBotTestSender,
+        private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}
 
     /**
@@ -47,11 +49,15 @@ class AdminDishController extends Controller
             $availability,
         );
 
+        $menuAvailability = $this->menuAvailabilityDateResolver->resolve();
+
         return response()->json([
             'dishes' => array_map(
                 static fn ($dish): array => $dish->toArray(),
                 $dishes,
             ),
+            'menu_availability_date' => $menuAvailability->date,
+            'menu_availability_error' => $menuAvailability->error,
         ]);
     }
 

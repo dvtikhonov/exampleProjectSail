@@ -24,6 +24,16 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    /** Дата меню `Y-m-d` с бэкенда (или null) */
+    menuAvailabilityDate: {
+        type: String,
+        default: null,
+    },
+    /** Ошибка расчёта даты (например «нет данных») */
+    menuAvailabilityError: {
+        type: String,
+        default: null,
+    },
     refreshing: {
         type: Boolean,
         default: false,
@@ -124,6 +134,32 @@ const categorySelectOptions = computed(() => [
 ]);
 
 const availabilitySelectOptions = DISH_AVAILABILITY_FILTER_OPTIONS;
+
+/**
+ * @param {string} isoDate Дата в формате Y-m-d
+ * @returns {string} ДД.ММ.ГГГГ
+ */
+function formatMenuAvailabilityDate(isoDate) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+
+    if (!match) {
+        return isoDate;
+    }
+
+    return `${match[3]}.${match[2]}.${match[1]}`;
+}
+
+const menuSubtitle = computed(() => {
+    if (props.menuAvailabilityError) {
+        return `Блюда на - ${props.menuAvailabilityError}`;
+    }
+
+    if (props.menuAvailabilityDate) {
+        return `Блюда на ${formatMenuAvailabilityDate(props.menuAvailabilityDate)}`;
+    }
+
+    return '';
+});
 
 function onTouchStart(event) {
     if (readScrollTop() > 0 || props.loading || props.refreshing) {
@@ -283,7 +319,7 @@ defineExpose({ openFilePicker });
             <div class="flex items-center justify-between gap-3">
                 <div>
                     <h1 class="text-lg font-semibold text-gray-900">Меню</h1>
-                    <p class="text-sm text-max-muted">Управление блюдами</p>
+                    <p v-if="menuSubtitle" class="text-sm text-max-muted">{{ menuSubtitle }}</p>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                     <button

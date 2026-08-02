@@ -69,4 +69,14 @@ class MenuCategory extends Model
     {
         return $this->hasMany(Dish::class);
     }
+
+    /**
+     * Связь со смещениями доступности блюд по дням недели.
+     *
+     * @return HasMany<MenuCategoryAvailabilityOffset, $this>
+     */
+    public function availabilityOffsets(): HasMany
+    {
+        return $this->hasMany(MenuCategoryAvailabilityOffset::class);
+    }
 }

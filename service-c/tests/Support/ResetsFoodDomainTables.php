@@ -12,6 +12,7 @@ use App\Models\Food\DishAvailabilityDate;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\FoodOrderAdmin;
 use App\Models\Food\MenuCategory;
+use App\Models\Food\MenuCategoryAvailabilityOffset;
 use App\Models\Food\Restaurant;
 use App\Models\Food\RestaurantCategoryDeliveryTier;
 use App\Models\Max\MaxUser;
@@ -28,6 +29,7 @@ trait ResetsFoodDomainTables
         Cart::query()->delete();
         DishAvailabilityDate::query()->delete();
         Dish::query()->forceDelete();
+        MenuCategoryAvailabilityOffset::query()->delete();
         MenuCategory::query()->forceDelete();
         RestaurantCategoryDeliveryTier::query()->delete();
         DB::table('personal_access_tokens')->delete();

@@ -39,6 +39,8 @@ const {
     dishesLoading,
     dishesRefreshing,
     dishesError,
+    menuAvailabilityDate,
+    menuAvailabilityError,
     filterRestaurantId,
     filterCategoryId,
     filterNameSearch,
@@ -350,6 +352,8 @@ onUnmounted(() => {
                 :dishes="dishes"
                 :loading="dishesLoading"
                 :error="dishesError"
+                :menu-availability-date="menuAvailabilityDate"
+                :menu-availability-error="menuAvailabilityError"
                 :refreshing="dishesRefreshing"
                 :delete-error="deleteError"
                 :delete-loading-id="deleteLoadingId"

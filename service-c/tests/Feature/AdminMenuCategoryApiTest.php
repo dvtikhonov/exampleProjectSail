@@ -219,6 +219,216 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertJsonPath('menu.categories.0.is_combo_available', false);
     }
 
+    /** Менеджер меню может создать категорию с несколькими правилами смещения. */
+    public function test_menu_manager_can_create_category_with_availability_offsets(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $auth = $this->menuManagerAuth();
+
+        $response = $this->postJson('/api/food/admin/menu-categories', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Супы',
+            'is_combo_available' => true,
+            'availability_offsets' => [
+                ['weekdays' => [1, 2, 3, 4], 'offset_days' => 2],
+                ['weekdays' => [5], 'offset_days' => 3],
+            ],
+        ], $auth['headers'])
+            ->assertCreated()
+            ->assertJsonPath('category.name', 'Супы');
+
+        $offsets = $response->json('category.availability_offsets');
+        $this->assertIsArray($offsets);
+        $this->assertCount(2, $offsets);
+        $this->assertContains(['weekdays' => [1, 2, 3, 4], 'offset_days' => 2], $offsets);
+        $this->assertContains(['weekdays' => [5], 'offset_days' => 3], $offsets);
+
+        $categoryId = (int) $response->json('category.id');
+        $this->assertDatabaseCount('max_menu_category_availability_offsets', 5);
+        $this->assertDatabaseHas('max_menu_category_availability_offsets', [
+            'menu_category_id' => $categoryId,
+            'weekday' => 1,
+            'offset_days' => 2,
+        ]);
+        $this->assertDatabaseHas('max_menu_category_availability_offsets', [
+            'menu_category_id' => $categoryId,
+            'weekday' => 5,
+            'offset_days' => 3,
+        ]);
+    }
+
+    /** Менеджер меню может обновить категорию с несколькими правилами смещения. */
+    public function test_menu_manager_can_update_category_with_availability_offsets(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $auth = $this->menuManagerAuth();
+
+        $response = $this->putJson('/api/food/admin/menu-categories/'.$fixture['category']->id, [
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => $fixture['category']->name,
+            'sort_order' => $fixture['category']->sort_order,
+            'is_combo_available' => true,
+            'availability_offsets' => [
+                ['weekdays' => [6, 7], 'offset_days' => 1],
+                ['weekdays' => [1], 'offset_days' => 0],
+            ],
+        ], $auth['headers'])
+            ->assertOk();
+
+        $offsets = $response->json('category.availability_offsets');
+        $this->assertIsArray($offsets);
+        $this->assertCount(2, $offsets);
+        $this->assertContains(['weekdays' => [6, 7], 'offset_days' => 1], $offsets);
+        $this->assertContains(['weekdays' => [1], 'offset_days' => 0], $offsets);
+
+        $this->assertDatabaseCount('max_menu_category_availability_offsets', 3);
+        $this->assertDatabaseHas('max_menu_category_availability_offsets', [
+            'menu_category_id' => $fixture['category']->id,
+            'weekday' => 6,
+            'offset_days' => 1,
+        ]);
+        $this->assertDatabaseHas('max_menu_category_availability_offsets', [
+            'menu_category_id' => $fixture['category']->id,
+            'weekday' => 1,
+            'offset_days' => 0,
+        ]);
+    }
+
+    /** Update полностью заменяет набор правил смещения, в том числе на пустой массив. */
+    public function test_update_replaces_availability_offsets_including_empty_array(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $auth = $this->menuManagerAuth();
+
+        $createResponse = $this->postJson('/api/food/admin/menu-categories', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Гарниры',
+            'availability_offsets' => [
+                ['weekdays' => [1, 2], 'offset_days' => 4],
+                ['weekdays' => [3], 'offset_days' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertCreated();
+
+        $categoryId = (int) $createResponse->json('category.id');
+        $this->assertDatabaseCount('max_menu_category_availability_offsets', 3);
+
+        $replaceResponse = $this->putJson('/api/food/admin/menu-categories/'.$categoryId, [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Гарниры',
+            'sort_order' => 1,
+            'is_combo_available' => true,
+            'availability_offsets' => [
+                ['weekdays' => [5, 6], 'offset_days' => 2],
+            ],
+        ], $auth['headers'])
+            ->assertOk();
+
+        $replacedOffsets = $replaceResponse->json('category.availability_offsets');
+        $this->assertSame([['weekdays' => [5, 6], 'offset_days' => 2]], $replacedOffsets);
+        $this->assertDatabaseCount('max_menu_category_availability_offsets', 2);
+        $this->assertDatabaseMissing('max_menu_category_availability_offsets', [
+            'menu_category_id' => $categoryId,
+            'weekday' => 1,
+        ]);
+
+        $this->putJson('/api/food/admin/menu-categories/'.$categoryId, [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Гарниры',
+            'sort_order' => 1,
+            'is_combo_available' => true,
+            'availability_offsets' => [],
+        ], $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('category.availability_offsets', []);
+
+        $this->assertDatabaseCount('max_menu_category_availability_offsets', 0);
+    }
+
+    /** Store отклоняет пересечение дней недели между правилами смещения. */
+    public function test_store_rejects_overlapping_availability_offset_weekdays(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $auth = $this->menuManagerAuth();
+
+        $this->postJson('/api/food/admin/menu-categories', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Супы',
+            'availability_offsets' => [
+                ['weekdays' => [1, 2, 3], 'offset_days' => 2],
+                ['weekdays' => [3, 4], 'offset_days' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['availability_offsets.1.weekdays']);
+
+        $this->assertDatabaseCount('max_menu_category_availability_offsets', 0);
+    }
+
+    /** Update отклоняет пересечение дней недели между правилами смещения. */
+    public function test_update_rejects_overlapping_availability_offset_weekdays(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $auth = $this->menuManagerAuth();
+
+        $this->putJson('/api/food/admin/menu-categories/'.$fixture['category']->id, [
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => $fixture['category']->name,
+            'sort_order' => $fixture['category']->sort_order,
+            'is_combo_available' => true,
+            'availability_offsets' => [
+                ['weekdays' => [1, 5], 'offset_days' => 2],
+                ['weekdays' => [5], 'offset_days' => 0],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['availability_offsets.1.weekdays']);
+    }
+
+    /** Store отклоняет день недели вне диапазона 1–7. */
+    public function test_store_rejects_weekday_outside_iso_range(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $auth = $this->menuManagerAuth();
+
+        $this->postJson('/api/food/admin/menu-categories', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Супы',
+            'availability_offsets' => [
+                ['weekdays' => [0], 'offset_days' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['availability_offsets.0.weekdays.0']);
+
+        $this->postJson('/api/food/admin/menu-categories', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Супы',
+            'availability_offsets' => [
+                ['weekdays' => [8], 'offset_days' => 1],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['availability_offsets.0.weekdays.0']);
+    }
+
+    /** Store отклоняет пустой список дней недели в правиле смещения. */
+    public function test_store_rejects_empty_weekdays_in_availability_offset(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $auth = $this->menuManagerAuth();
+
+        $this->postJson('/api/food/admin/menu-categories', [
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Супы',
+            'availability_offsets' => [
+                ['weekdays' => [], 'offset_days' => 2],
+            ],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['availability_offsets.0.weekdays']);
+    }
+
     /**
      * @return array{user: MaxUser, token: string, headers: array<string, string>}
      */
