@@ -16,7 +16,7 @@ use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
 
 /**
- * Уведомление в MAX о доступности меню на завтра (дата заказа).
+ * Уведомление в MAX о доступности меню на дату «Блюда на».
  *
  * Получатели: MAX_REPORT_* и пользователи max_users с сохранённым адресом доставки.
  */
@@ -34,7 +34,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     /**
      * {@inheritDoc}
      */
-    public function notify(): int
+    public function notify(CarbonImmutable $menuDate): int
     {
         if (! $this->isBotConfigured()) {
             Log::channel('messMax')->warning('MAX menu availability notification skipped: bot is not configured');
@@ -51,7 +51,6 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
             return 0;
         }
 
-        $menuDate = CarbonImmutable::now(self::TIMEZONE)->addDay();
         $text = self::messageTextForDate($menuDate);
         $sentCount = 0;
 

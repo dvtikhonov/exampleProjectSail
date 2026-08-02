@@ -144,7 +144,7 @@ class AdminDishAvailabilityApiTest extends TestCase
             ],
         ], $auth['headers'])
             ->assertOk()
-            ->assertJsonPath('message', 'График доступности сохранён.');
+            ->assertJsonPath('message', 'График производства блюд сохранён.');
 
         $this->assertDatabaseHas('max_dish_availability_dates', [
             'dish_id' => $dishId,

@@ -55,7 +55,7 @@ class AdminDishAvailabilityController extends Controller
         }
 
         return response()->json([
-            'message' => 'График доступности сохранён.',
+            'message' => 'График производства блюд сохранён.',
         ]);
     }
 }

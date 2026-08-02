@@ -1,6 +1,6 @@
 <script setup>
 /**
- * График доступности блюд: таблица дата × блюдо с редактированием будущих дат.
+ * График производства блюд: таблица дата × блюдо с редактированием будущих дат.
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
@@ -333,7 +333,7 @@ watch(selectedDishesByDate, (map) => {
         <div class="shrink-0 space-y-3 border-b border-gray-100 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h1 class="text-lg font-semibold text-gray-900">График доступности</h1>
+                    <h1 class="text-lg font-semibold text-gray-900">График производства блюд</h1>
                     <p class="text-sm text-max-muted">Планирование по датам</p>
                 </div>
                 <button
@@ -442,7 +442,7 @@ watch(selectedDishesByDate, (map) => {
             class="max-app-scroll-viewport mx-4 mb-4 mt-3 rounded-2xl border border-gray-100 bg-white shadow-sm"
             tabindex="0"
             role="region"
-            aria-label="Таблица графика доступности. Используйте свайп или стрелки для прокрутки."
+            aria-label="Таблица графика производства блюд. Используйте свайп или стрелки для прокрутки."
             @focusin="onGridFocusIn"
         >
             <table class="schedule-grid-table w-max text-sm">

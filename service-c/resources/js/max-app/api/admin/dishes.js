@@ -12,7 +12,11 @@ import { client } from '../http';
  *   name?: string|null,
  *   availability?: string|null,
  * }} [filters]
- * @returns {Promise<AdminDishDto[]>}
+ * @returns {Promise<{
+ *   dishes: AdminDishDto[],
+ *   menuAvailabilityDate: string|null,
+ *   menuAvailabilityError: string|null,
+ * }>}
  */
 export async function fetchAdminDishes({
     restaurantId = null,
@@ -40,7 +44,11 @@ export async function fetchAdminDishes({
 
     const { data } = await client.get('/food/admin/dishes', { params });
 
-    return data.dishes;
+    return {
+        dishes: data.dishes,
+        menuAvailabilityDate: data.menu_availability_date ?? null,
+        menuAvailabilityError: data.menu_availability_error ?? null,
+    };
 }
 
 /**

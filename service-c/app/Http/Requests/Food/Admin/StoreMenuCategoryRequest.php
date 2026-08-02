@@ -6,12 +6,15 @@ namespace App\Http\Requests\Food\Admin;
 
 use App\DTO\Food\Menu\CreateMenuCategoryDto;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Валидация создания категории меню.
  */
 class StoreMenuCategoryRequest extends FormRequest
 {
+    use ValidatesMenuCategoryAvailabilityOffsets;
+
     /**
      * Разрешает выполнение запроса.
      */
@@ -32,7 +35,16 @@ class StoreMenuCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:65535'],
             'is_combo_available' => ['sometimes', 'boolean'],
+            ...$this->availabilityOffsetRules(),
         ];
+    }
+
+    /**
+     * Дополнительная проверка уникальности дней недели между правилами.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $this->validateAvailabilityOffsetWeekdayUniqueness($validator);
     }
 
     /**
@@ -45,6 +57,7 @@ class StoreMenuCategoryRequest extends FormRequest
         return [
             'restaurant_id.required' => 'Выберите ресторан.',
             'name.required' => 'Укажите название категории.',
+            ...$this->availabilityOffsetMessages(),
         ];
     }
 
@@ -60,6 +73,7 @@ class StoreMenuCategoryRequest extends FormRequest
             'name' => 'название',
             'sort_order' => 'порядок сортировки',
             'is_combo_available' => 'доступность в комбо',
+            ...$this->availabilityOffsetAttributes(),
         ];
     }
 
@@ -77,6 +91,7 @@ class StoreMenuCategoryRequest extends FormRequest
                 ? (int) $validated['sort_order']
                 : $defaultSortOrder,
             isComboAvailable: (bool) ($validated['is_combo_available'] ?? true),
+            availabilityOffsets: $this->mapAvailabilityOffsetsFromValidated($validated),
         );
     }
 }

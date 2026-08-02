@@ -129,6 +129,16 @@ class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryIn
     /**
      * {@inheritDoc}
      */
+    public function clearAllDishesIsAvailable(): int
+    {
+        return Dish::query()
+            ->where('is_available', true)
+            ->update(['is_available' => false]);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function syncDishesIsAvailableForDate(string $date): int
     {
         $dishIdsWithAvailability = DishAvailabilityDate::query()
@@ -150,6 +160,46 @@ class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryIn
             ->update(['is_available' => true]);
 
         $updated += Dish::query()
+            ->when(
+                $dishIdsWithAvailability !== [],
+                static fn ($query) => $query->whereNotIn('id', $dishIdsWithAvailability),
+            )
+            ->where('is_available', true)
+            ->update(['is_available' => false]);
+
+        return $updated;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function syncDishesIsAvailableForCategoryAndDate(int $menuCategoryId, string $date): int
+    {
+        $dishIdsWithAvailability = DishAvailabilityDate::query()
+            ->whereDate('available_date', $date)
+            ->whereHas(
+                'dish',
+                static fn ($query) => $query->where('menu_category_id', $menuCategoryId),
+            )
+            ->distinct()
+            ->pluck('dish_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        $updated = 0;
+
+        $updated += Dish::query()
+            ->where('menu_category_id', $menuCategoryId)
+            ->when(
+                $dishIdsWithAvailability !== [],
+                static fn ($query) => $query->whereIn('id', $dishIdsWithAvailability),
+                static fn ($query) => $query->whereRaw('1 = 0'),
+            )
+            ->where('is_available', false)
+            ->update(['is_available' => true]);
+
+        $updated += Dish::query()
+            ->where('menu_category_id', $menuCategoryId)
             ->when(
                 $dishIdsWithAvailability !== [],
                 static fn ($query) => $query->whereNotIn('id', $dishIdsWithAvailability),

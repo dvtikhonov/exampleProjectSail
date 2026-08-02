@@ -28,6 +28,10 @@ export function useDishAdmin({ filters }) {
     const dishesLoading = ref(false);
     const dishesRefreshing = ref(false);
     const dishesError = ref('');
+    /** @type {import('vue').Ref<string|null>} */
+    const menuAvailabilityDate = ref(null);
+    /** @type {import('vue').Ref<string|null>} */
+    const menuAvailabilityError = ref(null);
 
     const { filterRestaurantId, filterCategoryId, filterNameSearch } = filters;
     /** @type {import('vue').Ref<string>} */
@@ -143,12 +147,16 @@ export function useDishAdmin({ filters }) {
             const categoryId = filterCategoryId.value ? Number(filterCategoryId.value) : null;
             const nameSearch = filterNameSearch.value.trim();
 
-            dishes.value = await fetchAdminDishes({
+            const result = await fetchAdminDishes({
                 restaurantId,
                 categoryId,
                 name: nameSearch || null,
                 availability: filterAvailability.value,
             });
+
+            dishes.value = result.dishes;
+            menuAvailabilityDate.value = result.menuAvailabilityDate;
+            menuAvailabilityError.value = result.menuAvailabilityError;
         } catch (error) {
             dishesError.value = extractErrorMessage(error);
         } finally {
@@ -423,6 +431,8 @@ export function useDishAdmin({ filters }) {
         dishesLoading,
         dishesRefreshing,
         dishesError,
+        menuAvailabilityDate,
+        menuAvailabilityError,
         filterRestaurantId,
         filterCategoryId,
         filterNameSearch,

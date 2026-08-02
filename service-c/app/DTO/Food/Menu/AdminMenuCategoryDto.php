@@ -9,6 +9,9 @@ namespace App\DTO\Food\Menu;
  */
 readonly class AdminMenuCategoryDto
 {
+    /**
+     * @param  list<MenuCategoryAvailabilityOffsetDto>  $availabilityOffsets
+     */
     public function __construct(
         public int $id,
         public string $name,
@@ -17,12 +20,13 @@ readonly class AdminMenuCategoryDto
         public int $sortOrder,
         public bool $isComboAvailable,
         public int $dishesCount,
+        public array $availabilityOffsets = [],
     ) {}
 
     /**
      * Преобразует админский DTO категории меню в массив.
      *
-     * @return array<string, int|string|bool>
+     * @return array<string, int|string|bool|list<array{weekdays: list<int>, offset_days: int}>>
      */
     public function toArray(): array
     {
@@ -34,6 +38,10 @@ readonly class AdminMenuCategoryDto
             'sort_order' => $this->sortOrder,
             'is_combo_available' => $this->isComboAvailable,
             'dishes_count' => $this->dishesCount,
+            'availability_offsets' => array_map(
+                static fn (MenuCategoryAvailabilityOffsetDto $offset): array => $offset->toArray(),
+                $this->availabilityOffsets,
+            ),
         ];
     }
 }

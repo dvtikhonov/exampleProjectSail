@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
+use App\DTO\Food\Menu\MenuCategoryAvailabilityOffsetDto;
 use App\Models\Food\MenuCategory;
 
 /**
@@ -36,6 +37,13 @@ interface MenuCategoryRepositoryInterface
      * @param  array<string, mixed>  $attributes
      */
     public function update(MenuCategory $category, array $attributes): MenuCategory;
+
+    /**
+     * Полностью заменяет правила смещения доступности категории.
+     *
+     * @param  list<MenuCategoryAvailabilityOffsetDto>  $offsets
+     */
+    public function syncAvailabilityOffsets(MenuCategory $category, array $offsets): void;
 
     /**
      * Удаляет категорию меню.

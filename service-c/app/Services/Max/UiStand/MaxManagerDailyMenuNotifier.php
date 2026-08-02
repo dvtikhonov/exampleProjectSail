@@ -26,8 +26,6 @@ use Throwable;
  */
 class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterface
 {
-    private const string TIMEZONE = 'Europe/Moscow';
-
     public function __construct(
         private readonly MaxMessengerClientInterface $client,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
@@ -40,7 +38,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
     /**
      * {@inheritDoc}
      */
-    public function notify(): int
+    public function notify(CarbonImmutable $menuDate): int
     {
         if (! $this->isBotConfigured()) {
             Log::channel('messMax')->warning('MAX manager daily menu notification skipped: bot is not configured');
@@ -58,7 +56,6 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
             return 0;
         }
 
-        $menuDate = CarbonImmutable::now(self::TIMEZONE)->addDay();
         $messages = $this->messageBuilder->build($menuDate, $this->lineCollector->collect());
         $texts = [$messages->withoutDelivery, $messages->withDelivery];
         $sentCount = 0;

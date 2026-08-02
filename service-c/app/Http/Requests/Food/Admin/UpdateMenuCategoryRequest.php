@@ -6,12 +6,15 @@ namespace App\Http\Requests\Food\Admin;
 
 use App\DTO\Food\Menu\UpdateMenuCategoryDto;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Валидация обновления категории меню.
  */
 class UpdateMenuCategoryRequest extends FormRequest
 {
+    use ValidatesMenuCategoryAvailabilityOffsets;
+
     /**
      * Разрешает выполнение запроса.
      */
@@ -32,7 +35,16 @@ class UpdateMenuCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'sort_order' => ['required', 'integer', 'min:0', 'max:65535'],
             'is_combo_available' => ['required', 'boolean'],
+            ...$this->availabilityOffsetRules(),
         ];
+    }
+
+    /**
+     * Дополнительная проверка уникальности дней недели между правилами.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $this->validateAvailabilityOffsetWeekdayUniqueness($validator);
     }
 
     /**
@@ -45,6 +57,7 @@ class UpdateMenuCategoryRequest extends FormRequest
         return [
             'restaurant_id.required' => 'Выберите ресторан.',
             'name.required' => 'Укажите название категории.',
+            ...$this->availabilityOffsetMessages(),
         ];
     }
 
@@ -60,6 +73,7 @@ class UpdateMenuCategoryRequest extends FormRequest
             'name' => 'название',
             'sort_order' => 'порядок сортировки',
             'is_combo_available' => 'доступность в комбо',
+            ...$this->availabilityOffsetAttributes(),
         ];
     }
 
@@ -75,6 +89,9 @@ class UpdateMenuCategoryRequest extends FormRequest
             name: trim((string) $validated['name']),
             sortOrder: (int) $validated['sort_order'],
             isComboAvailable: (bool) $validated['is_combo_available'],
+            availabilityOffsets: array_key_exists('availability_offsets', $validated)
+                ? $this->mapAvailabilityOffsetsFromValidated($validated)
+                : null,
         );
     }
 }

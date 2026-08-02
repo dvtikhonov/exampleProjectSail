@@ -5,6 +5,24 @@
 import { computed, ref, watch } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
 
+/** @typedef {import('../../api/types.js').MenuCategoryAvailabilityOffsetDto} MenuCategoryAvailabilityOffsetDto */
+
+const WEEKDAY_OPTIONS = [
+    { value: 1, label: 'Пн' },
+    { value: 2, label: 'Вт' },
+    { value: 3, label: 'Ср' },
+    { value: 4, label: 'Чт' },
+    { value: 5, label: 'Пт' },
+    { value: 6, label: 'Сб' },
+    { value: 7, label: 'Вс' },
+];
+
+/**
+ * @typedef {object} AvailabilityOffsetRuleForm
+ * @property {number[]} weekdays
+ * @property {string} offset_days
+ */
+
 const props = defineProps({
     category: {
         type: Object,
@@ -40,6 +58,8 @@ const restaurantId = ref('');
 const name = ref('');
 const sortOrder = ref('0');
 const isComboAvailable = ref(true);
+/** @type {import('vue').Ref<AvailabilityOffsetRuleForm[]>} */
+const availabilityOffsetRules = ref([]);
 
 const fieldErrors = ref({});
 
@@ -58,11 +78,47 @@ const restaurantSelectOptions = computed(() => [
     })),
 ]);
 
+/** Дни недели, уже занятые хотя бы в одном правиле. */
+const occupiedWeekdays = computed(() => {
+    /** @type {Set<number>} */
+    const occupied = new Set();
+
+    for (const rule of availabilityOffsetRules.value) {
+        for (const weekday of rule.weekdays) {
+            occupied.add(weekday);
+        }
+    }
+
+    return occupied;
+});
+
+const canAddOffsetRule = computed(() => occupiedWeekdays.value.size < WEEKDAY_OPTIONS.length);
+
+/**
+ * @param {MenuCategoryAvailabilityOffsetDto[]|undefined|null} offsets
+ * @returns {AvailabilityOffsetRuleForm[]}
+ */
+function mapOffsetsFromCategory(offsets) {
+    if (!Array.isArray(offsets)) {
+        return [];
+    }
+
+    return offsets.map((rule) => ({
+        weekdays: Array.isArray(rule.weekdays)
+            ? [...rule.weekdays].map(Number).filter((day) => day >= 1 && day <= 7).sort((a, b) => a - b)
+            : [],
+        offset_days: rule.offset_days !== undefined && rule.offset_days !== null
+            ? String(rule.offset_days)
+            : '0',
+    }));
+}
+
 function resetForm() {
     restaurantId.value = props.category?.restaurant_id ? String(props.category.restaurant_id) : '';
     name.value = props.category?.name ?? '';
     sortOrder.value = props.category?.sort_order !== undefined ? String(props.category.sort_order) : '0';
     isComboAvailable.value = props.category?.is_combo_available ?? true;
+    availabilityOffsetRules.value = mapOffsetsFromCategory(props.category?.availability_offsets);
     fieldErrors.value = {};
 }
 
@@ -73,6 +129,86 @@ watch(
     },
     { immediate: true },
 );
+
+function addOffsetRule() {
+    if (!canAddOffsetRule.value) {
+        return;
+    }
+
+    availabilityOffsetRules.value.push({
+        weekdays: [],
+        offset_days: '0',
+    });
+}
+
+/**
+ * @param {number} index
+ */
+function removeOffsetRule(index) {
+    availabilityOffsetRules.value.splice(index, 1);
+}
+
+/**
+ * День занят в другом правиле (для текущего — disabled).
+ *
+ * @param {number} ruleIndex
+ * @param {number} weekday
+ * @returns {boolean}
+ */
+function isWeekdayTakenByOtherRule(ruleIndex, weekday) {
+    return availabilityOffsetRules.value.some(
+        (rule, index) => index !== ruleIndex && rule.weekdays.includes(weekday),
+    );
+}
+
+/**
+ * @param {number} ruleIndex
+ * @param {number} weekday
+ */
+function toggleWeekday(ruleIndex, weekday) {
+    const rule = availabilityOffsetRules.value[ruleIndex];
+
+    if (!rule || isWeekdayTakenByOtherRule(ruleIndex, weekday)) {
+        return;
+    }
+
+    if (rule.weekdays.includes(weekday)) {
+        rule.weekdays = rule.weekdays.filter((day) => day !== weekday);
+    } else {
+        rule.weekdays = [...rule.weekdays, weekday].sort((a, b) => a - b);
+    }
+}
+
+/**
+ * @param {number} index
+ * @param {string} field
+ * @returns {string|undefined}
+ */
+function offsetRuleFieldError(index, field) {
+    return displayFieldErrors.value[`availability_offsets.${index}.${field}`];
+}
+
+/**
+ * Пересечения дней между правилами (клиентская проверка).
+ *
+ * @returns {boolean}
+ */
+function hasWeekdayIntersections() {
+    /** @type {Set<number>} */
+    const seen = new Set();
+
+    for (const rule of availabilityOffsetRules.value) {
+        for (const weekday of rule.weekdays) {
+            if (seen.has(weekday)) {
+                return true;
+            }
+
+            seen.add(weekday);
+        }
+    }
+
+    return false;
+}
 
 function validateForm() {
     const errors = {};
@@ -91,6 +227,22 @@ function validateForm() {
         errors.sort_order = 'Укажите корректный порядок сортировки.';
     }
 
+    if (hasWeekdayIntersections()) {
+        errors.availability_offsets = 'Один день недели нельзя указать в нескольких правилах.';
+    }
+
+    availabilityOffsetRules.value.forEach((rule, index) => {
+        if (rule.weekdays.length === 0) {
+            errors[`availability_offsets.${index}.weekdays`] = 'Выберите хотя бы один день недели.';
+        }
+
+        const parsedOffset = Number.parseInt(rule.offset_days, 10);
+
+        if (!Number.isFinite(parsedOffset) || parsedOffset < 0 || parsedOffset > 30) {
+            errors[`availability_offsets.${index}.offset_days`] = 'Укажите смещение от 0 до 30 дней.';
+        }
+    });
+
     fieldErrors.value = errors;
 
     return Object.keys(errors).length === 0;
@@ -101,10 +253,17 @@ function handleSubmit() {
         return;
     }
 
+    /** @type {MenuCategoryAvailabilityOffsetDto[]} */
+    const availabilityOffsets = availabilityOffsetRules.value.map((rule) => ({
+        weekdays: [...rule.weekdays],
+        offset_days: Number.parseInt(rule.offset_days, 10),
+    }));
+
     const fields = {
         restaurant_id: Number(restaurantId.value),
         name: name.value.trim(),
         is_combo_available: isComboAvailable.value,
+        availability_offsets: availabilityOffsets,
     };
 
     if (isEditMode.value) {
@@ -193,6 +352,106 @@ function handleSubmit() {
                     >
                     <span class="text-sm text-gray-800">Доступна в режиме «Комбо»</span>
                 </label>
+
+                <section class="space-y-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-sm font-medium text-gray-900">Смещение доступности блюд</h2>
+                            <p class="mt-0.5 text-xs text-gray-500">
+                                На сколько дней сдвигать доступность блюд в выбранные дни недели (0–30).
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-max-primary transition hover:bg-max-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                            :disabled="!canAddOffsetRule"
+                            @click="addOffsetRule"
+                        >
+                            Добавить
+                        </button>
+                    </div>
+
+                    <p v-if="displayFieldErrors.availability_offsets" class="text-sm text-red-600">
+                        {{ displayFieldErrors.availability_offsets }}
+                    </p>
+
+                    <p
+                        v-if="availabilityOffsetRules.length === 0"
+                        class="text-sm text-gray-500"
+                    >
+                        Правила не заданы — смещение не применяется.
+                    </p>
+
+                    <div
+                        v-for="(rule, ruleIndex) in availabilityOffsetRules"
+                        :key="ruleIndex"
+                        class="space-y-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-3"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-medium text-gray-600">Правило {{ ruleIndex + 1 }}</span>
+                            <button
+                                type="button"
+                                class="text-xs font-medium text-red-600 transition hover:text-red-700"
+                                @click="removeOffsetRule(ruleIndex)"
+                            >
+                                Удалить
+                            </button>
+                        </div>
+
+                        <div class="flex items-start gap-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="mb-2 text-xs font-medium text-gray-700">Дни недели</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <label
+                                        v-for="day in WEEKDAY_OPTIONS"
+                                        :key="day.value"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition"
+                                        :class="[
+                                            rule.weekdays.includes(day.value)
+                                                ? 'border-max-primary bg-max-primary/10 text-max-primary'
+                                                : 'border-gray-200 bg-white text-gray-700',
+                                            isWeekdayTakenByOtherRule(ruleIndex, day.value)
+                                                ? 'cursor-not-allowed opacity-40'
+                                                : 'cursor-pointer hover:border-gray-300',
+                                        ]"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="sr-only"
+                                            :checked="rule.weekdays.includes(day.value)"
+                                            :disabled="isWeekdayTakenByOtherRule(ruleIndex, day.value)"
+                                            @change="toggleWeekday(ruleIndex, day.value)"
+                                        >
+                                        {{ day.label }}
+                                    </label>
+                                </div>
+                                <p
+                                    v-if="offsetRuleFieldError(ruleIndex, 'weekdays')"
+                                    class="mt-1 text-sm text-red-600"
+                                >
+                                    {{ offsetRuleFieldError(ruleIndex, 'weekdays') }}
+                                </p>
+                            </div>
+
+                            <div class="w-24 shrink-0">
+                                <label class="mb-2 block text-xs font-medium text-gray-700">Смещение, дней</label>
+                                <input
+                                    v-model="rule.offset_days"
+                                    type="number"
+                                    min="0"
+                                    max="30"
+                                    class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-max-primary focus:outline-none focus:ring-1 focus:ring-max-primary"
+                                >
+                                <p
+                                    v-if="offsetRuleFieldError(ruleIndex, 'offset_days')"
+                                    class="mt-1 text-sm text-red-600"
+                                >
+                                    {{ offsetRuleFieldError(ruleIndex, 'offset_days') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <button
                     type="submit"
