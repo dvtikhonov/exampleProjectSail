@@ -94,6 +94,7 @@ class DishAdminService implements DishAdminServiceInterface
      * Пакетный импорт строк из таблицы: при точном совпадении названия обновляет только цену.
      *
      * @param  list<ImportDishRowDto>  $rows
+     *
      * @throws FoodDomainException
      */
     public function importSpreadsheetRows(array $rows, int $menuCategoryId): int
