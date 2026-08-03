@@ -2,9 +2,11 @@
 /**
  * Модалка подтверждения заявки перед отправкой заказа.
  */
+import { computed } from 'vue';
 import { getCartGroupTitle } from '../../utils/cartGroups';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
-defineProps({
+const props = defineProps({
     open: {
         type: Boolean,
         default: false,
@@ -32,6 +34,8 @@ defineProps({
 });
 
 defineEmits(['close', 'confirm']);
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_date) || '—');
 </script>
 
 <template>
@@ -64,9 +68,15 @@ defineEmits(['close', 'confirm']);
                 </ul>
             </div>
 
-            <div class="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
-                <p class="mt-1 text-gray-900">{{ deliveryAddress.trim() }}</p>
+            <div class="mt-4 space-y-2">
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
+                    <p class="mt-1 text-gray-900">{{ deliveryAddress.trim() }}</p>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
+                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                    <p class="mt-1 text-gray-900">{{ deliveryDateLabel }}</p>
+                </div>
             </div>
 
             <div class="mt-4 space-y-1.5 text-sm">

@@ -9,8 +9,10 @@ import OrderChatPanel from '../components/OrderChatPanel.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
 import { useOrderDetailPaneLayout } from '../composables/useOrderDetailPaneLayout';
+import { formatIsoDateRu } from '../utils/formatIsoDateRu';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     /** @type {{ type: ObjectConstructor, required: true }} Деталь заказа (OrderDto) */
     order: {
         type: Object,
@@ -27,6 +29,8 @@ defineProps({
 });
 
 const emit = defineEmits(['back', 'messages-read']);
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_date) || '—');
 
 const {
     activateDetails,
@@ -83,6 +87,9 @@ const {
                     <div class="min-h-0 flex-1 overflow-y-auto p-3">
                         <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
                         <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
+
+                        <p class="mt-3 text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                        <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
 
                         <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
                             <OrderSnapshotItemRow

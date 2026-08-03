@@ -22,6 +22,7 @@ readonly class OrderDto
         public ?string $deliveryCost,
         public string $total,
         public ?string $deliveryAddress,
+        public ?string $deliveryDate,
         public array $itemsSnapshot,
         public string $createdAt,
     ) {}
@@ -43,6 +44,7 @@ readonly class OrderDto
             'delivery_cost' => $this->deliveryCost,
             'total' => $this->total,
             'delivery_address' => $this->deliveryAddress,
+            'delivery_date' => $this->deliveryDate,
             'items_snapshot' => $this->itemsSnapshot,
             'created_at' => $this->createdAt,
         ];

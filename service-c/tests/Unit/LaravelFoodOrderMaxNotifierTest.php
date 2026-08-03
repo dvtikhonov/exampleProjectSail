@@ -251,6 +251,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
             deliveryCost: '200.00',
             total: '1150.00',
             deliveryAddress: 'ул. Ленина, 1',
+            deliveryDate: null,
             itemsSnapshot: [
                 [
                     'dish_name' => 'Маргарита',

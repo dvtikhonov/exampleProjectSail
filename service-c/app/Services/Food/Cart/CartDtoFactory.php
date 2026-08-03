@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Cart;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Cart\CartItemDto;
@@ -23,6 +24,7 @@ class CartDtoFactory
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
+        private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}
 
     /**
@@ -77,6 +79,7 @@ class CartDtoFactory
                 : null,
             total: $this->moneyFormatter->format($totals->total),
             deliveryAddress: $this->resolveDeliveryAddress($cart, $maxUser),
+            deliveryDate: $this->menuAvailabilityDateResolver->resolve()->date,
             customerCategory: $totals->customerCategory,
             deliveryApplicable: $totals->deliveryApplicable,
             nextTierMinTotal: $totals->nextTierMinTotal !== null

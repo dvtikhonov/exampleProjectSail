@@ -101,6 +101,7 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
                 : null,
             total: $this->formatMoney($order->total),
             deliveryAddress: $order->delivery_address,
+            deliveryDate: $order->delivery_date?->format('Y-m-d'),
             itemsSnapshot: $order->items_snapshot ?? [],
             createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
         );

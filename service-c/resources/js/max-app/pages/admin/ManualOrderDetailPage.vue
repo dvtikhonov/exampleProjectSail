@@ -10,6 +10,7 @@ import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 import { formatDishWeight } from '../../utils/dishWeight';
 import { buildSnapshotGroups, getSnapshotGroupTitle } from '../../utils/orderSnapshotGroups';
 import { formatCustomerName } from '../../utils/formatCustomerName';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
 const props = defineProps({
     order: {
@@ -33,6 +34,8 @@ const chatOpen = ref(false);
 const orderGroups = computed(() => buildSnapshotGroups(props.order?.items_snapshot ?? []));
 
 const deliveryApplicable = computed(() => props.order?.delivery_applicable === true);
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_date) || '—');
 
 const hasMessages = computed(() => props.order?.has_messages === true);
 
@@ -136,6 +139,8 @@ function openChat() {
             >
                 <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
                 <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
+                <p class="mt-3 text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
                 <p
                     v-if="customerLabel"
                     class="mt-1 truncate text-xs text-max-muted"

@@ -2,9 +2,11 @@
 /**
  * Fixed footer корзины: итоги и кнопка оформления заявки.
  */
+import { computed } from 'vue';
 import CartDeliveryHint from './CartDeliveryHint.vue';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
-defineProps({
+const props = defineProps({
     cart: {
         type: Object,
         required: true,
@@ -28,6 +30,8 @@ defineProps({
 });
 
 defineEmits(['submit']);
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_date));
 </script>
 
 <template>
@@ -35,6 +39,13 @@ defineEmits(['submit']);
         <div class="mb-2 space-y-1.5 text-sm">
             <template v-if="deliveryApplicable">
                 <p class="mb-1 text-base font-medium text-gray-900">Детали</p>
+                <div
+                    v-if="deliveryDateLabel"
+                    class="flex items-center justify-between"
+                >
+                    <span class="text-max-muted">Дата доставки</span>
+                    <span class="font-medium text-gray-900">{{ deliveryDateLabel }}</span>
+                </div>
                 <div class="flex items-center justify-between">
                     <span class="text-max-muted">Сумма блюд</span>
                     <span class="font-medium text-gray-900">{{ cart.items_total }} ₽</span>
@@ -49,9 +60,18 @@ defineEmits(['submit']);
                     <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
                 </div>
             </template>
-            <div v-else class="flex items-center justify-between text-base">
-                <span class="font-medium text-gray-900">Итого</span>
-                <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
+            <div v-else class="space-y-1.5">
+                <div
+                    v-if="deliveryDateLabel"
+                    class="flex items-center justify-between text-sm"
+                >
+                    <span class="text-max-muted">Дата доставки</span>
+                    <span class="font-medium text-gray-900">{{ deliveryDateLabel }}</span>
+                </div>
+                <div class="flex items-center justify-between text-base">
+                    <span class="font-medium text-gray-900">Итого</span>
+                    <span class="text-xl font-bold text-gray-900">{{ cart.total }} ₽</span>
+                </div>
             </div>
         </div>
         <p

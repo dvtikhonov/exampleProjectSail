@@ -119,6 +119,7 @@ class ManualOrderQueryService implements ManualOrderQueryServiceInterface
             customerLastName: $order->maxUser?->last_name,
             customerUsername: $order->maxUser?->username,
             deliveryAddress: $order->delivery_address,
+            deliveryDate: $order->delivery_date?->format('Y-m-d'),
             itemsTotal: $this->moneyFormatter->format($order->items_total),
             deliveryApplicable: $order->delivery_cost !== null,
             deliveryCost: $order->delivery_cost !== null

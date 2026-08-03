@@ -89,6 +89,12 @@ class FoodOrderMaxMessageBuilder
             $lines[] = sprintf('Адрес: %s', $address);
         }
 
+        $deliveryDateLabel = $this->formatDeliveryDateLabel($order->deliveryDate);
+
+        if ($deliveryDateLabel !== null) {
+            $lines[] = sprintf('Дата доставки: %s', $deliveryDateLabel);
+        }
+
         return implode("\n", $lines);
     }
 
@@ -175,7 +181,7 @@ class FoodOrderMaxMessageBuilder
 
         $header = sprintf(
             'Заказ на %s. от %s:',
-            $this->formatOrderDate($order->created_at),
+            $this->formatOrderDate($order->delivery_date ?? $order->created_at),
             $this->formatCustomerDisplayName($order->maxUser),
         );
 
@@ -253,6 +259,14 @@ class FoodOrderMaxMessageBuilder
 
         if ($address !== '') {
             $headerLines[] = sprintf('Адрес: %s', $address);
+        }
+
+        $deliveryDateLabel = $this->formatDeliveryDateLabel(
+            $order->delivery_date?->format('Y-m-d'),
+        );
+
+        if ($deliveryDateLabel !== null) {
+            $headerLines[] = sprintf('Дата доставки: %s', $deliveryDateLabel);
         }
 
         $header = implode("\n", $headerLines);
@@ -400,6 +414,22 @@ class FoodOrderMaxMessageBuilder
         }
 
         return Carbon::now(self::BUSINESS_TIMEZONE)->format('d.m');
+    }
+
+    /**
+     * Дата доставки (Y-m-d) в формате дд.мм.гггг для текста уведомления.
+     */
+    private function formatDeliveryDateLabel(?string $deliveryDate): ?string
+    {
+        if ($deliveryDate === null || trim($deliveryDate) === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', trim($deliveryDate), $matches) !== 1) {
+            return null;
+        }
+
+        return sprintf('%s.%s.%s', $matches[3], $matches[2], $matches[1]);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Cart\CartRepositoryInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
@@ -37,6 +38,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
         private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly OrderStatusResolver $orderStatusResolver,
+        private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}
 
     /**
@@ -129,6 +131,8 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
 
         $this->maxUserDeliveryAddressService->persist($customer, $cart->delivery_address);
 
+        $deliveryDate = $this->menuAvailabilityDateResolver->resolve()->date;
+
         $order = $this->foodOrderWriteRepository->create([
             'cart_id' => $cart->id,
             'max_user_id' => $customer->max_user_id,
@@ -138,6 +142,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
             ...$this->initialReviewAttributes($isManual, $createdByMaxUserId),
             'total' => $formattedTotal,
             'delivery_address' => $cart->delivery_address,
+            'delivery_date' => $deliveryDate,
             'delivery_cost' => $formattedDeliveryCost,
             'items_total' => $formattedItemsTotal,
             'items_snapshot' => $snapshot->itemsSnapshot,
@@ -158,6 +163,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 deliveryCost: $formattedDeliveryCost,
                 total: $formattedTotal,
                 deliveryAddress: $cart->delivery_address,
+                deliveryDate: $deliveryDate,
                 itemsSnapshot: $order->items_snapshot ?? [],
                 createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             ),

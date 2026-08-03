@@ -81,6 +81,7 @@
  * @property {string|null} delivery_cost
  * @property {string} total
  * @property {string|null} delivery_address
+ * @property {string|null} delivery_date
  * @property {OrderSnapshotItem[]} items_snapshot
  * @property {string} created_at
  */
@@ -116,6 +117,7 @@
  * @property {string} restaurant_name
  * @property {OrderCustomer} customer
  * @property {string|null} delivery_address
+ * @property {string|null} delivery_date
  * @property {string} items_total
  * @property {string|null} delivery_cost
  * @property {string} total
@@ -171,6 +173,7 @@
  * @property {string|null} delivery_cost
  * @property {string} total
  * @property {string|null} delivery_address
+ * @property {string|null} delivery_date
  * @property {CartCustomerCategory|null} customer_category
  * @property {boolean} delivery_applicable
  * @property {string|null} next_tier_min_total
