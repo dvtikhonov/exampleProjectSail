@@ -42,27 +42,47 @@ class AdminOrderQueryService
     }
 
     /**
-     * Возвращает список заказов для админского API по scope и статусу.
+     * Возвращает постраничный список заказов для админского API по scope и статусу.
      *
-     * @return list<AdminOrderListItemDto>
+     * @return array{
+     *     orders: list<AdminOrderListItemDto>,
+     *     meta: array{current_page: int, per_page: int, total: int, last_page: int}
+     * }
      *
      * @throws FoodDomainException
      */
-    public function list(MaxUser $admin, string $scope, string $status): array
+    public function list(MaxUser $admin, string $scope, string $status, int $perPage): array
     {
         $this->assertScopeAccess($admin, $scope);
 
-        $orders = match ($status) {
+        $paginator = match ($status) {
             'pending' => match ($scope) {
-                'address' => $this->foodOrderReadRepository->findForAddressReview(OrderReviewStatus::Pending),
-                'composition' => $this->foodOrderReadRepository->findForCompositionReview(OrderReviewStatus::Pending),
+                'address' => $this->foodOrderReadRepository->paginateForAddressReview(
+                    OrderReviewStatus::Pending,
+                    $perPage,
+                ),
+                'composition' => $this->foodOrderReadRepository->paginateForCompositionReview(
+                    OrderReviewStatus::Pending,
+                    $perPage,
+                ),
                 default => throw new FoodDomainException('Некорректный scope. Используйте address или composition.', 422),
             },
-            'all' => $this->foodOrderReadRepository->findAll(),
+            'all' => $this->foodOrderReadRepository->paginateAll($perPage),
             default => throw new FoodDomainException('Некорректный status. Используйте pending или all.', 422),
         };
 
-        return $this->mapListItems($admin, $orders);
+        /** @var list<FoodOrder> $orders */
+        $orders = array_values($paginator->items());
+
+        return [
+            'orders' => $this->mapListItems($admin, $orders),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ];
     }
 
     /**

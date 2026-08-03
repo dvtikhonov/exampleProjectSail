@@ -97,16 +97,19 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
             $this->assertEditableDates($change->dates, $editableFrom, $rangeFrom, $rangeTo);
         }
 
-        DB::transaction(function () use ($dto, $rangeFrom, $rangeTo, $editableFrom): void {
-            foreach ($dto->changes as $change) {
-                $this->availabilityRepository->syncDishAvailabilityInRange(
-                    $change->dishId,
-                    $change->dates,
-                    $rangeFrom,
-                    $rangeTo,
-                    $editableFrom,
-                );
-            }
+        $dishAvailableDates = [];
+
+        foreach ($dto->changes as $change) {
+            $dishAvailableDates[$change->dishId] = $change->dates;
+        }
+
+        DB::transaction(function () use ($dishAvailableDates, $rangeFrom, $rangeTo, $editableFrom): void {
+            $this->availabilityRepository->syncDishesAvailabilityInRange(
+                $dishAvailableDates,
+                $rangeFrom,
+                $rangeTo,
+                $editableFrom,
+            );
         });
 
         $menuDate = $this->availabilityDateResolver->resolveForCurrentWeekday();

@@ -59,7 +59,7 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
     /**
      * {@inheritDoc}
      */
-    public function findForAddressReview(OrderReviewStatus $reviewStatus): array
+    public function paginateForAddressReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator
     {
         $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
@@ -81,14 +81,14 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
 
         return $query
             ->orderByDesc('created_at')
-            ->get()
-            ->all();
+            ->orderByDesc('id')
+            ->paginate($perPage);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findForCompositionReview(OrderReviewStatus $reviewStatus): array
+    public function paginateForCompositionReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator
     {
         $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
@@ -106,8 +106,8 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
 
         return $query
             ->orderByDesc('created_at')
-            ->get()
-            ->all();
+            ->orderByDesc('id')
+            ->paginate($perPage);
     }
 
     /**
@@ -126,13 +126,13 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
     /**
      * {@inheritDoc}
      */
-    public function findAll(): array
+    public function paginateAll(int $perPage): LengthAwarePaginator
     {
         return FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
             ->orderByDesc('created_at')
-            ->get()
-            ->all();
+            ->orderByDesc('id')
+            ->paginate($perPage);
     }
 
     /**
@@ -243,6 +243,7 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
     {
         return FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
+            ->withExists('messages')
             ->where('is_manual', true)
             ->whereKey($id)
             ->first();

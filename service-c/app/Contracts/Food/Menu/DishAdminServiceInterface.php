@@ -38,18 +38,13 @@ interface DishAdminServiceInterface
     public function create(CreateDishDto $dto, UploadedFile $photo): AdminDishDto;
 
     /**
-     * Импорт строки из таблицы: при точном совпадении названия обновляет только цену.
+     * Пакетный импорт строк из таблицы: при точном совпадении названия обновляет только цену.
+     *
+     * @param  list<ImportDishRowDto>  $rows
      *
      * @throws FoodDomainException
      */
-    public function importSpreadsheetRow(ImportDishRowDto $row, int $menuCategoryId): void;
-
-    /**
-     * Создание блюда с placeholder-изображением (импорт из таблицы).
-     *
-     * @throws FoodDomainException
-     */
-    public function createWithDefaultImage(CreateDishDto $dto): AdminDishDto;
+    public function importSpreadsheetRows(array $rows, int $menuCategoryId): int;
 
     /**
      * @throws FoodDomainException

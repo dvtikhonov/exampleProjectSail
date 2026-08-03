@@ -10,14 +10,23 @@ import { client } from '../http';
 /**
  * @param {'address'|'composition'} scope — adminScope, не adminSection (см. constants/views.js)
  * @param {string} [status]
- * @returns {Promise<AdminOrderListItemDto[]>}
+ * @param {{ page?: number, perPage?: number }} [options]
+ * @returns {Promise<{ orders: AdminOrderListItemDto[], meta: { current_page: number, per_page: number, total: number, last_page: number } }>}
  */
-export async function fetchAdminOrders(scope, status = 'pending') {
+export async function fetchAdminOrders(scope, status = 'pending', options = {}) {
     const { data } = await client.get('/food/admin/orders', {
-        params: { scope, status },
+        params: {
+            scope,
+            status,
+            ...(options.page != null ? { page: options.page } : {}),
+            ...(options.perPage != null ? { per_page: options.perPage } : {}),
+        },
     });
 
-    return data.orders;
+    return {
+        orders: data.orders,
+        meta: data.meta,
+    };
 }
 
 /**

@@ -169,7 +169,7 @@ class AdminDishApiTest extends TestCase
             $this->getJson('/api/food/admin/dishes', $auth['headers'])
                 ->assertOk()
                 ->assertJsonCount(2, 'dishes')
-                ->assertJsonPath('menu_availability_date', '2026-08-01')
+                ->assertJsonPath('menu_availability_date', '2026-08-02')
                 ->assertJsonPath('menu_availability_error', null);
         } finally {
             $this->travelBack();

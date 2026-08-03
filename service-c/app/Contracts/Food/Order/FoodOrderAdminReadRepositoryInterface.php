@@ -20,25 +20,25 @@ interface FoodOrderAdminReadRepositoryInterface
     public function findById(int $id): ?FoodOrder;
 
     /**
-     * Заказы для проверки адреса с указанным статусом этапа.
+     * Постраничный список заказов для проверки адреса с указанным статусом этапа.
      *
-     * @return list<FoodOrder>
+     * @return LengthAwarePaginator<int, FoodOrder>
      */
-    public function findForAddressReview(OrderReviewStatus $reviewStatus): array;
+    public function paginateForAddressReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator;
 
     /**
-     * Заказы для проверки состава с указанным статусом этапа.
+     * Постраничный список заказов для проверки состава с указанным статусом этапа.
      *
-     * @return list<FoodOrder>
+     * @return LengthAwarePaginator<int, FoodOrder>
      */
-    public function findForCompositionReview(OrderReviewStatus $reviewStatus): array;
+    public function paginateForCompositionReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator;
 
     /**
-     * Все заказы в хронологическом порядке (новые первыми).
+     * Постраничный список всех заказов в хронологическом порядке (новые первыми).
      *
-     * @return list<FoodOrder>
+     * @return LengthAwarePaginator<int, FoodOrder>
      */
-    public function findAll(): array;
+    public function paginateAll(int $perPage): LengthAwarePaginator;
 
     /**
      * Постраничный список ручных заказов с фильтром по потребителю, периоду, статусу и/или ФИО.

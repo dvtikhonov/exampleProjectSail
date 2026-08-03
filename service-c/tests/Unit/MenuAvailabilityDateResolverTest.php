@@ -15,10 +15,10 @@ use Tests\TestCase;
  */
 class MenuAvailabilityDateResolverTest extends TestCase
 {
-    /** min(offset_days) == 1 → referenceDate + 1. */
-    public function test_min_offset_one_adds_one_day(): void
+    /** max(offset_days) при нескольких значениях → referenceDate + max. */
+    public function test_multiple_offsets_adds_max_days(): void
     {
-        // Пт 31.07, offsets [1, 2] → 01.08
+        // Пт 31.07, offsets [1, 2] → 02.08
         $result = $this->resolve(
             hasAny: true,
             byWeekday: [5 => [1, 2]],
@@ -26,11 +26,11 @@ class MenuAvailabilityDateResolverTest extends TestCase
         );
 
         $this->assertNull($result->error);
-        $this->assertSame('2026-08-01', $result->date);
+        $this->assertSame('2026-08-02', $result->date);
     }
 
-    /** min(offset_days) > 1 → referenceDate + max(offset_days). */
-    public function test_min_offset_greater_than_one_adds_max(): void
+    /** max(offset_days) > 1 → referenceDate + max(offset_days). */
+    public function test_max_offset_greater_than_one_adds_max(): void
     {
         // Пт 31.07, offsets [2, 3] → 03.08
         $result = $this->resolve(
@@ -43,12 +43,25 @@ class MenuAvailabilityDateResolverTest extends TestCase
         $this->assertSame('2026-08-03', $result->date);
     }
 
-    /** min(offset_days) == 0 → referenceDate + 0. */
-    public function test_min_offset_zero_keeps_reference_date(): void
+    /** max с нулём среди offsets → всё равно +max, не +0. */
+    public function test_zero_among_offsets_still_uses_max(): void
     {
         $result = $this->resolve(
             hasAny: true,
             byWeekday: [5 => [0, 2]],
+            now: '2026-07-31',
+        );
+
+        $this->assertNull($result->error);
+        $this->assertSame('2026-08-02', $result->date);
+    }
+
+    /** Единственный offset 0 → referenceDate + 0. */
+    public function test_sole_zero_offset_keeps_reference_date(): void
+    {
+        $result = $this->resolve(
+            hasAny: true,
+            byWeekday: [5 => [0]],
             now: '2026-07-31',
         );
 
@@ -70,8 +83,8 @@ class MenuAvailabilityDateResolverTest extends TestCase
         $this->assertSame('2026-07-31', $result->date);
     }
 
-    /** Откат с min > 1: offset от даты отката + max. */
-    public function test_lookback_with_min_greater_than_one_uses_rollback_date(): void
+    /** Откат с несколькими offsets: offset от даты отката + max. */
+    public function test_lookback_with_multiple_offsets_uses_rollback_date_plus_max(): void
     {
         // Пт пусто, Чт [2, 4] → referenceDate=30.07 → 03.08
         $result = $this->resolve(
@@ -113,8 +126,8 @@ class MenuAvailabilityDateResolverTest extends TestCase
         $this->assertSame('нет данных', $result->error);
     }
 
-    /** resolveForCurrentWeekday: Пт [1,2] → 2026-08-01 без lookback. */
-    public function test_resolve_for_current_weekday_friday_offsets_add_one(): void
+    /** resolveForCurrentWeekday: Пт [1,2] → 2026-08-02 без lookback. */
+    public function test_resolve_for_current_weekday_friday_offsets_add_max(): void
     {
         $result = $this->resolveForCurrentWeekday(
             byWeekday: [5 => [1, 2]],
@@ -122,7 +135,7 @@ class MenuAvailabilityDateResolverTest extends TestCase
         );
 
         $this->assertNull($result->error);
-        $this->assertSame('2026-08-01', $result->date);
+        $this->assertSame('2026-08-02', $result->date);
     }
 
     /** resolveForCurrentWeekday: пустой weekday → null, без отката. */
