@@ -16,6 +16,7 @@ import { useCompositionEdit } from '../../composables/useCompositionEdit';
 import { useOrderDetailPaneLayout } from '../../composables/useOrderDetailPaneLayout';
 import { ADMIN_SCOPES } from '../../constants/views';
 import { formatCustomerName } from '../../utils/formatCustomerName';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 import ConfirmCompositionSaveModal from './ConfirmCompositionSaveModal.vue';
 import RejectOrderModal from './RejectOrderModal.vue';
 
@@ -65,6 +66,8 @@ const emit = defineEmits([
     'messages-read',
     'composition-saved',
 ]);
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_date) || '—');
 
 const orderRef = computed(() => props.order);
 const scopeRef = toRef(props, 'scope');
@@ -214,6 +217,8 @@ function handleConfirmSave() {
                 >
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
                     <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
+                    <p class="mt-3 text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                    <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
                 </div>
 
                 <div

@@ -60,6 +60,8 @@ const sortOrder = ref('0');
 const isComboAvailable = ref(true);
 /** @type {import('vue').Ref<AvailabilityOffsetRuleForm[]>} */
 const availabilityOffsetRules = ref([]);
+/** @type {import('vue').Ref<object|null>} */
+const initialSnapshot = ref(null);
 
 const fieldErrors = ref({});
 
@@ -113,6 +115,45 @@ function mapOffsetsFromCategory(offsets) {
     }));
 }
 
+/**
+ * @returns {object}
+ */
+function buildFormSnapshot() {
+    return {
+        restaurantId: restaurantId.value,
+        name: name.value.trim(),
+        sortOrder: sortOrder.value,
+        isComboAvailable: isComboAvailable.value,
+        availabilityOffsetRules: availabilityOffsetRules.value.map((rule) => ({
+            weekdays: [...rule.weekdays],
+            offset_days: rule.offset_days,
+        })),
+    };
+}
+
+/**
+ * @param {object} left
+ * @param {object} right
+ * @returns {boolean}
+ */
+function areSnapshotsEqual(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+}
+
+const hasUnsavedChanges = computed(() => {
+    if (!isEditMode.value || initialSnapshot.value === null) {
+        return true;
+    }
+
+    return !areSnapshotsEqual(buildFormSnapshot(), initialSnapshot.value);
+});
+
+const submitDisabled = computed(() =>
+    props.submitLoading
+    || props.loading
+    || !hasUnsavedChanges.value,
+);
+
 function resetForm() {
     restaurantId.value = props.category?.restaurant_id ? String(props.category.restaurant_id) : '';
     name.value = props.category?.name ?? '';
@@ -120,6 +161,7 @@ function resetForm() {
     isComboAvailable.value = props.category?.is_combo_available ?? true;
     availabilityOffsetRules.value = mapOffsetsFromCategory(props.category?.availability_offsets);
     fieldErrors.value = {};
+    initialSnapshot.value = buildFormSnapshot();
 }
 
 watch(
@@ -249,7 +291,7 @@ function validateForm() {
 }
 
 function handleSubmit() {
-    if (!validateForm()) {
+    if (submitDisabled.value || !validateForm()) {
         return;
     }
 
@@ -453,10 +495,22 @@ function handleSubmit() {
                     </div>
                 </section>
 
+                <p
+                    v-if="isEditMode && hasUnsavedChanges"
+                    class="text-xs font-medium text-amber-600"
+                >
+                    Есть несохранённые изменения
+                </p>
+
                 <button
                     type="submit"
-                    class="w-full rounded-2xl bg-max-primary px-4 py-3 text-sm font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="submitLoading"
+                    class="w-full rounded-2xl px-4 py-3 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
+                    :class="
+                        hasUnsavedChanges
+                            ? 'bg-max-primary text-white hover:bg-max-primary-hover'
+                            : 'border border-gray-200 bg-white text-gray-400'
+                    "
+                    :disabled="submitDisabled"
                 >
                     {{ submitLoading ? 'Сохранение…' : 'Сохранить' }}
                 </button>

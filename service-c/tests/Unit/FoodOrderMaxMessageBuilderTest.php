@@ -77,6 +77,33 @@ TEXT,
         $this->assertLessThanOrEqual(4000, mb_strlen($text));
     }
 
+    /** Включает дату доставки в заголовок MAX-сообщения о заявке. */
+    public function test_builds_message_with_delivery_date(): void
+    {
+        $order = $this->makeOrder(
+            id: 42,
+            restaurantName: 'Пиццерия',
+            itemsTotal: '950.00',
+            deliveryApplicable: true,
+            deliveryCost: '200.00',
+            total: '1150.00',
+            deliveryAddress: 'ул. Ленина, 1',
+            itemsSnapshot: [
+                [
+                    'dish_name' => 'Маргарита',
+                    'quantity' => 1,
+                    'line_total' => '950.00',
+                ],
+            ],
+            deliveryDate: '2026-08-04',
+        );
+
+        $text = $this->builder->build($order, $this->makeMaxUser(maxUserId: 1002, firstName: 'Иван'));
+
+        $this->assertStringContainsString('Дата доставки: 04.08.2026', $text);
+        $this->assertStringContainsString('Адрес: ул. Ленина, 1', $text);
+    }
+
     /** Собирает сообщение без секции доставки, если она не применима. */
     public function test_builds_message_without_delivery_section_when_not_applicable(): void
     {
@@ -349,6 +376,7 @@ TEXT,
         string $total,
         ?string $deliveryAddress,
         array $itemsSnapshot,
+        ?string $deliveryDate = null,
     ): OrderDto {
         return new OrderDto(
             id: $id,
@@ -360,6 +388,7 @@ TEXT,
             deliveryCost: $deliveryCost,
             total: $total,
             deliveryAddress: $deliveryAddress,
+            deliveryDate: $deliveryDate,
             itemsSnapshot: $itemsSnapshot,
             createdAt: '2026-06-22T12:00:00+00:00',
         );

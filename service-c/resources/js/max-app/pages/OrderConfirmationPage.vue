@@ -7,8 +7,10 @@
  */
 import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
+import { formatIsoDateRu } from '../utils/formatIsoDateRu';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     /** Оформленный заказ (OrderDto после submit) */
     order: {
         type: Object,
@@ -30,6 +32,8 @@ defineProps({
 });
 
 const emit = defineEmits(['back-to-restaurants', 'go-to-order', 'back-to-users']);
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_date) || '—');
 </script>
 
 <template>
@@ -58,9 +62,15 @@ const emit = defineEmits(['back-to-restaurants', 'go-to-order', 'back-to-users']
         </p>
 
         <div class="mt-8 w-full max-w-sm rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm">
-            <div class="border-b border-gray-100 pb-3">
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
-                <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address }}</p>
+            <div class="space-y-3 border-b border-gray-100 pb-3">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
+                    <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address }}</p>
+                </div>
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                    <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
+                </div>
             </div>
 
             <ul class="mt-3 space-y-2">

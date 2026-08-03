@@ -8,12 +8,16 @@ use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Cart\CartStatus;
+use App\Enums\Food\Menu\Weekday;
 use App\Enums\Food\Order\OrderStatus;
 use App\Models\Food\Dish;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\MenuCategory;
+use App\Models\Food\MenuCategoryAvailabilityOffset;
 use App\Models\Max\MaxUser;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -171,6 +175,58 @@ class FoodOrderApiTest extends TestCase
         ]);
 
         $this->assertSame(1, FoodOrder::query()->count());
+    }
+
+    /** Submit сохраняет дату доставки, равную «Блюда на дату». */
+    public function test_submit_order_persists_delivery_date_equal_to_menu_availability_date(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Delivery Date Place',
+            'Soup',
+            400,
+        );
+        $weekday = Weekday::from(CarbonImmutable::now('Europe/Moscow')->dayOfWeekIso);
+        MenuCategoryAvailabilityOffset::query()->create([
+            'menu_category_id' => $fixture['category']->id,
+            'group_key' => (string) Str::uuid(),
+            'weekday' => $weekday,
+            'offset_days' => 1,
+        ]);
+        $expectedDeliveryDate = CarbonImmutable::now('Europe/Moscow')
+            ->startOfDay()
+            ->addDays(1)
+            ->format('Y-m-d');
+
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+        $address = 'ул. Доставки, 10';
+
+        $this->addItemToCart($auth, $fixture['dish']->id, 1);
+        $this->setCartDeliveryAddress($auth, $address);
+
+        $this->getJson('/api/food/cart', $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('cart.delivery_date', $expectedDeliveryDate);
+
+        $response = $this->postJson('/api/food/orders/submit', [], $auth['headers']);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('order.delivery_date', $expectedDeliveryDate)
+            ->assertJsonPath('order.delivery_address', $address);
+
+        $this->assertDatabaseHas('max_food_orders', [
+            'max_user_id' => $auth['user']->max_user_id,
+            'delivery_address' => $address,
+            'delivery_date' => $expectedDeliveryDate,
+        ]);
+
+        $orderId = (int) $response->json('order.id');
+
+        $this->getJson("/api/food/orders/{$orderId}", $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('order.delivery_date', $expectedDeliveryDate);
     }
 
     /** Submit включает метаданные комбо в снимок позиций. */
