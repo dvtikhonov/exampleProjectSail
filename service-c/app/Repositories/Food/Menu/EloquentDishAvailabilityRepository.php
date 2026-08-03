@@ -61,46 +61,45 @@ class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryIn
     /**
      * {@inheritDoc}
      */
-    public function syncDishAvailabilityInRange(
-        int $dishId,
-        array $availableDates,
+    public function syncDishesAvailabilityInRange(
+        array $dishAvailableDates,
         string $rangeFrom,
         string $rangeTo,
         string $editableFrom,
     ): void {
+        if ($dishAvailableDates === []) {
+            return;
+        }
+
         $syncFrom = max($rangeFrom, $editableFrom);
+        $dishIds = array_map(static fn (int|string $id): int => (int) $id, array_keys($dishAvailableDates));
+        $now = now();
+        $rows = [];
 
-        $datesInScope = array_values(array_filter(
-            $availableDates,
-            static fn (string $date): bool => $date >= $syncFrom && $date <= $rangeTo,
-        ));
+        foreach ($dishAvailableDates as $dishId => $availableDates) {
+            $datesInScope = array_values(array_unique(array_filter(
+                $availableDates,
+                static fn (string $date): bool => $date >= $syncFrom && $date <= $rangeTo,
+            )));
 
-        DB::transaction(function () use ($dishId, $datesInScope, $syncFrom, $rangeTo): void {
+            foreach ($datesInScope as $date) {
+                $rows[] = [
+                    'dish_id' => (int) $dishId,
+                    'available_date' => $date,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($dishIds, $syncFrom, $rangeTo, $rows): void {
             DishAvailabilityDate::query()
-                ->where('dish_id', $dishId)
+                ->whereIn('dish_id', $dishIds)
                 ->whereBetween('available_date', [$syncFrom, $rangeTo])
-                ->when(
-                    $datesInScope !== [],
-                    static fn ($query) => $query->whereNotIn('available_date', $datesInScope),
-                )
                 ->delete();
 
-            if ($datesInScope === []) {
-                return;
-            }
-
-            $existingDates = DishAvailabilityDate::query()
-                ->where('dish_id', $dishId)
-                ->whereIn('available_date', $datesInScope)
-                ->pluck('available_date')
-                ->map(static fn ($date) => $date->format('Y-m-d'))
-                ->all();
-
-            foreach (array_diff($datesInScope, $existingDates) as $date) {
-                DishAvailabilityDate::query()->create([
-                    'dish_id' => $dishId,
-                    'available_date' => $date,
-                ]);
+            foreach (array_chunk($rows, 500) as $chunk) {
+                DishAvailabilityDate::query()->insert($chunk);
             }
         });
     }
@@ -208,5 +207,44 @@ class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryIn
             ->update(['is_available' => false]);
 
         return $updated;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function enableDishesIsAvailableForCategoryDates(array $categoryIdToDate): int
+    {
+        if ($categoryIdToDate === []) {
+            return 0;
+        }
+
+        $dishIds = DishAvailabilityDate::query()
+            ->where(function ($query) use ($categoryIdToDate): void {
+                foreach ($categoryIdToDate as $menuCategoryId => $date) {
+                    $query->orWhere(function ($inner) use ($menuCategoryId, $date): void {
+                        $inner->where('available_date', $date)
+                            ->whereHas(
+                                'dish',
+                                static fn ($dishQuery) => $dishQuery->where(
+                                    'menu_category_id',
+                                    (int) $menuCategoryId,
+                                ),
+                            );
+                    });
+                }
+            })
+            ->distinct()
+            ->pluck('dish_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        if ($dishIds === []) {
+            return 0;
+        }
+
+        return Dish::query()
+            ->whereIn('id', $dishIds)
+            ->where('is_available', false)
+            ->update(['is_available' => true]);
     }
 }

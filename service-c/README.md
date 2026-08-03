@@ -319,7 +319,7 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 
 Правила вида `{ weekdays: [1..7], offset_days: 0..30 }` (ISO: 1=Пн … 7=Вс; день недели — только в одном правиле). Хранятся в `max_menu_category_availability_offsets` (нормализация: строка на `(menu_category_id, weekday)`, общий `group_key` у правила). UI — блок «Смещение доступности блюд» на `AdminMenuCategoryFormPage`.
 
-`MenuAvailabilityDateResolver` считает дату подписи «Блюда на дату» по offsets всех категорий (Europe/Moscow, lookback до 7 дней) — для админ-списка блюд. Для cron/sync используется `resolveForCurrentWeekday()` **без** lookback: если на текущий weekday нет строк offsets — sync `is_available` и MAX-уведомления не выполняются; иначе агрегированная дата «Блюда на» (`min==0 → +0`, `min==1 → +1`, `min>1 → +max`) идёт в оба notifier. Сам sync `is_available` делает `DishAvailabilitySyncService::syncForCurrentWeekdayCategoryOffsets`: сначала сброс `is_available` у всех блюд, затем по каждой строке offsets weekday’а — `дата = сегодня + offset_days`, включаются блюда этой категории по графику.
+`MenuAvailabilityDateResolver` считает дату подписи «Блюда на дату» по offsets всех категорий (Europe/Moscow, lookback до 7 дней) — для админ-списка блюд. Для cron/sync используется `resolveForCurrentWeekday()` **без** lookback: если на текущий weekday нет строк offsets — sync `is_available` и MAX-уведомления не выполняются; иначе агрегированная дата «Блюда на» (`max(offset_days)`) идёт в оба notifier. Сам sync `is_available` делает `DishAvailabilitySyncService::syncForCurrentWeekdayCategoryOffsets`: сначала сброс `is_available` у всех блюд, затем по каждой строке offsets weekday’а — `дата = сегодня + offset_days`, включаются блюда этой категории по графику.
 
 **Блюда:**
 
@@ -1272,7 +1272,7 @@ docker compose exec -T service-c php artisan food:sync-dish-availability        
 
 В `bootstrap/app.php` зарегистрирована ежедневная задача `food:sync-dish-availability` в **03:00** (`Europe/Moscow`). Контейнер запускает `php artisan schedule:work` в фоне (`docker-entrypoint.sh`).
 
-Команда `SyncDishAvailabilityCommand` сначала вызывает `MenuAvailabilityDateResolver::resolveForCurrentWeekday()` (текущий ISO-weekday, Europe/Moscow, **без** lookback). Если на этот weekday нет строк в `max_menu_category_availability_offsets` — sync и уведомления **пропускаются** (warning в консоль, exit SUCCESS). Иначе дата «Блюда на» для уведомлений считается по формуле offsets (`min==0 → +0`, `min==1 → +1`, `min>1 → +max`), и выполняются три шага:
+Команда `SyncDishAvailabilityCommand` сначала вызывает `MenuAvailabilityDateResolver::resolveForCurrentWeekday()` (текущий ISO-weekday, Europe/Moscow, **без** lookback). Если на этот weekday нет строк в `max_menu_category_availability_offsets` — sync и уведомления **пропускаются** (warning в консоль, exit SUCCESS). Иначе дата «Блюда на» для уведомлений считается по формуле offsets (`max(offset_days)`), и выполняются три шага:
 
 1. **`DishAvailabilitySyncService::syncForCurrentWeekdayCategoryOffsets()`** — сначала `is_available = false` у всех активных блюд; затем для каждой категории с offset на текущий weekday: дата = сегодня (MSK) + `offset_days`; у блюд этой категории `is_available = true`, если в `max_dish_availability_dates` есть запись на эту дату.
 2. **`MaxMenuAvailabilityNotifier::notify($menuDate)`** — отправляет текст `Доступно для заказов меню на ДД.ММ.ГГГГ` в MAX с **агрегированной** датой «Блюда на»:

@@ -63,7 +63,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
     }
 
     /**
-     * Загружает блюда из каталога и проверяет доступность и ресторан заказа.
+     * Пакетно загружает блюда из каталога и проверяет доступность и ресторан заказа.
      *
      * @param  list<array{
      *     dish_id: int,
@@ -83,11 +83,15 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
      */
     private function resolveSnapshotLines(int $restaurantId, array $items, array $existingDishIdSet): array
     {
+        /** @var list<int> $dishIds */
+        $dishIds = array_map(static fn (array $item): int => (int) $item['dish_id'], $items);
+        $dishesById = $this->dishRepository->findAvailableWithRestaurantByIds($dishIds);
+
         $lines = [];
 
         foreach ($items as $item) {
             $dishId = (int) $item['dish_id'];
-            $dish = $this->dishRepository->findAvailableWithRestaurant($dishId);
+            $dish = $dishesById->get($dishId);
 
             if ($dish === null) {
                 throw new FoodDomainException('Блюдо не найдено.', 404);
@@ -169,9 +173,10 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
             $partnerDishId = (int) $first['combo_partner_dish_id'];
             $requirePartnerAvailable = ! isset($existingDishIdSet[$partnerDishId]);
 
-            $this->comboPairValidator->validatePair(
+            // Партнёр уже загружен в $lines — без повторного find по id.
+            $this->comboPairValidator->assertCompatiblePair(
                 $first['dish'],
-                $partnerDishId,
+                $second['dish'],
                 $requirePartnerAvailable,
             );
         }

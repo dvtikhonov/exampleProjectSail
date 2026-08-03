@@ -7,6 +7,7 @@ namespace App\Services\Food\Menu;
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\DishImportResultDto;
+use App\DTO\Food\Menu\ImportDishRowDto;
 use App\Exceptions\Food\FoodDomainException;
 use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -47,7 +48,9 @@ class DishSpreadsheetImportService
 
         $sheet = $spreadsheet->getActiveSheet();
         $highestRow = $sheet->getHighestDataRow();
-        $importedCount = 0;
+
+        /** @var list<ImportDishRowDto> $validRows */
+        $validRows = [];
 
         /** @var list<array{row: int, message: string}> $errors */
         $errors = [];
@@ -61,15 +64,19 @@ class DishSpreadsheetImportService
             }
 
             try {
-                $row = $this->rowParser->parse($nameCell, $priceCell);
-                $this->dishAdminService->importSpreadsheetRow($row, $menuCategoryId);
-                $importedCount++;
+                $validRows[] = $this->rowParser->parse($nameCell, $priceCell);
             } catch (FoodDomainException $exception) {
                 $errors[] = [
                     'row' => $rowNumber,
                     'message' => $exception->getMessage(),
                 ];
             }
+        }
+
+        $importedCount = 0;
+
+        if ($validRows !== []) {
+            $importedCount = $this->dishAdminService->importSpreadsheetRows($validRows, $menuCategoryId);
         }
 
         return new DishImportResultDto($importedCount, $errors);

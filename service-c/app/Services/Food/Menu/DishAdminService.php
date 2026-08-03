@@ -91,49 +91,63 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
-     * Импорт строки из таблицы: при точном совпадении названия обновляет только цену.
+     * Пакетный импорт строк из таблицы: при точном совпадении названия обновляет только цену.
      *
+     * @param  list<ImportDishRowDto>  $rows
      * @throws FoodDomainException
      */
-    public function importSpreadsheetRow(ImportDishRowDto $row, int $menuCategoryId): void
+    public function importSpreadsheetRows(array $rows, int $menuCategoryId): int
     {
         $this->assertMenuCategoryExists($menuCategoryId);
 
-        $existing = $this->dishRepository->findByNameAndMenuCategoryId($row->name, $menuCategoryId);
-
-        if ($existing !== null) {
-            $this->dishRepository->update($existing, ['price' => $row->price]);
-
-            return;
+        if ($rows === []) {
+            return 0;
         }
 
-        $this->createWithDefaultImage(new CreateDishDto(
-            name: $row->name,
-            menuCategoryId: $menuCategoryId,
-            description: $row->description,
-            weight: $row->weight,
-            weightUnit: $row->weightUnit,
-            price: $row->price,
-            vatRate: $row->vatRate,
-            isAvailable: $row->isAvailable,
-        ));
-    }
+        return DB::transaction(function () use ($rows, $menuCategoryId): int {
+            /** @var array<string, ImportDishRowDto> $byName */
+            $byName = [];
+            foreach ($rows as $row) {
+                $byName[$row->name] = $row;
+            }
 
-    /**
-     * Создание блюда с placeholder-изображением (импорт из таблицы).
-     *
-     * @throws FoodDomainException
-     */
-    public function createWithDefaultImage(CreateDishDto $dto): AdminDishDto
-    {
-        $this->assertMenuCategoryExists($dto->menuCategoryId);
+            $names = array_keys($byName);
+            $existing = $this->dishRepository->findByNamesAndMenuCategoryId($names, $menuCategoryId);
 
-        return DB::transaction(function () use ($dto): AdminDishDto {
-            $dish = $this->dishRepository->create($this->attributesFromCreateDto($dto));
-            $imagePath = $this->defaultImageProvider->copyForDish($dish->id);
-            $dish = $this->dishRepository->update($dish, ['image_url' => $imagePath]);
+            /** @var array<int, string> $pricesById */
+            $pricesById = [];
+            /** @var list<array<string, mixed>> $toCreate */
+            $toCreate = [];
 
-            return $this->mapToAdminDto($dish);
+            foreach ($byName as $name => $row) {
+                $dish = $existing->get($name);
+
+                if ($dish !== null) {
+                    $pricesById[(int) $dish->id] = $row->price;
+                } else {
+                    $toCreate[] = [
+                        'menu_category_id' => $menuCategoryId,
+                        'name' => $row->name,
+                        'description' => $row->description,
+                        'weight' => $row->weight,
+                        'weight_unit' => $row->weightUnit->value,
+                        'price' => $row->price,
+                        'vat_rate' => $row->vatRate->value(),
+                        'is_available' => $row->isAvailable,
+                        'image_url' => null,
+                    ];
+                }
+            }
+
+            $this->dishRepository->updatePricesByIds($pricesById);
+
+            $created = $this->dishRepository->createMany($toCreate);
+            $imageUrls = $this->defaultImageProvider->copyForDishes(
+                $created->map(static fn (Dish $dish): int => (int) $dish->id)->all(),
+            );
+            $this->dishRepository->updateImageUrlsByIds($imageUrls);
+
+            return count($rows);
         });
     }
 

@@ -551,7 +551,9 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'orders')
             ->assertJsonPath('orders.0.id', $orderId)
-            ->assertJsonPath('orders.0.status', OrderStatus::Confirmed->value);
+            ->assertJsonPath('orders.0.status', OrderStatus::Confirmed->value)
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.current_page', 1);
     }
 
     /** Отклонение оплаты требует комментарий. */
@@ -639,7 +641,37 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->getJson('/api/food/admin/orders?scope=address&status=unknown', $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Некорректный status. Используйте pending или all.');
+            ->assertJsonValidationErrors(['status']);
+    }
+
+    /** Список status=all отдаёт meta пагинации и ограничивает размер страницы. */
+    public function test_list_orders_with_status_all_is_paginated(): void
+    {
+        $firstOrderId = $this->createPendingReviewOrder(customerMaxUserId: 77_901);
+        $secondOrderId = $this->createPendingReviewOrder(customerMaxUserId: 77_902);
+
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=all&per_page=1', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonPath('orders.0.id', $secondOrderId);
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=all&per_page=1&page=2', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonPath('orders.0.id', $firstOrderId);
     }
 
     /** Обновление состава меняет количество и пересчитывает суммы, включая доставку. */

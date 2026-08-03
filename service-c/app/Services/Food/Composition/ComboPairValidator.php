@@ -26,14 +26,28 @@ class ComboPairValidator
      */
     public function validatePair(Dish $dish, int $partnerDishId, bool $requirePartnerAvailable = true): Dish
     {
-        if ($partnerDishId === $dish->id) {
-            throw new FoodDomainException('Блюдо-партнёр комбо должно отличаться от добавляемого блюда.');
-        }
-
         $partner = $this->dishRepository->findAvailableWithRestaurant($partnerDishId);
 
         if ($partner === null) {
             throw new FoodDomainException('Блюдо-партнёр комбо не найдено.', 404);
+        }
+
+        $this->assertCompatiblePair($dish, $partner, $requirePartnerAvailable);
+
+        return $partner;
+    }
+
+    /**
+     * Проверяет совместимость уже загруженных блюд комбо-пары (без доп. запросов к БД).
+     *
+     * @param  bool  $requirePartnerAvailable  false — партнёр из items_snapshot или ручной заказ
+     *
+     * @throws FoodDomainException
+     */
+    public function assertCompatiblePair(Dish $dish, Dish $partner, bool $requirePartnerAvailable = true): void
+    {
+        if ((int) $partner->id === (int) $dish->id) {
+            throw new FoodDomainException('Блюдо-партнёр комбо должно отличаться от добавляемого блюда.');
         }
 
         if ($requirePartnerAvailable && ! $partner->is_available) {
@@ -50,7 +64,5 @@ class ComboPairValidator
         if ($dish->menu_category_id === $partner->menu_category_id) {
             throw new FoodDomainException('Блюда комбо должны быть из разных категорий меню.');
         }
-
-        return $partner;
     }
 }

@@ -58,7 +58,9 @@ export function useAdminFlow(adminScope) {
         adminOrdersError.value = '';
 
         try {
-            adminOrders.value = await fetchAdminOrders(adminScope.value);
+            // Очередь проверки: максимум API (100), чтобы не отрезать pending-заказы.
+            const result = await fetchAdminOrders(adminScope.value, 'pending', { perPage: 100 });
+            adminOrders.value = result.orders;
         } catch (error) {
             adminOrdersError.value = extractErrorMessage(error);
         } finally {

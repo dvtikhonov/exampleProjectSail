@@ -8,6 +8,7 @@ use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\ListAdminOrdersRequest;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
 use App\Http\Requests\Food\UpdateOrderCompositionRequest;
 use App\Models\Food\FoodOrder;
@@ -43,13 +44,15 @@ class AdminOrderReviewController extends Controller
     /**
      * Список заказов в очереди проверки.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListAdminOrdersRequest $request): JsonResponse
     {
         try {
-            $scope = (string) $request->query('scope', '');
-            $status = (string) $request->query('status', 'pending');
-
-            $orders = $this->adminOrderQueryService->list($this->maxUser($request), $scope, $status);
+            $result = $this->adminOrderQueryService->list(
+                $this->maxUser($request),
+                $request->scope(),
+                $request->listStatus(),
+                $request->perPage(),
+            );
         } catch (FoodDomainException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -59,8 +62,9 @@ class AdminOrderReviewController extends Controller
         return response()->json([
             'orders' => array_map(
                 static fn ($order): array => $order->toArray(),
-                $orders,
+                $result['orders'],
             ),
+            'meta' => $result['meta'],
         ]);
     }
 

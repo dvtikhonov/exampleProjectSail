@@ -17,8 +17,7 @@ use Carbon\CarbonImmutable;
  * 2. Собираем все offset_days для этого weekday по всем категориям.
  * 3. Если строк нет — откат referenceDate на −1 день (до 7 шагов).
  * 4. Пустая таблица / нет записей после обхода → ошибка «нет данных».
- * 5. Смещение применяется к дате отката (referenceDate):
- *    min == 1 → +1; min > 1 → +max; min == 0 → +0.
+ * 5. Смещение = max(offset_days) относительно даты отката (referenceDate).
  */
 class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterface
 {
@@ -88,22 +87,12 @@ class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterf
     }
 
     /**
-     * Вычисляет смещение в днях от referenceDate по найденным offset_days.
+     * Агрегированное смещение: максимум offset_days по всем категориям weekday.
      *
      * @param  non-empty-list<int>  $offsetDays
      */
     private function resolveDaysToAdd(array $offsetDays): int
     {
-        $min = min($offsetDays);
-
-        if ($min === 0) {
-            return 0;
-        }
-
-        if ($min === 1) {
-            return 1;
-        }
-
         return max($offsetDays);
     }
 }

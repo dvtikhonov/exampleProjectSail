@@ -23,20 +23,46 @@ class DishDefaultImageProvider
      */
     public function copyForDish(int $dishId): string
     {
+        $paths = $this->copyForDishes([$dishId]);
+
+        return $paths[$dishId];
+    }
+
+    /**
+     * Копирует placeholder для нескольких блюд, читая исходный файл один раз.
+     *
+     * @param  list<int>  $dishIds
+     * @return array<int, string> dishId => relative path
+     *
+     * @throws FoodDomainException
+     */
+    public function copyForDishes(array $dishIds): array
+    {
+        if ($dishIds === []) {
+            return [];
+        }
+
         $sourcePath = base_path(self::SOURCE_ASSET);
 
         if (! is_file($sourcePath)) {
             throw new FoodDomainException('Placeholder-изображение блюда не найдено.');
         }
 
-        $relativePath = sprintf('dishes/%d/%s.jpg', $dishId, (string) Str::uuid());
+        $contents = File::get($sourcePath);
+        $result = [];
 
-        $stored = Storage::disk('public')->put($relativePath, File::get($sourcePath));
+        foreach ($dishIds as $dishId) {
+            $relativePath = sprintf('dishes/%d/%s.jpg', $dishId, (string) Str::uuid());
 
-        if ($stored === false) {
-            throw new FoodDomainException('Не удалось сохранить placeholder-изображение.');
+            $stored = Storage::disk('public')->put($relativePath, $contents);
+
+            if ($stored === false) {
+                throw new FoodDomainException('Не удалось сохранить placeholder-изображение.');
+            }
+
+            $result[(int) $dishId] = $relativePath;
         }
 
-        return $relativePath;
+        return $result;
     }
 }

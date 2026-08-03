@@ -127,7 +127,7 @@ class ManualOrderQueryService implements ManualOrderQueryServiceInterface
             total: $this->moneyFormatter->format($order->total),
             itemsSnapshot: $order->items_snapshot ?? [],
             createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
-            hasMessages: $order->messages()->exists(),
+            hasMessages: (bool) $order->messages_exists,
         );
     }
 }

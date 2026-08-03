@@ -27,13 +27,13 @@ interface DishAvailabilityRepositoryInterface
     public function getScheduleForDishes(array $dishIds, string $dateFrom, string $dateTo): array;
 
     /**
-     * Синхронизирует доступные даты блюда в редактируемой части диапазона.
+     * Пакетно синхронизирует доступные даты блюд в редактируемой части диапазона.
+     * Число SQL-запросов не зависит от количества блюд в payload (delete + insert chunks).
      *
-     * @param  list<string>  $availableDates
+     * @param  array<int, list<string>>  $dishAvailableDates  dish_id => [Y-m-d, ...]
      */
-    public function syncDishAvailabilityInRange(
-        int $dishId,
-        array $availableDates,
+    public function syncDishesAvailabilityInRange(
+        array $dishAvailableDates,
         string $rangeFrom,
         string $rangeTo,
         string $editableFrom,
@@ -68,4 +68,13 @@ interface DishAvailabilityRepositoryInterface
      * @return int Количество обновлённых записей max_dishes
      */
     public function syncDishesIsAvailableForCategoryAndDate(int $menuCategoryId, string $date): int;
+
+    /**
+     * Включает is_available у блюд, у которых есть запись графика на дату своей категории.
+     * Один SELECT + один UPDATE независимо от числа категорий.
+     *
+     * @param  array<int, string>  $categoryIdToDate  menu_category_id => Y-m-d
+     * @return int Количество обновлённых записей max_dishes
+     */
+    public function enableDishesIsAvailableForCategoryDates(array $categoryIdToDate): int;
 }

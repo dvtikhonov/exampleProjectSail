@@ -33,8 +33,8 @@ class DishAvailabilitySyncService
     /**
      * Выставляет is_available по offsets категорий на текущий weekday (MSK).
      *
-     * Сначала сбрасывает is_available у всех блюд, затем для каждой категории
-     * с offset на weekday: дата = сегодня + offset_days — включает блюда по графику.
+     * Сначала сбрасывает is_available у всех блюд, затем одним пакетом включает
+     * блюда категорий с offset: дата = сегодня + offset_days — по графику.
      *
      * @return int Количество обновлённых записей max_dishes
      */
@@ -50,16 +50,18 @@ class DishAvailabilitySyncService
 
         $updatedCount = $this->availabilityRepository->clearAllDishesIsAvailable();
 
+        /** @var array<int, string> $categoryIdToDate */
+        $categoryIdToDate = [];
+
         foreach ($categoryOffsets as $categoryOffset) {
-            $date = $referenceDate
+            $categoryIdToDate[$categoryOffset->menuCategoryId] = $referenceDate
                 ->addDays($categoryOffset->offsetDays)
                 ->format('Y-m-d');
-
-            $updatedCount += $this->availabilityRepository->syncDishesIsAvailableForCategoryAndDate(
-                $categoryOffset->menuCategoryId,
-                $date,
-            );
         }
+
+        $updatedCount += $this->availabilityRepository->enableDishesIsAvailableForCategoryDates(
+            $categoryIdToDate,
+        );
 
         return $updatedCount;
     }
