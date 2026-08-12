@@ -31,9 +31,9 @@ use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
-use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
@@ -78,14 +78,14 @@ use App\Services\Food\Composition\OrderCompositionUpdateService;
 use App\Services\Food\ManualOrder\ManualOrderCartService;
 use App\Services\Food\ManualOrder\ManualOrderQueryService;
 use App\Services\Food\ManualOrder\ManualOrderUserQueryService;
+use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
+use App\Services\Food\Menu\CachingMenuQueryService;
 use App\Services\Food\Menu\DailyMenuLineCollector;
 use App\Services\Food\Menu\DishAdminService;
 use App\Services\Food\Menu\DishAvailabilityScheduleService;
 use App\Services\Food\Menu\DishImageDeliveryService;
 use App\Services\Food\Menu\DishImageUploadService;
 use App\Services\Food\Menu\DishImageUrlResolver;
-use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
-use App\Services\Food\Menu\CachingMenuQueryService;
 use App\Services\Food\Menu\MenuAvailabilityDateResolver;
 use App\Services\Food\Menu\MenuCatalogCacheInvalidator;
 use App\Services\Food\Menu\MenuCategoryAdminService;
@@ -109,6 +109,7 @@ use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Support\Max\MaxAppRequestContext;
 use App\Support\Max\MaxUiStandRecipientResolver;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
@@ -154,7 +155,7 @@ class AppServiceProvider extends ServiceProvider
             function ($app): CachingMenuAvailabilityDateResolver {
                 return new CachingMenuAvailabilityDateResolver(
                     $app->make(MenuAvailabilityDateResolver::class),
-                    $app->make(\Illuminate\Contracts\Cache\Repository::class),
+                    $app->make(Repository::class),
                 );
             },
         );
@@ -163,7 +164,7 @@ class AppServiceProvider extends ServiceProvider
             function ($app): CachingMenuQueryService {
                 return new CachingMenuQueryService(
                     $app->make(MenuQueryService::class),
-                    $app->make(\Illuminate\Contracts\Cache\Repository::class),
+                    $app->make(Repository::class),
                     (int) config('food.catalog_cache_ttl_seconds', 600),
                     (bool) config('food.catalog_cache_enabled', true),
                 );

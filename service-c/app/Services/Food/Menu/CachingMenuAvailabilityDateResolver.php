@@ -86,8 +86,6 @@ class CachingMenuAvailabilityDateResolver implements MenuAvailabilityDateResolve
 
     /**
      * Восстанавливает DTO из кэша (только array-payload).
-     *
-     * @param  mixed  $cached
      */
     private function dtoFromCachePayload(mixed $cached): ?MenuAvailabilityDateResultDto
     {

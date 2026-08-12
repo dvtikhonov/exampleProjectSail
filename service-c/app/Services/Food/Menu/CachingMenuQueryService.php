@@ -130,7 +130,6 @@ class CachingMenuQueryService implements MenuQueryServiceInterface
     }
 
     /**
-     * @param  mixed  $cached
      * @return list<RestaurantSummaryDto>|null
      */
     private function restaurantsFromCachePayload(mixed $cached): ?array
@@ -168,9 +167,6 @@ class CachingMenuQueryService implements MenuQueryServiceInterface
         return $restaurants;
     }
 
-    /**
-     * @param  mixed  $cached
-     */
     private function menuFromCachePayload(mixed $cached): ?MenuDto
     {
         if (! is_array($cached)) {
@@ -208,9 +204,6 @@ class CachingMenuQueryService implements MenuQueryServiceInterface
         );
     }
 
-    /**
-     * @param  mixed  $payload
-     */
     private function categoryFromCachePayload(mixed $payload): ?MenuCategoryDto
     {
         if (! is_array($payload)) {
@@ -249,9 +242,6 @@ class CachingMenuQueryService implements MenuQueryServiceInterface
         );
     }
 
-    /**
-     * @param  mixed  $payload
-     */
     private function dishFromCachePayload(mixed $payload): ?DishDto
     {
         if (! is_array($payload)) {
