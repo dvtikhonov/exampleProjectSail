@@ -43,6 +43,10 @@ const canSelectAsSecondDish = computed(() => {
         return false;
     }
 
+    if (!props.dish.is_combo_available) {
+        return false;
+    }
+
     if (props.comboFirstDish.category_id === props.dish.category_id) {
         return false;
     }

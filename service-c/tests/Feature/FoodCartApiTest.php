@@ -154,6 +154,33 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** Комбо отклоняется, если категория партнёра не поддерживает режим комбо. */
+    public function test_add_combo_rejects_partner_from_non_combo_category(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Combo Gate', 'Burger', 320);
+        $sideCategory = MenuCategory::factory()->create([
+            'restaurant_id' => $fixture['restaurant']->id,
+            'name' => 'Drinks',
+            'sort_order' => 2,
+            'is_combo_available' => false,
+        ]);
+        $sideDish = Dish::factory()->create([
+            'menu_category_id' => $sideCategory->id,
+            'name' => 'Cola',
+            'price' => 100,
+        ]);
+
+        $this->postJson('/api/food/cart/items', [
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+            'combo_ref' => '550e8400-e29b-41d4-a716-446655440099',
+            'combo_partner_dish_id' => $sideDish->id,
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Категория блюда-партнёра не поддерживает режим комбо.');
+    }
+
     /** Добавление позиции валидирует payload. */
     public function test_add_item_validates_payload(): void
     {

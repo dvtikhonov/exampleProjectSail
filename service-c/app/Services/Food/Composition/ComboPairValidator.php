@@ -9,7 +9,7 @@ use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Dish;
 
 /**
- * Валидация пары блюд для комбо: доступность, ресторан, разные категории.
+ * Валидация пары блюд для комбо: доступность, ресторан, разные категории с is_combo_available.
  */
 class ComboPairValidator
 {
@@ -63,6 +63,14 @@ class ComboPairValidator
 
         if ($dish->menu_category_id === $partner->menu_category_id) {
             throw new FoodDomainException('Блюда комбо должны быть из разных категорий меню.');
+        }
+
+        if (! (bool) $dish->menuCategory->is_combo_available) {
+            throw new FoodDomainException('Категория первого блюда не поддерживает режим комбо.');
+        }
+
+        if (! (bool) $partner->menuCategory->is_combo_available) {
+            throw new FoodDomainException('Категория блюда-партнёра не поддерживает режим комбо.');
         }
     }
 }

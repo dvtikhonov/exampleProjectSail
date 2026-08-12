@@ -118,6 +118,15 @@ export function clearAuthToken() {
 }
 
 /**
+ * Понятные русские тексты для HTTP-статусов без тела ответа (nginx/axios).
+ *
+ * @type {Record<number, string>}
+ */
+const HTTP_STATUS_MESSAGES_RU = {
+    413: 'Файл слишком большой. Уменьшите размер изображения и попробуйте снова.',
+};
+
+/**
  * @param {unknown} error
  * @returns {string}
  */
@@ -129,7 +138,26 @@ export function extractErrorMessage(error) {
             return validationMessage;
         }
 
-        return error.response?.data?.message ?? error.message;
+        const apiMessage = error.response?.data?.message;
+
+        if (typeof apiMessage === 'string' && apiMessage.trim() !== '') {
+            return apiMessage;
+        }
+
+        const status = error.response?.status;
+        const statusMessage = typeof status === 'number'
+            ? HTTP_STATUS_MESSAGES_RU[status]
+            : undefined;
+
+        if (statusMessage) {
+            return statusMessage;
+        }
+
+        if (typeof status === 'number') {
+            return `Ошибка запроса (код ${status}).`;
+        }
+
+        return error.message;
     }
 
     if (error instanceof Error) {

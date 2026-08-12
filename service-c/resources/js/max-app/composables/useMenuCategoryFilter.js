@@ -36,8 +36,10 @@ export function useMenuCategoryFilter(menu, options = {}) {
         let categories = availableCategories.value;
 
         if (options.comboBuilderOpen?.value && options.comboFirstDish?.value) {
+            // В режиме «Собрать блюдо» — только другие категории с поддержкой комбо.
             categories = categories.filter(
-                (category) => category.id !== options.comboFirstDish.value.category_id,
+                (category) => category.id !== options.comboFirstDish.value.category_id
+                    && category.is_combo_available !== false,
             );
         }
 
@@ -62,8 +64,12 @@ export function useMenuCategoryFilter(menu, options = {}) {
             })),
         );
 
-        if (activeCategoryId.value !== null) {
-            dishes = dishes.filter((dish) => dish.category_id === activeCategoryId.value);
+        const activeId = activeCategoryId.value;
+        const activeStillVisible = activeId === null
+            || visibleCategories.value.some((category) => category.id === activeId);
+
+        if (activeId !== null && activeStillVisible) {
+            dishes = dishes.filter((dish) => dish.category_id === activeId);
         }
 
         const query = searchQuery.value.trim().toLowerCase();
