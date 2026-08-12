@@ -8,6 +8,7 @@ use App\Contracts\Food\Menu\DishAdminRepositoryInterface;
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
 use App\Contracts\Food\Menu\DishImageUploadInterface;
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Food\Menu\CreateDishDto;
@@ -34,6 +35,7 @@ class DishAdminService implements DishAdminServiceInterface
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly FoodMoneyFormatter $moneyFormatter,
         private readonly DishDefaultImageProvider $defaultImageProvider,
+        private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
     ) {}
 
     /**
@@ -81,13 +83,17 @@ class DishAdminService implements DishAdminServiceInterface
     {
         $this->assertMenuCategoryExists($dto->menuCategoryId);
 
-        return DB::transaction(function () use ($dto, $photo): AdminDishDto {
+        $result = DB::transaction(function () use ($dto, $photo): AdminDishDto {
             $dish = $this->dishRepository->create($this->attributesFromCreateDto($dto));
             $imagePath = $this->dishImageUpload->upload($dish->id, $photo);
             $dish = $this->dishRepository->update($dish, ['image_url' => $imagePath]);
 
             return $this->mapToAdminDto($dish);
         });
+
+        $this->catalogCacheInvalidator->invalidateAll();
+
+        return $result;
     }
 
     /**
@@ -105,7 +111,7 @@ class DishAdminService implements DishAdminServiceInterface
             return 0;
         }
 
-        return DB::transaction(function () use ($rows, $menuCategoryId): int {
+        $importedCount = DB::transaction(function () use ($rows, $menuCategoryId): int {
             /** @var array<string, ImportDishRowDto> $byName */
             $byName = [];
             foreach ($rows as $row) {
@@ -150,6 +156,10 @@ class DishAdminService implements DishAdminServiceInterface
 
             return count($rows);
         });
+
+        $this->catalogCacheInvalidator->invalidateAll();
+
+        return $importedCount;
     }
 
     /**
@@ -162,7 +172,7 @@ class DishAdminService implements DishAdminServiceInterface
         $dish = $this->findDishOrFail($dishId);
         $this->assertMenuCategoryExists($dto->menuCategoryId);
 
-        return DB::transaction(function () use ($dish, $dto, $photo): AdminDishDto {
+        $result = DB::transaction(function () use ($dish, $dto, $photo): AdminDishDto {
             $previousImagePath = $dish->image_url;
             $attributes = $this->attributesFromUpdateDto($dto);
 
@@ -178,6 +188,10 @@ class DishAdminService implements DishAdminServiceInterface
 
             return $this->mapToAdminDto($dish);
         });
+
+        $this->catalogCacheInvalidator->invalidateAll();
+
+        return $result;
     }
 
     /**
@@ -199,6 +213,8 @@ class DishAdminService implements DishAdminServiceInterface
         DB::transaction(function () use ($dish): void {
             $this->dishRepository->delete($dish);
         });
+
+        $this->catalogCacheInvalidator->invalidateAll();
     }
 
     /**

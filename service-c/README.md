@@ -19,6 +19,46 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 
 Порт по умолчанию: **8083** (`SERVICE_C_PORT` в `docker-compose.yml`). Vite dev: **5174** (`SERVICE_C_VITE_PORT`).
 
+## Docker runtime (Nginx + PHP-FPM)
+
+Контейнер слушает **`:8000`** через **nginx → php-fpm**, не через однопоточный `php artisan serve`. Supervisor поднимает оба процесса; `schedule:work` остаётся в фоне (`docker-entrypoint.sh`). Перед стартом entrypoint накладывает `PHP_FPM_*` на `/usr/local/etc/php-fpm.d/zzz-www.conf` (невалидные значения → default + warning в stderr).
+
+| Параметр | Значение |
+|---|---|
+| Образ | `php:8.4-fpm` + nginx + supervisor |
+| Пул FPM | `pm = dynamic`; размер пула — через env (см. ниже) |
+| Nginx → FPM | `upstream php_fpm` (`127.0.0.1:9000`, `keepalive 32`) + `fastcgi_keep_conn`; `worker_connections 2048` ↔ `listen.backlog 1024`; `fastcgi_read_timeout 120s` |
+| Конфиги | `nginx.conf`, `default.conf`, `php-fpm.conf`, `supervisord.conf` |
+| Load path | Deep/smoke: `BASE_URL=http://localhost:8083` (publish `8083→8000`), не через nginx-gateway |
+
+### PHP-FPM pool (env)
+
+| Параметр | Env | Default (образ / prod) | Local deep (`docker-compose.yml`) |
+|---|---|---|---|
+| `pm.max_children` | `PHP_FPM_MAX_CHILDREN` | **64** | **200** |
+| `pm.start_servers` | `PHP_FPM_START_SERVERS` | 8 | 25 |
+| `pm.min_spare_servers` | `PHP_FPM_MIN_SPARE_SERVERS` | 4 | 12 |
+| `pm.max_spare_servers` | `PHP_FPM_MAX_SPARE_SERVERS` | 16 | 50 |
+| `listen.backlog` | `PHP_FPM_LISTEN_BACKLOG` | **1024** | **1024** |
+| `pm.max_requests` | `PHP_FPM_MAX_REQUESTS` | **500** | **500** |
+
+- **Default 64** — безопасный ориентир под prod (`mem_limit: 768m` в `docker-compose.prod.yml`); переменные пула там не задаются (`listen.backlog` / `pm.max_requests` остаются из образа).
+- **Local deep 200** — headroom под deep k6 (пик ≈ **115** VU: 100 stress + 10 competitive + 5 negative; исход A: queue при свободном CPU). Без этого запросы ждут свободный worker → редкие ~60s timeout и разрыв wall-clock vs `Server-Timing`.
+- **`listen.backlog=1024`** — очередь accept при кратковременном всплеске; **`pm.max_requests=500`** — перезапуск воркеров на длинном soak.
+- Ограничения: целые ≥1; `min_spare ≤ max_spare ≤ max_children`; `start_servers` в `[min_spare, max_spare]`.
+
+**Load / deep-профиль:** при высокой конкурентности однопоточный `artisan serve` ставит HTTP в очередь и раздувает p95 даже при коротком `t_tx`. Для smoke/deep нужен этот multi-worker runtime. После смены entrypoint/`php-fpm.conf` — `docker compose build service-c && docker compose up -d --force-recreate service-c`. Проверка пула: `docker compose exec -T service-c grep -E 'pm\.(max_children|max_requests)|listen\.backlog' /usr/local/etc/php-fpm.d/zzz-www.conf`. Перед deep в service-h: `npm run preflight:deep` и чеклист ресурсов — [service-h README → Ресурсы стенда](../service-h/README.md#ресурсы-стенда-перед-deep).
+**Last verified deep (k6):** `20260811T123832Z` with local FPM 200/25/12/50 (backlog 1024, max_requests 500): stress_soak food_submit p99≈1.17 s, fails≈0.04%, thresholds green — details in [service-h README](../service-h/README.md).
+
+
+### PHP-FPM status при регрессе latency
+
+На плато deep (~115 VU), если wall-clock submit растёт, а `Server-Timing` `t_submit` остаётся плоским — смотреть occupancy пула, не домен:
+
+1. `docker stats` на `service-c` / MySQL / Redis — CPU в потолке vs запас.
+2. Временно включить `pm.status_path = /fpm-status` в пуле и `location = /fpm-status` в nginx (только `allow 127.0.0.1`), reload FPM+nginx; внутри контейнера: `curl -s http://127.0.0.1:8000/fpm-status`.
+3. В статусе смотреть `listen queue` / `active processes` / `idle processes`: queue &gt; 0 при свободном CPU → мало children/backlog; idle ≈ 0 и CPU ≈ 100% → thrashing (не поднимать children).
+
 ## Архитектурные принципы
 
 Слои и соглашения проекта (см. `.cursor/rules`):

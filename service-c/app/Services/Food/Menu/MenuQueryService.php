@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Shared\MenuReadRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\DTO\Food\Menu\DishDto;
@@ -16,9 +17,9 @@ use App\Models\Food\Restaurant;
 use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
- * Запросы меню и списка активных ресторанов.
+ * Запросы меню и списка активных ресторанов (без кэша).
  */
-class MenuQueryService
+class MenuQueryService implements MenuQueryServiceInterface
 {
     public function __construct(
         private readonly RestaurantRepositoryInterface $restaurantRepository,
@@ -28,9 +29,7 @@ class MenuQueryService
     ) {}
 
     /**
-     * Возвращает список активных ресторанов.
-     *
-     * @return list<RestaurantSummaryDto>
+     * {@inheritDoc}
      */
     public function listActiveRestaurants(): array
     {
@@ -45,11 +44,7 @@ class MenuQueryService
     }
 
     /**
-     * Возвращает меню ресторана с категориями и блюдами.
-     *
-     * @param  bool  $includeUnavailable  true — включать недоступные блюда (ручной заказ)
-     *
-     * @throws FoodDomainException
+     * {@inheritDoc}
      */
     public function getRestaurantMenu(int $restaurantId, bool $includeUnavailable = false): MenuDto
     {

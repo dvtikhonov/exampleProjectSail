@@ -241,6 +241,14 @@ services:
       - DB_PASSWORD=${SERVICE_C_DB_PASSWORD:-12345678AS}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # FPM workers for local deep headroom (~115 VU, outcome A: queue/backlog); prod keeps image default 64
+      - PHP_FPM_MAX_CHILDREN=200
+      - PHP_FPM_START_SERVERS=25
+      - PHP_FPM_MIN_SPARE_SERVERS=12
+      - PHP_FPM_MAX_SPARE_SERVERS=50
+      - PHP_FPM_LISTEN_BACKLOG=1024
+      - PHP_FPM_MAX_REQUESTS=500
+
     volumes:
       - ./service-c/app:/var/www/html/app
       - ./service-c/routes:/var/www/html/routes

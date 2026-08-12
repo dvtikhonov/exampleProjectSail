@@ -9,6 +9,7 @@ use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Models\Max\MaxUser;
+use App\Support\Profiling\OrderSubmitTiming;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -68,9 +69,17 @@ class OrderController extends Controller
             ], $exception->statusCode());
         }
 
-        return response()->json([
+        $response = response()->json([
             'order' => $order->toArray(),
         ], JsonResponse::HTTP_CREATED);
+
+        /** @var array{t_tx_ms?: float|int, t_notify_ms?: float|int, t_submit_ms?: float|int}|null $timing */
+        $timing = $request->attributes->get(OrderSubmitTiming::REQUEST_ATTRIBUTE);
+        if (is_array($timing)) {
+            $response->headers->set('Server-Timing', OrderSubmitTiming::toServerTimingHeader($timing));
+        }
+
+        return $response;
     }
 
     /**

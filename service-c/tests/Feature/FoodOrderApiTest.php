@@ -9,7 +9,9 @@ use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Menu\Weekday;
+use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
 use App\Enums\Food\Order\OrderStatus;
+use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
 use App\Models\Food\Dish;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\MenuCategory;
@@ -17,6 +19,7 @@ use App\Models\Food\MenuCategoryAvailabilityOffset;
 use App\Models\Max\MaxUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -119,6 +122,39 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame('Burger', $capturedOrder->itemsSnapshot[0]['dish_name'] ?? null);
     }
 
+    /** Submit ставит в очередь job уведомлений после commit. */
+    public function test_submit_order_dispatches_notify_job_after_commit(): void
+    {
+        Bus::fake([NotifyFoodOrderAfterSubmitJob::class]);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Queue Place',
+            'Burger',
+            500,
+        );
+        $auth = $this->authenticateMaxUser(
+            FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']),
+        );
+        $address = 'ул. Примерная, 1';
+
+        $this->addItemToCart($auth, $fixture['dish']->id, 2);
+        $this->setCartDeliveryAddress($auth, $address);
+
+        $response = $this->postJson('/api/food/orders/submit', [], $auth['headers']);
+
+        $response->assertCreated();
+
+        Bus::assertDispatched(
+            NotifyFoodOrderAfterSubmitJob::class,
+            function (NotifyFoodOrderAfterSubmitJob $job) use ($auth, $response): bool {
+                return $job->kind === FoodOrderAfterSubmitNotifyKind::Submitted
+                    && $job->maxUserId === $auth['user']->max_user_id
+                    && $job->orderId === (int) $response->json('order.id')
+                    && $job->orderDto->id === (int) $response->json('order.id');
+            },
+        );
+    }
+
     /** Submit создаёт заказ на проверке и помечает корзину отправленной. */
     public function test_submit_order_creates_pending_review_order_and_marks_cart_submitted(): void
     {
@@ -139,6 +175,7 @@ class FoodOrderApiTest extends TestCase
 
         $response
             ->assertCreated()
+            ->assertHeader('Server-Timing')
             ->assertJsonPath('order.status', OrderStatus::PendingReview->value)
             ->assertJsonPath('order.restaurant_id', $fixture['restaurant']->id)
             ->assertJsonPath('order.restaurant_name', 'Order Place')
@@ -150,6 +187,11 @@ class FoodOrderApiTest extends TestCase
             ->assertJsonPath('order.items_snapshot.0.dish_name', 'Steak')
             ->assertJsonPath('order.items_snapshot.0.quantity', 2)
             ->assertJsonPath('order.items_snapshot.0.image_url', $this->expectedDishImageUrlForModel($fixture['dish']));
+
+        $serverTiming = (string) $response->headers->get('Server-Timing');
+        $this->assertMatchesRegularExpression('/t_tx;dur=\d+(\.\d+)?/', $serverTiming);
+        $this->assertMatchesRegularExpression('/t_notify;dur=\d+(\.\d+)?/', $serverTiming);
+        $this->assertMatchesRegularExpression('/t_submit;dur=\d+(\.\d+)?/', $serverTiming);
 
         $this->assertDatabaseHas('max_food_orders', [
             'max_user_id' => $auth['user']->max_user_id,
@@ -371,9 +413,11 @@ class FoodOrderApiTest extends TestCase
         $this->assertSame([$dessertDish->id], $orderItemsByDishId[$drinkDish->id]['combo_partner_dish_ids']);
         $this->assertSame(1, $orderItemsByDishId[$drinkDish->id]['quantity']);
 
+        // Полное сравнение массивов не используем: MySQL JSON может менять порядок ключей
+        // относительно ответа API (без $order->refresh()), смысловые поля проверены выше.
         $this->assertSame(
-            collect($snapshot)->keyBy('dish_id')->sortKeys()->all(),
-            collect($orderSnapshot)->keyBy('dish_id')->sortKeys()->all(),
+            collect($snapshot)->pluck('dish_id')->sort()->values()->all(),
+            collect($orderSnapshot)->pluck('dish_id')->sort()->values()->all(),
         );
     }
 

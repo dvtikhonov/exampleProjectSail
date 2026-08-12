@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Menu;
 
+use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
@@ -25,6 +26,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     public function __construct(
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly RestaurantRepositoryInterface $restaurantRepository,
+        private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
     ) {}
 
     /**
@@ -68,7 +70,10 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
 
         $this->menuCategoryRepository->syncAvailabilityOffsets($category, $dto->availabilityOffsets);
 
-        return $this->mapToAdminDto($category->load(['restaurant', 'availabilityOffsets']));
+        $result = $this->mapToAdminDto($category->load(['restaurant', 'availabilityOffsets']));
+        $this->catalogCacheInvalidator->invalidateAll();
+
+        return $result;
     }
 
     /**
@@ -102,7 +107,10 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             $category->load('availabilityOffsets');
         }
 
-        return $this->mapToAdminDto($category);
+        $result = $this->mapToAdminDto($category);
+        $this->catalogCacheInvalidator->invalidateAll();
+
+        return $result;
     }
 
     /**
@@ -122,6 +130,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
         }
 
         $this->menuCategoryRepository->delete($category);
+        $this->catalogCacheInvalidator->invalidateAll();
     }
 
     /**

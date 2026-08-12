@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
     gnupg \
+    nginx \
+    supervisor \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -38,9 +40,21 @@ RUN composer run-script post-autoload-dump
 
 RUN npm run build
 
+# Nginx + PHP-FPM (порт 8000) вместо однопоточного `php artisan serve`.
+# zzz-*.conf — после zz-docker.conf, чтобы listen/pm не перетёрлись дефолтом образа.
+COPY service-c/nginx.conf /etc/nginx/nginx.conf
+COPY service-c/default.conf /etc/nginx/conf.d/default.conf
+COPY service-c/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-www.conf
+COPY service-c/supervisord.conf /etc/supervisord.conf
+
+RUN rm -f /etc/nginx/sites-enabled/default \
+    && mkdir -p /var/lib/nginx/body /var/lib/nginx/fastcgi /var/lib/nginx/proxy \
+        /var/lib/nginx/scgi /var/lib/nginx/uwsgi /run/nginx \
+    && chown -R www-data:www-data /var/lib/nginx /run/nginx
+
 COPY service-c/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8000 5174
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
