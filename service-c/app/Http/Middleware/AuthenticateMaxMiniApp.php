@@ -18,6 +18,11 @@ class AuthenticateMaxMiniApp
     private const TOKEN_ABILITY = 'max-miniapp';
 
     /**
+     * Минимальный интервал обновления last_used_at (сек).
+     */
+    private const LAST_USED_AT_THROTTLE_SECONDS = 60;
+
+    /**
      * Аутентифицирует запрос MAX mini-app по Bearer-токену.
      *
      * @param  Closure(Request): (Response)  $next
@@ -50,11 +55,28 @@ class AuthenticateMaxMiniApp
             return $this->unauthorized();
         }
 
-        $accessToken->forceFill(['last_used_at' => now()])->save();
+        $this->touchLastUsedAtThrottled($accessToken);
         $maxUser->withAccessToken($accessToken);
         $request->setUserResolver(static fn (): MaxUser => $maxUser);
 
         return $next($request);
+    }
+
+    /**
+     * Обновляет last_used_at не чаще чем раз в LAST_USED_AT_THROTTLE_SECONDS.
+     */
+    private function touchLastUsedAtThrottled(PersonalAccessToken $accessToken): void
+    {
+        $lastUsedAt = $accessToken->last_used_at;
+
+        if (
+            $lastUsedAt !== null
+            && $lastUsedAt->gt(now()->subSeconds(self::LAST_USED_AT_THROTTLE_SECONDS))
+        ) {
+            return;
+        }
+
+        $accessToken->forceFill(['last_used_at' => now()])->save();
     }
 
     /**

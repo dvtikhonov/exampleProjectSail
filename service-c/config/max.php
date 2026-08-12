@@ -1,6 +1,12 @@
 <?php
 
 return [
+    // http — реальный Bot API; null — NullMaxMessengerClient без сети (нагрузка / локальная изоляция).
+    // Laravel парсит unquoted null в .env как PHP null — нормализуем к строке 'null'.
+    'messenger_driver' => (($driver = env('MAX_MESSENGER_DRIVER', 'http')) === null || $driver === '' || $driver === 'null')
+        ? 'null'
+        : (string) $driver,
+
     'bot_access_token' => env('MAX_BOT_ACCESS_TOKEN', ''),
     'bot_username' => env('MAX_BOT_USERNAME', ''),
     'bot_user_id' => (int) env('MAX_BOT_USER_ID', 0),

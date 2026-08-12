@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
+use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
 use Carbon\CarbonImmutable;
 
@@ -18,6 +19,7 @@ class DishAvailabilitySyncService
     public function __construct(
         private readonly DishAvailabilityRepositoryInterface $availabilityRepository,
         private readonly MenuCategoryAvailabilityOffsetRepositoryInterface $offsetRepository,
+        private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
     ) {}
 
     /**
@@ -27,7 +29,10 @@ class DishAvailabilitySyncService
      */
     public function syncForDate(string $date): int
     {
-        return $this->availabilityRepository->syncDishesIsAvailableForDate($date);
+        $updatedCount = $this->availabilityRepository->syncDishesIsAvailableForDate($date);
+        $this->catalogCacheInvalidator->invalidateAll();
+
+        return $updatedCount;
     }
 
     /**
@@ -62,6 +67,8 @@ class DishAvailabilitySyncService
         $updatedCount += $this->availabilityRepository->enableDishesIsAvailableForCategoryDates(
             $categoryIdToDate,
         );
+
+        $this->catalogCacheInvalidator->invalidateAll();
 
         return $updatedCount;
     }

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Models\Max\MaxUser;
-use App\Services\Food\Menu\MenuQueryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,7 +19,7 @@ use Illuminate\Http\Request;
 class RestaurantController extends Controller
 {
     public function __construct(
-        private readonly MenuQueryService $menuQueryService,
+        private readonly MenuQueryServiceInterface $menuQueryService,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
     ) {}
 

@@ -7,6 +7,7 @@ namespace App\Services\Food\Menu;
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
+use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\DishAvailabilityChangeDto;
 use App\DTO\Food\Menu\DishAvailabilityGridDto;
@@ -31,6 +32,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly DishAvailabilitySyncService $availabilitySyncService,
         private readonly MenuAvailabilityDateResolverInterface $availabilityDateResolver,
+        private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
     ) {}
 
     /**
@@ -111,6 +113,8 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
                 $editableFrom,
             );
         });
+
+        $this->catalogCacheInvalidator->invalidateRestaurant($dto->restaurantId);
 
         $menuDate = $this->availabilityDateResolver->resolveForCurrentWeekday();
 

@@ -8,20 +8,22 @@ use App\Contracts\Food\Cart\CartRepositoryInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
-use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Order\OrderDto;
+use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
+use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
 use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
 use App\Models\Max\MaxUser;
 use App\Services\Food\Cart\CartTotalsCalculator;
 use App\Services\Food\Review\OrderStatusResolver;
 use App\Services\Food\Shared\FoodMoneyFormatter;
+use App\Support\Profiling\OrderSubmitTiming;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Оформление заказа из черновика корзины и уведомление MAX.
@@ -35,8 +37,6 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly CartRepositoryInterface $cartRepository,
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
-        private readonly FoodOrderMaxNotifierInterface $foodOrderMaxNotifier,
-        private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly OrderStatusResolver $orderStatusResolver,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}
@@ -48,7 +48,10 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
      */
     public function submit(MaxUser $maxUser): OrderDto
     {
+        $submitStartedAt = hrtime(true);
+
         /** @var array{order: FoodOrder, dto: OrderDto} $result */
+        $txStartedAt = hrtime(true);
         $result = DB::transaction(function () use ($maxUser): array {
             $cart = $this->cartRepository->findDraftForUpdate($maxUser->max_user_id);
 
@@ -59,9 +62,22 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 createdByMaxUserId: null,
             );
         });
+        // tTxMs — длительность DB::transaction: снимок корзины, создание заказа, markAsSubmitted.
+        $tTxMs = $this->elapsedMs($txStartedAt);
 
-        $this->foodOrderMaxNotifier->notify($result['dto'], $maxUser);
-        $this->foodOrderCustomerNotifier->notifySubmitted($result['order']);
+        $notifyStartedAt = hrtime(true);
+        $this->dispatchAfterSubmitNotify(
+            order: $result['order'],
+            dto: $result['dto'],
+            maxUserId: $maxUser->max_user_id,
+            kind: FoodOrderAfterSubmitNotifyKind::Submitted,
+        );
+        // tNotifyMs — постановка NotifyFoodOrderAfterSubmitJob в очередь (после commit, без ожидания MAX API).
+        $tNotifyMs = $this->elapsedMs($notifyStartedAt);
+        // tSubmitMs — полное время submit(): транзакция + dispatch уведомления.
+        $tSubmitMs = $this->elapsedMs($submitStartedAt);
+
+        $this->recordSubmitTiming($tTxMs, $tNotifyMs, $tSubmitMs);
 
         return $result['dto'];
     }
@@ -88,10 +104,31 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
             );
         });
 
-        $this->foodOrderMaxNotifier->notify($result['dto'], $customer);
-        $this->foodOrderCustomerNotifier->notifyConfirmed($result['order']);
+        $this->dispatchAfterSubmitNotify(
+            order: $result['order'],
+            dto: $result['dto'],
+            maxUserId: $customer->max_user_id,
+            kind: FoodOrderAfterSubmitNotifyKind::Confirmed,
+        );
 
         return $result['dto'];
+    }
+
+    /**
+     * Ставит в очередь MAX-уведомления после commit транзакции оформления.
+     */
+    private function dispatchAfterSubmitNotify(
+        FoodOrder $order,
+        OrderDto $dto,
+        int $maxUserId,
+        FoodOrderAfterSubmitNotifyKind $kind,
+    ): void {
+        NotifyFoodOrderAfterSubmitJob::dispatch(
+            orderDto: $dto,
+            orderId: $order->id,
+            maxUserId: $maxUserId,
+            kind: $kind,
+        );
     }
 
     /**
@@ -147,7 +184,6 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
             'items_total' => $formattedItemsTotal,
             'items_snapshot' => $snapshot->itemsSnapshot,
         ]);
-        $order->refresh();
 
         $this->cartRepository->markAsSubmitted($cart);
 
@@ -164,10 +200,42 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 total: $formattedTotal,
                 deliveryAddress: $cart->delivery_address,
                 deliveryDate: $deliveryDate,
-                itemsSnapshot: $order->items_snapshot ?? [],
+                itemsSnapshot: $snapshot->itemsSnapshot,
                 createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             ),
         ];
+    }
+
+    /**
+     * Пишет профилирование submit в лог и (при HTTP) в атрибут запроса для Server-Timing.
+     *
+     * @param  float  $tTxMs  мс DB::transaction (корзина → заказ)
+     * @param  float  $tNotifyMs  мс dispatch NotifyFoodOrderAfterSubmitJob (не время доставки в MAX)
+     * @param  float  $tSubmitMs  мс всего submit() = tx + notify
+     */
+    private function recordSubmitTiming(float $tTxMs, float $tNotifyMs, float $tSubmitMs): void
+    {
+        $timing = [
+            't_tx_ms' => round($tTxMs, 1),
+            't_notify_ms' => round($tNotifyMs, 1),
+            't_submit_ms' => round($tSubmitMs, 1),
+        ];
+
+        Log::info('order.submit.profile', $timing);
+
+        if (! app()->bound('request')) {
+            return;
+        }
+
+        request()->attributes->set(OrderSubmitTiming::REQUEST_ATTRIBUTE, $timing);
+    }
+
+    /**
+     * @param  int  $startedAtHrtime  значение hrtime(true)
+     */
+    private function elapsedMs(int $startedAtHrtime): float
+    {
+        return (hrtime(true) - $startedAtHrtime) / 1_000_000;
     }
 
     /**

@@ -37,12 +37,20 @@ abstract class TestCase extends BaseTestCase
     /** Настраивает подключение к тестовой БД sail_db_testing. */
     private function configureTestingDatabaseConnection(): void
     {
+        // Docker/host может оставить CACHE_STORE=file в $_SERVER; Laravel env()
+        // читает $_SERVER раньше $_ENV, из-за чего phpunit force=array не действует
+        // и day-cache меню пишет в file store между прогонами.
+        $_SERVER['CACHE_STORE'] = 'array';
+        $_ENV['CACHE_STORE'] = 'array';
+        putenv('CACHE_STORE=array');
+
         if (! $this->app) {
             $this->refreshApplication();
         }
 
         config()->set('database.connections.mysql.database', 'sail_db_testing');
         config()->set('database.default', 'mysql');
+        config()->set('cache.default', 'array');
         DB::purge('mysql');
     }
 

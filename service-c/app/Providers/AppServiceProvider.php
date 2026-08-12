@@ -29,7 +29,9 @@ use App\Contracts\Food\Menu\DishImageUploadInterface;
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
 use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
+use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
+use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
@@ -44,6 +46,7 @@ use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Food\Shared\MenuReadRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
+use App\Contracts\Max\MaxLoadTestServiceInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
@@ -81,8 +84,12 @@ use App\Services\Food\Menu\DishAvailabilityScheduleService;
 use App\Services\Food\Menu\DishImageDeliveryService;
 use App\Services\Food\Menu\DishImageUploadService;
 use App\Services\Food\Menu\DishImageUrlResolver;
+use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
+use App\Services\Food\Menu\CachingMenuQueryService;
 use App\Services\Food\Menu\MenuAvailabilityDateResolver;
+use App\Services\Food\Menu\MenuCatalogCacheInvalidator;
 use App\Services\Food\Menu\MenuCategoryAdminService;
+use App\Services\Food\Menu\MenuQueryService;
 use App\Services\Food\Order\CustomerOrderQueryService;
 use App\Services\Food\Order\OrderSubmissionService;
 use App\Services\Food\Review\OrderCustomerNotifyRecipientResolver;
@@ -93,6 +100,7 @@ use App\Services\Max\Food\LaravelFoodOrderCustomerNotifier;
 use App\Services\Max\Food\LaravelFoodOrderMaxNotifier;
 use App\Services\Max\Food\LaravelOrderChatNotifier;
 use App\Services\Max\LaravelMaxAdminBotTestSender;
+use App\Services\Max\MaxLoadTestService;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use App\Services\Max\MaxWebAppInitDataValidator;
 use App\Services\Max\Menu\MaxManagerDailyMenuMessageBuilder;
@@ -104,6 +112,7 @@ use App\Support\Max\MaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
+use Shared\MaxMessenger\Client\NullMaxMessengerClient;
 use Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 
@@ -133,13 +142,33 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CustomerOrderQueryServiceInterface::class, CustomerOrderQueryService::class);
         $this->app->bind(DishAdminServiceInterface::class, DishAdminService::class);
         $this->app->bind(MenuCategoryAdminServiceInterface::class, MenuCategoryAdminService::class);
+        $this->app->bind(MenuCatalogCacheInvalidatorInterface::class, MenuCatalogCacheInvalidator::class);
         $this->app->bind(DishAvailabilityRepositoryInterface::class, EloquentDishAvailabilityRepository::class);
         $this->app->bind(DishAvailabilityScheduleServiceInterface::class, DishAvailabilityScheduleService::class);
         $this->app->bind(
             MenuCategoryAvailabilityOffsetRepositoryInterface::class,
             EloquentMenuCategoryAvailabilityOffsetRepository::class,
         );
-        $this->app->bind(MenuAvailabilityDateResolverInterface::class, MenuAvailabilityDateResolver::class);
+        $this->app->bind(
+            MenuAvailabilityDateResolverInterface::class,
+            function ($app): CachingMenuAvailabilityDateResolver {
+                return new CachingMenuAvailabilityDateResolver(
+                    $app->make(MenuAvailabilityDateResolver::class),
+                    $app->make(\Illuminate\Contracts\Cache\Repository::class),
+                );
+            },
+        );
+        $this->app->bind(
+            MenuQueryServiceInterface::class,
+            function ($app): CachingMenuQueryService {
+                return new CachingMenuQueryService(
+                    $app->make(MenuQueryService::class),
+                    $app->make(\Illuminate\Contracts\Cache\Repository::class),
+                    (int) config('food.catalog_cache_ttl_seconds', 600),
+                    (bool) config('food.catalog_cache_enabled', true),
+                );
+            },
+        );
         $this->app->bind(OrderSubmissionServiceInterface::class, OrderSubmissionService::class);
         $this->app->bind(OrderCompositionSnapshotBuilderInterface::class, OrderCompositionSnapshotBuilder::class);
         $this->app->bind(OrderCompositionUpdateServiceInterface::class, OrderCompositionUpdateService::class);
@@ -186,6 +215,7 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(MaxAdminBotTestSenderInterface::class, LaravelMaxAdminBotTestSender::class);
+        $this->app->bind(MaxLoadTestServiceInterface::class, MaxLoadTestService::class);
         $this->app->bind(MaxUserDeliveryAddressInterface::class, MaxUserDeliveryAddressService::class);
         $this->app->bind(MaxUserRepositoryInterface::class, EloquentMaxUserRepository::class);
         $this->app->bind(MaxMenuAvailabilityNotifierInterface::class, MaxMenuAvailabilityNotifier::class);
@@ -197,7 +227,13 @@ class AppServiceProvider extends ServiceProvider
         );
         $this->app->bind(MaxManagerDailyMenuNotifierInterface::class, MaxManagerDailyMenuNotifier::class);
         $this->app->bind(MaxBotTokenProviderInterface::class, EnvMaxBotTokenProvider::class);
-        $this->app->bind(MaxMessengerClientInterface::class, function ($app): HttpMaxMessengerClient {
+        $this->app->bind(MaxMessengerClientInterface::class, function ($app): MaxMessengerClientInterface {
+            // Laravel: MAX_MESSENGER_DRIVER=null в .env → PHP null; учитываем null / '' / 'null'.
+            $driver = config('max.messenger_driver', 'http');
+            if ($driver === null || $driver === '' || $driver === 'null') {
+                return new NullMaxMessengerClient;
+            }
+
             return new HttpMaxMessengerClient(
                 tokenProvider: $app->make(MaxBotTokenProviderInterface::class),
                 retryConfig: $app->make(ConfigMaxMessengerRetryConfigFactory::class)->make(),

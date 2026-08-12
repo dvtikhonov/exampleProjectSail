@@ -1,0 +1,13 @@
+{
+  "name": "service-h-load-stand",
+  "version": "1.0.0",
+  "private": true,
+  "description": "k6 + Grafana + InfluxDB load stand for service-c",
+  "scripts": {
+    "preflight:deep": "bash scripts/preflight_deep.sh",
+    "test:food-order": "bash scripts/run_food_order.sh",
+    "test:food-order:smoke": "PROFILE=smoke k6 run --out influxdb=http://localhost:8089/k6 scripts/food_order_flow.js",
+    "test:food-order:baseline": "PROFILE=baseline k6 run --out influxdb=http://localhost:8089/k6 scripts/food_order_flow.js",
+    "test:food-order:deep": "PROFILE=deep bash scripts/run_food_order.sh"
+  }
+}
