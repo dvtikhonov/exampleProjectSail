@@ -8,7 +8,6 @@ use App\Contracts\Food\Menu\DishAdminRepositoryInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Enums\Food\Cart\CartStatus;
 use App\Models\Food\Dish;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +16,11 @@ use Illuminate\Support\Facades\DB;
  */
 class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalogRepositoryInterface
 {
+    /**
+     * Лимит списка при «Все рестораны» и «Все категории».
+     */
+    private const int UNFILTERED_ADMIN_LIST_LIMIT = 10;
+
     /**
      * {@inheritDoc}
      */
@@ -151,13 +155,12 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
     /**
      * {@inheritDoc}
      */
-    public function paginateForAdmin(
+    public function listForAdmin(
         ?int $restaurantId,
         ?int $categoryId,
         ?string $nameSearch = null,
         ?bool $isAvailable = null,
-        int $perPage = 50,
-    ): LengthAwarePaginator {
+    ): Collection {
         $query = Dish::query()
             ->with(['menuCategory.restaurant'])
             ->orderBy('name');
@@ -181,7 +184,11 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
             $query->where('is_available', $isAvailable);
         }
 
-        return $query->paginate($perPage);
+        if ($restaurantId === null && $categoryId === null) {
+            $query->limit(self::UNFILTERED_ADMIN_LIST_LIMIT);
+        }
+
+        return $query->get();
     }
 
     /**
