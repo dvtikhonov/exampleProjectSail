@@ -197,6 +197,47 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('dishes.0.restaurant_id', $first['restaurant']->id);
     }
 
+    /** Без фильтров ресторана и категории список ограничен 10 записями. */
+    public function test_dishes_index_limits_to_ten_without_restaurant_and_category(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Limit Cafe', 'Dish 01');
+
+        for ($i = 2; $i <= 12; $i++) {
+            Dish::factory()->create([
+                'menu_category_id' => $fixture['category']->id,
+                'name' => sprintf('Dish %02d', $i),
+            ]);
+        }
+
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(10, 'dishes');
+    }
+
+    /** При выбранном ресторане список отдаёт все блюда без лимита. */
+    public function test_dishes_index_returns_all_when_restaurant_selected(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Full Cafe', 'Dish 01');
+
+        for ($i = 2; $i <= 12; $i++) {
+            Dish::factory()->create([
+                'menu_category_id' => $fixture['category']->id,
+                'name' => sprintf('Dish %02d', $i),
+            ]);
+        }
+
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson(
+            '/api/food/admin/dishes?restaurant_id='.$fixture['restaurant']->id,
+            $auth['headers'],
+        )
+            ->assertOk()
+            ->assertJsonCount(12, 'dishes');
+    }
+
     /** Менеджер меню может фильтровать блюда по имени. */
     public function test_menu_manager_can_filter_dishes_by_name(): void
     {

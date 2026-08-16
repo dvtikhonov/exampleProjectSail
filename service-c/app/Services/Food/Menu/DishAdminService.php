@@ -49,17 +49,17 @@ class DishAdminService implements DishAdminServiceInterface
         ?string $nameSearch = null,
         AdminDishAvailabilityFilter $availability = AdminDishAvailabilityFilter::All,
     ): array {
-        $paginator = $this->dishRepository->paginateForAdmin(
+        $dishes = $this->dishRepository->listForAdmin(
             $restaurantId,
             $categoryId,
             $nameSearch,
             $availability->toIsAvailable(),
         );
 
-        return array_map(
-            fn (Dish $dish): AdminDishDto => $this->mapToAdminDto($dish),
-            $paginator->items(),
-        );
+        return $dishes
+            ->map(fn (Dish $dish): AdminDishDto => $this->mapToAdminDto($dish))
+            ->values()
+            ->all();
     }
 
     /**

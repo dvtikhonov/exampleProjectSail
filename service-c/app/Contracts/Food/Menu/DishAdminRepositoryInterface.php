@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Menu;
 
 use App\Models\Food\Dish;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -55,16 +54,16 @@ interface DishAdminRepositoryInterface
 
     /**
      * Список блюд для админки с опциональными фильтрами.
+     * Без ресторана и категории — не более 10 записей; при выбранном ресторане — без лимита.
      *
-     * @return LengthAwarePaginator<int, Dish>
+     * @return Collection<int, Dish>
      */
-    public function paginateForAdmin(
+    public function listForAdmin(
         ?int $restaurantId,
         ?int $categoryId,
         ?string $nameSearch = null,
         ?bool $isAvailable = null,
-        int $perPage = 50,
-    ): LengthAwarePaginator;
+    ): Collection;
 
     /**
      * Создаёт блюдо.
