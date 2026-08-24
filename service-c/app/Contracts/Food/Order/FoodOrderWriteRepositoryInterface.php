@@ -29,4 +29,9 @@ interface FoodOrderWriteRepositoryInterface
      * @param  array<string, mixed>  $attributes
      */
     public function update(FoodOrder $order, array $attributes): FoodOrder;
+
+    /**
+     * Удаляет заказ еды. Сообщения чата и chat_reads удаляются каскадно.
+     */
+    public function delete(FoodOrder $order): void;
 }

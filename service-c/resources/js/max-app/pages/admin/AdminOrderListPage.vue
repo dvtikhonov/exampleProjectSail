@@ -8,6 +8,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import OrderReviewStageBadges from '../../components/OrderReviewStageBadges.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 import { formatCustomerName } from '../../utils/formatCustomerName';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
 const props = defineProps({
     /** @type {{ type: ArrayConstructor, default: () => AdminOrderListItemDto[] }} */
@@ -171,6 +172,10 @@ onUnmounted(() => {
                                     class="mt-1 line-clamp-2 text-sm text-gray-600"
                                 >
                                     {{ order.delivery_address }}
+                                </p>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    <span class="text-max-muted">Дата доставки:</span>
+                                    {{ formatIsoDateRu(order.delivery_date) || '—' }}
                                 </p>
                             </div>
                             <div class="shrink-0 text-right">

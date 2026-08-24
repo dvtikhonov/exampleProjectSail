@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Food\AdminAiAccessController;
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
 use App\Http\Controllers\Api\Food\AdminManualOrderController;
@@ -10,6 +11,8 @@ use App\Http\Controllers\Api\Food\DishImageController;
 use App\Http\Controllers\Api\Food\OrderChatController;
 use App\Http\Controllers\Api\Food\OrderController;
 use App\Http\Controllers\Api\Food\RestaurantController;
+use App\Http\Controllers\Api\Food\PhotoTextOrderController;
+use App\Http\Controllers\Api\Food\PhotoTextScheduleController;
 use App\Http\Controllers\Api\MaxAuthController;
 use App\Http\Controllers\Api\MaxWebhookController;
 use Illuminate\Http\Request;
@@ -22,6 +25,16 @@ Route::post('/max/auth', [MaxAuthController::class, 'store']);
 
 // Публичный same-origin URL для <img> (без Bearer — WebView MAX не шлёт Authorization на картинки).
 Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show']);
+
+// Агент Cursor: токен X-PhotoText-Token + активный AI-доступ max_manager (ai_access_until > now).
+Route::middleware(['phototext.agent.token', 'phototext.ai.access'])->prefix('food/phototext')->group(function () {
+    Route::get('/restaurants', [PhotoTextOrderController::class, 'restaurants']);
+    Route::get('/catalog', [PhotoTextOrderController::class, 'catalog']);
+    Route::post('/match', [PhotoTextOrderController::class, 'match']);
+    Route::post('/orders', [PhotoTextOrderController::class, 'store']);
+    Route::post('/schedule/match', [PhotoTextScheduleController::class, 'match']);
+    Route::post('/schedule/apply', [PhotoTextScheduleController::class, 'apply']);
+});
 
 Route::middleware('max.miniapp.auth')->group(function () {
     if (app()->environment(['local', 'testing'])) {
@@ -55,6 +68,11 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::get('/orders', [AdminOrderReviewController::class, 'index']);
             Route::get('/orders/{order}', [AdminOrderReviewController::class, 'show'])
                 ->whereNumber('order');
+
+            Route::middleware('food.order.admin:max_manager')->group(function () {
+                Route::get('/ai-access', [AdminAiAccessController::class, 'show']);
+                Route::post('/ai-access/toggle', [AdminAiAccessController::class, 'toggle']);
+            });
 
             Route::post('/orders/{order}/address/approve', [AdminOrderReviewController::class, 'approveAddress'])
                 ->middleware('food.order.admin:address_reviewer')
@@ -118,6 +136,12 @@ Route::middleware('max.miniapp.auth')->group(function () {
                     Route::delete('/cart/items/{item}', [AdminManualOrderController::class, 'destroyItem'])
                         ->whereNumber('item');
                     Route::post('/submit', [AdminManualOrderController::class, 'submit']);
+                    Route::post('/{order}/complete', [AdminManualOrderController::class, 'complete'])
+                        ->whereNumber('order');
+                    Route::post('/{order}/move-to-cart', [AdminManualOrderController::class, 'moveToCart'])
+                        ->whereNumber('order');
+                    Route::delete('/{order}', [AdminManualOrderController::class, 'destroy'])
+                        ->whereNumber('order');
                     Route::get('/{order}', [AdminManualOrderController::class, 'show'])
                         ->whereNumber('order');
                 });

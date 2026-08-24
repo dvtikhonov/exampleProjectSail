@@ -9,10 +9,12 @@ import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
 import { MANUAL_ORDER_TABS } from '../../composables/useManualOrder';
 import { useScrollViewport } from '../../composables/useScrollViewport';
 import { formatCustomerName } from '../../utils/formatCustomerName';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
 /** Опции фильтра статуса в просмотре ручных заказов */
 const STATUS_FILTER_OPTIONS = [
     { value: '', label: 'Все статусы' },
+    { value: 'draft_after_scanning', label: 'Черновик после сканирования' },
     { value: 'pending_review', label: 'На проверке' },
     { value: 'awaiting_composition', label: 'Ожидает состав' },
     { value: 'confirmed', label: 'Выполнен' },
@@ -550,6 +552,10 @@ watch(
                                             class="mt-1 line-clamp-2 text-sm text-gray-600"
                                         >
                                             {{ order.delivery_address }}
+                                        </p>
+                                        <p class="mt-1 text-sm text-gray-600">
+                                            <span class="text-max-muted">Дата доставки:</span>
+                                            {{ formatIsoDateRu(order.delivery_date) || '—' }}
                                         </p>
                                     </div>
                                     <div class="shrink-0 text-right">

@@ -194,6 +194,7 @@ class AdminOrderQueryService
             customerLastName: $order->maxUser?->last_name,
             customerUsername: $order->maxUser?->username,
             deliveryAddress: $order->delivery_address,
+            deliveryDate: $order->delivery_date?->format('Y-m-d'),
             itemsTotal: $this->formatMoney($order->items_total),
             deliveryCost: $order->delivery_cost !== null ? $this->formatMoney($order->delivery_cost) : null,
             total: $this->formatMoney($order->total),

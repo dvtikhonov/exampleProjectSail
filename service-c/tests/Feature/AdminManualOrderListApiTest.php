@@ -74,6 +74,7 @@ class AdminManualOrderListApiTest extends TestCase
             ->assertJsonCount(1, 'orders')
             ->assertJsonPath('orders.0.id', $confirmedId)
             ->assertJsonPath('orders.0.status', OrderStatus::Confirmed->value)
+            ->assertJsonStructure(['orders' => [['delivery_date']]])
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('meta.total_amount', '200.00');
 

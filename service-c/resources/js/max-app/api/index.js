@@ -17,6 +17,11 @@ export { authenticate } from './auth';
 export { addComboWithRollback } from './cartHelpers';
 
 export {
+    fetchAiAccessStatus,
+    toggleAiAccess,
+} from './aiAccess';
+
+export {
     createCartTransport,
     createClientCartTransport,
     createManualCartTransport,
@@ -46,10 +51,13 @@ export {
     addComboToManualCart,
     addToManualCart,
     clearManualCart,
+    completeDraftAfterScanningOrder,
+    deleteManualOrder,
     fetchManualCart,
     fetchManualOrder,
     fetchManualOrders,
     fetchManualOrderUsers,
+    moveDraftAfterScanningOrderToCart,
     removeManualCartItem,
     submitManualOrder,
     updateManualCartDeliveryAddress,

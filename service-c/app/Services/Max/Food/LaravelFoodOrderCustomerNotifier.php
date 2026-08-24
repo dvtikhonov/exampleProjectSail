@@ -51,16 +51,16 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
 
         $this->trySendMessage($text, $order);
 
-        $this->notifyManualOrderCreatorIfNeeded($order);
+        $this->notifyManualOrderCreatorConfirmed($order);
     }
 
     /**
-     * Дополнительно уведомляет менеджера, оформившего ручной заказ, детальным составом.
+     * {@inheritDoc}
      *
      * Сначала DM на created_by_max_user_id; при ошибке MAX (например демо-id → 404)
      * — fallback в получатели UI Stand (MAX_UI_STAND_*), куда уже приходят рабочие уведомления.
      */
-    private function notifyManualOrderCreatorIfNeeded(FoodOrder $order): void
+    public function notifyManualOrderCreatorConfirmed(FoodOrder $order): void
     {
         if (! $order->is_manual) {
             return;

@@ -49,6 +49,7 @@ class ListManualOrdersRequest extends FormRequest
                 'nullable',
                 'string',
                 Rule::in([
+                    OrderStatus::DraftAfterScanning->value,
                     OrderStatus::PendingReview->value,
                     OrderStatus::AwaitingComposition->value,
                     OrderStatus::Confirmed->value,

@@ -21,6 +21,7 @@ interface FoodOrderAdminReadRepositoryInterface
 
     /**
      * Постраничный список заказов для проверки адреса с указанным статусом этапа.
+     * Исключает rejected, confirmed и draft_after_scanning.
      *
      * @return LengthAwarePaginator<int, FoodOrder>
      */
@@ -28,6 +29,7 @@ interface FoodOrderAdminReadRepositoryInterface
 
     /**
      * Постраничный список заказов для проверки состава с указанным статусом этапа.
+     * Исключает rejected, confirmed и draft_after_scanning.
      *
      * @return LengthAwarePaginator<int, FoodOrder>
      */

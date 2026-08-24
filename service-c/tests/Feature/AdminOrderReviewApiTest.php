@@ -69,7 +69,40 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'orders')
             ->assertJsonPath('orders.0.id', $orderId)
-            ->assertJsonPath('orders.0.address_review_status', OrderReviewStatus::Pending->value);
+            ->assertJsonPath('orders.0.address_review_status', OrderReviewStatus::Pending->value)
+            ->assertJsonStructure(['orders' => [['delivery_date']]]);
+    }
+
+    /** Очередь проверки не включает заказы «Черновик после сканирования». */
+    public function test_draft_after_scanning_orders_are_hidden_from_review_queue(): void
+    {
+        $pendingOrderId = $this->createPendingReviewOrder(customerMaxUserId: 99_201);
+        $this->createDraftAfterScanningOrder(customerMaxUserId: 99_202);
+
+        $addressAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+        $compositionAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_004,
+                'first_name' => 'CompositionAdmin',
+            ])),
+            FoodOrderAdminRole::CompositionReviewer,
+        );
+
+        $this->getJson('/api/food/admin/orders?scope=address&status=pending', $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('orders.0.id', $pendingOrderId);
+
+        $this->getJson('/api/food/admin/orders?scope=composition&status=pending', $compositionAdmin['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('orders.0.id', $pendingOrderId);
     }
 
     /** Список заказов возвращает 403 без роли. */
@@ -1087,6 +1120,19 @@ class AdminOrderReviewApiTest extends TestCase
     private function createPendingReviewOrder(int $customerMaxUserId = 99_101): int
     {
         return $this->createPendingReviewOrderFixture($customerMaxUserId)['order_id'];
+    }
+
+    /** Создаёт заказ в статусе «Черновик после сканирования». */
+    private function createDraftAfterScanningOrder(int $customerMaxUserId = 99_301): int
+    {
+        $orderId = $this->createPendingReviewOrder($customerMaxUserId);
+
+        FoodOrder::query()->whereKey($orderId)->update([
+            'status' => OrderStatus::DraftAfterScanning->value,
+            'is_manual' => true,
+        ]);
+
+        return $orderId;
     }
 
     /**

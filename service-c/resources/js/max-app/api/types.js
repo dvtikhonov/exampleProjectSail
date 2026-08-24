@@ -7,7 +7,7 @@
  */
 
 /**
- * @typedef {'submitted'|'pending_review'|'awaiting_composition'|'confirmed'|'rejected'} OrderStatus
+ * @typedef {'submitted'|'draft_after_scanning'|'pending_review'|'awaiting_composition'|'confirmed'|'rejected'} OrderStatus
  */
 
 /**
@@ -96,6 +96,7 @@
  * @property {string} restaurant_name
  * @property {OrderCustomer} customer
  * @property {string|null} delivery_address
+ * @property {string|null} delivery_date
  * @property {string} items_total
  * @property {string|null} delivery_cost
  * @property {string} total
@@ -190,6 +191,15 @@
  */
 
 /**
+ * Ответ POST /food/admin/manual-orders/{order}/move-to-cart.
+ *
+ * @typedef {object} DraftAfterScanningMoveToCartResult
+ * @property {CartDto|null} cart
+ * @property {string|null} deliveryAddress
+ * @property {number|null} customerMaxUserId
+ */
+
+/**
  * @typedef {object} RestaurantDto
  * @property {number} id
  * @property {string} name
@@ -252,6 +262,15 @@
  * @property {string} token_type
  * @property {number} expires_in
  * @property {AuthUserDto} user
+ */
+
+/**
+ * Статус доступа AI к базе для max_manager.
+ *
+ * @typedef {object} AiAccessStatusDto
+ * @property {boolean} enabled
+ * @property {number|null} active_max_user_id
+ * @property {string|null} expires_at
  */
 
 /**

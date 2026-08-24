@@ -29,4 +29,11 @@ interface DishCatalogRepositoryInterface
      * @return Collection<int, Dish>
      */
     public function findAvailableWithRestaurantByIds(array $ids): Collection;
+
+    /**
+     * Регистронезависимый поиск блюд по точному совпадению названия (с категорией и рестораном).
+     *
+     * @return Collection<int, Dish>
+     */
+    public function findByNameCaseInsensitive(string $name, ?int $restaurantId = null): Collection;
 }

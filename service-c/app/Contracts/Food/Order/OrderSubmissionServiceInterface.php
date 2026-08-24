@@ -24,7 +24,26 @@ interface OrderSubmissionServiceInterface
      * Создаёт ручной заказ из корзины менеджера от имени клиента.
      * Сразу подтверждает адрес, оплату и состав (approved) и переводит заказ в confirmed.
      *
+     * @param  string|null  $deliveryDate  дата доставки Y-m-d; null — дата доступности меню
+     *
      * @throws FoodDomainException
      */
-    public function submitManual(MaxUser $customer, MaxUser $manager): OrderDto;
+    public function submitManual(
+        MaxUser $customer,
+        MaxUser $manager,
+        ?string $deliveryDate = null,
+    ): OrderDto;
+
+    /**
+     * Создаёт ручной заказ в статусе «Черновик после сканирования» без уведомлений и без approve этапов.
+     *
+     * @param  string|null  $deliveryDate  дата доставки Y-m-d; null — дата доступности меню
+     *
+     * @throws FoodDomainException
+     */
+    public function submitDraftAfterScanning(
+        MaxUser $customer,
+        MaxUser $manager,
+        ?string $deliveryDate = null,
+    ): OrderDto;
 }
