@@ -15,4 +15,3 @@ readonly class AiAccessStatusDto
         public ?string $expiresAt,
     ) {}
 }
-

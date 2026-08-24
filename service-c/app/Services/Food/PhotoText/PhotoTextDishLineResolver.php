@@ -165,9 +165,6 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
         ];
     }
 
-    /**
-     * @return Dish|PhotoTextMatchIssueCode
-     */
     private function findUniqueDish(string $searchName, int $restaurantId): Dish|PhotoTextMatchIssueCode
     {
         $inRestaurant = $this->dishRepository->findByNameCaseInsensitive($searchName, $restaurantId);

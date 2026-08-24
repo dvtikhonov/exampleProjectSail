@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
-use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\DTO\Food\PhotoText\PhotoTextAgentItemDto;
 use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
 use App\Enums\Food\Review\FoodOrderAdminRole;

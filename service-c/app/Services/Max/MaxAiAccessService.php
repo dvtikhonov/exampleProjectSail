@@ -88,4 +88,3 @@ class MaxAiAccessService implements MaxAiAccessServiceInterface
         return $this->getStatus($now);
     }
 }
-

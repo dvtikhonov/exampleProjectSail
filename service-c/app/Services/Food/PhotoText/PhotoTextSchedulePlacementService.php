@@ -171,7 +171,6 @@ class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementSer
 
     /**
      * @param  list<int>|null  $categoryIds
-     * @return Dish|PhotoTextMatchIssueCode
      */
     private function findUniqueDish(
         string $searchName,

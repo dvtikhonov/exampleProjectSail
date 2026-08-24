@@ -6,10 +6,10 @@ namespace App\Repositories\Max;
 
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Models\Max\MaxUser;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use DateTimeInterface;
 
 /**
  * Eloquent-реализация репозитория пользователей MAX.
@@ -131,7 +131,7 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
      */
     public function setAiAccessUntilIfNoneActive(int $maxUserId, DateTimeInterface $until, DateTimeInterface $now): int
     {
-        $table = (new MaxUser())->getTable();
+        $table = (new MaxUser)->getTable();
 
         // Операция атомарна на уровне БД: обновляем строку только если в БД
         // НЕТ ни одной активной записи доступа (NOT EXISTS).

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Middleware\AuthenticateMaxMiniApp;
 use App\Http\Middleware\EnsureFoodOrderAdmin;
+use App\Http\Middleware\EnsurePhotoTextAiAccess;
 use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
-use App\Http\Middleware\EnsurePhotoTextAiAccess;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;

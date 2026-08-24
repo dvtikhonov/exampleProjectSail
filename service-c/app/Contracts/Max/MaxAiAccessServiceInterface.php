@@ -30,4 +30,3 @@ interface MaxAiAccessServiceInterface
      */
     public function toggle(MaxUser $currentUser, DateTimeInterface $now): AiAccessStatusDto;
 }
-
