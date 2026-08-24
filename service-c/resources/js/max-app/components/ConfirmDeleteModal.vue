@@ -1,7 +1,8 @@
 <script setup>
 /**
- * Модалка подтверждения удаления сущности (блюдо, категория и т.п.).
+ * Модалка подтверждения действия (удаление, выполнение заказа и т.п.).
  * Рендерится через Teleport в body поверх всего UI.
+ * Цвет кнопки подтверждения задаётся prop `confirmButtonClass` (по умолчанию красный).
  */
 defineProps({
     open: {
@@ -31,6 +32,10 @@ defineProps({
     loadingLabel: {
         type: String,
         default: 'Удаление…',
+    },
+    confirmButtonClass: {
+        type: String,
+        default: 'bg-red-600 hover:bg-red-700',
     },
 });
 
@@ -72,7 +77,8 @@ defineEmits(['close', 'confirm']);
                     </button>
                     <button
                         type="button"
-                        class="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+                        class="flex-1 rounded-xl px-4 py-3 text-sm font-medium text-white transition disabled:opacity-50"
+                        :class="confirmButtonClass"
                         :disabled="loading"
                         @click="$emit('confirm')"
                     >

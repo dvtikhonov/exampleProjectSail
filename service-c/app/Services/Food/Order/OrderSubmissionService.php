@@ -60,6 +60,7 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 customer: $maxUser,
                 isManual: false,
                 createdByMaxUserId: null,
+                draftAfterScanning: false,
             );
         });
         // tTxMs — длительность DB::transaction: снимок корзины, создание заказа, markAsSubmitted.
@@ -87,10 +88,15 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
      *
      * Ручной заказ сразу проходит все этапы проверки (approved) и становится confirmed.
      */
-    public function submitManual(MaxUser $customer, MaxUser $manager): OrderDto
-    {
+    public function submitManual(
+        MaxUser $customer,
+        MaxUser $manager,
+        ?string $deliveryDate = null,
+    ): OrderDto {
+        $normalizedDeliveryDate = $this->normalizeDeliveryDate($deliveryDate);
+
         /** @var array{order: FoodOrder, dto: OrderDto} $result */
-        $result = DB::transaction(function () use ($customer, $manager): array {
+        $result = DB::transaction(function () use ($customer, $manager, $normalizedDeliveryDate): array {
             $cart = $this->cartRepository->findManualDraftForUpdate(
                 $customer->max_user_id,
                 $manager->max_user_id,
@@ -101,6 +107,8 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 customer: $customer,
                 isManual: true,
                 createdByMaxUserId: $manager->max_user_id,
+                deliveryDate: $normalizedDeliveryDate,
+                draftAfterScanning: false,
             );
         });
 
@@ -110,6 +118,38 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
             maxUserId: $customer->max_user_id,
             kind: FoodOrderAfterSubmitNotifyKind::Confirmed,
         );
+
+        return $result['dto'];
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Черновик после сканирования: is_manual, статус draft_after_scanning, этапы проверки pending.
+     */
+    public function submitDraftAfterScanning(
+        MaxUser $customer,
+        MaxUser $manager,
+        ?string $deliveryDate = null,
+    ): OrderDto {
+        $normalizedDeliveryDate = $this->normalizeDeliveryDate($deliveryDate);
+
+        /** @var array{order: FoodOrder, dto: OrderDto} $result */
+        $result = DB::transaction(function () use ($customer, $manager, $normalizedDeliveryDate): array {
+            $cart = $this->cartRepository->findManualDraftForUpdate(
+                $customer->max_user_id,
+                $manager->max_user_id,
+            );
+
+            return $this->createOrderFromCart(
+                cart: $cart,
+                customer: $customer,
+                isManual: true,
+                createdByMaxUserId: $manager->max_user_id,
+                deliveryDate: $normalizedDeliveryDate,
+                draftAfterScanning: true,
+            );
+        });
 
         return $result['dto'];
     }
@@ -134,6 +174,8 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
     /**
      * Создаёт заказ из черновика корзины.
      *
+     * @param  string|null  $deliveryDate  явная дата Y-m-d либо null (дата доступности меню)
+     * @param  bool  $draftAfterScanning  true — статус draft_after_scanning, адрес может быть пустым
      * @return array{order: FoodOrder, dto: OrderDto}
      *
      * @throws FoodDomainException
@@ -143,12 +185,16 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
         MaxUser $customer,
         bool $isManual,
         ?int $createdByMaxUserId,
+        ?string $deliveryDate = null,
+        bool $draftAfterScanning = false,
     ): array {
         if ($cart === null || $cart->items->isEmpty()) {
             throw new FoodDomainException('Корзина пуста.');
         }
 
-        if ($cart->delivery_address === null || trim($cart->delivery_address) === '') {
+        $deliveryAddress = is_string($cart->delivery_address) ? trim($cart->delivery_address) : '';
+
+        if ($deliveryAddress === '' && ! $draftAfterScanning) {
             throw new FoodDomainException('Укажите адрес доставки.');
         }
 
@@ -166,9 +212,11 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
             : null;
         $formattedTotal = $this->moneyFormatter->format($totals->total);
 
-        $this->maxUserDeliveryAddressService->persist($customer, $cart->delivery_address);
+        if ($deliveryAddress !== '') {
+            $this->maxUserDeliveryAddressService->persist($customer, $deliveryAddress);
+        }
 
-        $deliveryDate = $this->menuAvailabilityDateResolver->resolve()->date;
+        $resolvedDeliveryDate = $deliveryDate ?? $this->menuAvailabilityDateResolver->resolve()->date;
 
         $order = $this->foodOrderWriteRepository->create([
             'cart_id' => $cart->id,
@@ -176,10 +224,10 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
             'is_manual' => $isManual,
             'created_by_max_user_id' => $createdByMaxUserId,
             'restaurant_id' => $cart->restaurant_id,
-            ...$this->initialReviewAttributes($isManual, $createdByMaxUserId),
+            ...$this->initialReviewAttributes($isManual, $createdByMaxUserId, $draftAfterScanning),
             'total' => $formattedTotal,
-            'delivery_address' => $cart->delivery_address,
-            'delivery_date' => $deliveryDate,
+            'delivery_address' => $deliveryAddress,
+            'delivery_date' => $resolvedDeliveryDate,
             'delivery_cost' => $formattedDeliveryCost,
             'items_total' => $formattedItemsTotal,
             'items_snapshot' => $snapshot->itemsSnapshot,
@@ -198,8 +246,8 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
                 deliveryApplicable: $totals->deliveryApplicable,
                 deliveryCost: $formattedDeliveryCost,
                 total: $formattedTotal,
-                deliveryAddress: $cart->delivery_address,
-                deliveryDate: $deliveryDate,
+                deliveryAddress: $deliveryAddress !== '' ? $deliveryAddress : null,
+                deliveryDate: $resolvedDeliveryDate,
                 itemsSnapshot: $snapshot->itemsSnapshot,
                 createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
             ),
@@ -231,6 +279,20 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
     }
 
     /**
+     * Пустая строка трактуется как отсутствие явной даты доставки.
+     */
+    private function normalizeDeliveryDate(?string $deliveryDate): ?string
+    {
+        if ($deliveryDate === null) {
+            return null;
+        }
+
+        $normalized = trim($deliveryDate);
+
+        return $normalized === '' ? null : $normalized;
+    }
+
+    /**
      * @param  int  $startedAtHrtime  значение hrtime(true)
      */
     private function elapsedMs(int $startedAtHrtime): float
@@ -239,12 +301,25 @@ class OrderSubmissionService implements OrderSubmissionServiceInterface
     }
 
     /**
-     * Начальные статусы проверки: клиентский заказ — pending; ручной — сразу approved/confirmed.
+     * Начальные статусы: клиентский — pending_review; черновик скана — draft_after_scanning;
+     * ручной submit — сразу approved/confirmed.
      *
      * @return array<string, mixed>
      */
-    private function initialReviewAttributes(bool $isManual, ?int $createdByMaxUserId): array
-    {
+    private function initialReviewAttributes(
+        bool $isManual,
+        ?int $createdByMaxUserId,
+        bool $draftAfterScanning,
+    ): array {
+        if ($draftAfterScanning) {
+            return [
+                'status' => OrderStatus::DraftAfterScanning,
+                'address_review_status' => OrderReviewStatus::Pending,
+                'composition_review_status' => OrderReviewStatus::Pending,
+                'payment_review_status' => OrderReviewStatus::Pending,
+            ];
+        }
+
         if (! $isManual) {
             return [
                 'status' => OrderStatus::PendingReview,

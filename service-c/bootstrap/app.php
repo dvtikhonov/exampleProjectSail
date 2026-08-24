@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use App\Http\Middleware\AuthenticateMaxMiniApp;
 use App\Http\Middleware\EnsureFoodOrderAdmin;
+use App\Http\Middleware\EnsurePhotoTextAiAccess;
 use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
+use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -26,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'max.webhook.secret' => VerifyMaxWebhookSecret::class,
             'max.miniapp.auth' => AuthenticateMaxMiniApp::class,
             'food.order.admin' => EnsureFoodOrderAdmin::class,
+            'phototext.agent.token' => VerifyPhotoTextAgentToken::class,
+            'phototext.ai.access' => EnsurePhotoTextAiAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

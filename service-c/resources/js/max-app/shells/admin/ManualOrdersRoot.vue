@@ -45,6 +45,8 @@ const {
     selectedOrderDetail: manualOrderDetail,
     orderDetailLoading: manualOrderDetailLoading,
     orderDetailError: manualOrderDetailError,
+    draftActionLoading: manualDraftActionLoading,
+    draftActionError: manualDraftActionError,
     loadUsers: loadManualUsers,
     loadOrders: loadManualOrders,
     handleUsersSearchInput,
@@ -55,6 +57,11 @@ const {
     setActiveTab: setManualOrderActiveTab,
     openOrderDetail: openManualOrderDetail,
     closeOrderDetail: closeManualOrderDetail,
+    clearDraftActionError: clearManualDraftActionError,
+    completeDraftAfterScanning,
+    moveDraftAfterScanningToCart,
+    deleteDraftAfterScanning,
+    startOrderingFromDraftCustomer,
     selectUser: selectManualUser,
     clearTargetUser: clearManualTargetUser,
     initManualOrderSession,
@@ -159,6 +166,71 @@ async function handleManualStartOrder() {
 }
 
 /**
+ * После «Выполнить»: закрыть деталку и обновить список.
+ */
+async function handleCompleteDraftAfterScanning() {
+    const orderId = manualOrderDetail.value?.id;
+
+    if (!(await completeDraftAfterScanning(orderId))) {
+        return;
+    }
+
+    closeManualOrderDetail();
+    loadManualOrders();
+}
+
+/**
+ * После «Удалить»: закрыть деталку и обновить список.
+ */
+async function handleDeleteDraftAfterScanning() {
+    const orderId = manualOrderDetail.value?.id;
+
+    if (!(await deleteDraftAfterScanning(orderId))) {
+        return;
+    }
+
+    closeManualOrderDetail();
+    loadManualOrders();
+}
+
+/**
+ * После «В корзину»: выбрать потребителя заказа, открыть вкладку создания и экран корзины.
+ */
+async function handleMoveDraftAfterScanningToCart() {
+    const order = manualOrderDetail.value;
+    const customer = order?.customer ?? null;
+    const result = await moveDraftAfterScanningToCart(order?.id);
+
+    if (result === null) {
+        return;
+    }
+
+    const user = {
+        ...(customer && typeof customer === 'object' ? customer : {}),
+        max_user_id: result.customerMaxUserId ?? customer?.max_user_id,
+    };
+
+    resetLocalCartState();
+    resetRestaurantSelection();
+    currentView.value = VIEWS.cart;
+
+    if (!startOrderingFromDraftCustomer(user)) {
+        currentView.value = VIEWS.restaurants;
+        closeManualOrderDetail();
+        loadManualOrders();
+
+        return;
+    }
+
+    await Promise.all([
+        loadRestaurants(),
+        cartFlow.loadCart(),
+    ]);
+
+    restaurantsMenu.syncSelectedRestaurantFromCart();
+}
+
+/**
  * @param {unknown} el
  */
 function assignCartPageRef(el) {
@@ -223,7 +295,13 @@ onUnmounted(() => {
         :order="manualOrderDetail"
         :loading="manualOrderDetailLoading"
         :error="manualOrderDetailError"
+        :action-loading="manualDraftActionLoading"
+        :action-error="manualDraftActionError"
         @back="closeManualOrderDetail"
+        @complete="handleCompleteDraftAfterScanning"
+        @move-to-cart="handleMoveDraftAfterScanningToCart"
+        @delete="handleDeleteDraftAfterScanning"
+        @clear-action-error="clearManualDraftActionError"
     />
 
     <KeepAlive>

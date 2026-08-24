@@ -42,6 +42,13 @@ export function getOrderStatusDisplay(order) {
         };
     }
 
+    if (status === 'draft_after_scanning') {
+        return {
+            label: 'Черновик после сканирования',
+            badgeClass: 'bg-red-100 text-red-800',
+        };
+    }
+
     if (status === 'awaiting_composition') {
         return {
             label: 'Ожидает состав',

@@ -519,6 +519,114 @@ TEXT,
         $this->assertSame($sentMessages[1]->text, $sentMessages[2]->text);
     }
 
+    /** Публичный notify оформившему не рассылает всем max_manager — только created_by_max_user_id. */
+    public function test_notify_manual_order_creator_confirmed_sends_only_to_creator(): void
+    {
+        $sentMessages = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessages): void {
+                $sentMessages[] = $message;
+            });
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver->expects($this->never())->method('resolveMaxUserIds');
+
+        $notifier = $this->makeNotifier($client, $recipientResolver);
+
+        $order = $this->makeOrder(
+            id: 42,
+            maxUserId: 1002,
+            isManual: true,
+            createdByMaxUserId: 9001,
+            createdAt: '2026-07-21 12:00:00',
+            customerFirstName: 'Анна',
+            customerLastName: 'Сидорова',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'description' => 'куриный бульон',
+                    'weight' => '250',
+                    'weight_unit' => 'g',
+                    'unit_price' => '120.00',
+                    'quantity' => 1,
+                    'line_total' => '120.00',
+                ],
+            ],
+        );
+
+        $notifier->notifyManualOrderCreatorConfirmed($order);
+
+        $this->assertCount(1, $sentMessages);
+        $this->assertSame(9001, $sentMessages[0]->userId);
+        $this->assertSame(
+            <<<'TEXT'
+Заказ на 21.07. от Анна Сидорова:
+1. Суп (куриный бульон), 250г – 120р - 1шт.
+TEXT,
+            $sentMessages[0]->text,
+        );
+    }
+
+    /** Если DM оформившему недоступен — публичный notify уходит в UI Stand. */
+    public function test_notify_manual_order_creator_confirmed_falls_back_to_ui_stand(): void
+    {
+        $sentMessages = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->exactly(2))
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessages): void {
+                $sentMessages[] = $message;
+
+                if ($message->userId === 1003) {
+                    throw new MaxMessengerRequestException('Получатель MAX не найден. Проверьте chat_id и user_id в настройках.');
+                }
+            });
+
+        $recipientResolver = $this->createMock(OrderCustomerNotifyRecipientResolverInterface::class);
+        $recipientResolver->expects($this->never())->method('resolveMaxUserIds');
+
+        $uiStandResolver = $this->createMock(MaxUiStandRecipientResolverInterface::class);
+        $uiStandResolver->method('chatIds')->willReturn([-75495934087316]);
+        $uiStandResolver->method('userIds')->willReturn([]);
+
+        $notifier = $this->makeNotifier($client, $recipientResolver, $uiStandResolver);
+
+        $order = $this->makeOrder(
+            id: 42,
+            maxUserId: 1002,
+            isManual: true,
+            createdByMaxUserId: 1003,
+            createdAt: '2026-07-21 12:00:00',
+            customerFirstName: 'Demo',
+            customerLastName: 'VIP',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'weight' => '250',
+                    'weight_unit' => 'g',
+                    'unit_price' => '120.00',
+                    'quantity' => 1,
+                    'line_total' => '120.00',
+                ],
+            ],
+        );
+
+        $notifier->notifyManualOrderCreatorConfirmed($order);
+
+        $this->assertCount(2, $sentMessages);
+        $this->assertSame(1003, $sentMessages[0]->userId);
+        $this->assertStringStartsWith('Заказ на 21.07.', $sentMessages[0]->text);
+        $this->assertSame(-75495934087316, $sentMessages[1]->chatId);
+        $this->assertNull($sentMessages[1]->userId);
+        $this->assertSame($sentMessages[0]->text, $sentMessages[1]->text);
+    }
+
     /** Без получателей (нет max_manager) отправка не выполняется. */
     public function test_notify_manual_order_skips_send_when_no_recipients(): void
     {

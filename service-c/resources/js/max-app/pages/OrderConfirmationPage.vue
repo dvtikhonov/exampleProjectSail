@@ -37,7 +37,12 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_d
 </script>
 
 <template>
-    <div class="flex min-h-dvh flex-col items-center justify-center px-6 py-12 text-center">
+    <!--
+        В админ-секции родительский контейнер использует `overflow-hidden`,
+        поэтому `min-h-dvh` может "вылезать" за доступную высоту и обрезать CTA-кнопку.
+        Делаем контейнер гибким и включаем прокрутку при переполнении.
+    -->
+    <div class="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-12 text-center">
         <div
             class="mb-6 flex h-20 w-20 items-center justify-center rounded-full"
             :class="manualOrderMode ? 'bg-green-100' : 'bg-amber-100'"

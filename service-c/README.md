@@ -1,6 +1,6 @@
 # service-c — MAX mini-app «Заказ еды»
 
-Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-router) для MAX mini-app: сеть ресторанов → меню (в т.ч. комбо из двух категорий; single-restaurant mode) → корзина с подсказкой тарифа, **датой доставки** (`delivery_date` = «Блюда на» из `MenuAvailabilityDateResolver`) и модалкой подтверждения → заявка → проверка администраторами (адрес, оплата, состав; **редактирование состава** до approve/reject) → подтверждение или отклонение. Роль **`max_manager`** оформляет **ручные заказы** от имени клиента (отдельная корзина, сразу `confirmed`, без очереди проверки) и **просматривает** их (фильтры периода/статуса, сумма по выборке, детальная карточка, read-only чат). Клиент видит «Мои заказы» (бейдж непрочитанных), чат по заказу и уведомления в MAX (в т.ч. «принят на рассмотрение» и «заказ изменен» после правки состава; для ручных заказов confirm уходит менеджерам, не клиенту). Адрес доставки — в шапке меню и в корзине (autosave). Расчёт доставки по категории клиента и порогам суммы заказа. Админ меню: CRUD категорий (в т.ч. **`availability_offsets`** по дням недели) и блюд, график доступности по датам, импорт из XLS/XLSX, тестовые кнопки **«тест бот»** / **«тест бот 2»**. Ежедневно в **03:00 MSK** cron `food:sync-dish-availability` синхронизирует `is_available` по графику **на сегодня**, затем шлёт «Доступно для заказов меню на …» и два текста ежедневного меню с датой **завтра (MSK)** в `MAX_REPORT_*` / клиентам с адресом и активным `max_manager`. Также webhook MAX, UI Stand (приветствие + inline-кнопки), локальная отладка в браузере (`MAX_LOCAL_DEV_INIT_DATA`) и Artisan-команды `max:bot:info`, `max:webhook:*`, `max:ui-stand:send`, `max:food-admin:assign`, `food:sync-dish-availability`.
+Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-router) для MAX mini-app: сеть ресторанов → меню (в т.ч. комбо из двух категорий; single-restaurant mode) → корзина с подсказкой тарифа, **датой доставки** (`delivery_date` = «Блюда на» из `MenuAvailabilityDateResolver`) и модалкой подтверждения → заявка → проверка администраторами (адрес, оплата, состав; **редактирование состава** до approve/reject) → подтверждение или отклонение. Роль **`max_manager`** оформляет **ручные заказы** от имени клиента (отдельная корзина, сразу `confirmed`, без очереди проверки), **просматривает** их (фильтры периода/статуса в т.ч. `draft_after_scanning`, сумма по выборке, детальная карточка, read-only чат) и обрабатывает черновики после сканирования (**Выполнить** / **В корзину** / **Удалить**); также включает **доступ AI** к базе (кнопка «Вкл. доступ AI», TTL 30 мин) для PhotoText. Клиент видит «Мои заказы» (бейдж непрочитанных), чат по заказу и уведомления в MAX (в т.ч. «принят на рассмотрение» и «заказ изменен» после правки состава; для ручных заказов confirm уходит менеджерам, не клиенту). Адрес доставки — в шапке меню и в корзине (autosave). Расчёт доставки по категории клиента и порогам суммы заказа. Админ меню: CRUD категорий (в т.ч. **`availability_offsets`** по дням недели) и блюд, график доступности по датам, импорт из XLS/XLSX, тестовые кнопки **«тест бот»** / **«тест бот 2»**. Ежедневно в **03:00 MSK** cron `food:sync-dish-availability` синхронизирует `is_available` по графику **на сегодня**, затем шлёт «Доступно для заказов меню на …» и два текста ежедневного меню с датой **завтра (MSK)** в `MAX_REPORT_*` / клиентам с адресом и активным `max_manager`. Также webhook MAX, UI Stand (приветствие + inline-кнопки), локальная отладка в браузере (`MAX_LOCAL_DEV_INIT_DATA`) и Artisan-команды `max:bot:info`, `max:webhook:*`, `max:ui-stand:send`, `max:food-admin:assign`, `food:sync-dish-availability`, `max:load-test:*` (только `local`/`testing`). Отдельно — HTTP API агента Cursor **PhotoText**: OCR фото бланка делает агент (`.cursor/commands/phototext-order.md`); сервер принимает канонические имена при `X-PhotoText-Token` **и** активном AI-доступе `max_manager`, оформляет **ручной черновик** (`is_manual`, `status=draft_after_scanning`) в выбранном ресторане; менеджер затем подтверждает или правит в mini-app.
 
 | Документ | Назначение |
 |---|---|
@@ -8,9 +8,11 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | [docs/scripts.md](../docs/scripts.md) | Каталог скриптов: туннели MAX, тесты, VPS |
 | [shared/max-messenger](../shared/max-messenger/) | Общий HTTP-клиент MAX Bot API |
 | [Архитектурные принципы](#архитектурные-принципы) | SOLID, DTO/Enum, Service/Repository, DI, валидация, тесты |
+| [AI Cursor](#ai-cursor) | Правила `.cursor/rules`, slash-команды `/phototext-order` / `/phototext-schedule`, словарь `phototext-dish-aliases`, примеры промптов |
 | [Frontend mini-app](#frontend-mini-app-vue-3) | Shells, composables, модульный `api/`, навигация без vue-router |
 | [Бизнес-логика](#бизнес-логика) | Правила домена Food, статусы, сервисный слой |
-| [Ручные заказы (max_manager)](#ручные-заказы-max_manager) | Выбор клиента, изолированная корзина, submit → confirmed; просмотр списка/детали |
+| [Ручные заказы (max_manager)](#ручные-заказы-max_manager) | Выбор клиента, изолированная корзина, submit → confirmed; просмотр; черновик после сканирования |
+| [PhotoText (агент Cursor)](#phototext-агент-cursor) | Фото бланка → заказ; фото графика → schedule (`/api/food/phototext/*`, AI-доступ) |
 | [Уведомления о заказах в MAX](#уведомления-о-заказах-в-max) | Новый заказ → `MAX_UI_STAND_*` |
 | [Уведомления клиенту о результате проверки](#уведомления-клиенту-о-результате-проверки) | Submitted / confirmed / rejected / состав изменён / ручной заказ |
 | [Уведомления о сообщениях в чате](#уведомления-о-сообщениях-в-чате-заказа) | Клиент + `MAX_UI_STAND_*` |
@@ -76,6 +78,134 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | Миграции | Только после согласия; в shared MySQL учитываются migration paths всех сервисов |
 | MAX API | [документация MAX](https://dev.max.ru/docs) / [Bot API](https://dev.max.ru/docs-api) |
 | Shell | Команды через WSL/Docker (`docker compose exec -T service-c …`); `npm run dev` — внутри контейнера `service-c` |
+| Cursor | Правила `.cursor/rules` (alwaysApply); slash-команды `.cursor/commands/` (`phototext-order`, `phototext-schedule`, `phototext-dish-aliases`) — см. [AI Cursor](#ai-cursor) |
+
+## AI Cursor
+
+Как работать с **Cursor Agent** в service-c: правила репозитория, slash-команды и готовые примеры промптов. Агент читает код, ходит в Docker/WSL и (для PhotoText) вызывает HTTP API. Общаться с агентом — **на русском**.
+
+### Что уже настроено
+
+| Место | Назначение |
+|---|---|
+| `.cursor/rules/*.mdc` (`alwaysApply: true`) | Автоматически подмешиваются в каждый чат: SOLID, DTO/Enum/Service/DI/PHPDoc, валидация Form Request, тесты на `sail_db_testing`, миграции только после согласия, WSL вместо PowerShell, Tailwind, `npm run dev` в контейнере |
+| `.cursor/commands/phototext-order.md` | Slash-команда **`/phototext-order`**: фото бланка → OCR → канонические имена → `POST /api/food/phototext/orders` (нужен активный AI-доступ менеджера). Код приложения **не меняет**, только HTTP |
+| `.cursor/commands/phototext-schedule.md` | Slash-команда **`/phototext-schedule`**: фото рукописного недельного графика → OCR → `POST /api/food/phototext/schedule/match` → `…/schedule/apply` (тот же токен и AI-доступ). Код приложения **не меняет**, только HTTP |
+| `.cursor/commands/phototext-dish-aliases.md` | Общий словарь OCR → канон каталога для `/phototext-order` и `/phototext-schedule` (читать **до** сопоставления имён) |
+| `@файл` в чате | Явная привязка контекста: `@service-c/README.md`, `@service-c/app/Services/Food/PhotoText/` |
+
+### Slash-команда `/phototext-order`
+
+Оформить ручной заказ по **фото бланка** через API VPS (не через mini-app Bearer). Полный протокол — [PhotoText](#phototext-агент-cursor) и `.cursor/commands/phototext-order.md`.
+
+**Перед запуском** заполните шапку и **приложите фото** бланка (скрепка / drag-and-drop в чат). Текст после команды тоже считается шапкой, если поля пустые.
+
+```
+Клиент: Сибирь-Финанс
+Дата заказа: ДД.ММ.ГГГГ
+Ресторан:
+```
+
+| Поле | Что писать |
+|---|---|
+| **Клиент** | Подстрока имени клиента MAX (`customer_query`), например `Сибирь-Финанс`. Должен найтись **ровно один** `max_users` |
+| **Дата заказа** | Дата доставки из шапки чата (`ДД.ММ.ГГГГ` → `Y-m-d`). Дату в шапке бланка («Меню на …») агент **не** использует |
+| **Ресторан** | Числовой `id` или уникальное имя активного ресторана |
+
+Если шапка неполная или нет фото — агент **останавливается** и просит заполнить. Токен `PHOTOTEXT_AGENT_TOKEN` в чат **не печатать**.
+
+#### Пример 1. Минимальный запуск (продакшен VPS)
+
+В чат Cursor (Agent), фото бланка уже приложено:
+
+```
+/phototext-order
+
+Клиент: Сибирь-Финанс
+Дата заказа: 17.08.2026
+Ресторан: 1
+```
+
+Агент: читает `PHOTOTEXT_AGENT_TOKEN` из `service-c/.env` (в ответ не выводит) → `GET /restaurants` → `GET /catalog?restaurant_id=1` → OCR фото → канонические имена только из этого каталога → `POST /match` → при `matched_count` > 0 `POST /orders` тем же JSON → заказ со статусом **`draft_after_scanning`** → кратко: `order_id`, позиции, `issues`.
+
+Перед запросами менеджер в mini-app должен включить **«Вкл. доступ AI»** (TTL 30 мин, одновременно активен один). Без доступа — `403` «Доступ AI к базе не разрешён.»
+
+По умолчанию `BASE_URL=https://94-228-117-27.sslip.io` (nginx-gateway проксирует `/api/food/` в service-c **без** Passport).
+
+#### Пример 2. Другой хост и ресторан по имени
+
+```
+/phototext-order BASE_URL=https://max-dev.94-228-117-27.sslip.io
+
+Клиент: Сибирь-Финанс
+Дата заказа: 17.08.2026
+Ресторан: Кухня на районе
+```
+
+Имя ресторана: без учёта регистра, допускается уникальная подстрока. 0 или больше одного совпадения — **STOP**, заказ не слать.
+
+#### Пример 3. Локальный service-c без туннеля
+
+```
+/phototext-order BASE_URL=http://localhost:8083
+
+Клиент: Сибирь-Финанс
+Дата заказа: 17.08.2026
+Ресторан: 1
+```
+
+HTTP — `curl` в WSL. Заголовок `X-PhotoText-Token`, тело `Content-Type: application/json`.
+
+#### Пример 4. Что агент должен сделать с бланком (логика OCR)
+
+По фото вроде `PhotoText.txt` / бумажного меню:
+
+| Строка на бланке | В JSON `items` |
+|---|---|
+| `Салат "Фасолька" 100 г — 75 ₽` × **2** | `{ "name": "Салат \"Фасолька\"", "quantity": 2 }` — каноническое имя из каталога |
+| `Помидоры …` qty **—** | не отправлять |
+| `Филе минтая с овощами / Гречка` × **1** | **две** позиции с общим `combo_ref` (UUID v4), без слэша в `name` |
+| Итог, вес, цены | не отправлять |
+
+Неоднозначное блюдо (0 или >1 кандидат **в каталоге этого ресторана**) — строку не угадывать и не слать. Перед матчем — словарь `.cursor/commands/phototext-dish-aliases.md` (если канон есть в каталоге ресторана). Частичный матч (есть `matched` и `issues`) — `POST /orders` допустим: в заказ идут только matched.
+
+**STOP без `POST /orders`:** нет шапки/фото; ресторан 0/>1; клиент 0/>1 на сервере; `401` (токен); `403` (нет активного AI-доступа `max_manager`); после match `matched_count` = 0.
+
+Итог пользователю: ресторан (`id` + имя), дата `Y-m-d`, `order_id` или причина отказа, позиции, `issues`. Цены с бланка и токен не повторять.
+
+### Slash-команда `/phototext-schedule`
+
+Записать **график производства блюд** по фото рукописного недельного графика через тот же PhotoText API (не mini-app Bearer). Полный протокол — `.cursor/commands/phototext-schedule.md` (копия `service-c/phototext-schedule.md`).
+
+**Перед запуском** заполните шапку и **приложите фото** графика. **Категории обязательны**.
+
+```
+BASE_URL=http://localhost:8083
+Дата начала графика: ДД.ММ.ГГГГ
+Ресторан:
+Категории: гарнир, Горячее
+```
+
+| Поле | Что писать |
+|---|---|
+| **Дата начала** | Любой weekday (`ДД.ММ.ГГГГ` → `Y-m-d`); окно всегда **7 дней** (`date_from`…`date_from+6`) |
+| **Ресторан** | Числовой `id` или уникальное имя/подстрока активного ресторана |
+| **Категории** | Обязательно 1+: сужает OCR-матч и scope apply (`category_ids`); остальные категории ресторана **не** меняются |
+
+Агент: `GET /restaurants` → `GET /catalog` → OCR (блоки Пн…Вс → даты в окне) → канонические имена (словарь `phototext-dish-aliases.md` + правила вариаций) → `POST /schedule/match` с `category_ids` → при `matched_count` > 0 `POST /schedule/apply` тем же JSON. Токен в чат **не печатать**. Нужен активный AI-доступ «Вкл. доступ AI».
+
+Пример:
+
+```
+/phototext-schedule BASE_URL=http://localhost:8083
+
+Дата начала графика: 13.08.2026
+Ресторан: 1
+Категории: гарнир, Горячее
+```
+
+Итог: ресторан, обрабатываемые категории, диапазон 7 дней, `applied`, позиции по дням, `issues`.
+
 
 ## Маршрутизация
 
@@ -86,11 +216,12 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | `http://localhost:8083/up` | Health check | Публичный |
 | `http://localhost:8083/api/webhooks/max` | Webhook MAX | `X-Max-Bot-Api-Secret` |
 | `http://localhost:8083/api/max/auth` | Валидация `initData` → Bearer token | Публичный |
-| `http://localhost:8083/api/food/*` | Food API | Bearer (`max.miniapp.auth`) |
+| `http://localhost:8083/api/food/*` | Food API mini-app | Bearer (`max.miniapp.auth`) |
+| `http://localhost:8083/api/food/phototext/*` | API агента Cursor (PhotoText) | `X-PhotoText-Token` + активный AI-доступ `max_manager` (без mini-app Bearer) |
 | `http://localhost:8080/api/c/...` | Через nginx-gateway (префикс `/api/c`) | Gateway auth (`X-User-Id`) |
 | `http://localhost:8080/api/c/webhooks/max` | Webhook через gateway | **Без** gateway auth |
 
-**Важно:** MAX на **том же домене**, что и `main-app` (`94-228-117-27.sslip.io`), идёт через `nginx-gateway` → `service-c` по путям **без** префикса `/api/c`: `/max-app`, `/max-build/`, `/api/webhooks/max`, `/api/max/`, `/api/food/`. Ассеты mini-app в каталоге **`/max-build/`** (не `/build/`), чтобы не пересекаться с Vite `main-app`.
+**Важно:** MAX на **том же домене**, что и `main-app` (`94-228-117-27.sslip.io`), идёт через `nginx-gateway` → `service-c` по путям **без** префикса `/api/c`: `/max-app`, `/max-build/`, `/api/webhooks/max`, `/api/max/`, `/api/food/`. Location `/api/food/` **без** Passport: им пользуются mini-app (свой Bearer) и агент PhotoText (`X-PhotoText-Token`). Ассеты mini-app в каталоге **`/max-build/`** (не `/build/`), чтобы не пересекаться с Vite `main-app`.
 
 Префикс `/api/c/` остаётся для отладки gateway auth и единообразия с `service-a` / `service-b`.
 
@@ -104,9 +235,10 @@ SPA без **vue-router**: точка входа `resources/js/max-app/app.js` �
 |---|---|
 | `useAuth` | `POST /api/max/auth`, Bearer, `admin_roles`; вкладки «Заказы» / «Ручные заказы» / «Меню» |
 | `useAdminChrome` | Видимость `AdminSectionNav` (общее состояние AdminAppShell и feature roots) |
+| `useAiAccess` | Статус/переключение «Вкл. доступ AI» (`GET`/`POST .../admin/ai-access*`); polling + refresh по `expires_at`; только для `max_manager` в `AdminSectionNav` |
 | `useCart` | Корзина, debounce адреса (500 ms), submit, бейдж по группам (`countCartGroupsQuantity`); при `getTargetMaxUserId()` — manual-orders API через `cartTransport` |
 | `useRestaurantsMenu` | Рестораны / меню / add / combo; **single-restaurant mode**; в manual mode — `addToManualCart` / `addComboToManualCart` |
-| `useManualOrder` | Выбор потребителя (`GET .../manual-orders/users`, debounce 300 ms) перед «Оформить»/«Просмотр»; список (`GET .../manual-orders` по `max_user_id`/`date_from`/`date_to`/`status`, `meta.total_amount`); деталь (`GET .../manual-orders/{id}` → `ManualOrderDetailPage`); `ordersStatus`, `openOrderDetail`/`closeOrderDetail`, `targetMaxUserId`, подпись клиента |
+| `useManualOrder` | Выбор потребителя (`GET .../manual-orders/users`, debounce 300 ms) перед «Оформить»/«Просмотр»; список (`GET .../manual-orders` по `max_user_id`/`date_from`/`date_to`/`status`, `meta.total_amount`); деталь (`GET .../manual-orders/{id}` → `ManualOrderDetailPage`); действия `draft_after_scanning` (`complete` / `move-to-cart` / `delete`); `ordersStatus`, `openOrderDetail`/`closeOrderDetail`, `targetMaxUserId`, подпись клиента |
 | `useClientNavigation` | «Назад» / «домой» с учётом single-restaurant и manual-flow |
 | `useMyOrders` | Список заказов клиента, сумма `unread_count` для бейджа |
 | `useOrderChat` | Чат по заказу (сообщения, отправка, deep link) |
@@ -134,7 +266,7 @@ SPA без **vue-router**: точка входа `resources/js/max-app/app.js` �
 | Непрочитанные | Бейдж на «Мои заказы» и в списках заказов (клиент + админ) из `unread_count` |
 | Deep link в чат | `order_{id}_chat` (`start_param`) или `?order_id=&view=chat` (local browser) → `orderChatDeepLink.js` |
 | Редактирование состава (админ) | На `AdminOrderDetailPage` при `scope=composition` и статусе `pending`/`not_applicable`: режим правки (`useCompositionEdit`) — количество, удаление; одна кнопка **«Добавить блюдо»** открывает `CompositionMenuPickerSheet` (обычное добавление по цене или комбо через «собрать блюдо» → `MenuComboBuilderSheet`); сохранение через `ConfirmCompositionSaveModal` → `PUT /api/food/admin/orders/{id}/composition` |
-| Ручные заказы (`max_manager`) | Вкладка «Ручные заказы» (`ManualOrdersRoot`) → `ManualOrderUserSelectPage`: выбор потребителя (`AppSearchSelect`) → «Оформить» (`OrderingFlow` в `manual-order-mode`) или «Просмотр» (фильтры периода + `status`, строка «Найдено: N · На сумму: X ₽» → `GET .../manual-orders?max_user_id=&status=&date_*`); клик по заказу → `ManualOrderDetailPage` (состав, `ManualOrderChatModal` при `has_messages`); после submit — «Назад к списку» клиентов |
+| Ручные заказы (`max_manager`) | Вкладка «Ручные заказы» (`ManualOrdersRoot`) → `ManualOrderUserSelectPage`: выбор потребителя (`AppSearchSelect`) → «Оформить» (`OrderingFlow` в `manual-order-mode`) или «Просмотр» (фильтры периода + `status` в т.ч. **«Черновик после сканирования»**, строка «Найдено: N · На сумму: X ₽» → `GET .../manual-orders?max_user_id=&status=&date_*`); клик по заказу → `ManualOrderDetailPage` (состав, `ManualOrderChatModal` при `has_messages`; для `draft_after_scanning` — «Выполнить» / «В корзину» / «Удалить» через `ConfirmDeleteModal`); после submit — «Назад к списку» клиентов. В `AdminSectionNav` — кнопка **«Вкл. доступ AI»** (`useAiAccess`) |
 | Смещение доступности категории | В форме категории (`AdminMenuCategoryFormPage`) — блок «Смещение доступности блюд»: правила `{ weekdays, offset_days }` → `availability_offsets` в create/update |
 
 Scope экрана корзины зафиксирован в `components/cart/cartScope.js` (`CART_PAGE_SECTIONS` / `CART_PAGE_OUT_OF_SCOPE`): upsell, акции и чат на корзину **не** выносятся (чат — только `OrderDetailPage`). Общий клиентский/ручной flow ресторан→меню→корзина→confirmation — `components/ordering/OrderingFlow.vue`.
@@ -143,7 +275,7 @@ Scope экрана корзины зафиксирован в `components/cart/c
 
 ## Бизнес-логика
 
-Mini-app реализует цепочку **рестораны → меню → корзина → заявка → проверка администраторами → подтверждение или отклонение**. Доменная логика Food — в `app/Services/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|Delivery|Shared}/`; HTTP-слой (`Controllers` / `Requests` / `Middleware`) без переноса по поддоменам. Контроллеры принимают только данные из Form Request и делегируют сервисам (Eloquent — через repository layer). Транспорт MAX (notifiers, message builders) — адаптеры в `app/Services/Max/Food/` и `app/Services/Max/Menu/`; контракты остаются в `app/Contracts/Food/`.
+Mini-app реализует цепочку **рестораны → меню → корзина → заявка → проверка администраторами → подтверждение или отклонение**. Доменная логика Food — в `app/Services/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|PhotoText|Delivery|Shared}/`; HTTP-слой (`Controllers` / `Requests` / `Middleware`) без переноса по поддоменам. Контроллеры принимают только данные из Form Request и делегируют сервисам (Eloquent — через repository layer). Транспорт MAX (notifiers, message builders) — адаптеры в `app/Services/Max/Food/` и `app/Services/Max/Menu/`; контракты остаются в `app/Contracts/Food/`. Агент Cursor ходит в тот же домен через `/api/food/phototext/*` (не Bearer mini-app; нужен `X-PhotoText-Token` + активный `ai_access_until` у `max_manager`) и оформляет **черновик после сканирования** от имени `PHOTOTEXT_MANAGER_MAX_USER_ID`.
 
 ### Участники
 
@@ -153,7 +285,7 @@ Mini-app реализует цепочку **рестораны → меню →
 | Админ адреса и оплаты | `address_reviewer` в `max_food_order_admins` | Очередь заказов (`scope=address`), approve/reject адреса и оплаты |
 | Админ состава | `composition_reviewer` | Очередь (`scope=composition`), **редактирование состава** (`PUT .../composition`), approve/reject состава |
 | Админ меню | `menu_manager` | CRUD категорий меню (в т.ч. `availability_offsets`) и блюд, график доступности по датам, импорт из XLS/XLSX |
-| MAX-менеджер | `max_manager` | Ручные заказы от имени клиента (`/api/food/admin/manual-orders/*`); ежедневное меню в MAX (cron) |
+| MAX-менеджер | `max_manager` | Ручные заказы (`/api/food/admin/manual-orders/*`); черновики PhotoText (`complete` / `move-to-cart` / `delete`); **доступ AI** (`GET`/`POST .../admin/ai-access*`, поле `max_users.ai_access_until`); ежедневное меню в MAX (cron) |
 
 Один `max_user_id` может иметь несколько ролей (отдельная строка в `max_food_order_admins` на роль). Роли возвращаются в `POST /api/max/auth` → `user.admin_roles`; фронт переключает клиентский и админский режим без отдельного запроса. При нескольких ролях — вкладки **«Заказы» / «Ручные заказы» / «Меню»** (`ADMIN_SECTIONS` в `constants/views.js`).
 
@@ -189,6 +321,12 @@ flowchart TD
     S --> F
     S --> T[Всем max_manager: принята к исполнению]
     S --> U[Оформившему: детальный состав]
+    V[Cursor /phototext-order] --> W[POST /api/food/phototext/orders]
+    W --> X[is_manual draft_after_scanning]
+    X --> Y{max_manager в mini-app}
+    Y -->|Выполнить| S2[confirmed + увед. оформившему]
+    Y -->|В корзину| Q
+    Y -->|Удалить| Z[заказ удалён]
 ```
 
 ### Корзина
@@ -216,7 +354,8 @@ flowchart TD
 | Шаг | Поведение |
 |---|---|
 | Preview в корзине | `GET /cart` → `delivery_date` из `MenuAvailabilityDateResolver::resolve()` (lookback до 7 дней); UI — `CartSummaryFooter`, `CartOrderConfirmModal` |
-| Submit (клиент / ручной) | `OrderSubmissionService` пишет в заказ ту же дату `resolve()->date` (снимок на момент оформления; дальше не пересчитывается) |
+| Submit (клиент / ручной из mini-app) | `OrderSubmissionService` пишет `MenuAvailabilityDateResolver::resolve()->date` (снимок на момент оформления; дальше не пересчитывается) |
+| Submit (PhotoText) | `submitDraftAfterScanning(..., $orderDate)` пишет `delivery_date` из тела запроса (`Y-m-d` шапки промпта), а не с бланка и не из resolver; статус `draft_after_scanning` |
 | API заказа | Поле в `OrderDto`, `AdminOrderDetailDto`, `ManualOrderDetailDto`; UI — `OrderConfirmationPage`, `OrderDetailPage`, `AdminOrderDetailPage`, `ManualOrderDetailPage` (`formatIsoDateRu`) |
 | MAX | `FoodOrderMaxMessageBuilder`: строка «Дата доставки: ДД.ММ.ГГГГ» в уведомлении о новой заявке; `buildManualOrderCreatorConfirmed` — «Заказ на ДД.ММ» из `delivery_date`, fallback на `created_at` |
 
@@ -273,32 +412,59 @@ flowchart TD
 3. Рассчитываются итоги через `CartTotalsCalculator`.
 4. Создаётся заказ: `status = pending_review`, все три `*_review_status = pending`; **`delivery_date`** = `MenuAvailabilityDateResolver::resolve()->date` (может быть `null`).
 5. Корзина переводится в `submitted`.
-6. **После commit** (вне транзакции):
-   - синхронное уведомление в `MAX_UI_STAND_*` (`LaravelFoodOrderMaxNotifier`);
+6. **После commit** (вне транзакции) ставится в очередь `NotifyFoodOrderAfterSubmitJob` (`FoodOrderAfterSubmitNotifyKind::Submitted`):
+   - уведомление в `MAX_UI_STAND_*` (`LaravelFoodOrderMaxNotifier`);
    - личное сообщение клиенту «Заказ №N принят на рассмотрение…» (`LaravelFoodOrderCustomerNotifier::notifySubmitted`) с кнопкой «Открыть заказ №N» (`open_app` + `order_{id}_chat`).
-   Сбой MAX не отменяет заказ.
+   HTTP-ответ submit **не** ждёт MAX API. Сбой MAX / job не отменяет заказ. При `QUEUE_CONNECTION=database` нужен `php artisan queue:work` (в тестах — `sync` / `Bus::fake`).
 
 Подробности формата сообщения — [Уведомления о заказах в MAX](#уведомления-о-заказах-в-max).
 
 ### Ручные заказы (`max_manager`)
 
-Реализация: `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `OrderSubmissionService::submitManual`, `OrderCustomerNotifyRecipientResolver`; Form Request в `app/Http/Requests/Food/Admin/` (`ListManualOrdersRequest`, `ListManualOrderUsersRequest`, `ShowManualOrderCartRequest`, `ManualAddCartItemRequest`, `ManualUpdateCartItemRequest`, `ManualUpdateCartDeliveryAddressRequest`, `SubmitManualOrderRequest`, базовый `ManualOrderCustomerFormRequest`); контроллер `AdminManualOrderController`; DTO `ManualOrderUserDto`, `ManualOrderListItemDto`, `ManualOrderDetailDto`. UI — вкладка «Ручные заказы» (`ManualOrdersRoot`), `useManualOrder`, `ManualOrderUserSelectPage` (вкладки «Оформить» / «Просмотр»), `ManualOrderDetailPage`, `ManualOrderChatModal`, `AppSearchSelect`, reuse клиентского flow через `OrderingFlow` в `manual-order-mode` (`getTargetMaxUserId()` в `useCart` / `useRestaurantsMenu`).
+Реализация: `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService`, `OrderSubmissionService::submitManual` / `submitDraftAfterScanning`, `OrderCustomerNotifyRecipientResolver`, `MaxAiAccessService`; Form Request в `app/Http/Requests/Food/Admin/` (`ListManualOrdersRequest`, `ListManualOrderUsersRequest`, `ShowManualOrderCartRequest`, `ManualAddCartItemRequest`, `ManualUpdateCartItemRequest`, `ManualUpdateCartDeliveryAddressRequest`, `SubmitManualOrderRequest`, `DraftAfterScanningOrderActionRequest`, базовый `ManualOrderCustomerFormRequest`); контроллеры `AdminManualOrderController`, `AdminAiAccessController`; DTO `ManualOrderUserDto`, `ManualOrderListItemDto`, `ManualOrderDetailDto`, `DraftAfterScanningMoveToCartResultDto`, `AiAccessStatusDto`. UI — вкладка «Ручные заказы» (`ManualOrdersRoot`), `useManualOrder`, `useAiAccess`, `ManualOrderUserSelectPage` (вкладки «Оформить» / «Просмотр»), `ManualOrderDetailPage`, `ManualOrderChatModal`, `ConfirmDeleteModal`, `AppSearchSelect`, reuse клиентского flow через `OrderingFlow` в `manual-order-mode` (`getTargetMaxUserId()` в `useCart` / `useRestaurantsMenu`). Агент Cursor создаёт заказ со статусом `draft_after_scanning` через [PhotoText](#phototext-агент-cursor), минуя mini-app.
 
 | Правило | Поведение |
 |---|---|
 | Кто | Только активная роль `max_manager` |
 | Выбор клиента | `GET /api/food/admin/manual-orders/users?q=&per_page=` (API default `per_page=20`, max 100; фронт `useManualOrder` → `fetchManualOrderUsers` из `api/manualOrders.js` по умолчанию запрашивает **30**) |
-| Просмотр заказов | `GET /api/food/admin/manual-orders?max_user_id=&q=&date_from=&date_to=&status=&per_page=` — только `is_manual=true`; фильтр по потребителю, ФИО (`q`), периоду `created_at` (`Y-m-d`) и статусу (`pending_review` / `awaiting_composition` / `confirmed` / `rejected`); ответ `{ orders, meta }` — в `meta` пагинация и **`total_amount`** (сумма `total` по фильтрам); у элемента — вложенный `customer` |
+| Просмотр заказов | `GET /api/food/admin/manual-orders?max_user_id=&q=&date_from=&date_to=&status=&per_page=` — только `is_manual=true`; фильтр по потребителю, ФИО (`q`), периоду `created_at` (`Y-m-d`) и статусу (`draft_after_scanning` / `pending_review` / `awaiting_composition` / `confirmed` / `rejected`); ответ `{ orders, meta }` — в `meta` пагинация и **`total_amount`** (сумма `total` по фильтрам); у элемента — вложенный `customer` |
 | Деталь заказа | `GET /api/food/admin/manual-orders/{order}` → `{ order }` (`ManualOrderDetailDto`: состав, итоги, `customer`, **`has_messages`**); UI — `ManualOrderDetailPage`; чат read-only через `GET /api/food/orders/{id}/messages` в `ManualOrderChatModal` (кнопка «Чат» при `has_messages`) |
+| Черновик после сканирования | Статус `draft_after_scanning` (PhotoText / `submitDraftAfterScanning`): `is_manual=true`, этапы review `pending`, адрес **может быть пустым**; **не** попадает в очередь проверки (`AdminOrderQueryService` исключает этот статус). Действия менеджера: `POST .../{id}/complete` → `confirmed` + approve всех этапов + `notifyManualOrderCreatorConfirmed`; `POST .../{id}/move-to-cart` → очистка ручной корзины клиента, перенос позиций из snapshot, удаление заказа → `{ cart, delivery_address, customer }`; `DELETE .../{id}` → удаление заказа |
 | Корзина | Все cart/submit-запросы требуют `max_user_id` клиента (`exists:max_users,max_user_id`); draft изолирован по `(customer, manager)` через `max_carts.created_by_max_user_id` |
 | Изоляция | Личная корзина клиента (`created_by_max_user_id IS NULL`) **не** затрагивается ручной корзиной и наоборот |
-| Submit | `POST .../manual-orders/submit` → `201`; `is_manual=true`, `created_by_max_user_id=manager`, все `*_review_status=approved`, `*_reviewed_by=manager`, `status=confirmed`; **`delivery_date`** как у клиентского submit |
-| Уведомления после commit | UI Stand (`LaravelFoodOrderMaxNotifier`); **`notifySubmitted` не вызывается**; `notifyConfirmed` → всем активным `max_manager` («Заявка №N принята к исполнению»); доп. детальный состав оформившему (`buildManualOrderCreatorConfirmed`, fallback в `MAX_UI_STAND_*` при ошибке DM) |
+| Submit (mini-app) | `POST .../manual-orders/submit` → `201`; `is_manual=true`, `created_by_max_user_id=manager`, все `*_review_status=approved`, `*_reviewed_by=manager`, `status=confirmed`; **`delivery_date`** как у клиентского submit (`MenuAvailabilityDateResolver`) |
+| Доступ AI | `GET /api/food/admin/ai-access`, `POST /api/food/admin/ai-access/toggle` — поле `max_users.ai_access_until`; TTL **30 минут**; одновременно активен только один пользователь; конфликт → `409` «уже разрешен доступ AI к базе». Нужен для PhotoText middleware `phototext.ai.access` |
+| Уведомления после commit (submit) | `NotifyFoodOrderAfterSubmitJob` с `FoodOrderAfterSubmitNotifyKind::Confirmed`: UI Stand (`LaravelFoodOrderMaxNotifier`); **`notifySubmitted` не вызывается**; `notifyConfirmed` → всем активным `max_manager` («Заявка №N принята к исполнению»); доп. детальный состав оформившему (`buildManualOrderCreatorConfirmed`, fallback в `MAX_UI_STAND_*` при ошибке DM) |
 | Клиент заказа | **Не** получает ни «принят на рассмотрение», ни «принята к исполнению» (`OrderCustomerNotifyRecipientResolver` для `is_manual` возвращает id менеджеров) |
 
-Сценарий во фронте: выбор потребителя → «Оформить» → ресторан/меню/корзина (те же UX-правила, что у клиента) → модалка подтверждения → `submitManualOrder` → экран подтверждения → «Назад к списку». Или после выбора потребителя → «Просмотр» → период/статус → список (с суммой) → клик → детальная карточка.
+Сценарий во фронте: выбор потребителя → «Оформить» → ресторан/меню/корзина (те же UX-правила, что у клиента) → модалка подтверждения → `submitManualOrder` → экран подтверждения → «Назад к списку». Или после выбора потребителя → «Просмотр» → период/статус → список (с суммой) → клик → детальная карточка (для `draft_after_scanning` — «Выполнить» / «В корзину» / «Удалить»).
 
 API — [Food Admin API — ручные заказы](#food-admin-api--ручные-заказы-max_manager).
+
+### PhotoText (агент Cursor)
+
+HTTP API для slash-команд `/phototext-order` (заказ) и `/phototext-schedule` (график производства): агент делает OCR и вариации имён, сервер принимает **только канонические** `LOWER(name)` выбранного ресторана. Для заказов оформляет **черновик после сканирования** (`draft_after_scanning`); для графика — `syncSchedule` по matched. Fuzzy-поиск и split строки по `/` на сервере **нет**. Как вызывать из чата — [AI Cursor](#ai-cursor).
+
+Реализация (заказы): middleware `VerifyPhotoTextAgentToken` (`phototext.agent.token`) + `EnsurePhotoTextAiAccess` (`phototext.ai.access`), `PhotoTextOrderController`, Form Request `PhotoTextCatalogRequest` / `PhotoTextAgentOrderRequest`, `PhotoTextManualOrderPlacementService`, `PhotoTextDishLineResolver`, `PhotoTextComboRefGrouper`, `ManualOrderCustomerResolver`; конфиг `config/phototext.php`. Каталог — `MenuQueryService::getRestaurantMenu($id, includeUnavailable: true)` (в т.ч. скрытые блюда). Поиск блюд — `DishCatalogRepositoryInterface::findByNameCaseInsensitive($name, $restaurantId)`. Оформление — ручная корзина менеджера + `OrderSubmissionService::submitDraftAfterScanning(..., $orderDate)` (без MAX-уведомлений при создании).
+
+Реализация (график): `PhotoTextScheduleController` (`match` / `apply`), Form Request `PhotoTextScheduleSyncRequest` (окно ровно 7 дней), `PhotoTextSchedulePlacementService` → полная замена графика в окне (фото — источник истины; scope: `category_ids` / `category_id` или все категории ресторана) через `DishAvailabilityScheduleService::syncSchedule`. Playbook — `.cursor/commands/phototext-schedule.md`; словарь имён — `.cursor/commands/phototext-dish-aliases.md`. DTO: `PhotoTextScheduleEntryDto`, `PhotoTextScheduleMatchedDto`, `PhotoTextScheduleIssueDto`, `PhotoTextScheduleResultDto`.
+
+| Правило | Поведение |
+|---|---|
+| Кто | Заголовок `X-PhotoText-Token` = `PHOTOTEXT_AGENT_TOKEN` (`hash_equals`); пустой/неверный токен → `401`. Mini-app Bearer **не** нужен |
+| AI-доступ | Активный `max_users.ai_access_until` > now у пользователя с ролью `max_manager` (включается кнопкой **«Вкл. доступ AI»** в админке, TTL 30 мин). Иначе `403` «Доступ AI к базе не разрешён.» Агент доступ **не** включает |
+| Менеджер заказа | `PHOTOTEXT_MANAGER_MAX_USER_ID` должен существовать в `max_users` и иметь активную роль `max_manager`; иначе `500` |
+| Клиент | `customer_query` — подстрока `first_name` / `last_name` / `username`; ровно один `MaxUser`. 0 или >1 → `422` STOP (заказ не создаётся) |
+| Ресторан | Обязательный активный `restaurant_id` (не soft-deleted). Каталог и матч **только** в нём; блюдо из другого ресторана → `dish_not_found` (issue), не 422 |
+| Имена | В `items[].name` — каноническое имя из каталога. Строка со слэшем без `combo_ref` — одно имя, сервер не режет |
+| Комбо | Агент шлёт **две** позиции с общим UUID `combo_ref` и одинаковым `quantity`. Иначе обе строки → `combo_unresolved`, в заказ не идут. Пары проверяет `ComboPairValidator` (`requirePartnerAvailable: false`) |
+| Match | `POST /match` не создаёт заказ (`order_id: null`). Ответ: `matched_count`, `matched[]`, `issues[]` |
+| Place | `POST /orders` тем же JSON: matched кладутся в изолированную ручную корзину и `submitDraftAfterScanning`. Пустой matched → `422`, заказа нет. Частичный матч → `201`, в заказе только matched, `issues` остаются. Адрес доставки **не** обязателен |
+| Заказ | `is_manual=true`, `status=draft_after_scanning`, этапы review `pending`, `created_by_max_user_id` = менеджер из env, **`delivery_date`** = `order_date` из тела (`Y-m-d` из шапки промпта). Дальше менеджер в mini-app: complete / move-to-cart / delete |
+
+Коды `issues[].code`: `dish_not_found` \| `dish_ambiguous` \| `combo_unresolved`.
+
+API — [PhotoText API](#phototext-api-агент-cursor).
 
 ### Проверка заказа (три этапа)
 
@@ -317,13 +483,17 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 - Очередь состава учитывает legacy-значение `not_applicable` (`FoodOrder::isInCompositionReviewQueue`).
 - При отклонении: Form Request `RejectOrderReviewRequest` — `comment` обязателен (string, max 1000); пустой после `trim` → `422` на уровне домена.
 
-Итоговый `status` (`OrderStatusResolver` / `OrderReviewUpdateFactory`):
+Итоговый `status` заказа (`OrderStatus` / `OrderStatusResolver` / `OrderReviewUpdateFactory`):
 
 | Условие | `status` |
 |---|---|
+| PhotoText / `submitDraftAfterScanning` | `draft_after_scanning` (до complete / move-to-cart / delete; не в очереди review) |
 | Любой этап → `rejected` | `rejected` |
 | Все три → `approved` | `confirmed` |
-| Иначе | `pending_review` |
+| Иначе (клиентский submit / незавершённая проверка) | `pending_review` |
+| Legacy | `submitted` (deprecated, только обратная совместимость) |
+
+Значение `awaiting_composition` остаётся в фильтре списка ручных заказов и в API типов; итоговый резолвер для активной проверки использует `pending_review` / `confirmed` / `rejected`.
 
 При отклонении — личное сообщение клиенту с указанием scope (адрес / оплата / состав) через `LaravelFoodOrderCustomerNotifier`. При **первом** переходе в `confirmed` — уведомление о принятии заказа (`OrderReviewCompletionService`). Сбой MAX не откатывает решение.
 
@@ -387,7 +557,9 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 | Импорт XLS/XLSX | `POST /api/food/admin/dishes/import`; колонка A — «Название. 100г», B — цена; при совпадении имени в категории обновляется только цена, иначе создаётся блюдо с placeholder-фото |
 | График доступности | `GET`/`PUT /api/food/admin/dish-availability-schedule`; редактирование только **будущих** дат (с завтра по Москве); сегодня и прошлое — read-only; без записи на дату «Блюда на» блюдо недоступно после cron (если на текущий weekday есть offsets) |
 
-Клиентское меню (`MenuQueryService`) отдаёт только активные рестораны и доступные блюда; удалённые (soft delete) скрыты. В каждой категории — поле `is_combo_available` для UI сборки комбо. Поиск/фильтр вкладок на клиенте — `useMenuCategoryFilter` (без отдельного API).
+Клиентское меню (`MenuQueryService` / `CachingMenuQueryService`) отдаёт только активные рестораны и доступные блюда; удалённые (soft delete) скрыты. Каталог PhotoText запрашивает то же меню с `includeUnavailable: true` (отдельный ключ кэша `…menu.{id}.all`). В каждой категории — поле `is_combo_available` для UI сборки комбо. Поиск/фильтр вкладок на клиенте — `useMenuCategoryFilter` (без отдельного API).
+
+**Кэш каталога:** `CachingMenuQueryService` кладёт DTO ресторанов/меню в cache store с версией ключа `food.catalog.version`. Инвалидация — bump версии (`MenuCatalogCacheInvalidator`) при админ-изменениях блюд/категорий/графика; TTL (`FOOD_CATALOG_CACHE_TTL`, default 600 с) — safety-net. Отключение: `FOOD_CATALOG_CACHE_ENABLED=false`.
 
 ### Карта сервисов (Food + Max-адаптеры)
 
@@ -396,12 +568,13 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 | Поддомен | Путь | Сервисы / ключевые типы |
 |---|---|---|
 | Cart | `Services/Food/Cart/` | `CartService`, `CartDeliveryAddressService`, `CartTotalsCalculator`, `CartDtoFactory` |
-| Order | `Services/Food/Order/` | `OrderSubmissionService`, `OrderItemsSnapshotBuilder`, `CustomerOrderQueryService`, `AdminOrderQueryService` |
+| Order | `Services/Food/Order/` | `OrderSubmissionService` (`submit` / `submitManual` / `submitDraftAfterScanning` → `NotifyFoodOrderAfterSubmitJob` для submit/manual), `OrderItemsSnapshotBuilder`, `CustomerOrderQueryService`, `AdminOrderQueryService` |
 | Review | `Services/Food/Review/` | `OrderReviewStepHandler`, `OrderReviewAuthorizationService`, `OrderReviewUpdateFactory`, `OrderStatusResolver`, `OrderReviewCompletionService`, `OrderCustomerNotifyRecipientResolver` (+ enum `OrderReviewStep`) |
 | Composition | `Services/Food/Composition/` | `OrderCompositionUpdateService`, `OrderCompositionSnapshotBuilder`, `ComboPairValidator` (+ DTO `OrderCompositionSnapshotDto`) |
 | Chat | `Services/Food/Chat/` | `OrderChatService`, `OrderChatAuthorizationService` |
-| Menu | `Services/Food/Menu/` | `MenuQueryService`, `MenuCategoryAdminService`, `DishAdminService`, `DishAvailabilityScheduleService`, `DishAvailabilitySyncService`, `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver` |
-| ManualOrder | `Services/Food/ManualOrder/` | `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService` |
+| Menu | `Services/Food/Menu/` | `MenuQueryService`, `CachingMenuQueryService` (обёртка, TTL + bump версии), `MenuCatalogCacheInvalidator`, `MenuCategoryAdminService`, `DishAdminService`, `DishAvailabilityScheduleService`, `DishAvailabilitySyncService`, `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver` |
+| ManualOrder | `Services/Food/ManualOrder/` | `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService` |
+| PhotoText | `Services/Food/PhotoText/` | `PhotoTextManualOrderPlacementService`, `PhotoTextSchedulePlacementService`, `PhotoTextDishLineResolver`, `PhotoTextComboRefGrouper` (+ enum `PhotoTextMatchIssueCode`, `PhotoTextComboRefGroupKind`) |
 | Delivery | `Services/Food/Delivery/` | `DeliveryCostResolver` |
 | Shared | `Services/Food/Shared/` | `FoodMoneyFormatter`; репозиторий/DTO ресторана — `Repositories|DTO/Food/Shared/`; `FoodDomainException` — `Exceptions/Food/` |
 
@@ -415,12 +588,13 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 | `Contracts/Food/Menu/MaxManagerDailyMenuMessageBuilderInterface` | `Services/Max/Menu/MaxManagerDailyMenuMessageBuilder` (+ DTO `DTO/Max/MaxManagerDailyMenuMessagesDto`) |
 | — (сборка текста заказа) | `Services/Max/Food/FoodOrderMaxMessageBuilder` |
 | `Contracts/Max/MaxUserDeliveryAddressInterface` | `Services/Max/MaxUserDeliveryAddressService` |
+| `Contracts/Max/MaxAiAccessServiceInterface` | `Services/Max/MaxAiAccessService` (TTL 30 мин, поле `max_users.ai_access_until`) |
 | `Contracts/Max/MaxMenuAvailabilityNotifierInterface` / `MaxManagerDailyMenuNotifierInterface` | `Services/Max/UiStand/MaxMenuAvailabilityNotifier`, `MaxManagerDailyMenuNotifier` |
 | `Contracts/Max/MaxAdminBotTestSenderInterface` | `Services/Max/LaravelMaxAdminBotTestSender` |
 
 `OrderCustomerNotifyRecipientResolver` остаётся в Food (`Review/`) — доменное правило «кому слать», не транспорт.
 
-Контракты Food — `app/Contracts/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|Delivery|Shared}/` (сервисы, notifiers, репозитории: раздельные read/write заказов `FoodOrderWrite*` / `FoodOrderCustomerRead*` / `FoodOrderAdminRead*`, `DishAdmin*` / `DishCatalog*` → один `EloquentDishRepository`, image-интерфейсы и т.д.). Max — `app/Contracts/Max/` (+ `MaxUserDeliveryAddressInterface`). Shared: `Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface` → `EnvMaxBotTokenProvider`. Eloquent — `app/Repositories/Food/{поддомен}/`, `app/Repositories/Max/`. Модели — `app/Models/Food/*`, `app/Models/Max/MaxUser` (`User` без изменений). Привязки DI — `AppServiceProvider`. Ошибки домена — `FoodDomainException` → JSON `{ message }` с HTTP 4xx.
+Контракты Food — `app/Contracts/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|PhotoText|Delivery|Shared}/` (сервисы, notifiers, репозитории: раздельные read/write заказов `FoodOrderWrite*` / `FoodOrderCustomerRead*` / `FoodOrderAdminRead*`, `DishAdmin*` / `DishCatalog*` → один `EloquentDishRepository`, image-интерфейсы и т.д.). Max — `app/Contracts/Max/` (+ `MaxUserDeliveryAddressInterface`, `MaxLoadTestServiceInterface`). Shared: `Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface` → `EnvMaxBotTokenProvider`. Eloquent — `app/Repositories/Food/{поддомен}/`, `app/Repositories/Max/`. Модели — `app/Models/Food/*`, `app/Models/Max/MaxUser` (`User` без изменений). Привязки DI — `AppServiceProvider`. Ошибки домена — `FoodDomainException` → JSON `{ message }` с HTTP 4xx.
 
 ### Связки PHP ↔ JavaScript
 
@@ -453,13 +627,13 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 
 ## Уведомления о заказах в MAX
 
-После успешного `POST /api/food/orders/submit` (commit в `max_food_orders`) service-c отправляет **текстовое** сообщение с кнопкой **«Заказ еды»** (`open_app`) во **все** чаты и пользователей из `MAX_UI_STAND_CHAT_IDS` / `MAX_UI_STAND_USER_IDS` (+ кэш webhook, как у «тест бот 2»).
+После успешного `POST /api/food/orders/submit` (commit в `max_food_orders`) service-c ставит в очередь **`NotifyFoodOrderAfterSubmitJob`**, который отправляет **текстовое** сообщение с кнопкой **«Заказ еды»** (`open_app`) во **все** чаты и пользователей из `MAX_UI_STAND_CHAT_IDS` / `MAX_UI_STAND_USER_IDS` (+ кэш webhook, как у «тест бот 2»). Ручной submit (`submitManual`) — тот же job с `FoodOrderAfterSubmitNotifyKind::Confirmed`.
 
 Кнопка открывает mini-app (`MAX_MINI_APP_URL` или URL из `MAX_WEBHOOK_URL` / `max.bot_username`). Если URL mini-app не настроен, уходит только текст без кнопки.
 
-Отправка **синхронная** (в том же HTTP-запросе, после транзакции). Очередь не используется.
+Отправка **асинхронная**: HTTP-ответ submit возвращается после `dispatch` job (без ожидания Bot API). При `QUEUE_CONNECTION=database` (`.env.example`) нужен воркер `php artisan queue:work`; в PHPUnit — `QUEUE_CONNECTION=sync` / `Bus::fake`. Job с `afterCommit()`.
 
-**Сбой MAX не отменяет заказ:** заявка остаётся в БД; ошибка логируется в канал `messMax` (`storage/logs/messMax.log`).
+**Сбой MAX / job не отменяет заказ:** заявка остаётся в БД; ошибка логируется в канал `messMax` (`storage/logs/messMax.log`).
 
 ### Формат сообщения
 
@@ -502,7 +676,8 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 | Лимит текста | `config/max.php` → `order_notifications.max_text_length` |
 | Сборка текста | `app/Services/Max/Food/FoodOrderMaxMessageBuilder.php` |
 | Отправка | `app/Services/Max/Food/LaravelFoodOrderMaxNotifier.php` |
-| Интеграция | `app/Services/Food/Order/OrderSubmissionService.php` (вызов после `DB::transaction`) |
+| Job после submit | `app/Jobs/Food/NotifyFoodOrderAfterSubmitJob.php` (+ enum `FoodOrderAfterSubmitNotifyKind`) |
+| Интеграция | `app/Services/Food/Order/OrderSubmissionService.php` (`dispatch` после `DB::transaction`) |
 | Уведомление клиенту (статус) | `app/Services/Max/Food/LaravelFoodOrderCustomerNotifier.php`, `Services/Food/Review/OrderReviewCompletionService.php` |
 | HTTP-клиент | `shared/max-messenger` (`MaxMessengerClientInterface`) |
 
@@ -512,10 +687,12 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 
 | Событие | Когда | Сервис |
 |---|---|---|
-| Принят на рассмотрение | Сразу после `POST /orders/submit` (после commit); **не** для ручных заказов | `OrderSubmissionService` → `LaravelFoodOrderCustomerNotifier::notifySubmitted` (+ кнопка «Открыть заказ №N») |
+| Принят на рассмотрение | Сразу после `POST /orders/submit` (после commit → job); **не** для ручных заказов | `OrderSubmissionService` → `NotifyFoodOrderAfterSubmitJob` → `LaravelFoodOrderCustomerNotifier::notifySubmitted` (+ кнопка «Открыть заказ №N») |
 | Подтверждение (клиентский заказ) | Все три этапа → `approved`, заказ впервые переходит в `confirmed` | `OrderReviewCompletionService` → `notifyConfirmed` → клиенту (`order.max_user_id`) |
-| Подтверждение ручного заказа | Сразу после `POST .../manual-orders/submit` | `submitManual` → `notifyConfirmed`: текст «Заявка №N принята к исполнению» **всем активным `max_manager`** (`OrderCustomerNotifyRecipientResolver`); клиент **не** получает |
-| Детальный состав (ручной) | То же, доп. сообщение | `notifyManualOrderCreatorIfNeeded` → `buildManualOrderCreatorConfirmed` на `created_by_max_user_id`; при ошибке MAX — fallback в `MAX_UI_STAND_*` |
+| Подтверждение ручного заказа | Сразу после `POST .../manual-orders/submit` | `submitManual` → job `Confirmed` → `notifyConfirmed`: текст «Заявка №N принята к исполнению» **всем активным `max_manager`** (`OrderCustomerNotifyRecipientResolver`); клиент **не** получает |
+| Выполнение черновика после сканирования | `POST .../manual-orders/{id}/complete` (`draft_after_scanning` → `confirmed`) | `DraftAfterScanningOrderService` → `notifyManualOrderCreatorConfirmed` оформившему; **без** рассылки «принята к исполнению» всем менеджерам и без UI Stand при создании PhotoText |
+| Создание PhotoText | `POST /api/food/phototext/orders` | Уведомления MAX **не** шлются (заказ остаётся `draft_after_scanning` до действий менеджера) |
+| Детальный состав (ручной) | После submit или complete, доп. сообщение | `notifyManualOrderCreatorIfNeeded` / `notifyManualOrderCreatorConfirmed` → `buildManualOrderCreatorConfirmed` на `created_by_max_user_id`; при ошибке MAX — fallback в `MAX_UI_STAND_*` |
 | Отклонение | Любой этап → `rejected` (только клиентские заказы в очереди) | `OrderReviewStepHandler::reject` → `notifyRejected` (scope из `OrderReviewStep::rejectionScope`) |
 | Состав изменён | После успешного `PUT .../composition` | `OrderCompositionUpdateService` → `notifyCompositionChanged` (+ кнопка «Открыть заказ №N») |
 
@@ -659,46 +836,60 @@ service-c/
 ├── app/
 │   ├── Console/Commands/           # max:bot:info, max:webhook:*, max:ui-stand:send,
 │   │                               # max:miniapp:verify, max:food-admin:assign,
-│   │                               # food:sync-dish-availability (SyncDishAvailabilityCommand)
+│   │                               # food:sync-dish-availability (SyncDishAvailabilityCommand),
+│   │                               # max:load-test:{tokens,prepare-menu,cleanup} (только local/testing)
 │   ├── Contracts/
 │   │   ├── Auth/                   # GatewayUserResolver, GatewayAuthSession, GatewayUserContext
 │   │   ├── Food/                   # поддомены: Cart/, Order/, Review/, Composition/, Chat/,
-│   │   │   │                       # Menu/, ManualOrder/, Delivery/, Shared/
+│   │   │   │                       # Menu/, ManualOrder/, PhotoText/, Delivery/, Shared/
 │   │   │                           # (порты сервисов, репозиториев, notifiers; Food владеет
 │   │   │                           # интерфейсами MAX-уведомлений)
 │   │   └── Max/                    # MaxAdminBotTestSender, MaxMenuAvailabilityNotifier,
 │   │                               # MaxManagerDailyMenuNotifier, MaxUserRepository,
-│   │                               # MaxUserDeliveryAddressInterface, MaxWebAppInitDataValidator,
-│   │                               # MaxWebhookUpdateRouter, MaxOrderNotificationConfigProvider
+│   │                               # MaxAiAccessServiceInterface, MaxUserDeliveryAddressInterface,
+│   │                               # MaxWebAppInitDataValidator,
+│   │                               # MaxWebhookUpdateRouter, MaxOrderNotificationConfigProvider,
+│   │                               # MaxLoadTestServiceInterface
 │   ├── DTO/
-│   │   ├── Food/                   # Cart/, Order/, Composition/, Chat/, Menu/, ManualOrder/,
+│   │   ├── Food/                   # Cart/, Order/, Composition/, Chat/, Menu/, ManualOrder/
+│   │   │                           # (ManualOrder*Dto, DraftAfterScanningMoveToCartResultDto),
+│   │   │                           # PhotoText/ (PhotoTextAgentItemDto, PhotoTextPlacementResultDto,
+│   │   │                           # PhotoTextSchedule*Dto, PhotoTextMatchedLineDto, PhotoTextIssueDto, …),
 │   │   │                           # Delivery/, Shared/ (RestaurantSummaryDto;
 │   │   │                           # Menu: MenuCategoryAvailabilityOffsetDto, …)
 │   │   ├── Max/                    # MaxWebAppInitDataDto, MaxCallbackUpdateDto,
 │   │   │                           # MaxOrderNotificationConfig, MaxAdminBotTestSendResultDto,
-│   │   │                           # MaxManagerDailyMenuMessagesDto
+│   │   │                           # MaxManagerDailyMenuMessagesDto, AiAccessStatusDto, LoadTest*Dto
 │   │   └── Auth/                   # GatewayUserDto
-│   ├── Enums/Food/                 # Cart/, Order/, Review/, Chat/, Menu/, Delivery/
-│   │                               # (CartStatus, OrderStatus, OrderReviewStep,
+│   ├── Enums/Food/                 # Cart/, Order/, Review/, Chat/, Menu/, Delivery/, PhotoText/
+│   │                               # (CartStatus, OrderStatus в т.ч. draft_after_scanning,
+│   │                               # FoodOrderAfterSubmitNotifyKind, OrderReviewStep,
 │   │                               # FoodOrderAdminRole, DishVatRate, DishWeightUnit,
-│   │                               # Weekday, AdminDishAvailabilityFilter, …)
+│   │                               # Weekday, AdminDishAvailabilityFilter,
+│   │                               # PhotoTextMatchIssueCode, PhotoTextComboRefGroupKind, …)
 │   ├── Exceptions/Food/            # FoodDomainException
 │   ├── Exceptions/Max/             # MaxWebAppInitDataException
 │   ├── Http/
 │   │   ├── Controllers/Api/        # MaxAuth, MaxWebhook
 │   │   ├── Controllers/Api/Food/   # Restaurant, Cart, Order, OrderChat, DishImage,
 │   │   │                           # AdminDish, AdminMenuCategory, AdminDishAvailability,
-│   │   │                           # AdminOrderReview, AdminManualOrder
+│   │   │                           # AdminOrderReview, AdminManualOrder, AdminAiAccess,
+│   │   │                           # PhotoTextOrder, PhotoTextSchedule
 │   │   ├── Middleware/             # AuthenticateMaxMiniApp, EnsureFoodOrderAdmin,
-│   │   │                           # TrustGatewayAuth, VerifyMaxWebhookSecret
+│   │   │                           # TrustGatewayAuth, VerifyMaxWebhookSecret,
+│   │   │                           # VerifyPhotoTextAgentToken, EnsurePhotoTextAiAccess
 │   │   ├── Requests/Food/          # AddCartItem, UpdateCartItem, UpdateCartDeliveryAddress,
 │   │   │                           # List/SendOrderMessage, RejectOrderReview, UpdateOrderComposition
-│   │   │   └── Admin/              # Store/UpdateDish, ImportDishesSpreadsheet, Store/UpdateMenuCategory,
-│   │   │                           # ValidatesMenuCategoryAvailabilityOffsets (trait),
-│   │   │                           # Show/SyncDishAvailabilitySchedule, BaseDishFormRequest,
-│   │   │                           # ManualOrder* (users, cart, items, submit)
+│   │   │   ├── Admin/              # Store/UpdateDish, ImportDishesSpreadsheet, Store/UpdateMenuCategory,
+│   │   │   │                       # ValidatesMenuCategoryAvailabilityOffsets (trait),
+│   │   │   │                       # Show/SyncDishAvailabilitySchedule, BaseDishFormRequest,
+│   │   │   │                       # ManualOrder* (users, cart, items, submit),
+│   │   │   │                       # DraftAfterScanningOrderActionRequest
+│   │   │   └── PhotoText/             # PhotoTextCatalogRequest, PhotoTextAgentOrderRequest,
+│   │   │                               # PhotoTextScheduleSyncRequest
 │   │   ├── Requests/Max/           # ValidateInitDataRequest
 │   │   └── Responses/              # GatewayUnauthorizedResponse
+│   ├── Jobs/Food/                  # NotifyFoodOrderAfterSubmitJob (UI Stand + клиент/менеджеры после submit)
 │   ├── Models/
 │   │   ├── Food/                   # Restaurant, MenuCategory, MenuCategoryAvailabilityOffset,
 │   │   │                           # Dish, DishAvailabilityDate,
@@ -727,18 +918,23 @@ service-c/
 │   │   │   ├── Composition/        # OrderCompositionUpdate*, OrderCompositionSnapshotBuilder,
 │   │   │   │                       # ComboPairValidator
 │   │   │   ├── Chat/               # OrderChatService, OrderChatAuthorizationService
-│   │   │   ├── Menu/               # MenuQuery*, MenuCategoryAdmin*, DishAdmin*,
+│   │   │   ├── Menu/               # MenuQuery*, CachingMenuQueryService,
+│   │   │   │                       # MenuCatalogCacheInvalidator, MenuCategoryAdmin*, DishAdmin*,
 │   │   │   │                       # DishAvailability*, DishSpreadsheet*, DishImage*,
 │   │   │   │                       # DishDefaultImageProvider, DailyMenuLineCollector,
 │   │   │   │                       # MenuAvailabilityDateResolver
-│   │   │   ├── ManualOrder/        # ManualOrderCart*, ManualOrderUserQuery*, ManualOrderQuery*
+│   │   │   ├── ManualOrder/        # ManualOrderCart*, ManualOrderUserQuery*, ManualOrderQuery*,
+│   │   │   │                       # ManualOrderCustomerResolver, DraftAfterScanningOrderService
+│   │   │   ├── PhotoText/             # PhotoTextManualOrderPlacementService, PhotoTextSchedulePlacementService,
+│   │   │   │                       # PhotoTextDishLineResolver, PhotoTextComboRefGrouper
 │   │   │   ├── Delivery/           # DeliveryCostResolver
 │   │   │   └── Shared/             # FoodMoneyFormatter
 │   │   └── Max/                    # MaxWebAppInitDataValidator, MaxMiniAppAuthService,
-│   │       │                       # MaxUserDeliveryAddressService, EnvMaxBotTokenProvider,
+│   │       │                       # MaxUserDeliveryAddressService, MaxAiAccessService,
+│   │       │                       # EnvMaxBotTokenProvider,
 │   │       │                       # ConfigMaxMessengerRetryConfigFactory,
 │   │       │                       # ConfigMaxOrderNotificationConfigProvider,
-│   │       │                       # LaravelMaxAdminBotTestSender
+│   │       │                       # LaravelMaxAdminBotTestSender, MaxLoadTestService
 │   │       ├── Food/               # LaravelFoodOrder*Notifier, LaravelOrderChatNotifier,
 │   │       │                       # FoodOrderMaxMessageBuilder (адаптеры к Contracts/Food)
 │   │       ├── Menu/               # MaxManagerDailyMenuMessageBuilder
@@ -753,15 +949,18 @@ service-c/
 │                                   #   X-Forwarded-Host), MaxLocalDevInitData,
 │                                   # MaxOpenAppTargetResolver, MaxMiniAppAccessLogger,
 │                                   # MaxWebAppInitDataSigner, MaxUiStandRecipientResolver,
-│                                   # MaxUiStandRecipientRegistry
+│                                   # MaxUiStandRecipientRegistry, MaxLoadTestUserIds
 ├── config/max.php                  # webhook, miniapp, local_dev_*, ui_stand, order_notifications (MAX_REPORT_*)
+├── config/food.php                 # FOOD_CATALOG_CACHE_TTL / FOOD_CATALOG_CACHE_ENABLED
+├── config/phototext.php               # PHOTOTEXT_AGENT_TOKEN, PHOTOTEXT_MANAGER_MAX_USER_ID
 ├── database/
 │   ├── factories/                  # Restaurant, MenuCategory, Dish
 │   ├── migrations/                 # max_users, food domain, review/chat/payment, soft deletes,
 │   │                               # max_dish_availability_dates, combo в max_cart_items,
 │   │                               # is_combo_available; created_by_max_user_id / is_manual (2026_07_21);
 │   │                               # max_menu_category_availability_offsets (2026_07_31);
-│   │                               # delivery_date в max_food_orders (2026_08_03)
+│   │                               # delivery_date в max_food_orders (2026_08_03);
+│   │                               # ai_access_until в max_users (2026_08_19)
 │   └── seeders/                    # Restaurant, CustomerCategory, FoodOrderAdmin (в т.ч. 1006 max_manager)
 │                                   # + assets/dishes/ (placeholder JPG)
 ├── resources/
@@ -772,7 +971,7 @@ service-c/
 │   │   │   ├── index.js            # публичные экспорты (предпочтительный импорт)
 │   │   │   ├── http.js, auth.js, types.js
 │   │   │   ├── cart.js, cartHelpers.js, cartTransport.js
-│   │   │   ├── orders.js, manualOrders.js
+│   │   │   ├── orders.js, manualOrders.js, aiAccess.js
 │   │   │   ├── admin/              # categories, dishes, review, schedule
 │   │   │   └── foodClient.js       # @deprecated re-export из index.js
 │   │   ├── bridge/maxBridge.js
@@ -784,7 +983,7 @@ service-c/
 │   │   │                           # OrderStatusBadge, OrderReviewStageBadges,
 │   │   │                           # OrderSnapshotItemRow, MyOrdersButton, AppSelect, AppSearchSelect,
 │   │   │                           # ManualOrderChatModal, ConfirmDeleteModal, EmptyStateIcon
-│   │   │   ├── admin/              # AdminSectionNav, CompositionEditItemList,
+│   │   │   ├── admin/              # AdminSectionNav («Вкл. доступ AI»), CompositionEditItemList,
 │   │   │   │                       # CompositionMenuPickerSheet
 │   │   │   ├── cart/               # cartScope.js, CartHeader, CartItemList,
 │   │   │   │                       # CartSummaryFooter, CartOrderConfirmModal,
@@ -792,7 +991,7 @@ service-c/
 │   │   │   ├── menu/               # MenuHeader, MenuCategoryTabs, MenuDishGrid,
 │   │   │   │                       # MenuDishCard, MenuComboBuilderSheet
 │   │   │   └── ordering/           # OrderingFlow (ресторан→меню→корзина→confirm)
-│   │   ├── composables/            # useAuth, useAdminChrome, useCart, useAdminFlow,
+│   │   ├── composables/            # useAuth, useAdminChrome, useAiAccess, useCart, useAdminFlow,
 │   │   │                           # useMyOrders, useOrderChat, useManualOrder,
 │   │   │                           # useCompositionDraft, useCompositionEdit,
 │   │   │                           # useOrderDetailPaneLayout, useDishAdmin,
@@ -820,6 +1019,7 @@ service-c/
 │                                   # gen-dish-fixtures.php (XLS-фикстуры для импорта)
 ├── docker-entrypoint.sh            # `rm -f public/hot`; auto `npm run build` при отсутствии
 │                                   # max-build/manifest.json; фоновый `php artisan schedule:work`
+│                                   # (queue:work для NotifyFoodOrderAfterSubmitJob — отдельно при QUEUE_CONNECTION≠sync)
 └── tests/                          # Feature + Unit (БД: sail_db_testing)
     └── Support/                    # FoodTestDataBuilder, MaxInitDataFixtureBuilder, ResolvesDishImageUrl,
                                     # DishSpreadsheetTestFileFactory, DishImportSpreadsheetFactory,
@@ -827,7 +1027,7 @@ service-c/
                                     # DishPhotoTestImageFactory, MessMaxLogTestHelper
 ```
 
-Shared-пакет: `../shared/max-messenger` (`example/max-messenger` в `composer.json`) — HTTP-клиент MAX Bot API, DTO сообщений, retry-конфиг. Импорт XLS/XLSX: `phpoffice/phpspreadsheet` (^3.9).
+Shared-пакет: `../shared/max-messenger` (`example/max-messenger` в `composer.json`) — HTTP-клиент MAX Bot API, DTO сообщений, retry-конфиг. Импорт XLS/XLSX: `phpoffice/phpspreadsheet` (^3.9). Правила и slash-команды Cursor — в корне репозитория: `.cursor/rules/`, `.cursor/commands/phototext-order.md`, `.cursor/commands/phototext-schedule.md`, `.cursor/commands/phototext-dish-aliases.md` (см. [AI Cursor](#ai-cursor)). Копии playbook в `service-c/phototext-order.md` и `service-c/phototext-schedule.md`.
 
 ## Быстрый старт
 
@@ -846,7 +1046,7 @@ docker compose up -d service-c
 
 | Таблица | Назначение |
 |---|---|
-| `max_users` | Пользователи MAX; `customer_category_id`, `delivery_address` |
+| `max_users` | Пользователи MAX; `customer_category_id`, `delivery_address`, **`ai_access_until`** (nullable datetime — TTL доступа AI для PhotoText) |
 | `max_customer_categories` | Категории клиентов (Стандарт, VIP, …); soft delete |
 | `max_restaurants` | Рестораны; soft delete |
 | `max_menu_categories` | Категории меню (`sort_order`, `is_combo_available`); soft delete; связь `availabilityOffsets` |
@@ -894,6 +1094,7 @@ docker compose exec -T service-c php artisan db:seed   # рестораны, к�
 | `2026_07_21_000001_add_manual_order_fields_to_max_food_orders_table` | `max_food_orders.is_manual`, `created_by_max_user_id` + индекс `is_manual` |
 | `2026_07_31_000000_create_max_menu_category_availability_offsets_table` | `max_menu_category_availability_offsets` (weekday / offset_days / group_key) |
 | `2026_08_03_000001_add_delivery_date_to_max_food_orders_table` | `max_food_orders.delivery_date` (nullable `date`, после `delivery_address`) — дата «Блюда на» на момент оформления |
+| `2026_08_19_000001_add_ai_access_until_to_max_users_table` | `max_users.ai_access_until` (nullable `datetime`) — TTL доступа AI к PhotoText API |
 
 `RestaurantSeeder` копирует placeholder JPG из `database/seeders/assets/dishes/` в `storage/app/public/dishes/seed/` и записывает в `max_dishes.image_url` **относительный путь** (например `dishes/seed/pizza.jpg`).
 
@@ -992,6 +1193,14 @@ docker compose exec -T service-c php artisan test
 | `MAX_ATTACHMENT_NOT_READY_RETRY_DELAY_MS` | Задержка между такими повторами |
 | `MAX_LOCAL_DEV_INIT_DATA` | Подписанная заглушка initData на `localhost:8083/max-app` (см. [Локальная отладка](#локальная-отладка-в-браузере-без-max-webview)) |
 | `MAX_LOCAL_DEV_USER_ID` | Каким демо-пользователем открывать mini-app в браузере (`.env.example` → `1002`; fallback в `config/max.php` без env → **`1003`**; см. [Локальная отладка](#локальная-отладка-в-браузере-без-max-webview)) |
+| `MAX_MESSENGER_DRIVER` | `http` (реальный Bot API) или `null` (`NullMaxMessengerClient`, без HTTP к platform-api.max.ru) |
+
+### PhotoText (агент Cursor)
+
+| Переменная | Назначение |
+|---|---|
+| `PHOTOTEXT_AGENT_TOKEN` | Секрет заголовка `X-PhotoText-Token` (`hash_equals`). Пустой → все `/api/food/phototext/*` отвечают `401`. В чат и логи не печатать |
+| `PHOTOTEXT_MANAGER_MAX_USER_ID` | `max_user_id` оформителя (`created_by`) с активной ролью `max_manager`. Ресторан в env **не** фиксируется — агент передаёт `restaurant_id`. Доступ AI к API — отдельно через `max_users.ai_access_until` (кнопка в mini-app), не через env |
 
 ### Прочие
 
@@ -1000,6 +1209,9 @@ docker compose exec -T service-c php artisan test
 | `DB_*` | MySQL (`host.docker.internal`, БД `sail_db`) |
 | `LOG_STACK` | По умолчанию `single,messMax` — события MAX в `storage/logs/messMax.log` |
 | `REDIS_HOST` | `redis` (кэш/очереди в compose) |
+| `FOOD_CATALOG_CACHE_TTL` | TTL кэша каталога еды в секундах (default `600`); основной сброс — bump версии |
+| `FOOD_CATALOG_CACHE_ENABLED` | Включить кэш ресторанов/меню (default `true`) |
+| `QUEUE_CONNECTION` | Очередь Laravel: в `.env.example` — `database` (нужен `php artisan queue:work` для `NotifyFoodOrderAfterSubmitJob`); в `phpunit.xml` / `.env.testing` — `sync` |
 
 ## HTTPS-туннель на порт 8083
 
@@ -1140,7 +1352,7 @@ location /api/c/ {
 }
 ```
 
-Для prod/dev с туннелем на `:8083` webhook и mini-app идут напрямую в service-c; gateway locations нужны для единого домена с `main-app` и локальной проверки через `:8080`.
+Для prod/dev с туннелем на `:8083` webhook и mini-app идут напрямую в service-c; gateway locations нужны для единого домена с `main-app` и локальной проверки через `:8080`. Агент PhotoText на VPS бьёт в `https://<хост>/api/food/phototext/…` — тот же `location ^~ /api/food/` (заголовок `X-PhotoText-Token` + активный AI-доступ `max_manager`, не gateway Bearer).
 
 ## API (кратко)
 
@@ -1151,6 +1363,40 @@ location /api/c/ {
 | `POST` | `/api/webhooks/max` | Входящие события MAX (`message_callback`, `bot_started`) |
 | `POST` | `/api/max/auth` | `{ "init_data": "..." }` → `{ token, token_type, expires_in, user }` |
 | `GET` | `/api/food/dishes/{id}/image` | Изображение блюда с локального `public` disk (**без** Bearer — для `<img>` в WebView MAX) |
+
+### PhotoText API (агент Cursor)
+
+Префикс: `/api/food/phototext`. Middleware: `phototext.agent.token` (`X-PhotoText-Token`) + `phototext.ai.access` (активный `ai_access_until` у `max_manager`). **Без** `max.miniapp.auth`. На общем домене VPS идёт через nginx-gateway `location ^~ /api/food/` (без Passport). Как вызывать из Cursor — [AI Cursor](#ai-cursor); домен — [PhotoText](#phototext-агент-cursor).
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/food/phototext/restaurants` | Активные рестораны: `{ restaurants: [{ id, name }] }` |
+| `GET` | `/api/food/phototext/catalog?restaurant_id=` | Меню **только** этого ресторана, включая недоступные блюда → `{ catalog }` (`restaurant_id`, `restaurant_name`, `categories[]` с `is_combo_available` и `dishes[].name`). Без `restaurant_id` или неактивный id → `422` |
+| `POST` | `/api/food/phototext/match` | Сверка канонических имён; заказ **не** создаётся (`order_id: null`) |
+| `POST` | `/api/food/phototext/orders` | Сверка + оформление matched как `draft_after_scanning` → `201` и `order_id`; пустой matched → `422` |
+| `POST` | `/api/food/phototext/schedule/match` | Exact match имён для графика (±`category_ids` / `category_id`); график **не** пишется (`applied: false`) |
+| `POST` | `/api/food/phototext/schedule/apply` | Match + замена графика в окне **только** в scope категорий → `200` и `applied: true`; пустой matched → `422` |
+
+Тело `match` и `orders` одинаковое (`PhotoTextAgentOrderRequest`):
+
+```json
+{
+  "customer_query": "Сибирь-Финанс",
+  "order_date": "2026-08-17",
+  "restaurant_id": 1,
+  "items": [
+    { "name": "Салат \"Фасолька\"", "quantity": 2 },
+    { "name": "Филе минтая с овощами", "quantity": 1, "combo_ref": "11111111-1111-1111-1111-111111111111" },
+    { "name": "Гречка", "quantity": 1, "combo_ref": "11111111-1111-1111-1111-111111111111" }
+  ]
+}
+```
+
+Валидация: `customer_query` required string max 255; `order_date` `Y-m-d`; `restaurant_id` exists активный; `items` min 1; `items.*.name` required; `quantity` 1–99; `combo_ref` optional UUID.
+
+Ответ: `{ matched_count, matched[], issues[], order_id }`. У `matched[]`: `raw_title`, `quantity`, `dish_id`, `dish_name`, `combo_ref`, `combo_partner_dish_id`, `is_combo`, …. У `issues[]`: `code` (`dish_not_found` \| `dish_ambiguous` \| `combo_unresolved`), `message`, `raw_title`, `quantity`. Клиент 0/>1 → `{ message }` и HTTP 422. Неверный/пустой токен → `401` с пустым телом. Нет активного AI-доступа → `403` `{ "message": "Доступ AI к базе не разрешён." }`.
+
+Тело `schedule/match` и `schedule/apply` одинаковое (`PhotoTextScheduleSyncRequest`): `restaurant_id`, `category_ids` (массив) **или** одиночный `category_id` (не оба сразу; без scope — весь ресторан), `date_from`/`date_to` (`Y-m-d`, `date_to` = `date_from + 6`), `entries[]` с каноническим `name` и `dates[]` внутри окна. Apply меняет график **только** в указанных категориях. Ответ: `{ matched_count, matched[], issues[], date_from, date_to, applied, categories_applied }`. Коды issues: `dish_not_found` \| `dish_ambiguous`. Как вызывать — `/phototext-schedule` ([AI Cursor](#ai-cursor)).
 
 ### Food API (`Authorization: Bearer <token>`)
 
@@ -1164,7 +1410,7 @@ location /api/c/ {
 | `POST` | `/api/food/cart/items` | Добавить позицию `{ dish_id, quantity }` или комбо `{ dish_id, quantity, combo_ref, combo_partner_dish_id }` (`AddCartItemRequest`: `combo_ref` UUID, оба поля комбо вместе или оба отсутствуют) |
 | `PATCH` | `/api/food/cart/items/{id}` | Изменить количество `{ quantity }` |
 | `DELETE` | `/api/food/cart/items/{id}` | Удалить позицию |
-| `POST` | `/api/food/orders/submit` | Оформить заявку (`draft` → `pending_review`); адрес обязателен, иначе 422; в заказ пишется **`delivery_date`**; после commit — уведомление в `MAX_UI_STAND_*` и клиенту `notifySubmitted` |
+| `POST` | `/api/food/orders/submit` | Оформить заявку (`draft` → `pending_review`); адрес обязателен, иначе 422; в заказ пишется **`delivery_date`**; после commit — `NotifyFoodOrderAfterSubmitJob` (UI Stand + `notifySubmitted`) |
 | `GET` | `/api/food/orders` | Список заказов текущего клиента (`unread_count`, `last_message_at`) |
 | `GET` | `/api/food/orders/{id}` | Детали заказа клиента (статусы review, snapshot позиций, **`delivery_date`**) |
 | `GET` | `/api/food/orders/{id}/messages` | История чата (`?after_id=`, `?limit=` до 100); помечает прочитанным |
@@ -1181,7 +1427,9 @@ location /api/c/ {
 | Метод | Путь | Роль | Описание |
 |---|---|---|---|
 | `GET` | `/api/food/admin/me` | любая активная admin-роль | `{ admin_roles: [...] }` |
-| `GET` | `/api/food/admin/orders` | `address_reviewer` или `composition_reviewer` | Очередь: `?scope=address\|composition&status=pending\|all`; в элементах — `unread_count`, `last_message_at`, `customer_*`, `payment_review_status` |
+| `GET` | `/api/food/admin/ai-access` | `max_manager` | Статус AI-доступа: `{ enabled, active_max_user_id, expires_at }` |
+| `POST` | `/api/food/admin/ai-access/toggle` | `max_manager` | Вкл/выкл доступ AI (TTL 30 мин); конфликт с другим → `409` |
+| `GET` | `/api/food/admin/orders` | `address_reviewer` или `composition_reviewer` | Очередь: `?scope=address\|composition&status=pending\|all`; в элементах — вложенный `customer`, `unread_count`, `last_message_at`, `payment_review_status`, `delivery_date`; **без** `draft_after_scanning` |
 | `GET` | `/api/food/admin/orders/{id}` | как выше | Детали заказа: `?scope=address\|composition` (обязателен); в т.ч. **`delivery_date`** |
 | `POST` | `/api/food/admin/orders/{id}/address/approve` | `address_reviewer` | Подтвердить адрес |
 | `POST` | `/api/food/admin/orders/{id}/address/reject` | `address_reviewer` | Отклонить адрес `{ "comment": "..." }` (`RejectOrderReviewRequest`: required, max 1000) |
@@ -1193,7 +1441,7 @@ location /api/c/ {
 
 Админы с ролью проверки заказов и клиент видят чат на экране деталей заказа (те же endpoints `/api/food/orders/{id}/messages`).
 
-В MAX mini-app: `address_reviewer` — раздел «Заказы» (адрес + оплата); `composition_reviewer` — очередь по составу с возможностью **редактировать состав** до approve/reject; `max_manager` — вкладка «Ручные заказы»; при нескольких ролях — переключатель «Заказы» / «Ручные заказы» / «Меню».
+В MAX mini-app: `address_reviewer` — раздел «Заказы» (адрес + оплата); `composition_reviewer` — очередь по составу с возможностью **редактировать состав** до approve/reject; `max_manager` — вкладка «Ручные заказы» и кнопка **«Вкл. доступ AI»**; при нескольких ролях — переключатель «Заказы» / «Ручные заказы» / «Меню».
 
 ### Food Admin API — ручные заказы (`max_manager`)
 
@@ -1203,8 +1451,11 @@ location /api/c/ {
 
 | Метод | Путь | Описание |
 |---|---|---|
-| `GET` | `/api/food/admin/manual-orders` | Список ручных заказов: `?max_user_id=` (потребитель), `?q=` (ФИО/username, max 255), `?date_from=` / `?date_to=` (`Y-m-d`), `?status=` (`pending_review` / `awaiting_composition` / `confirmed` / `rejected`), `?per_page=` (1–100, default 20) → `{ orders, meta }` (`meta.total_amount` — сумма `total` по фильтрам; у элемента — `customer`) |
+| `GET` | `/api/food/admin/manual-orders` | Список ручных заказов: `?max_user_id=` (потребитель), `?q=` (ФИО/username, max 255), `?date_from=` / `?date_to=` (`Y-m-d`), `?status=` (`draft_after_scanning` / `pending_review` / `awaiting_composition` / `confirmed` / `rejected`), `?per_page=` (1–100, default 20) → `{ orders, meta }` (`meta.total_amount` — сумма `total` по фильтрам; у элемента — `customer`) |
 | `GET` | `/api/food/admin/manual-orders/{order}` | Деталь ручного заказа → `{ order }` (`ManualOrderDetailDto`: состав, итоги, `customer`, `delivery_date`, `has_messages`) |
+| `POST` | `/api/food/admin/manual-orders/{order}/complete` | `draft_after_scanning` → `confirmed` (approve всех этапов) → `{ order }`; иначе `422` |
+| `POST` | `/api/food/admin/manual-orders/{order}/move-to-cart` | Перенос snapshot в ручную корзину + удаление заказа → `{ cart, delivery_address, customer: { max_user_id } }` |
+| `DELETE` | `/api/food/admin/manual-orders/{order}` | Удалить заказ в статусе `draft_after_scanning` → `204` |
 | `GET` | `/api/food/admin/manual-orders/users` | Список/поиск клиентов: `?q=` (max 255), `?per_page=` (1–100, default 20) → `{ users, meta }` |
 | `GET` | `/api/food/admin/manual-orders/cart` | Черновик ручной корзины `?max_user_id=` → `{ cart, delivery_address }` |
 | `PATCH` | `/api/food/admin/manual-orders/cart` | Адрес: `{ max_user_id, delivery_address }` (string, max 1000) |
@@ -1212,7 +1463,7 @@ location /api/c/ {
 | `POST` | `/api/food/admin/manual-orders/cart/items` | Добавить позицию `{ max_user_id, dish_id, quantity }` или комбо (+ `combo_ref`, `combo_partner_dish_id`) |
 | `PATCH` | `/api/food/admin/manual-orders/cart/items/{id}` | Изменить qty `{ max_user_id, quantity }` |
 | `DELETE` | `/api/food/admin/manual-orders/cart/items/{id}` | Удалить позицию (`max_user_id` в body/query) |
-| `POST` | `/api/food/admin/manual-orders/submit` | Оформить → `201`, заказ сразу `confirmed` / `is_manual=true`; после commit — UI Stand + `notifyConfirmed` менеджерам |
+| `POST` | `/api/food/admin/manual-orders/submit` | Оформить → `201`, заказ сразу `confirmed` / `is_manual=true`; после commit — `NotifyFoodOrderAfterSubmitJob` (`Confirmed`: UI Stand + `notifyConfirmed` менеджерам) |
 
 Подробности домена — [Ручные заказы](#ручные-заказы-max_manager).
 
@@ -1328,7 +1579,12 @@ docker compose exec -T service-c php artisan max:food-admin:assign 1004 composit
 docker compose exec -T service-c php artisan max:food-admin:assign 1005 menu_manager       # назначить админа меню
 docker compose exec -T service-c php artisan max:food-admin:assign 1006 max_manager        # назначить MAX-менеджера (ручные заказы)
 docker compose exec -T service-c php artisan food:sync-dish-availability                 # синхронизация is_available + уведомление о доступности меню (MSK)
+docker compose exec -T service-c php artisan max:load-test:tokens 10                     # Sanctum-токены VU (только local/testing)
+docker compose exec -T service-c php artisan max:load-test:prepare-menu                  # включить блюда активных ресторанов + сброс кэша меню
+docker compose exec -T service-c php artisan max:load-test:cleanup 10                    # удалить заказы/корзины load-test пользователей
 ```
+
+`max:load-test:*` доступны только при `APP_ENV=local` или `testing` (`MaxLoadTestService`). Токены по умолчанию пишутся в `storage/app/load-test-tokens.json` (`max_user_id` от 900001). Для k6/deep см. [service-h README](../service-h/README.md).
 
 ### Планировщик, `is_available` и уведомление о меню
 
@@ -1363,7 +1619,7 @@ docker compose exec -T service-c php artisan food:sync-dish-availability        
 | Админ адреса и оплаты | `address_reviewer` | Подтвердить или отклонить адрес доставки и оплату |
 | Админ состава | `composition_reviewer` | Подтвердить, отклонить или **отредактировать** состав заказа |
 | Админ меню | `menu_manager` | CRUD категорий меню (в т.ч. `availability_offsets`) и блюд в разделе «Меню» MAX mini-app |
-| MAX-менеджер | `max_manager` | Ручные заказы от имени клиента; просмотр ручных заказов (фильтры, деталь, чат); получатель ежедневного меню и confirm ручных заказов |
+| MAX-менеджер | `max_manager` | Ручные заказы от имени клиента; просмотр ручных заказов (фильтры, деталь, чат); черновики PhotoText (`complete` / `move-to-cart` / `delete`); **доступ AI** (`…/admin/ai-access*`); получатель ежедневного меню и confirm ручных заказов |
 
 Один пользователь может иметь несколько ролей (отдельная строка в `max_food_order_admins` на каждую роль).
 
@@ -1419,7 +1675,9 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 | 8b | Войти как админ (1003/1004) → «Заказы» → чат → ответ клиенту | Клиент получает «В чат заказа №N поступило сообщение»; UI Stand — то же + текст |
 | 8c | Войти как админ → approve/reject; как `composition_reviewer` — правка состава (qty / «Добавить блюдо» / удалить; комбо — через «собрать блюдо» в picker) → сохранить | Этапы address/payment/composition; клиент получает «принят на рассмотрение» при submit, «заказ изменен» при правке состава, личное сообщение о результате проверки |
 | 8d | Войти как `menu_manager` (1005) → «Меню» → категории (в т.ч. смещение доступности) / график / импорт XLS/XLSX (опционально) | Категории и блюда создаются/обновляются; `availability_offsets` сохраняются; комбо доступно в категориях с `is_combo_available` |
-| 8e | Войти как `max_manager` (1006) → «Ручные заказы» → выбрать клиента → «Оформить» (меню/корзина) **или** «Просмотр» (период + статус → сумма → деталь → чат при `has_messages`) | Оформить: заказ `confirmed` / `is_manual`; в `MAX_UI_STAND_*` — новая заявка; менеджерам — «принята к исполнению»; оформившему — детальный состав; клиенту confirm **не** уходит. Просмотр: фильтры, `meta.total_amount`, `ManualOrderDetailPage` |
+| 8e | Войти как `max_manager` (1006) → «Ручные заказы» → выбрать клиента → «Оформить» (меню/корзина) **или** «Просмотр» (период + статус в т.ч. «Черновик после сканирования» → сумма → деталь → чат при `has_messages`; для draft — «Выполнить» / «В корзину» / «Удалить»). Кнопка **«Вкл. доступ AI»** | Оформить: заказ `confirmed` / `is_manual`; в `MAX_UI_STAND_*` — новая заявка; менеджерам — «принята к исполнению»; оформившему — детальный состав; клиенту confirm **не** уходит. Просмотр: фильтры, `meta.total_amount`, `ManualOrderDetailPage`. AI-доступ: TTL 30 мин, один активный |
+| 8f | Cursor Agent: `/phototext-order` + шапка (клиент / дата / ресторан) + фото бланка (токен в чат не писать; AI-доступ уже включён) | `GET /phototext/restaurants` и `/catalog` → `POST /match` → `POST /orders`; заказ `is_manual` / **`draft_after_scanning`**; `delivery_date` из шапки; в ответе `order_id` и `issues`; без AI → `403` |
+| 8g | Cursor Agent: `/phototext-schedule` + шапка (дата начала / ресторан / категории) + фото графика | `POST /schedule/match` → `POST /schedule/apply`; окно 7 дней; график только в указанных категориях; словарь `phototext-dish-aliases.md` |
 | 9 | `docker compose exec -T service-c php artisan max:ui-stand:send` (опционально) | В MAX: приветствие + кнопки «да» / «нет» / «Заказ еды» (только `MAX_UI_STAND_*`) |
 | 10 | Нажать кнопку в MAX (UI Stand) | В `messMax.log`: событие callback, ответ «да» или «нет»; `chat_id` группы |
 | 10a | Админ меню → **«тест бот 2»** (при `MAX_UI_STAND_CHAT_IDS`) | Сообщение `тест бот 2` в целевой чат; чаты из `MAX_REPORT_*` не затрагиваются |
@@ -1462,21 +1720,26 @@ docker compose exec -T service-c tail -f storage/logs/messMax.log
 | Food API / cart / orders | `tests/Feature/FoodRestaurantApiTest.php`, `FoodCartApiTest.php` (в т.ч. `amount_to_next_tier`, `delivery_date`), `FoodOrderApiTest.php` (`delivery_date` при submit) |
 | Комбо в корзине / snapshot | `tests/Feature/FoodCartApiTest.php`, `FoodOrderApiTest.php`, `tests/Unit/OrderSnapshotComboResolverTest.php`, `OrderItemsSnapshotBuilderTest.php` |
 | Клиентские заказы | `tests/Feature/CustomerOrderListApiTest.php` (`unread_count`) |
-| Admin order review | `tests/Feature/AdminOrderReviewApiTest.php` (approve/reject + `PUT .../composition`) |
-| Ручные заказы (`max_manager`) | `tests/Feature/AdminManualOrderApiTest.php` (auth/403, users, cart CRUD, изоляция от личной корзины, submit → confirmed / `delivery_date`, уведомления); `tests/Feature/AdminManualOrderListApiTest.php` (фильтр `status`, `meta.total_amount`, `GET .../manual-orders/{id}`, `has_messages`) |
+| Admin order review | `tests/Feature/AdminOrderReviewApiTest.php` (approve/reject + `PUT .../composition`; `draft_after_scanning` скрыт из очереди) |
+| Ручные заказы (`max_manager`) | `tests/Feature/AdminManualOrderApiTest.php` (auth/403, users, cart CRUD, изоляция от личной корзины, submit → confirmed / `delivery_date`, уведомления); `tests/Feature/AdminManualOrderListApiTest.php` (фильтр `status` в т.ч. `draft_after_scanning`, `meta.total_amount`, `GET .../manual-orders/{id}`, `has_messages`); `tests/Feature/AdminDraftAfterScanningOrderApiTest.php` (complete / move-to-cart / delete) |
+| PhotoText (агент Cursor) | `tests/Feature/PhotoTextOrderApiTest.php` (токен 401, AI 403, catalog по `restaurant_id` в т.ч. unavailable, чужой ресторан → issue, слэш без `combo_ref` не режется, match/place combo_ref, разный qty → unresolved, клиент 0/>1, пустой matched → 422, place → `draft_after_scanning`, `delivery_date` из `order_date`, пустой адрес допустим, partial place); `tests/Feature/PhotoTextScheduleApiTest.php` (schedule match/apply, окно 7 дней, scope `category_ids`, AI 403); `tests/Feature/PhotoTextAgentAuthTest.php`; `tests/Unit/PhotoTextComboRefGrouperTest.php`, `PhotoTextManualOrderPlacementServiceTest.php`, `VerifyPhotoTextAgentTokenTest.php`, `EnsurePhotoTextAiAccessTest.php` |
+| AI-доступ (`max_manager`) | `tests/Feature/MaxAiAccessApiTest.php` (toggle TTL 30 мин, 409 конфликт, cleanup просрочки); `tests/Unit/EnsurePhotoTextAiAccessTest.php` |
+| Job после submit | `tests/Unit/NotifyFoodOrderAfterSubmitJobTest.php`; dispatch из submit — `tests/Feature/FoodOrderApiTest.php` (`Bus::fake`) |
+| Кэш каталога | `tests/Feature/FoodCatalogCacheApiTest.php`, `tests/Unit/CachingMenuQueryServiceTest.php` |
+| Load-test Artisan | `tests/Feature/MaxLoadTestCommandsTest.php` (`max:load-test:tokens` / `prepare-menu` / `cleanup`) |
 | Получатели notify (клиент vs managers) | `tests/Unit/OrderCustomerNotifyRecipientResolverTest.php` |
 | Правка состава (unit) | `tests/Unit/OrderCompositionSnapshotBuilderTest.php` |
 | Admin menu categories | `tests/Feature/AdminMenuCategoryApiTest.php` (CRUD + `availability_offsets`, полная замена на PUT) |
 | Order chat (API) | `tests/Feature/OrderChatApiTest.php` (`unread_count` после сообщений) |
 | Food domain (unit) | `tests/Unit/CartServiceTest.php`, `CartTotalsCalculatorTest.php`, `DeliveryCostResolverTest.php`, `OrderStatusResolverTest.php`, `OrderItemsSnapshotBuilderTest.php` |
 | MAX-уведомления (заказ → UI Stand) | `tests/Unit/FoodOrderMaxMessageBuilderTest.php` (в т.ч. «Дата доставки», «Заказ на …» из `delivery_date`), `LaravelFoodOrderMaxNotifierTest.php` |
-| MAX-уведомления (клиент / статус) | `tests/Unit/FoodOrderCustomerNotifierTest.php` (`notifySubmitted`, confirmed/rejected, `notifyCompositionChanged`, manual confirm / `buildManualOrderCreatorConfirmed`) |
+| MAX-уведомления (клиент / статус) | `tests/Unit/FoodOrderCustomerNotifierTest.php` (`notifySubmitted`, confirmed/rejected, `notifyCompositionChanged`, manual confirm / `notifyManualOrderCreatorConfirmed` / `buildManualOrderCreatorConfirmed`) |
 | MAX-уведомления (чат заказа) | `tests/Unit/OrderChatNotifierTest.php` |
 | Уведомление о доступности меню | `tests/Unit/MaxMenuAvailabilityNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuMessageBuilderTest.php`, `tests/Unit/DailyMenuLineCollectorTest.php`, `tests/Feature/SyncDishAvailabilityCommandTest.php` (дата «Блюда на»; skip без offsets на weekday) |
-| Дата «Блюда на» / offsets | `tests/Unit/MenuAvailabilityDateResolverTest.php` (`resolve` с lookback; `resolveForCurrentWeekday` без lookback) |
+| Дата «Блюда на» / offsets | `tests/Unit/MenuAvailabilityDateResolverTest.php` (`resolve` с lookback; `resolveForCurrentWeekday` без lookback), `tests/Unit/CachingMenuAvailabilityDateResolverTest.php` |
 | Sync `is_available` (unit) | `tests/Unit/EloquentDishAvailabilitySyncTest.php`, `tests/Unit/DishAvailabilitySyncServiceTest.php` |
 | Food order admin repository | `tests/Unit/EloquentFoodOrderAdminRepositoryTest.php` |
-| MAX user repository | `tests/Unit/EloquentMaxUserRepositoryTest.php` |
+| MAX user repository | `tests/Unit/EloquentMaxUserRepositoryTest.php` (в т.ч. `ai_access_until`) |
 | Delivery tiers / categories / restaurants | `tests/Unit/EloquentDeliveryTierRepositoryTest.php`, `EloquentCustomerCategoryRepositoryTest.php`, `EloquentRestaurantRepositoryTest.php` |
 | Dish image delivery / upload | `tests/Feature/DishImageApiTest.php`, `tests/Unit/DishImageUrlResolverTest.php`, `DishImageUploadServiceTest.php`, `MinImageDimensionsTest.php`, `DishAdminEnumsTest.php` |
 | Admin dishes CRUD / import | `tests/Feature/AdminDishApiTest.php`, `tests/Feature/AdminDishImportApiTest.php`, `tests/Unit/DishSpreadsheetRowParserTest.php` |

@@ -231,3 +231,45 @@ export async function submitManualOrder(maxUserId) {
 
     return data.order;
 }
+
+/**
+ * Переводит черновик после сканирования в статус «Выполнен».
+ *
+ * @param {number} orderId
+ * @returns {Promise<AdminOrderDetailDto>}
+ */
+export async function completeDraftAfterScanningOrder(orderId) {
+    const { data } = await client.post(`/food/admin/manual-orders/${orderId}/complete`);
+
+    return data.order;
+}
+
+/**
+ * Переносит позиции черновика после сканирования в ручную корзину клиента.
+ *
+ * @param {number} orderId
+ * @returns {Promise<import('./types.js').DraftAfterScanningMoveToCartResult>}
+ */
+export async function moveDraftAfterScanningOrderToCart(orderId) {
+    const { data } = await client.post(`/food/admin/manual-orders/${orderId}/move-to-cart`);
+    const rawCustomerId = data.customer?.max_user_id ?? data.customer_max_user_id ?? null;
+    const customerMaxUserId = Number(rawCustomerId);
+
+    return {
+        cart: data.cart ?? null,
+        deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? null,
+        customerMaxUserId: Number.isFinite(customerMaxUserId) && customerMaxUserId > 0
+            ? customerMaxUserId
+            : null,
+    };
+}
+
+/**
+ * Удаляет ручной заказ в статусе «Черновик после сканирования».
+ *
+ * @param {number} orderId
+ * @returns {Promise<void>}
+ */
+export async function deleteManualOrder(orderId) {
+    await client.delete(`/food/admin/manual-orders/${orderId}`);
+}

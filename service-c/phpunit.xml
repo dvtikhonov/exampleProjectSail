@@ -38,5 +38,7 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="PHOTOTEXT_AGENT_TOKEN" value=""/>
+        <env name="PHOTOTEXT_MANAGER_MAX_USER_ID" value="0"/>
     </php>
 </phpunit>

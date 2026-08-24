@@ -59,11 +59,19 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
     /**
      * {@inheritDoc}
      */
+    public function delete(FoodOrder $order): void
+    {
+        $order->delete();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function paginateForAddressReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator
     {
         $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
-            ->whereNotIn('status', [OrderStatus::Rejected, OrderStatus::Confirmed]);
+            ->whereNotIn('status', $this->statusesExcludedFromReviewQueue());
 
         if ($reviewStatus === OrderReviewStatus::Pending) {
             $query->where(function ($builder): void {
@@ -92,7 +100,7 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
     {
         $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
-            ->whereNotIn('status', [OrderStatus::Rejected, OrderStatus::Confirmed]);
+            ->whereNotIn('status', $this->statusesExcludedFromReviewQueue());
 
         if ($reviewStatus === OrderReviewStatus::Pending) {
             $query->where(function ($builder): void {
@@ -108,6 +116,20 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($perPage);
+    }
+
+    /**
+     * Статусы, которые не попадают в очередь «Проверка заказов».
+     *
+     * @return list<OrderStatus>
+     */
+    private function statusesExcludedFromReviewQueue(): array
+    {
+        return [
+            OrderStatus::Rejected,
+            OrderStatus::Confirmed,
+            OrderStatus::DraftAfterScanning,
+        ];
     }
 
     /**

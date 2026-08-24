@@ -2,8 +2,10 @@
 /**
  * Просмотр ручного заказа в layout корзины: адрес, позиции, итоги (без редактирования).
  * Кнопка «Чат» активна, если у заказа есть сообщения.
+ * Для статуса draft_after_scanning — действия «Выполнить», «В корзину», «Удалить».
  */
 import { computed, ref } from 'vue';
+import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.vue';
 import DishImage from '../../components/DishImage.vue';
 import ManualOrderChatModal from '../../components/ManualOrderChatModal.vue';
 import OrderStatusBadge from '../../components/OrderStatusBadge.vue';
@@ -25,11 +27,22 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    actionLoading: {
+        type: Boolean,
+        default: false,
+    },
+    actionError: {
+        type: String,
+        default: '',
+    },
 });
 
-defineEmits(['back']);
+const emit = defineEmits(['back', 'complete', 'move-to-cart', 'delete', 'clear-action-error']);
 
 const chatOpen = ref(false);
+
+/** @type {import('vue').Ref<'complete'|'moveToCart'|'delete'|null>} */
+const confirmKind = ref(null);
 
 const orderGroups = computed(() => buildSnapshotGroups(props.order?.items_snapshot ?? []));
 
@@ -39,12 +52,46 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_d
 
 const hasMessages = computed(() => props.order?.has_messages === true);
 
+const isDraftAfterScanning = computed(() => props.order?.status === 'draft_after_scanning');
+
 const customerLabel = computed(() => {
     if (!props.order?.customer) {
         return '';
     }
 
     return formatCustomerName(props.order.customer) || `ID ${props.order.customer.max_user_id}`;
+});
+
+const confirmConfig = computed(() => {
+    const orderId = props.order?.id ?? '…';
+
+    if (confirmKind.value === 'moveToCart') {
+        return {
+            title: 'Перенести в корзину?',
+            message: `Все позиции заказа №${orderId} будут перенесены в ручную корзину клиента. Текущая черновая корзина по этому клиенту будет очищена. Заказ будет удалён. Продолжить?`,
+            confirmLabel: 'В корзину',
+            loadingLabel: 'Перенос…',
+            confirmButtonClass: 'bg-max-primary hover:bg-max-primary-hover',
+        };
+    }
+
+    if (confirmKind.value === 'delete') {
+        return {
+            title: 'Удалить заказ?',
+            message: `Удалить заказ №${orderId} без возможности восстановления?`,
+            confirmLabel: 'Удалить',
+            loadingLabel: 'Удаление…',
+            confirmButtonClass: 'bg-red-600 hover:bg-red-700',
+        };
+    }
+
+    return {
+        title: 'Выполнить заказ?',
+        message: `Перевести заказ №${orderId} в статус «Выполнен» и отправить сообщение оформившему?`,
+        confirmLabel: 'Выполнить',
+        loadingLabel: 'Обработка…',
+        confirmButtonClass: 'bg-max-primary hover:bg-max-primary-hover',
+    };
 });
 
 /**
@@ -66,6 +113,53 @@ function openChat() {
 
     chatOpen.value = true;
 }
+
+/**
+ * @param {'complete'|'moveToCart'|'delete'} kind
+ */
+function openConfirm(kind) {
+    if (props.actionLoading || !isDraftAfterScanning.value) {
+        return;
+    }
+
+    emit('clear-action-error');
+    confirmKind.value = kind;
+}
+
+function closeConfirm() {
+    if (props.actionLoading) {
+        return;
+    }
+
+    confirmKind.value = null;
+    emit('clear-action-error');
+}
+
+function confirmAction() {
+    if (confirmKind.value === 'moveToCart') {
+        emit('move-to-cart');
+
+        return;
+    }
+
+    if (confirmKind.value === 'delete') {
+        emit('delete');
+
+        return;
+    }
+
+    if (confirmKind.value === 'complete') {
+        emit('complete');
+    }
+}
+
+function goBack() {
+    if (props.actionLoading) {
+        return;
+    }
+
+    emit('back');
+}
 </script>
 
 <template>
@@ -74,9 +168,10 @@ function openChat() {
             <div class="flex items-center gap-3">
                 <button
                     type="button"
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100"
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
                     aria-label="Назад"
-                    @click="$emit('back')"
+                    :disabled="actionLoading"
+                    @click="goBack"
                 >
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -99,11 +194,11 @@ function openChat() {
                 <button
                     v-if="order && !loading && !error"
                     type="button"
-                    class="flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition"
+                    class="flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition disabled:opacity-50"
                     :class="hasMessages
                         ? 'bg-max-primary text-white hover:bg-max-primary-hover'
                         : 'cursor-not-allowed bg-gray-100 text-gray-400'"
-                    :disabled="!hasMessages"
+                    :disabled="!hasMessages || actionLoading"
                     :title="hasMessages ? 'Открыть чат' : 'Сообщений нет'"
                     :aria-label="hasMessages ? 'Открыть чат' : 'Чат недоступен — сообщений нет'"
                     @click="openChat"
@@ -253,12 +348,54 @@ function openChat() {
                     <span class="text-xl font-bold text-gray-900">{{ order.total }} ₽</span>
                 </div>
             </div>
+            <div
+                v-if="isDraftAfterScanning"
+                class="mt-3 flex gap-2"
+            >
+                <button
+                    type="button"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-max-primary px-2 py-3 text-xs font-medium text-white transition hover:bg-max-primary-hover disabled:opacity-50 sm:text-sm"
+                    :disabled="actionLoading"
+                    @click="openConfirm('complete')"
+                >
+                    Выполнить
+                </button>
+                <button
+                    type="button"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 py-3 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:text-sm"
+                    :disabled="actionLoading"
+                    @click="openConfirm('moveToCart')"
+                >
+                    В корзину
+                </button>
+                <button
+                    type="button"
+                    class="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-red-200 bg-red-50 px-2 py-3 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50 sm:text-sm"
+                    :disabled="actionLoading"
+                    @click="openConfirm('delete')"
+                >
+                    Удалить
+                </button>
+            </div>
         </div>
 
         <ManualOrderChatModal
             :open="chatOpen"
             :order-id="order?.id ?? null"
             @close="chatOpen = false"
+        />
+
+        <ConfirmDeleteModal
+            :open="confirmKind !== null"
+            :title="confirmConfig.title"
+            :message="confirmConfig.message"
+            :confirm-label="confirmConfig.confirmLabel"
+            :loading-label="confirmConfig.loadingLabel"
+            :confirm-button-class="confirmConfig.confirmButtonClass"
+            :loading="actionLoading"
+            :error="actionError"
+            @close="closeConfirm"
+            @confirm="confirmAction"
         />
     </div>
 </template>

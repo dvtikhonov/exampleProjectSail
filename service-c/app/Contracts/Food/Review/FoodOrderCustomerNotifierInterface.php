@@ -26,6 +26,13 @@ interface FoodOrderCustomerNotifierInterface
     public function notifyConfirmed(FoodOrder $order): void;
 
     /**
+     * Отправляет оформившему ручной заказ детальный состав (DM на created_by_max_user_id).
+     *
+     * Без рассылки всем max_manager. При ошибке DM — fallback в UI Stand.
+     */
+    public function notifyManualOrderCreatorConfirmed(FoodOrder $order): void;
+
+    /**
      * Сообщает клиенту об отклонении заявки с указанием этапа и причины.
      */
     public function notifyRejected(FoodOrder $order, OrderRejectionScope $scope): void;

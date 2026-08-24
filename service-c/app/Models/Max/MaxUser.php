@@ -21,6 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
     'username',
     'language_code',
     'photo_url',
+    'ai_access_until',
     'customer_category_id',
     'delivery_address',
 ])]
@@ -47,6 +48,7 @@ class MaxUser extends Authenticatable
         return [
             'max_user_id' => 'integer',
             'customer_category_id' => 'integer',
+            'ai_access_until' => 'datetime',
         ];
     }
 

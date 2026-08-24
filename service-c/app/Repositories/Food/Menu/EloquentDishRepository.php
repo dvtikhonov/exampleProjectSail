@@ -258,4 +258,33 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
             ->get()
             ->keyBy(static fn (Dish $dish): int => (int) $dish->id);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findByNameCaseInsensitive(string $name, ?int $restaurantId = null): Collection
+    {
+        $normalized = trim($name);
+
+        if ($normalized === '') {
+            return collect();
+        }
+
+        $lowerName = mb_strtolower($normalized, 'UTF-8');
+
+        $query = Dish::query()
+            ->with('menuCategory.restaurant')
+            ->whereRaw('LOWER(name) = ?', [$lowerName]);
+
+        if ($restaurantId !== null) {
+            $query->whereHas(
+                'menuCategory',
+                static fn ($categoryQuery) => $categoryQuery->where('restaurant_id', $restaurantId),
+            );
+        }
+
+        return $query
+            ->orderBy('id')
+            ->get();
+    }
 }

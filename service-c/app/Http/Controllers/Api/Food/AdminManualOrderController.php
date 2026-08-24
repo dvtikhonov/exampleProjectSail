@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\ManualOrder\DraftAfterScanningOrderServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
 use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\DraftAfterScanningOrderActionRequest;
 use App\Http\Requests\Food\Admin\ListManualOrdersRequest;
 use App\Http\Requests\Food\Admin\ListManualOrderUsersRequest;
 use App\Http\Requests\Food\Admin\ManualAddCartItemRequest;
@@ -22,6 +24,7 @@ use App\Models\Max\MaxUser;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * API ручных заказов для роли max_manager.
@@ -33,6 +36,7 @@ class AdminManualOrderController extends Controller
         private readonly ManualOrderQueryServiceInterface $manualOrderQueryService,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
         private readonly OrderSubmissionServiceInterface $orderSubmissionService,
+        private readonly DraftAfterScanningOrderServiceInterface $draftAfterScanningOrderService,
         private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
     ) {}
 
@@ -234,6 +238,60 @@ class AdminManualOrderController extends Controller
         return response()->json([
             'order' => $order->toArray(),
         ], JsonResponse::HTTP_CREATED);
+    }
+
+    /**
+     * Переводит заказ «Черновик после сканирования» в статус «Выполнен».
+     */
+    public function complete(DraftAfterScanningOrderActionRequest $request): JsonResponse
+    {
+        try {
+            $this->draftAfterScanningOrderService->complete(
+                $request->orderId(),
+                $this->manager($request),
+            );
+            $detail = $this->manualOrderQueryService->show($request->orderId());
+        } catch (FoodDomainException $exception) {
+            return $this->domainError($exception);
+        }
+
+        return response()->json([
+            'order' => $detail->toArray(),
+        ]);
+    }
+
+    /**
+     * Переносит позиции заказа «Черновик после сканирования» в ручную корзину клиента.
+     */
+    public function moveToCart(DraftAfterScanningOrderActionRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->draftAfterScanningOrderService->moveToCart(
+                $request->orderId(),
+                $this->manager($request),
+            );
+        } catch (FoodDomainException $exception) {
+            return $this->domainError($exception);
+        }
+
+        return response()->json($result->toArray());
+    }
+
+    /**
+     * Удаляет ручной заказ в статусе «Черновик после сканирования».
+     */
+    public function destroy(DraftAfterScanningOrderActionRequest $request): Response|JsonResponse
+    {
+        try {
+            $this->draftAfterScanningOrderService->delete(
+                $request->orderId(),
+                $this->manager($request),
+            );
+        } catch (FoodDomainException $exception) {
+            return $this->domainError($exception);
+        }
+
+        return response()->noContent();
     }
 
     /**

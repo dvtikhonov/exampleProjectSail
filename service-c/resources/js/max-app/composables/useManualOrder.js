@@ -4,10 +4,13 @@
  */
 import { computed, onScopeDispose, ref } from 'vue';
 import {
+    completeDraftAfterScanningOrder,
+    deleteManualOrder,
     extractErrorMessage,
     fetchManualOrder,
     fetchManualOrderUsers,
     fetchManualOrders,
+    moveDraftAfterScanningOrderToCart,
 } from '../api';
 import { formatCustomerFio } from '../utils/formatCustomerName';
 
@@ -80,6 +83,8 @@ export function useManualOrder() {
     const selectedOrderDetail = ref(null);
     const orderDetailLoading = ref(false);
     const orderDetailError = ref('');
+    const draftActionLoading = ref(false);
+    const draftActionError = ref('');
 
     /** @type {ReturnType<typeof setTimeout>|null} */
     let searchDebounceTimer = null;
@@ -284,6 +289,120 @@ export function useManualOrder() {
         selectedOrderDetail.value = null;
         orderDetailLoading.value = false;
         orderDetailError.value = '';
+        draftActionLoading.value = false;
+        draftActionError.value = '';
+    }
+
+    function clearDraftActionError() {
+        draftActionError.value = '';
+    }
+
+    /**
+     * @param {unknown} value
+     * @returns {number|null}
+     */
+    function resolvePositiveId(value) {
+        const id = typeof value === 'number' ? value : Number(value);
+
+        return Number.isFinite(id) && id > 0 ? id : null;
+    }
+
+    /**
+     * @param {unknown} orderId
+     * @returns {Promise<boolean>}
+     */
+    async function completeDraftAfterScanning(orderId) {
+        const id = resolvePositiveId(orderId);
+
+        if (id === null) {
+            return false;
+        }
+
+        draftActionLoading.value = true;
+        draftActionError.value = '';
+
+        try {
+            await completeDraftAfterScanningOrder(id);
+
+            return true;
+        } catch (error) {
+            draftActionError.value = extractErrorMessage(error);
+
+            return false;
+        } finally {
+            draftActionLoading.value = false;
+        }
+    }
+
+    /**
+     * @param {unknown} orderId
+     * @returns {Promise<import('../api/types.js').DraftAfterScanningMoveToCartResult|null>}
+     */
+    async function moveDraftAfterScanningToCart(orderId) {
+        const id = resolvePositiveId(orderId);
+
+        if (id === null) {
+            return null;
+        }
+
+        draftActionLoading.value = true;
+        draftActionError.value = '';
+
+        try {
+            return await moveDraftAfterScanningOrderToCart(id);
+        } catch (error) {
+            draftActionError.value = extractErrorMessage(error);
+
+            return null;
+        } finally {
+            draftActionLoading.value = false;
+        }
+    }
+
+    /**
+     * @param {unknown} orderId
+     * @returns {Promise<boolean>}
+     */
+    async function deleteDraftAfterScanning(orderId) {
+        const id = resolvePositiveId(orderId);
+
+        if (id === null) {
+            return false;
+        }
+
+        draftActionLoading.value = true;
+        draftActionError.value = '';
+
+        try {
+            await deleteManualOrder(id);
+
+            return true;
+        } catch (error) {
+            draftActionError.value = extractErrorMessage(error);
+
+            return false;
+        } finally {
+            draftActionLoading.value = false;
+        }
+    }
+
+    /**
+     * Закрывает деталку, выбирает потребителя и открывает вкладку создания заказа.
+     *
+     * @param {object|null|undefined} user
+     * @returns {boolean}
+     */
+    function startOrderingFromDraftCustomer(user) {
+        selectUser(user);
+
+        if (targetMaxUserId.value === null) {
+            return false;
+        }
+
+        activeTab.value = MANUAL_ORDER_TABS.create;
+        closeOrderDetail();
+
+        return true;
     }
 
     /**
@@ -363,6 +482,8 @@ export function useManualOrder() {
         selectedOrderDetail,
         orderDetailLoading,
         orderDetailError,
+        draftActionLoading,
+        draftActionError,
         loadUsers,
         loadOrders,
         handleUsersSearchInput,
@@ -373,6 +494,11 @@ export function useManualOrder() {
         setActiveTab,
         openOrderDetail,
         closeOrderDetail,
+        clearDraftActionError,
+        completeDraftAfterScanning,
+        moveDraftAfterScanningToCart,
+        deleteDraftAfterScanning,
+        startOrderingFromDraftCustomer,
         selectUser,
         clearTargetUser,
         initManualOrderSession,

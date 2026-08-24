@@ -19,6 +19,7 @@ readonly class ManualOrderListItemDto
         public ?string $customerLastName,
         public ?string $customerUsername,
         public ?string $deliveryAddress,
+        public ?string $deliveryDate,
         public string $itemsTotal,
         public ?string $deliveryCost,
         public string $total,
@@ -28,7 +29,19 @@ readonly class ManualOrderListItemDto
     /**
      * Преобразует элемент списка ручных заказов в массив.
      *
-     * @return array<string, array<string, int|string|null>|int|string|null>
+     * @return array{
+     *     id: int,
+     *     status: string,
+     *     restaurant_id: int,
+     *     restaurant_name: string,
+     *     customer: array{max_user_id: int, first_name: string|null, last_name: string|null, username: string|null},
+     *     delivery_address: string|null,
+     *     delivery_date: string|null,
+     *     items_total: string,
+     *     delivery_cost: string|null,
+     *     total: string,
+     *     created_at: string
+     * }
      */
     public function toArray(): array
     {
@@ -44,6 +57,7 @@ readonly class ManualOrderListItemDto
                 'username' => $this->customerUsername,
             ],
             'delivery_address' => $this->deliveryAddress,
+            'delivery_date' => $this->deliveryDate,
             'items_total' => $this->itemsTotal,
             'delivery_cost' => $this->deliveryCost,
             'total' => $this->total,
