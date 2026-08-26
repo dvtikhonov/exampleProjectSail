@@ -69,6 +69,8 @@ const {
 } = manualOrder;
 
 const currentView = ref(VIEWS.restaurants);
+/** Дата доставки из черновика после сканирования для подстановки в ручную корзину */
+const preferredCartDeliveryDate = ref(null);
 const cartTransport = createManualCartTransport(getManualTargetMaxUserId);
 
 const cartFlow = useCart({ currentView, cartTransport });
@@ -128,6 +130,7 @@ const { goHome, goToCart } = nav;
 
 /** Выход из оформления ручного заказа к списку клиентов */
 function handleManualExitOrdering() {
+    preferredCartDeliveryDate.value = null;
     clearManualTargetUser();
     resetLocalCartState();
     resetRestaurantSelection();
@@ -139,6 +142,7 @@ function handleManualExitOrdering() {
  * @param {object} user
  */
 async function handleManualSelectUser(user) {
+    preferredCartDeliveryDate.value = null;
     selectManualUser(user);
     resetLocalCartState();
     resetRestaurantSelection();
@@ -199,6 +203,9 @@ async function handleDeleteDraftAfterScanning() {
 async function handleMoveDraftAfterScanningToCart() {
     const order = manualOrderDetail.value;
     const customer = order?.customer ?? null;
+    const orderDeliveryDate = typeof order?.delivery_date === 'string'
+        ? order.delivery_date.trim()
+        : '';
     const result = await moveDraftAfterScanningToCart(order?.id);
 
     if (result === null) {
@@ -210,11 +217,18 @@ async function handleMoveDraftAfterScanningToCart() {
         max_user_id: result.customerMaxUserId ?? customer?.max_user_id,
     };
 
+    const resultDeliveryDate = typeof result.deliveryDate === 'string'
+        ? result.deliveryDate.trim()
+        : (typeof result.cart?.delivery_date === 'string' ? result.cart.delivery_date.trim() : '');
+
+    preferredCartDeliveryDate.value = resultDeliveryDate || orderDeliveryDate || null;
+
     resetLocalCartState();
     resetRestaurantSelection();
     currentView.value = VIEWS.cart;
 
     if (!startOrderingFromDraftCustomer(user)) {
+        preferredCartDeliveryDate.value = null;
         currentView.value = VIEWS.restaurants;
         closeManualOrderDetail();
         loadManualOrders();
@@ -283,6 +297,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     sectionNavVisible.value = true;
+    preferredCartDeliveryDate.value = null;
     clearManualTargetUser();
     resetLocalCartState();
 });
@@ -361,6 +376,7 @@ onUnmounted(() => {
         :clearing-cart="clearingCart"
         :is-single-restaurant-mode="isSingleRestaurantMode"
         :submitted-order="submittedOrder"
+        :preferred-delivery-date="preferredCartDeliveryDate"
         :assign-cart-page-ref="assignCartPageRef"
         :open-restaurant="openRestaurant"
         :go-to-cart="goToCart"

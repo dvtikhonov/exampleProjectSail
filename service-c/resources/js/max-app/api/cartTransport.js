@@ -40,7 +40,7 @@ import {
  * @property {(itemId: number) => Promise<CartDto>} removeItem
  * @property {() => Promise<CartDto|null>} clear
  * @property {(address: string) => Promise<CartEnvelope>} updateDeliveryAddress
- * @property {() => Promise<OrderDto>} submit
+ * @property {(deliveryDate?: string|null) => Promise<OrderDto>} submit
  */
 
 export { addComboWithRollback } from './cartHelpers.js';
@@ -70,6 +70,20 @@ export function createClientCartTransport() {
         updateDeliveryAddress: (address) => updateCartDeliveryAddress(address),
         submit: () => submitOrder(),
     };
+}
+
+/**
+ * @param {string|null|undefined} deliveryDate
+ * @returns {string|null}
+ */
+function normalizeSubmitDeliveryDate(deliveryDate) {
+    if (typeof deliveryDate !== 'string') {
+        return null;
+    }
+
+    const trimmed = deliveryDate.trim();
+
+    return trimmed !== '' ? trimmed : null;
 }
 
 /**
@@ -111,7 +125,10 @@ export function createManualCartTransport(getMaxUserId) {
         removeItem,
         clear: () => clearManualCart(resolveMaxUserId()),
         updateDeliveryAddress: (address) => updateManualCartDeliveryAddress(resolveMaxUserId(), address),
-        submit: () => submitManualOrder(resolveMaxUserId()),
+        submit: (deliveryDate = null) => submitManualOrder(
+            resolveMaxUserId(),
+            normalizeSubmitDeliveryDate(deliveryDate),
+        ),
     };
 }
 

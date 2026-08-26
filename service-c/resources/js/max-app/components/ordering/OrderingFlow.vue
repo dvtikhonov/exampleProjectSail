@@ -106,6 +106,13 @@ defineProps({
         type: Object,
         default: null,
     },
+    /**
+     * Дата доставки Y-m-d для ручной корзины (например после move-to-cart).
+     */
+    preferredDeliveryDate: {
+        type: String,
+        default: null,
+    },
     /** Привязка ref CartPage для кнопки «Назад» (избегает unwrap Ref в props) */
     assignCartPageRef: {
         type: Function,
@@ -231,6 +238,7 @@ defineProps({
         :orders-unread-count="manualOrderMode ? 0 : ordersUnreadCount"
         :is-single-restaurant-mode="isSingleRestaurantMode"
         :manual-order-mode="manualOrderMode"
+        :preferred-delivery-date="preferredDeliveryDate"
         @update-quantity="handleUpdateQuantity"
         @remove-item="handleRemoveItem"
         @clear-cart="handleClearCart"

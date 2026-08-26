@@ -106,7 +106,7 @@ class MaxUiStandGreetingSender
 
             return true;
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX greeting send failed', [
+            Log::channel('max_log')->warning('MAX greeting send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $exception->userMessage(),
@@ -114,7 +114,7 @@ class MaxUiStandGreetingSender
 
             return false;
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX greeting send failed', [
+            Log::channel('max_log')->warning('MAX greeting send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $exception->getMessage(),

@@ -27,6 +27,11 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    /** Явная дата доставки (Y-m-d); если пусто — из cart.delivery_date */
+    deliveryDate: {
+        type: String,
+        default: '',
+    },
     submitting: {
         type: Boolean,
         default: false,
@@ -35,7 +40,12 @@ const props = defineProps({
 
 defineEmits(['close', 'confirm']);
 
-const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_date) || '—');
+const deliveryDateLabel = computed(() => {
+    const explicit = typeof props.deliveryDate === 'string' ? props.deliveryDate.trim() : '';
+    const iso = explicit !== '' ? explicit : props.cart?.delivery_date;
+
+    return formatIsoDateRu(iso) || '—';
+});
 </script>
 
 <template>

@@ -76,7 +76,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('messMax')->warning('MAX order chat notification skipped: UI Stand recipients are not configured', [
+            Log::channel('max_log')->warning('MAX order chat notification skipped: UI Stand recipients are not configured', [
                 'order_id' => $order->id,
                 'message_id' => $message->id,
                 'author_type' => $message->authorType->value,
@@ -168,7 +168,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
                 userId: $userId,
             ));
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX order chat notification send failed', [
+            Log::channel('max_log')->warning('MAX order chat notification send failed', [
                 'order_id' => $orderId,
                 'message_id' => $messageId,
                 'chat_id' => $chatId,
@@ -176,7 +176,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
                 'error' => $exception->userMessage(),
             ]);
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX order chat notification send failed', [
+            Log::channel('max_log')->warning('MAX order chat notification send failed', [
                 'order_id' => $orderId,
                 'message_id' => $messageId,
                 'chat_id' => $chatId,

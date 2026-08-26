@@ -36,7 +36,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
     public function test_bot_started_sends_greeting_only_to_event_user(): void
     {
         $captured = [];
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
             $captured[] = $event;
         });
 

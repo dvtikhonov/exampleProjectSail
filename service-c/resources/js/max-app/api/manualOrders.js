@@ -222,12 +222,18 @@ export async function updateManualCartDeliveryAddress(maxUserId, address) {
 
 /**
  * @param {number} maxUserId
+ * @param {string|null} [deliveryDate] — Y-m-d; null/omit — дата доступности меню на бэке
  * @returns {Promise<OrderDto>}
  */
-export async function submitManualOrder(maxUserId) {
-    const { data } = await client.post('/food/admin/manual-orders/submit', {
-        max_user_id: maxUserId,
-    });
+export async function submitManualOrder(maxUserId, deliveryDate = null) {
+    /** @type {{ max_user_id: number, delivery_date?: string }} */
+    const payload = { max_user_id: maxUserId };
+
+    if (typeof deliveryDate === 'string' && deliveryDate.trim() !== '') {
+        payload.delivery_date = deliveryDate.trim();
+    }
+
+    const { data } = await client.post('/food/admin/manual-orders/submit', payload);
 
     return data.order;
 }
@@ -258,6 +264,7 @@ export async function moveDraftAfterScanningOrderToCart(orderId) {
     return {
         cart: data.cart ?? null,
         deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? null,
+        deliveryDate: data.delivery_date ?? data.cart?.delivery_date ?? null,
         customerMaxUserId: Number.isFinite(customerMaxUserId) && customerMaxUserId > 0
             ? customerMaxUserId
             : null,

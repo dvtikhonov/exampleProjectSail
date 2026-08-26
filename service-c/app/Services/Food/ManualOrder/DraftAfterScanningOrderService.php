@@ -105,12 +105,16 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
                 throw new FoodDomainException('Не удалось сформировать ручную корзину из заказа.');
             }
 
+            $orderDeliveryDate = $order->delivery_date?->format('Y-m-d');
+            $cart = $cart->withDeliveryDate($orderDeliveryDate);
+
             $this->foodOrderWriteRepository->delete($order);
 
             return new DraftAfterScanningMoveToCartResultDto(
                 cart: $cart,
                 customerMaxUserId: $customer->max_user_id,
                 deliveryAddress: $cart->deliveryAddress,
+                deliveryDate: $orderDeliveryDate,
             );
         });
     }

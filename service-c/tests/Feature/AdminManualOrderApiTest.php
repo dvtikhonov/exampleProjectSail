@@ -682,6 +682,64 @@ class AdminManualOrderApiTest extends TestCase
             ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 
+    /** Submit с явной delivery_date сохраняет её в заказе. */
+    public function test_submit_manual_order_accepts_explicit_delivery_date(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery('Dated Place', 'Soup', 200);
+        $customer = FoodTestDataBuilder::createMaxUserWithCategory(
+            $fixture['customer_category'],
+            maxUserId: 55_061,
+            firstName: 'DatedCustomer',
+        );
+        $address = 'ул. Даты, 5';
+        $deliveryDate = '2026-09-15';
+
+        $this->addManualCartItem(
+            $manager,
+            $customer->max_user_id,
+            $fixture['dish']->id,
+            1,
+        )->assertOk();
+
+        $this->patchJson('/api/food/admin/manual-orders/cart', [
+            'max_user_id' => $customer->max_user_id,
+            'delivery_address' => $address,
+        ], $manager['headers'])->assertOk();
+
+        $this->postJson('/api/food/admin/manual-orders/submit', [
+            'max_user_id' => $customer->max_user_id,
+            'delivery_date' => $deliveryDate,
+        ], $manager['headers'])
+            ->assertCreated()
+            ->assertJsonPath('order.delivery_date', $deliveryDate)
+            ->assertJsonPath('order.delivery_address', $address);
+
+        $this->assertDatabaseHas('max_food_orders', [
+            'max_user_id' => $customer->max_user_id,
+            'is_manual' => 1,
+            'delivery_date' => $deliveryDate,
+            'delivery_address' => $address,
+        ]);
+    }
+
+    /** Submit отклоняет delivery_date не в формате Y-m-d. */
+    public function test_submit_manual_order_rejects_invalid_delivery_date(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $customer = MaxUser::query()->create([
+            'max_user_id' => 55_062,
+            'first_name' => 'BadDate',
+        ]);
+
+        $this->postJson('/api/food/admin/manual-orders/submit', [
+            'max_user_id' => $customer->max_user_id,
+            'delivery_date' => '15.09.2026',
+        ], $manager['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['delivery_date']);
+    }
+
     /** Submit требует max_user_id. */
     public function test_submit_manual_order_requires_max_user_id(): void
     {

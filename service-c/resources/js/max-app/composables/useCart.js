@@ -170,7 +170,7 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
         saveDeliveryAddress(address);
     }
 
-    async function handleSubmitOrder(deliveryAddressValue) {
+    async function handleSubmitOrder(deliveryAddressValue, deliveryDateValue = null) {
         clearAddressDebounceTimer();
 
         const trimmed = deliveryAddressValue.trim();
@@ -180,12 +180,16 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
             return;
         }
 
+        const deliveryDate = typeof deliveryDateValue === 'string' && deliveryDateValue.trim() !== ''
+            ? deliveryDateValue.trim()
+            : null;
+
         submitting.value = true;
         cartError.value = '';
 
         try {
             applyCartEnvelope(await cartTransport.updateDeliveryAddress(trimmed));
-            submittedOrder.value = await cartTransport.submit();
+            submittedOrder.value = await cartTransport.submit(deliveryDate);
             rememberDeliveryAddress(trimmed);
             cart.value = null;
             currentView.value = VIEWS.confirmation;

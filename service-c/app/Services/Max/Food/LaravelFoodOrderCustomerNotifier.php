@@ -90,7 +90,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('messMax')->warning(
+            Log::channel('max_log')->warning(
                 'MAX manual order creator notification fallback skipped: UI Stand recipients are not configured',
                 ['order_id' => $order->id],
             );
@@ -183,7 +183,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
 
             return true;
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX customer order notification send failed', [
+            Log::channel('max_log')->warning('MAX customer order notification send failed', [
                 'order_id' => $order->id,
                 'chat_id' => $chatId,
                 'error' => $exception->userMessage(),
@@ -191,7 +191,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
 
             return false;
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX customer order notification send failed', [
+            Log::channel('max_log')->warning('MAX customer order notification send failed', [
                 'order_id' => $order->id,
                 'chat_id' => $chatId,
                 'error' => $exception->getMessage(),
@@ -230,7 +230,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
 
             return true;
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX customer order notification send failed', [
+            Log::channel('max_log')->warning('MAX customer order notification send failed', [
                 'order_id' => $order->id,
                 'max_user_id' => $userId,
                 'error' => $exception->userMessage(),
@@ -238,7 +238,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
 
             return false;
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX customer order notification send failed', [
+            Log::channel('max_log')->warning('MAX customer order notification send failed', [
                 'order_id' => $order->id,
                 'max_user_id' => $userId,
                 'error' => $exception->getMessage(),
