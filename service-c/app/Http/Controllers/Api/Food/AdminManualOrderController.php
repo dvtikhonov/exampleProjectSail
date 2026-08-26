@@ -230,7 +230,11 @@ class AdminManualOrderController extends Controller
     {
         try {
             [$customer, $manager] = $this->resolveCustomerAndManager($request);
-            $order = $this->orderSubmissionService->submitManual($customer, $manager);
+            $order = $this->orderSubmissionService->submitManual(
+                $customer,
+                $manager,
+                $request->deliveryDate(),
+            );
         } catch (FoodDomainException $exception) {
             return $this->domainError($exception);
         }

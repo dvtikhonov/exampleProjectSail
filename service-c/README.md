@@ -633,7 +633,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 Отправка **асинхронная**: HTTP-ответ submit возвращается после `dispatch` job (без ожидания Bot API). При `QUEUE_CONNECTION=database` (`.env.example`) нужен воркер `php artisan queue:work`; в PHPUnit — `QUEUE_CONNECTION=sync` / `Bus::fake`. Job с `afterCommit()`.
 
-**Сбой MAX / job не отменяет заказ:** заявка остаётся в БД; ошибка логируется в канал `messMax` (`storage/logs/messMax.log`).
+**Сбой MAX / job не отменяет заказ:** заявка остаётся в БД; ошибка логируется в канал `max_log` (`storage/logs/max_log-YYYY-MM-DD.log`, хранение 30 дней).
 
 ### Формат сообщения
 
@@ -664,7 +664,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | `MAX_MINI_APP_URL` | URL mini-app для кнопки «Заказ еды» (или выводится из `MAX_WEBHOOK_URL`) |
 | `MAX_UI_STAND_MINI_APP_BUTTON_TEXT` | Текст кнопки (по умолчанию «Заказ еды») |
 
-Хотя бы один из списков (`chat_ids` или `user_ids`, с учётом кэша webhook) должен быть непустым — иначе notifier пропускает отправку и пишет warning в `messMax`.
+Хотя бы один из списков (`chat_ids` или `user_ids`, с учётом кэша webhook) должен быть непустым — иначе notifier пропускает отправку и пишет warning в `max_log`.
 
 `MAX_REPORT_*` для новых заказов **не используется** — только для кнопки **«тест бот»** и уведомления о доступности меню. Подробнее — [UI Stand и тестовые кнопки бота](#ui-stand-и-тестовые-кнопки-бота).
 
@@ -696,7 +696,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | Отклонение | Любой этап → `rejected` (только клиентские заказы в очереди) | `OrderReviewStepHandler::reject` → `notifyRejected` (scope из `OrderReviewStep::rejectionScope`) |
 | Состав изменён | После успешного `PUT .../composition` | `OrderCompositionUpdateService` → `notifyCompositionChanged` (+ кнопка «Открыть заказ №N») |
 
-Сборка текста — `FoodOrderMaxMessageBuilder` (`buildCustomerSubmitted`, `buildCustomerConfirmed`, `buildManualOrderCreatorConfirmed`, `buildCustomerRejected`, `buildCustomerCompositionChanged`). Сбой MAX **не откатывает** заказ / решение / правку состава; ошибка логируется в `messMax`.
+Сборка текста — `FoodOrderMaxMessageBuilder` (`buildCustomerSubmitted`, `buildCustomerConfirmed`, `buildManualOrderCreatorConfirmed`, `buildCustomerRejected`, `buildCustomerCompositionChanged`). Сбой MAX **не откатывает** заказ / решение / правку состава; ошибка логируется в `max_log`.
 
 Пример доп. уведомления оформившему ручной заказ после confirm:
 
@@ -778,7 +778,7 @@ docker compose exec -T service-c php artisan max:ui-stand:send
 
 При нажатии **«да»** / **«нет»** в групповом чате webhook (`message_callback`) сохраняет `chat_id` из `message.recipient.chat_id` в Redis-кэш (`MaxUiStandRecipientRegistry`, TTL 30 суток). Это нужно, чтобы кнопка **«тест бот 2»** могла слать в чат, где пользователь взаимодействовал с ботом.
 
-В `storage/logs/messMax.log` событие `MAX button clicked` содержит поле `chat_id`.
+В `storage/logs/max_log-YYYY-MM-DD.log` событие `MAX button clicked` содержит поле `chat_id`.
 
 > **Кэш и «тест бот 2»:** `sendUiStandTestMessage()` объединяет получателей из `.env` **и** из кэша webhook (`MaxUiStandRecipientResolver::chatIds()`). Если ранее нажимали кнопку в другом чате (например, «Обедов»), его `chat_id` мог попасть в кэш — тогда «тест бот 2» уйдёт и туда. Очистка: `docker compose exec -T service-c php artisan cache:clear`.
 
@@ -806,7 +806,7 @@ docker compose exec -T service-c php artisan config:clear
 | Источник | Как получить ID |
 |---|---|
 | URL веб-клиента MAX | Число в адресе `https://web.max.ru/chats/-75495934087316` — **кандидат** `chat_id`; обязательно проверить через Bot API (см. ниже) |
-| Webhook + лог | `max:webhook:subscribe` → нажать «да»/«нет» в целевом чате → `tail -f storage/logs/messMax.log` → поле `chat_id` в `MAX button clicked` |
+| Webhook + лог | `max:webhook:subscribe` → нажать «да»/«нет» в целевом чате → `tail -f storage/logs/max_log-$(date +%Y-%m-%d).log` → поле `chat_id` в `MAX button clicked` |
 | Публичный канал | `GET /chats/{chatLink}` (только каналы с публичной ссылкой/username) |
 | Личный диалог с ботом | Используйте `user_id` (`MAX_*_USER_IDS`), не `chat_id` |
 
@@ -1216,7 +1216,7 @@ docker compose exec -T service-c php artisan test
 | Переменная | Назначение |
 |---|---|
 | `DB_*` | MySQL (`host.docker.internal`, БД `sail_db`) |
-| `LOG_STACK` | По умолчанию `single,messMax` — события MAX в `storage/logs/messMax.log` |
+| `LOG_STACK` | По умолчанию `single,max_log` — события MAX в `storage/logs/max_log-YYYY-MM-DD.log` (хранение 30 дней) |
 | `REDIS_HOST` | `redis` (кэш/очереди в compose) |
 | `FOOD_CATALOG_CACHE_TTL` | TTL кэша каталога еды в секундах (default `600`); основной сброс — bump версии |
 | `FOOD_CATALOG_CACHE_ENABLED` | Включить кэш ресторанов/меню (default `true`) |
@@ -1613,7 +1613,7 @@ docker compose exec -T service-c php artisan max:load-test:cleanup 10           
 
 Админский `resolve()` с lookback до 7 дней для подписи в списке блюд **не менялся**. То же правило «есть offsets на текущий weekday» применяется при ручном сохранении графика в `DishAvailabilityScheduleService` (после save вызывается `syncForCurrentWeekdayCategoryOffsets`).
 
-Сбой отправки в MAX не откатывает синхронизацию `is_available`; ошибки логируются в `messMax`.
+Сбой отправки в MAX не откатывает синхронизацию `is_available`; ошибки логируются в `max_log`.
 
 Первый запуск без offsets на текущий weekday ничего не меняет; без заполненного графика на дату категории sync сделает блюда **этой** категории недоступными — график нужно заполнить заранее.
 
@@ -1664,7 +1664,7 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 
 Роли возвращаются в ответе `POST /api/max/auth` в поле `user.admin_roles` — фронт mini-app переключается в админ-режим без отдельного запроса.
 
-Лог MAX: `storage/logs/messMax.log` (канал `messMax`, без токена бота в записи). Дополнительно логируются запросы к `/max-app` и `/api/max/auth` (`MaxMiniAppAccessLogger`).
+Лог MAX: `storage/logs/max_log-YYYY-MM-DD.log` (канал `max_log`, daily, хранение 30 дней, без токена бота в записи). Дополнительно логируются запросы к `/max-app` и `/api/max/auth` (`MaxMiniAppAccessLogger`).
 
 ## Чеклист Manual QA (кабинет MAX)
 
@@ -1688,9 +1688,9 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 | 8f | Cursor Agent: `/phototext-order` + шапка (клиент / дата / ресторан) + фото бланка (токен в чат не писать; AI-доступ уже включён) | `GET /phototext/restaurants` и `/catalog` → `POST /match` → `POST /orders`; заказ `is_manual` / **`draft_after_scanning`**; `delivery_date` из шапки; в ответе `order_id` и `issues`; без AI → `403` |
 | 8g | Cursor Agent: `/phototext-schedule` + шапка (дата начала / ресторан / категории) + фото графика | `POST /schedule/match` → `POST /schedule/apply`; окно 7 дней; график только в указанных категориях; словарь `phototext-dish-aliases.md` |
 | 9 | `docker compose exec -T service-c php artisan max:ui-stand:send` (опционально) | В MAX: приветствие + кнопки «да» / «нет» / «Заказ еды» (только `MAX_UI_STAND_*`) |
-| 10 | Нажать кнопку в MAX (UI Stand) | В `messMax.log`: событие callback, ответ «да» или «нет»; `chat_id` группы |
+| 10 | Нажать кнопку в MAX (UI Stand) | В `max_log-YYYY-MM-DD.log`: событие callback, ответ «да» или «нет»; `chat_id` группы |
 | 10a | Админ меню → **«тест бот 2»** (при `MAX_UI_STAND_CHAT_IDS`) | Сообщение `тест бот 2` в целевой чат; чаты из `MAX_REPORT_*` не затрагиваются |
-| 11 | `docker compose exec -T service-c tail -f storage/logs/messMax.log` | События webhook/стенда без утечки токена |
+| 11 | `docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).log` | События webhook/стенда без утечки токена |
 
 ### Пример команд (полный цикл)
 
@@ -1709,7 +1709,7 @@ docker compose exec -T service-c php artisan max:webhook:subscribe
 docker compose exec -T service-c php artisan max:ui-stand:send
 
 # Лог стенда
-docker compose exec -T service-c tail -f storage/logs/messMax.log
+docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).log
 ```
 
 ### Что не проверяется вручную в MVP

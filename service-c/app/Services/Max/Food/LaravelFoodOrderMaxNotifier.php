@@ -43,7 +43,7 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('messMax')->warning(
+            Log::channel('max_log')->warning(
                 'MAX order notification skipped: UI Stand recipients are not configured',
                 [
                     'order_id' => $order->id,
@@ -121,14 +121,14 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
                 userId: $userId,
             ));
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX order notification send failed', [
+            Log::channel('max_log')->warning('MAX order notification send failed', [
                 'order_id' => $orderId,
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $exception->userMessage(),
             ]);
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX order notification send failed', [
+            Log::channel('max_log')->warning('MAX order notification send failed', [
                 'order_id' => $orderId,
                 'chat_id' => $chatId,
                 'user_id' => $userId,

@@ -213,7 +213,7 @@ TEXT,
 
         $captured = [];
 
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
             $captured[] = $event;
         });
 
@@ -252,7 +252,7 @@ TEXT,
     {
         $captured = [];
 
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
             $captured[] = $event;
         });
 

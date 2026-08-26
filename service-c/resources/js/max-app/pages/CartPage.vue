@@ -66,6 +66,15 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    /**
+     * Дата доставки из черновика после сканирования (Y-m-d).
+     * В manual-режиме подставляется в поле и фиксируется, чтобы GET корзины
+     * с preview MenuAvailabilityDateResolver её не перезаписал.
+     */
+    preferredDeliveryDate: {
+        type: String,
+        default: null,
+    },
 });
 
 const emit = defineEmits([
@@ -82,6 +91,8 @@ const emit = defineEmits([
 ]);
 
 const localAddress = ref('');
+const localDeliveryDate = ref('');
+const deliveryDateTouched = ref(false);
 const showOrderConfirm = ref(false);
 const showClearConfirm = ref(false);
 const isAddressFocused = ref(false);
@@ -97,6 +108,46 @@ watch(
         localAddress.value = value ?? '';
     },
     { immediate: true },
+);
+
+/** Превью даты с сервера; в manual-режиме после правок / preferred не перезаписывать */
+watch(
+    () => props.cart?.delivery_date,
+    (value) => {
+        if (props.manualOrderMode && deliveryDateTouched.value) {
+            return;
+        }
+
+        localDeliveryDate.value = typeof value === 'string' ? value : '';
+    },
+    { immediate: true },
+);
+
+watch(
+    () => props.preferredDeliveryDate,
+    (value) => {
+        if (!props.manualOrderMode) {
+            return;
+        }
+
+        if (typeof value !== 'string' || value.trim() === '') {
+            return;
+        }
+
+        localDeliveryDate.value = value.trim();
+        deliveryDateTouched.value = true;
+    },
+    { immediate: true },
+);
+
+watch(
+    () => props.cart,
+    (cart) => {
+        if (!cart) {
+            deliveryDateTouched.value = false;
+            localDeliveryDate.value = '';
+        }
+    },
 );
 
 const cartGroups = computed(() => buildCartGroups(props.cart));
@@ -124,8 +175,19 @@ const footerBottomPaddingClass = computed(() => {
 
 const hasAddress = computed(() => localAddress.value.trim().length > 0);
 
+const hasDeliveryDate = computed(() => {
+    if (!props.manualOrderMode) {
+        return true;
+    }
+
+    return localDeliveryDate.value.trim().length > 0;
+});
+
 const canSubmit = computed(
-    () => hasAddress.value && !props.submitting && !props.savingAddress,
+    () => hasAddress.value
+        && hasDeliveryDate.value
+        && !props.submitting
+        && !props.savingAddress,
 );
 
 function handleAddressFocus() {
@@ -143,6 +205,11 @@ function handleAddressBlur(value) {
     emit('delivery-address-blur', value);
 }
 
+function handleDeliveryDateInput(value) {
+    deliveryDateTouched.value = true;
+    localDeliveryDate.value = value;
+}
+
 function openOrderConfirm() {
     if (!canSubmit.value) {
         return;
@@ -158,7 +225,11 @@ function closeOrderConfirm() {
 }
 
 function confirmOrder() {
-    emit('submit-order', localAddress.value);
+    emit(
+        'submit-order',
+        localAddress.value,
+        props.manualOrderMode ? localDeliveryDate.value.trim() : null,
+    );
 }
 
 function openClearConfirm() {
@@ -300,6 +371,10 @@ watch(
             :can-submit="canSubmit"
             :has-address="hasAddress"
             :saving-address="savingAddress"
+            :editable-delivery-date="manualOrderMode"
+            :delivery-date="localDeliveryDate"
+            :has-delivery-date="hasDeliveryDate"
+            @update:delivery-date="handleDeliveryDateInput"
             @submit="openOrderConfirm"
         />
 
@@ -307,6 +382,7 @@ watch(
             :open="showOrderConfirm"
             :cart-groups="cartGroups"
             :delivery-address="localAddress"
+            :delivery-date="manualOrderMode ? localDeliveryDate : (cart?.delivery_date ?? '')"
             :cart="cart"
             :delivery-applicable="deliveryApplicable"
             :submitting="submitting"

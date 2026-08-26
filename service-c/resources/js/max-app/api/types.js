@@ -196,6 +196,7 @@
  * @typedef {object} DraftAfterScanningMoveToCartResult
  * @property {CartDto|null} cart
  * @property {string|null} deliveryAddress
+ * @property {string|null} deliveryDate
  * @property {number|null} customerMaxUserId
  */
 

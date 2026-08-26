@@ -196,6 +196,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             dish: $fixture['dish'],
             quantity: 2,
             deliveryAddress: $deliveryAddress,
+            deliveryDate: '2026-08-14',
             extraSnapshotItems: [
                 [
                     'dish_id' => $burger->id,
@@ -236,6 +237,8 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('customer.max_user_id', $customer->max_user_id)
             ->assertJsonPath('delivery_address', $deliveryAddress)
+            ->assertJsonPath('delivery_date', '2026-08-14')
+            ->assertJsonPath('cart.delivery_date', '2026-08-14')
             ->assertJsonPath('cart.status', CartStatus::Draft->value)
             ->assertJsonPath('cart.restaurant_id', $fixture['restaurant']->id);
 
@@ -442,6 +445,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
         OrderStatus $status = OrderStatus::DraftAfterScanning,
         OrderReviewStatus $reviewStatus = OrderReviewStatus::Pending,
         string $deliveryAddress = 'ул. Скана, 15',
+        ?string $deliveryDate = null,
         bool $isManual = true,
         array $extraSnapshotItems = [],
     ): FoodOrder {
@@ -478,6 +482,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             'items_total' => $lineTotal,
             'delivery_cost' => 0,
             'delivery_address' => $deliveryAddress,
+            'delivery_date' => $deliveryDate,
             'items_snapshot' => [$firstItem, ...$extraSnapshotItems],
         ]);
     }

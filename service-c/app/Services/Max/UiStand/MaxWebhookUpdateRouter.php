@@ -29,7 +29,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
     {
         $updateType = (string) ($payload['update_type'] ?? '');
 
-        Log::channel('messMax')->info('MAX webhook received', [
+        Log::channel('max_log')->info('MAX webhook received', [
             'update_type' => $updateType !== '' ? $updateType : 'unknown',
         ]);
 
@@ -107,7 +107,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
             $userId = (int) $payload['user_id'];
         }
 
-        Log::channel('messMax')->info('bot_started', ['user_id' => $userId]);
+        Log::channel('max_log')->info('bot_started', ['user_id' => $userId]);
 
         if ($userId > 0) {
             $this->recipientRegistry->rememberUserId($userId);

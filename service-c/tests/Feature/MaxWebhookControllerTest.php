@@ -33,7 +33,7 @@ class MaxWebhookControllerTest extends TestCase
     public function test_message_callback_writes_to_mess_max_log_and_returns_ok(): void
     {
         $captured = [];
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
             $captured[] = $event;
         });
 

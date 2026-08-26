@@ -15,6 +15,7 @@ readonly class DraftAfterScanningMoveToCartResultDto
         public CartDto $cart,
         public int $customerMaxUserId,
         public ?string $deliveryAddress,
+        public ?string $deliveryDate = null,
     ) {}
 
     /**
@@ -23,6 +24,7 @@ readonly class DraftAfterScanningMoveToCartResultDto
      * @return array{
      *     cart: array<string, mixed>,
      *     delivery_address: string|null,
+     *     delivery_date: string|null,
      *     customer: array{max_user_id: int}
      * }
      */
@@ -31,6 +33,7 @@ readonly class DraftAfterScanningMoveToCartResultDto
         return [
             'cart' => $this->cart->toArray(),
             'delivery_address' => $this->deliveryAddress,
+            'delivery_date' => $this->deliveryDate,
             'customer' => [
                 'max_user_id' => $this->customerMaxUserId,
             ],

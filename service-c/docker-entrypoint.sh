@@ -102,7 +102,7 @@ mkdir -p \
     storage/framework/views \
     bootstrap/cache
 
-for log_file in storage/logs/laravel.log storage/logs/messMax.log; do
+for log_file in storage/logs/laravel.log "storage/logs/max_log-$(date +%Y-%m-%d).log"; do
     touch "$log_file"
 done
 

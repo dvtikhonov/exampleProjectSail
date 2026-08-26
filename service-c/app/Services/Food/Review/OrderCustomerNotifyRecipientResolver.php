@@ -31,7 +31,7 @@ final class OrderCustomerNotifyRecipientResolver implements OrderCustomerNotifyR
         $managerIds = $this->adminRepository->listActiveMaxUserIdsByRole(FoodOrderAdminRole::MaxManager);
 
         if ($managerIds === []) {
-            Log::channel('messMax')->warning('MAX manual order customer notification: no active max_manager recipients', [
+            Log::channel('max_log')->warning('MAX manual order customer notification: no active max_manager recipients', [
                 'order_id' => $order->id,
                 'max_user_id' => $order->max_user_id,
             ]);

@@ -32,7 +32,7 @@ class MaxCallbackHandlerTest extends TestCase
     public function test_yes_payload_logs_da_and_answers_callback(): void
     {
         $captured = [];
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
             $captured[] = $event;
         });
 
@@ -68,7 +68,7 @@ class MaxCallbackHandlerTest extends TestCase
     public function test_no_payload_logs_net_and_answers_callback(): void
     {
         $captured = [];
-        Log::channel('messMax')->listen(function (MessageLogged $event) use (&$captured): void {
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
             $captured[] = $event;
         });
 

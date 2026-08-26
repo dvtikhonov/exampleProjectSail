@@ -37,7 +37,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     public function notify(CarbonImmutable $menuDate): int
     {
         if (! $this->isBotConfigured()) {
-            Log::channel('messMax')->warning('MAX menu availability notification skipped: bot is not configured');
+            Log::channel('max_log')->warning('MAX menu availability notification skipped: bot is not configured');
 
             return 0;
         }
@@ -46,7 +46,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
         $userIds = $this->resolveRecipientUserIds($notificationConfig->userIds);
 
         if ($notificationConfig->chatIds === [] && $userIds === []) {
-            Log::channel('messMax')->warning('MAX menu availability notification skipped: recipients are not configured');
+            Log::channel('max_log')->warning('MAX menu availability notification skipped: recipients are not configured');
 
             return 0;
         }
@@ -116,7 +116,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
                 userId: $userId,
             ));
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX menu availability notification send failed', [
+            Log::channel('max_log')->warning('MAX menu availability notification send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $exception->userMessage(),
@@ -124,7 +124,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
 
             return false;
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX menu availability notification send failed', [
+            Log::channel('max_log')->warning('MAX menu availability notification send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $exception->getMessage(),

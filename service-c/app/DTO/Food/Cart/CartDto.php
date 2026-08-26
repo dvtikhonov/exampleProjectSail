@@ -33,6 +33,30 @@ readonly class CartDto
     ) {}
 
     /**
+     * Копия DTO с явной датой доставки (Y-m-d или null).
+     */
+    public function withDeliveryDate(?string $deliveryDate): self
+    {
+        return new self(
+            id: $this->id,
+            restaurantId: $this->restaurantId,
+            restaurantName: $this->restaurantName,
+            status: $this->status,
+            items: $this->items,
+            itemsTotal: $this->itemsTotal,
+            deliveryCost: $this->deliveryCost,
+            total: $this->total,
+            deliveryAddress: $this->deliveryAddress,
+            deliveryDate: $deliveryDate,
+            customerCategory: $this->customerCategory,
+            deliveryApplicable: $this->deliveryApplicable,
+            nextTierMinTotal: $this->nextTierMinTotal,
+            nextTierDeliveryCost: $this->nextTierDeliveryCost,
+            amountToNextTier: $this->amountToNextTier,
+        );
+    }
+
+    /**
      * Преобразует корзину в массив для JSON-ответа API.
      *
      * @return array<string, bool|int|string|null|list<array<string, int|string>>|array<string, int|string>>

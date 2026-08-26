@@ -18,7 +18,7 @@ final class MaxMiniAppAccessLogger
      */
     public function logPageRequest(Request $request): void
     {
-        Log::channel('messMax')->info('MAX mini-app page requested', $this->baseContext($request));
+        Log::channel('max_log')->info('MAX mini-app page requested', $this->baseContext($request));
     }
 
     /**
@@ -26,7 +26,7 @@ final class MaxMiniAppAccessLogger
      */
     public function logAuthRequest(Request $request, int $statusCode, ?int $maxUserId = null): void
     {
-        Log::channel('messMax')->info('MAX mini-app auth requested', [
+        Log::channel('max_log')->info('MAX mini-app auth requested', [
             ...$this->baseContext($request),
             'init_data_length' => strlen((string) $request->input('init_data', '')),
             'status' => $statusCode,

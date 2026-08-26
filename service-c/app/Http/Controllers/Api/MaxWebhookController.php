@@ -36,7 +36,7 @@ class MaxWebhookController extends Controller
         try {
             $this->router->handle($payload);
         } catch (Throwable $exception) {
-            Log::channel('messMax')->error('MAX webhook handling failed', [
+            Log::channel('max_log')->error('MAX webhook handling failed', [
                 'error' => $exception->getMessage(),
             ]);
         }

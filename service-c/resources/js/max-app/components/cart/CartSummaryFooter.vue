@@ -27,11 +27,35 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    /** Ручные заказы: дата доставки редактируема */
+    editableDeliveryDate: {
+        type: Boolean,
+        default: false,
+    },
+    /** Локальное значение даты (Y-m-d) при editableDeliveryDate */
+    deliveryDate: {
+        type: String,
+        default: '',
+    },
+    hasDeliveryDate: {
+        type: Boolean,
+        default: true,
+    },
 });
 
-defineEmits(['submit']);
+defineEmits(['submit', 'update:deliveryDate']);
 
-const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_date));
+const deliveryDateLabel = computed(() => formatIsoDateRu(
+    props.editableDeliveryDate ? props.deliveryDate : props.cart?.delivery_date,
+));
+
+const showDeliveryDateRow = computed(() => {
+    if (props.editableDeliveryDate) {
+        return true;
+    }
+
+    return Boolean(deliveryDateLabel.value);
+});
 </script>
 
 <template>
@@ -40,11 +64,32 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_da
             <template v-if="deliveryApplicable">
                 <p class="mb-1 text-base font-medium text-gray-900">Детали</p>
                 <div
-                    v-if="deliveryDateLabel"
-                    class="flex items-center justify-between"
+                    v-if="showDeliveryDateRow"
+                    class="flex items-center justify-between gap-3"
                 >
-                    <span class="text-max-muted">Дата доставки</span>
-                    <span class="font-medium text-gray-900">{{ deliveryDateLabel }}</span>
+                    <label
+                        v-if="editableDeliveryDate"
+                        class="shrink-0 text-max-muted"
+                        for="cart-delivery-date"
+                    >
+                        Дата доставки
+                    </label>
+                    <span
+                        v-else
+                        class="text-max-muted"
+                    >Дата доставки</span>
+                    <input
+                        v-if="editableDeliveryDate"
+                        id="cart-delivery-date"
+                        type="date"
+                        class="min-w-0 max-w-[11rem] rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 outline-none focus:border-max-primary focus:ring-2 focus:ring-max-primary/20"
+                        :value="deliveryDate"
+                        @input="$emit('update:deliveryDate', $event.target.value)"
+                    >
+                    <span
+                        v-else
+                        class="font-medium text-gray-900"
+                    >{{ deliveryDateLabel }}</span>
                 </div>
                 <div class="flex items-center justify-between">
                     <span class="text-max-muted">Сумма блюд</span>
@@ -62,11 +107,32 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_da
             </template>
             <div v-else class="space-y-1.5">
                 <div
-                    v-if="deliveryDateLabel"
-                    class="flex items-center justify-between text-sm"
+                    v-if="showDeliveryDateRow"
+                    class="flex items-center justify-between gap-3 text-sm"
                 >
-                    <span class="text-max-muted">Дата доставки</span>
-                    <span class="font-medium text-gray-900">{{ deliveryDateLabel }}</span>
+                    <label
+                        v-if="editableDeliveryDate"
+                        class="shrink-0 text-max-muted"
+                        for="cart-delivery-date"
+                    >
+                        Дата доставки
+                    </label>
+                    <span
+                        v-else
+                        class="text-max-muted"
+                    >Дата доставки</span>
+                    <input
+                        v-if="editableDeliveryDate"
+                        id="cart-delivery-date"
+                        type="date"
+                        class="min-w-0 max-w-[11rem] rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-sm font-medium text-gray-900 outline-none focus:border-max-primary focus:ring-2 focus:ring-max-primary/20"
+                        :value="deliveryDate"
+                        @input="$emit('update:deliveryDate', $event.target.value)"
+                    >
+                    <span
+                        v-else
+                        class="font-medium text-gray-900"
+                    >{{ deliveryDateLabel }}</span>
                 </div>
                 <div class="flex items-center justify-between text-base">
                     <span class="font-medium text-gray-900">Итого</span>
@@ -79,6 +145,12 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.cart?.delivery_da
             class="mb-2 text-center text-xs text-amber-600"
         >
             Сначала укажите адрес
+        </p>
+        <p
+            v-else-if="editableDeliveryDate && !hasDeliveryDate"
+            class="mb-2 text-center text-xs text-amber-600"
+        >
+            Укажите дату доставки
         </p>
         <p
             v-else-if="hasAddress && !canSubmit && savingAddress"

@@ -155,7 +155,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         } catch (MaxMessengerException $exception) {
             $errorMessage = $this->formatRecipientError($exception->userMessage(), $chatId, $userId);
 
-            Log::channel('messMax')->warning('MAX admin bot test message send failed', [
+            Log::channel('max_log')->warning('MAX admin bot test message send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $errorMessage,
@@ -165,7 +165,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         } catch (Throwable $exception) {
             $errorMessage = $this->formatRecipientError($exception->getMessage(), $chatId, $userId);
 
-            Log::channel('messMax')->warning('MAX admin bot test message send failed', [
+            Log::channel('max_log')->warning('MAX admin bot test message send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $errorMessage,

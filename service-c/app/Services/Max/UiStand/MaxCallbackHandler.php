@@ -28,7 +28,7 @@ class MaxCallbackHandler
         $answerLabel = $update->payload === $yesPayload ? 'да' : 'нет';
         $responseText = "Вы нажали кнопку: {$answerLabel}";
 
-        Log::channel('messMax')->info('MAX button clicked', [
+        Log::channel('max_log')->info('MAX button clicked', [
             'answer' => $answerLabel,
             'payload' => $update->payload,
             'callback_id' => $update->callbackId,
@@ -42,11 +42,11 @@ class MaxCallbackHandler
                 messageText: $responseText,
             );
 
-            Log::channel('messMax')->info('MAX callback answered', [
+            Log::channel('max_log')->info('MAX callback answered', [
                 'callback_id' => $update->callbackId,
             ]);
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX callback answer failed, retrying with notification only', [
+            Log::channel('max_log')->warning('MAX callback answer failed, retrying with notification only', [
                 'callback_id' => $update->callbackId,
                 'error' => $exception->userMessage(),
             ]);
@@ -57,11 +57,11 @@ class MaxCallbackHandler
                     notification: $responseText,
                 );
 
-                Log::channel('messMax')->info('MAX callback answered with notification', [
+                Log::channel('max_log')->info('MAX callback answered with notification', [
                     'callback_id' => $update->callbackId,
                 ]);
             } catch (Throwable $retryException) {
-                Log::channel('messMax')->warning('MAX callback notification failed, retrying empty answer', [
+                Log::channel('max_log')->warning('MAX callback notification failed, retrying empty answer', [
                     'callback_id' => $update->callbackId,
                     'error' => $retryException instanceof MaxMessengerException
                         ? $retryException->userMessage()
@@ -71,11 +71,11 @@ class MaxCallbackHandler
                 try {
                     $this->client->answerCallback($update->callbackId);
 
-                    Log::channel('messMax')->info('MAX callback answered without payload', [
+                    Log::channel('max_log')->info('MAX callback answered without payload', [
                         'callback_id' => $update->callbackId,
                     ]);
                 } catch (Throwable $finalException) {
-                    Log::channel('messMax')->error('MAX callback answer failed', [
+                    Log::channel('max_log')->error('MAX callback answer failed', [
                         'callback_id' => $update->callbackId,
                         'error' => $finalException instanceof MaxMessengerException
                             ? $finalException->userMessage()

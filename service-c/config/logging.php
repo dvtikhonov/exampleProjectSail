@@ -65,10 +65,11 @@ return [
             'replace_placeholders' => true,
         ],
 
-        'messMax' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/messMax.log'),
+        'max_log' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/max_log.log'),
             'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 30,
             'replace_placeholders' => true,
         ],
 

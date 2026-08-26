@@ -41,7 +41,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
     public function notify(CarbonImmutable $menuDate): int
     {
         if (! $this->isBotConfigured()) {
-            Log::channel('messMax')->warning('MAX manager daily menu notification skipped: bot is not configured');
+            Log::channel('max_log')->warning('MAX manager daily menu notification skipped: bot is not configured');
 
             return 0;
         }
@@ -51,7 +51,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
         );
 
         if ($managerIds === []) {
-            Log::channel('messMax')->warning('MAX manager daily menu notification skipped: no active max_manager recipients');
+            Log::channel('max_log')->warning('MAX manager daily menu notification skipped: no active max_manager recipients');
 
             return 0;
         }
@@ -97,7 +97,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('messMax')->warning(
+            Log::channel('max_log')->warning(
                 'MAX manager daily menu notification fallback skipped: UI Stand recipients are not configured',
                 ['user_id' => $failedUserId],
             );
@@ -146,7 +146,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
                 userId: $userId,
             ));
         } catch (MaxMessengerException $exception) {
-            Log::channel('messMax')->warning('MAX manager daily menu notification send failed', [
+            Log::channel('max_log')->warning('MAX manager daily menu notification send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'failed_user_id' => $failedUserId,
@@ -155,7 +155,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
 
             return false;
         } catch (Throwable $exception) {
-            Log::channel('messMax')->warning('MAX manager daily menu notification send failed', [
+            Log::channel('max_log')->warning('MAX manager daily menu notification send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'failed_user_id' => $failedUserId,
