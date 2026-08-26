@@ -8,8 +8,10 @@ use App\Contracts\Food\Menu\DishImageUploadInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Support\Food\Menu\DishPhotoAllowedExtensions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Загрузка фото блюда: whitelist PNG/JPEG, finfo MIME, минимум 800×600, до 25 МБ.
@@ -31,15 +33,39 @@ class DishImageUploadService implements DishImageUploadInterface
             (string) $file->getClientOriginalExtension(),
         );
         $relativePath = sprintf('dishes/%d/%s.%s', $dishId, (string) Str::uuid(), $extension);
+        $directory = dirname($relativePath);
 
-        $stored = Storage::disk('public')->putFileAs(
-            dirname($relativePath),
-            $file,
-            basename($relativePath),
-        );
+        try {
+            Storage::disk('public')->makeDirectory($directory);
+
+            $stored = Storage::disk('public')->putFileAs(
+                $directory,
+                $file,
+                basename($relativePath),
+            );
+        } catch (Throwable $exception) {
+            Log::error('Dish image upload failed.', [
+                'dish_id' => $dishId,
+                'path' => $relativePath,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            throw new FoodDomainException(
+                'Не удалось сохранить изображение. Проверьте права на storage/app/public.',
+            );
+        }
 
         if ($stored === false) {
-            throw new FoodDomainException('Не удалось сохранить изображение.');
+            Log::error('Dish image upload returned false (disk public, throw=false).', [
+                'dish_id' => $dishId,
+                'path' => $relativePath,
+                'storage_root' => storage_path('app/public'),
+            ]);
+
+            throw new FoodDomainException(
+                'Не удалось сохранить изображение. Проверьте права на storage/app/public.',
+            );
         }
 
         return $relativePath;
@@ -96,7 +122,13 @@ class DishImageUploadService implements DishImageUploadInterface
      */
     private function assertMaxSize(UploadedFile $file): void
     {
-        if ($file->getSize() > DishPhotoAllowedExtensions::MAX_SIZE_BYTES) {
+        $size = $file->getSize();
+
+        if ($size === false || $size < 0) {
+            throw new FoodDomainException('Файл изображения недействителен.');
+        }
+
+        if ($size > DishPhotoAllowedExtensions::MAX_SIZE_BYTES) {
             throw new FoodDomainException('Размер изображения не должен превышать 25 МБ.');
         }
     }

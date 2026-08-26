@@ -18,7 +18,9 @@ use App\Http\Requests\Food\Admin\UpdateDishRequest;
 use App\Services\Food\Menu\DishSpreadsheetImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Административный CRUD блюд меню для MAX mini-app.
@@ -193,6 +195,15 @@ class AdminDishController extends Controller
             return response()->json([
                 'message' => $exception->getMessage(),
             ], $exception->statusCode());
+        } catch (Throwable $exception) {
+            Log::error('Admin dish action failed.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Не удалось сохранить блюдо. Проверьте лог сервера (storage/logs/laravel.log).',
+            ], 500);
         }
 
         return response()->json([

@@ -176,6 +176,22 @@ services:
     restart: unless-stopped
     mem_limit: 768m
 
+  service-c-queue:
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=host.docker.internal
+      - DB_PASSWORD=${SERVICE_C_DB_PASSWORD:?set SERVICE_C_DB_PASSWORD}
+    depends_on: !override
+      mysql-host:
+        condition: service_healthy
+      service-c:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    mem_limit: 256m
+
   service-d:
     ports: !override
       - "127.0.0.1:${SERVICE_D_PORT:-8084}:8000"

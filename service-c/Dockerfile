@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install gd zip pdo_mysql \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Лимиты multipart для фото блюд (согласованы с DishPhotoAllowedExtensions::MAX_SIZE_*).
+COPY service-c/docker/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
@@ -33,7 +36,7 @@ RUN npm install --ignore-scripts
 
 COPY service-c .
 
-RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache \
+RUN mkdir -p storage/app/public/dishes storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
 RUN composer run-script post-autoload-dump

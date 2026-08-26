@@ -91,13 +91,27 @@ final class DishPhotoAllowedExtensions
 
     /**
      * Определяет MIME-тип файла через finfo.
+     *
+     * Без ext-fileinfo возвращает null (валидация → 422), а не fatal → 500.
      */
     public static function detectMimeFromPath(string $path): ?string
     {
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime = $finfo->file($path);
+        if ($path === '' || ! is_readable($path)) {
+            return null;
+        }
 
-        return is_string($mime) ? strtolower($mime) : null;
+        if (! class_exists(\finfo::class)) {
+            return null;
+        }
+
+        try {
+            $finfo = new \finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($path);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return is_string($mime) && $mime !== '' ? strtolower($mime) : null;
     }
 
     /**
