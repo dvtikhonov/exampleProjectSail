@@ -94,13 +94,22 @@ apply_php_fpm_pool_settings() {
     echo "php-fpm pool: max_children=${max_children} start_servers=${start_servers} min_spare=${min_spare} max_spare=${max_spare} listen.backlog=${listen_backlog} max_requests=${max_requests}"
 }
 
-mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache
+mkdir -p \
+    storage/logs \
+    storage/app/public/dishes \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    bootstrap/cache
 
 for log_file in storage/logs/laravel.log storage/logs/messMax.log; do
     touch "$log_file"
 done
 
+# php-fpm работает от www-data; кэш/сессии/логи не должны оставаться от root
+# (иначе MenuCatalogCacheInvalidator → Permission denied → 500 после сохранения блюда).
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+chmod -R ug+rwx storage bootstrap/cache 2>/dev/null || true
 
 # Mini-app в MAX (web/desktop/mobile) через туннель: только production build.
 # Vite dev (public/hot → localhost:5174) снаружи недоступен.
@@ -112,6 +121,15 @@ fi
 
 apply_php_fpm_pool_settings
 
-php artisan schedule:work > storage/logs/schedule-work.log 2>&1 &
+# schedule:work от www-data — иначе создаёт cache-файлы от root и ломает FPM.
+# queue:work — отдельный контейнер service-c-queue (docker-compose.yml).
+if command -v runuser >/dev/null 2>&1; then
+    runuser -u www-data -- php artisan schedule:work >> storage/logs/schedule-work.log 2>&1 &
+elif command -v su >/dev/null 2>&1; then
+    su -s /bin/sh www-data -c 'php artisan schedule:work' >> storage/logs/schedule-work.log 2>&1 &
+else
+    echo "warning: cannot drop privileges for schedule:work; running as current user" >&2
+    php artisan schedule:work >> storage/logs/schedule-work.log 2>&1 &
+fi
 
 exec "$@"

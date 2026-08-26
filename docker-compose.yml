@@ -268,10 +268,51 @@ services:
       - ./service-c/node_modules:/var/www/html/node_modules
       - ./service-c/.env:/var/www/html/.env:ro
       - ./service-c/.env.testing:/var/www/html/.env.testing:ro
+      - ./service-c/docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       - ./shared:/var/www/shared
     networks:
       - internal
     depends_on:
+      - redis
+
+  service-c-queue:
+    build:
+      context: .
+      dockerfile: service-c/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    entrypoint: ["php", "artisan"]
+    command: ["queue:work", "--timeout=900", "--tries=1"]
+    environment:
+      - APP_ENV=local
+      - CACHE_STORE=file
+      - DB_QUEUE_RETRY_AFTER=960
+      - DB_CONNECTION=mysql
+      - DB_HOST=${SERVICE_C_DB_HOST:-host.docker.internal}
+      - DB_PORT=${SERVICE_C_DB_PORT:-3306}
+      - DB_DATABASE=${SERVICE_C_DB_DATABASE:-sail_db}
+      - DB_USERNAME=${SERVICE_C_DB_USERNAME:-root}
+      - DB_PASSWORD=${SERVICE_C_DB_PASSWORD:-12345678AS}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./service-c/app:/var/www/html/app
+      - ./service-c/routes:/var/www/html/routes
+      - ./service-c/config:/var/www/html/config
+      - ./service-c/database:/var/www/html/database
+      - ./service-c/bootstrap:/var/www/html/bootstrap
+      - ./service-c/storage:/var/www/html/storage
+      - ./service-c/vendor:/var/www/html/vendor
+      - ./service-c/composer.json:/var/www/html/composer.json:ro
+      - ./service-c/composer.lock:/var/www/html/composer.lock:ro
+      - ./service-c/.env:/var/www/html/.env:ro
+      - ./service-c/.env.testing:/var/www/html/.env.testing:ro
+      - ./shared:/var/www/shared
+    networks:
+      - internal
+    depends_on:
+      - service-c
       - redis
 
   yandex-parser:

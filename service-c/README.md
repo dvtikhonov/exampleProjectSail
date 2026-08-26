@@ -1098,7 +1098,16 @@ docker compose exec -T service-c php artisan db:seed   # рестораны, к�
 
 `RestaurantSeeder` копирует placeholder JPG из `database/seeders/assets/dishes/` в `storage/app/public/dishes/seed/` и записывает в `max_dishes.image_url` **относительный путь** (например `dishes/seed/pizza.jpg`).
 
-> **VPS:** после deploy убедитесь, что `storage/app/public` доступен (`php artisan storage:link` при необходимости). В `service-c/.env` на VPS: `APP_URL=https://94-228-117-27.sslip.io`.
+> **VPS:** после deploy убедитесь, что `storage` доступен для записи (`www-data`) и что лимиты тела запроса ≥ 25 МБ:
+> - PHP: `upload_max_filesize=25M`, `post_max_size=30M` (образ: `docker/php/uploads.ini`)
+> - nginx gateway / host nginx / max-dev tunnel: `client_max_body_size 100M` (иначе дефолт **1m**)
+> - `storage/framework/cache` и `storage/app/public` — владелец `www-data` (иначе после сохранения блюда возможен 500 на bump `food.catalog.version`)
+> - быстрый фикс на уже запущенном контейнере: `docker compose exec -u root service-c chown -R www-data:www-data storage bootstrap/cache`
+> - `php artisan storage:link` нужен только для `/storage/...`; отдача фото идёт через `/api/food/dishes/{id}/image`
+>
+> При `APP_DEBUG=false` необработанное исключение в UI выглядит как **Server Error**. Смотрите `storage/logs/laravel.log` в контейнере `service-c`.
+>
+> В `service-c/.env` на VPS: `APP_URL=https://94-228-117-27.sslip.io`.
 
 > **Android/iOS MAX:** WebView не загружает внешние URL напрямую. API отдаёт `image_url` вида `/api/food/dishes/{id}/image`; сервер читает файл только из локального `public` disk. Внешние URL (`http://`, `https://`) в `image_url` не поддерживаются — endpoint вернёт `404`.
 

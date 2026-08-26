@@ -11,6 +11,8 @@ interface MenuCatalogCacheInvalidatorInterface
 {
     /**
      * Сбрасывает весь кэш каталога (bump версии).
+     *
+     * Реализация не должна пробрасывать сбои store наружу (админ-сохранение уже прошло).
      */
     public function invalidateAll(): void;
 

@@ -6,11 +6,15 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Инвалидация кэша каталога через bump версии (без cache tags).
  *
  * Старые ключи с прежней версией доживают TTL; новые чтения идут в miss.
+ * Сбой записи кэша (например Permission denied на file store) логируется
+ * и не роняет успешное сохранение блюда/категории.
  */
 class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterface
 {
@@ -27,13 +31,21 @@ class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterfac
      */
     public function invalidateAll(): void
     {
-        $current = (int) $this->cache->get(self::VERSION_CACHE_KEY, self::DEFAULT_VERSION);
+        try {
+            $current = (int) $this->cache->get(self::VERSION_CACHE_KEY, self::DEFAULT_VERSION);
 
-        if ($current < self::DEFAULT_VERSION) {
-            $current = self::DEFAULT_VERSION;
+            if ($current < self::DEFAULT_VERSION) {
+                $current = self::DEFAULT_VERSION;
+            }
+
+            $this->cache->forever(self::VERSION_CACHE_KEY, $current + 1);
+        } catch (Throwable $exception) {
+            Log::warning('Menu catalog cache invalidation failed.', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'cache_key' => self::VERSION_CACHE_KEY,
+            ]);
         }
-
-        $this->cache->forever(self::VERSION_CACHE_KEY, $current + 1);
     }
 
     /**

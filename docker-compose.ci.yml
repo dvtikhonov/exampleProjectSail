@@ -62,6 +62,16 @@ services:
       redis:
         condition: service_started
 
+  service-c-queue:
+    build:
+      context: .
+      dockerfile: service-c/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   service-d:
     build:
       context: .

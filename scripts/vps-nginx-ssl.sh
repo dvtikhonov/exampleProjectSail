@@ -201,6 +201,8 @@ server {
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
+    # Фото блюд (service-c) до 25 МБ; дефолт nginx = 1m → обрыв загрузки.
+    client_max_body_size 100M;
 
     location / {
         proxy_pass http://127.0.0.1:${GATEWAY_HTTP_PORT};
@@ -212,6 +214,7 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 86400;
+        client_max_body_size 100M;
     }
 }
 EOF

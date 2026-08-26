@@ -197,6 +197,8 @@ print_nginx_config() {
 server {
     listen 80;
     server_name ${VPS_DOMAIN};
+    # Фото блюд до 25 МБ; без этого nginx обрезает body (дефолт 1m).
+    client_max_body_size 100M;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -212,6 +214,7 @@ server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 86400;
+        client_max_body_size 100M;
     }
 }
 
