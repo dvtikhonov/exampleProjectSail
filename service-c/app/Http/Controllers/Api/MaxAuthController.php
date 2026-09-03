@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Exceptions\Max\MaxWebAppInitDataException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Max\ValidateInitDataRequest;
-use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Support\Max\MaxMiniAppAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;

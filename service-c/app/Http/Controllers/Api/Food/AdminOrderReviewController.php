@@ -90,7 +90,7 @@ class AdminOrderReviewController extends Controller
      */
     public function approveAddress(Request $request, int $order): JsonResponse
     {
-        return $this->respondReviewDecision(function () use ($request, $order) {
+        return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
                 OrderReviewStep::Address,
                 $order,
@@ -119,7 +119,7 @@ class AdminOrderReviewController extends Controller
      */
     public function approveComposition(Request $request, int $order): JsonResponse
     {
-        return $this->respondReviewDecision(function () use ($request, $order) {
+        return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
                 OrderReviewStep::Composition,
                 $order,
@@ -162,7 +162,7 @@ class AdminOrderReviewController extends Controller
      */
     public function approvePayment(Request $request, int $order): JsonResponse
     {
-        return $this->respondReviewDecision(function () use ($request, $order) {
+        return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
                 OrderReviewStep::Payment,
                 $order,

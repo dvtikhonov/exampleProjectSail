@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
 use App\DTO\Max\MaxOrderNotificationConfig;
-use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
 use App\Infrastructure\Laravel\LaravelFoodOrderMaxNotifier;
-use App\Support\Food\Composition\OrderSnapshotComboResolver;
-use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
+use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Max\MaxMessengerNotificationSender;
+use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use App\Support\Max\MaxOpenAppButtonFactory;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;

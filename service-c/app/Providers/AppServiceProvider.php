@@ -59,9 +59,13 @@ use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
+use App\Contracts\Max\MaxLoadTestDataRepositoryInterface;
 use App\Contracts\Max\MaxLoadTestServiceInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
+use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
+use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
+use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
@@ -78,9 +82,6 @@ use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\LocalFileWriterInterface;
 use App\Contracts\Shared\RequestTimingRecorderInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
-use App\Contracts\Max\MaxLoadTestDataRepositoryInterface;
-use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
-use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
 use App\Http\Resolvers\AuthenticatedMaxUserResolver;
 use App\Infrastructure\Laravel\LaravelApplicationConfig;
 use App\Infrastructure\Laravel\LaravelApplicationEnvironment;
@@ -148,13 +149,12 @@ use App\Services\Food\PhotoText\PhotoTextManualOrderPlacementService;
 use App\Services\Food\PhotoText\PhotoTextSchedulePlacementService;
 use App\Services\Food\Review\OrderCustomerNotifyRecipientResolver;
 use App\Services\Food\Review\OrderReviewStepHandler;
-use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
-use App\Services\Max\MaxMessengerNotificationSender;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
 use App\Services\Max\MaxAiAccessService;
 use App\Services\Max\MaxLoadTestService;
+use App\Services\Max\MaxMessengerNotificationSender;
 use App\Services\Max\MaxMiniAppAuthService;
 use App\Services\Max\MaxUserDeliveryAddressService;
 use App\Services\Max\MaxWebAppInitDataValidator;
@@ -162,6 +162,7 @@ use App\Services\Max\Menu\MaxManagerDailyMenuMessageBuilder;
 use App\Services\Max\UiStand\MaxCallbackHandler;
 use App\Services\Max\UiStand\MaxManagerDailyMenuNotifier;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
+use App\Services\Max\UiStand\MaxWebhookSubscriber;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Support\Max\MaxAppRequestContext;
 use App\Support\Max\MaxUiStandRecipientResolver;
@@ -351,7 +352,7 @@ class AppServiceProvider extends ServiceProvider
             MaxManagerDailyMenuNotifier::class,
             MaxWebhookUpdateRouter::class,
             MaxMessengerNotificationSender::class,
-            \App\Services\Max\UiStand\MaxWebhookSubscriber::class,
+            MaxWebhookSubscriber::class,
         ])
             ->needs(LoggerInterface::class)
             ->give(static fn (): LoggerInterface => Log::channel('max_log'));

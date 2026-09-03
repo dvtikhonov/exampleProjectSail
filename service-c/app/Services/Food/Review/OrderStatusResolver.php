@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
-use App\DTO\Food\Order\FoodOrderRecord;
 
 /**
  * Вычисляет итоговый статус заказа по статусам этапов проверки.
