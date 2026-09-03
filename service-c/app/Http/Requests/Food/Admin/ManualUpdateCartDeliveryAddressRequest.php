@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
+use App\Http\Requests\Food\Concerns\ValidatesDeliveryAddress;
+
 /**
  * Валидация обновления адреса доставки ручной корзины.
  */
 class ManualUpdateCartDeliveryAddressRequest extends ManualOrderCustomerFormRequest
 {
+    use ValidatesDeliveryAddress;
+
     /**
      * Правила валидации адреса и клиента.
      *
@@ -18,7 +22,7 @@ class ManualUpdateCartDeliveryAddressRequest extends ManualOrderCustomerFormRequ
     {
         return [
             ...$this->customerMaxUserIdRules(),
-            'delivery_address' => ['required', 'string', 'max:1000'],
+            ...$this->deliveryAddressRules(),
         ];
     }
 
@@ -29,10 +33,7 @@ class ManualUpdateCartDeliveryAddressRequest extends ManualOrderCustomerFormRequ
      */
     public function messages(): array
     {
-        return [
-            'delivery_address.required' => 'Укажите адрес доставки.',
-            'delivery_address.max' => 'Адрес доставки не должен превышать 1000 символов.',
-        ];
+        return $this->deliveryAddressMessages();
     }
 
     /**
@@ -42,16 +43,6 @@ class ManualUpdateCartDeliveryAddressRequest extends ManualOrderCustomerFormRequ
      */
     public function attributes(): array
     {
-        return [
-            'delivery_address' => 'адрес доставки',
-        ];
-    }
-
-    /**
-     * Возвращает нормализованный адрес доставки.
-     */
-    public function deliveryAddress(): string
-    {
-        return trim((string) $this->validated('delivery_address'));
+        return $this->deliveryAddressAttributes();
     }
 }

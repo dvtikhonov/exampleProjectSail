@@ -5,19 +5,24 @@ declare(strict_types=1);
 namespace App\Services\Max;
 
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
-use App\Models\Max\MaxUser;
+use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\DTO\Max\MaxUserRecord;
 
 /**
  * Хранение и чтение адреса доставки пользователя MAX.
  */
 class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
 {
+    public function __construct(
+        private readonly MaxUserRepositoryInterface $maxUserRepository,
+    ) {}
+
     /**
-     * Возвращает сохранённый адрес доставки пользователя.
+     * {@inheritDoc}
      */
-    public function defaultFor(MaxUser $maxUser): ?string
+    public function defaultFor(MaxUserRecord $maxUser): ?string
     {
-        $address = $maxUser->delivery_address;
+        $address = $maxUser->deliveryAddress;
 
         if ($address === null) {
             return null;
@@ -29,9 +34,23 @@ class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
     }
 
     /**
-     * Сохраняет адрес доставки, если он изменился.
+     * {@inheritDoc}
      */
-    public function persist(MaxUser $maxUser, string $deliveryAddress): void
+    public function defaultForMaxUserId(int $maxUserId): ?string
+    {
+        $maxUser = $this->maxUserRepository->findByMaxUserId($maxUserId);
+
+        if ($maxUser === null) {
+            return null;
+        }
+
+        return $this->defaultFor($maxUser);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function persist(MaxUserRecord $maxUser, string $deliveryAddress): void
     {
         $trimmed = trim($deliveryAddress);
 
@@ -43,6 +62,20 @@ class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
             return;
         }
 
-        $maxUser->update(['delivery_address' => $trimmed]);
+        $this->maxUserRepository->updateDeliveryAddress($maxUser->maxUserId, $trimmed);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function persistForMaxUserId(int $maxUserId, string $deliveryAddress): void
+    {
+        $maxUser = $this->maxUserRepository->findByMaxUserId($maxUserId);
+
+        if ($maxUser === null) {
+            return;
+        }
+
+        $this->persist($maxUser, $deliveryAddress);
     }
 }

@@ -17,9 +17,11 @@ interface MaxLoadTestServiceInterface
     /**
      * Создаёт/находит load-test MaxUser и выдаёт Sanctum-токены scope max-miniapp.
      *
+     * Путь к JSON задаёт delivery-слой (Artisan); сервис не резолвит storage_path().
+     *
      * @throws RuntimeException если APP_ENV не local/testing или count некорректен
      */
-    public function issueTokens(int $count, ?string $outputPath = null): LoadTestTokensResultDto;
+    public function issueTokens(int $count, string $outputPath): LoadTestTokensResultDto;
 
     /**
      * Включает is_available у блюд активных ресторанов и инвалидирует кэш меню.

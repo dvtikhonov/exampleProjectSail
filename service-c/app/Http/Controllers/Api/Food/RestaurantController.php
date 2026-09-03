@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api\Food;
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Models\Max\MaxUser;
 use Illuminate\Http\JsonResponse;
@@ -45,16 +44,10 @@ class RestaurantController extends Controller
      */
     public function menu(Request $request, int $restaurant): JsonResponse
     {
-        try {
-            $menu = $this->menuQueryService->getRestaurantMenu(
-                $restaurant,
-                $this->shouldIncludeUnavailableDishes($request),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $menu = $this->menuQueryService->getRestaurantMenu(
+            $restaurant,
+            $this->shouldIncludeUnavailableDishes($request),
+        );
 
         return response()->json([
             'menu' => $menu->toArray(),

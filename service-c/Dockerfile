@@ -55,8 +55,10 @@ RUN rm -f /etc/nginx/sites-enabled/default \
         /var/lib/nginx/scgi /var/lib/nginx/uwsgi /run/nginx \
     && chown -R www-data:www-data /var/lib/nginx /run/nginx
 
+COPY service-c/docker-init-storage.sh /usr/local/bin/docker-init-storage.sh
 COPY service-c/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY service-c/docker-queue-entrypoint.sh /usr/local/bin/docker-queue-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-init-storage.sh /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-queue-entrypoint.sh
 
 EXPOSE 8000 5174
 ENTRYPOINT ["docker-entrypoint.sh"]

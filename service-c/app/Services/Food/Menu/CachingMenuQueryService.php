@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
+use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Menu\DishDto;
 use App\DTO\Food\Menu\MenuCategoryDto;
 use App\DTO\Food\Menu\MenuDto;
 use App\DTO\Food\Shared\RestaurantSummaryDto;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
  * Кэш готовых DTO каталога еды (список ресторанов и меню) с версионированием ключей.
@@ -27,7 +27,7 @@ class CachingMenuQueryService implements MenuQueryServiceInterface
 
     public function __construct(
         private readonly MenuQueryServiceInterface $inner,
-        private readonly CacheRepository $cache,
+        private readonly CacheStoreInterface $cache,
         private readonly int $ttlSeconds = self::DEFAULT_TTL_SECONDS,
         private readonly bool $enabled = true,
     ) {}

@@ -6,7 +6,6 @@ namespace App\Contracts\Food\Composition;
 
 use App\DTO\Food\Composition\OrderCompositionSnapshotDto;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Сборка items_snapshot и пересчёт итогов состава заказа из dish_id/qty/combo.
@@ -31,7 +30,7 @@ interface OrderCompositionSnapshotBuilderInterface
      */
     public function build(
         int $restaurantId,
-        MaxUser $customer,
+        int $customerMaxUserId,
         array $items,
         array $existingDishIds = [],
     ): OrderCompositionSnapshotDto;

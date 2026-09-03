@@ -5,25 +5,24 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
+use App\Contracts\Food\Order\AdminOrderQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
-use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\DTO\Food\Order\AdminOrderDetailDto;
 use App\DTO\Food\Order\AdminOrderListItemDto;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
 use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Выборка заказов для административного API проверки.
  */
-class AdminOrderQueryService
+class AdminOrderQueryService implements AdminOrderQueryServiceInterface
 {
     public function __construct(
         private readonly FoodOrderAdminReadRepositoryInterface $foodOrderReadRepository,
-        private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
         private readonly FoodMoneyFormatter $moneyFormatter,
     ) {}
@@ -33,11 +32,11 @@ class AdminOrderQueryService
      *
      * @return list<string>
      */
-    public function activeRoleValues(MaxUser $admin): array
+    public function activeRoleValues(MaxUserIdentity $admin): array
     {
         return array_map(
             static fn (FoodOrderAdminRole $role): string => $role->value,
-            $this->foodOrderAdminRepository->getActiveRoles($admin->max_user_id),
+            $admin->adminRoles,
         );
     }
 
@@ -51,7 +50,7 @@ class AdminOrderQueryService
      *
      * @throws FoodDomainException
      */
-    public function list(MaxUser $admin, string $scope, string $status, int $perPage): array
+    public function list(MaxUserIdentity $admin, string $scope, string $status, int $perPage): array
     {
         $this->assertScopeAccess($admin, $scope);
 
@@ -71,16 +70,16 @@ class AdminOrderQueryService
             default => throw new FoodDomainException('Некорректный status. Используйте pending или all.', 422),
         };
 
-        /** @var list<FoodOrder> $orders */
-        $orders = array_values($paginator->items());
+        /** @var list<FoodOrderRecord> $orders */
+        $orders = $paginator->items;
 
         return [
             'orders' => $this->mapListItems($admin, $orders),
             'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
+                'current_page' => $paginator->currentPage,
+                'per_page' => $paginator->perPage,
+                'total' => $paginator->total,
+                'last_page' => $paginator->lastPage,
             ],
         ];
     }
@@ -90,7 +89,7 @@ class AdminOrderQueryService
      *
      * @throws FoodDomainException
      */
-    public function detail(MaxUser $admin, int $orderId, string $scope): AdminOrderDetailDto
+    public function detail(MaxUserIdentity $admin, int $orderId, string $scope): AdminOrderDetailDto
     {
         $this->assertScopeAccess($admin, $scope);
 
@@ -104,11 +103,11 @@ class AdminOrderQueryService
     }
 
     /**
-     * Строит детальный DTO заказа по модели (с перезагрузкой).
+     * Строит детальный DTO заказа по проекции (с перезагрузкой).
      *
      * @throws FoodDomainException
      */
-    public function detailFromModel(FoodOrder $order): AdminOrderDetailDto
+    public function detailFromRecord(FoodOrderRecord $order): AdminOrderDetailDto
     {
         $order = $this->foodOrderReadRepository->findById($order->id);
 
@@ -124,11 +123,11 @@ class AdminOrderQueryService
      *
      * @throws FoodDomainException
      */
-    private function assertScopeAccess(MaxUser $admin, string $scope): void
+    private function assertScopeAccess(MaxUserIdentity $admin, string $scope): void
     {
         $role = $this->resolveScopeRole($scope);
 
-        if (! $this->foodOrderAdminRepository->hasActiveRole($admin->max_user_id, $role)) {
+        if (! $admin->hasAdminRole($role)) {
             throw new FoodDomainException('Доступ запрещён.', 403);
         }
     }
@@ -136,22 +135,22 @@ class AdminOrderQueryService
     /**
      * Преобразует коллекцию заказов в список DTO для админского списка.
      *
-     * @param  list<FoodOrder>  $orders
+     * @param  list<FoodOrderRecord>  $orders
      * @return list<AdminOrderListItemDto>
      */
-    private function mapListItems(MaxUser $admin, array $orders): array
+    private function mapListItems(MaxUserIdentity $admin, array $orders): array
     {
         $orderIds = array_map(
-            static fn (FoodOrder $order): int => $order->id,
+            static fn (FoodOrderRecord $order): int => $order->id,
             $orders,
         );
         $chatStats = $this->orderMessageRepository->getChatStatsForOrders(
             $orderIds,
-            $admin->max_user_id,
+            $admin->maxUserId,
         );
 
         return array_map(
-            function (FoodOrder $order) use ($chatStats): AdminOrderListItemDto {
+            function (FoodOrderRecord $order) use ($chatStats): AdminOrderListItemDto {
                 $stats = $chatStats[$order->id] ?? [
                     'last_message_at' => null,
                     'unread_count' => 0,
@@ -182,64 +181,64 @@ class AdminOrderQueryService
      *
      * @param  array{last_message_at: ?string, unread_count: int}  $chatStats
      */
-    private function mapListItem(FoodOrder $order, array $chatStats): AdminOrderListItemDto
+    private function mapListItem(FoodOrderRecord $order, array $chatStats): AdminOrderListItemDto
     {
         return new AdminOrderListItemDto(
             id: $order->id,
             status: $order->status->value,
-            restaurantId: $order->restaurant_id,
-            restaurantName: (string) $order->restaurant?->name,
-            customerMaxUserId: $order->max_user_id,
-            customerFirstName: $order->maxUser?->first_name,
-            customerLastName: $order->maxUser?->last_name,
-            customerUsername: $order->maxUser?->username,
-            deliveryAddress: $order->delivery_address,
-            deliveryDate: $order->delivery_date?->format('Y-m-d'),
-            itemsTotal: $this->formatMoney($order->items_total),
-            deliveryCost: $order->delivery_cost !== null ? $this->formatMoney($order->delivery_cost) : null,
+            restaurantId: $order->restaurantId,
+            restaurantName: (string) ($order->restaurantName ?? ''),
+            customerMaxUserId: $order->maxUserId,
+            customerFirstName: $order->customerFirstName,
+            customerLastName: $order->customerLastName,
+            customerUsername: $order->customerUsername,
+            deliveryAddress: $order->deliveryAddress,
+            deliveryDate: $order->deliveryDate,
+            itemsTotal: $this->formatMoney($order->itemsTotal),
+            deliveryCost: $order->deliveryCost !== null ? $this->formatMoney($order->deliveryCost) : null,
             total: $this->formatMoney($order->total),
-            addressReviewStatus: $order->address_review_status->value,
-            compositionReviewStatus: $order->composition_review_status->value,
-            paymentReviewStatus: $order->payment_review_status->value,
+            addressReviewStatus: $order->addressReviewStatus->value,
+            compositionReviewStatus: $order->compositionReviewStatus->value,
+            paymentReviewStatus: $order->paymentReviewStatus->value,
             lastMessageAt: $chatStats['last_message_at'],
             unreadCount: $chatStats['unread_count'],
-            createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
+            createdAt: $order->createdAt,
         );
     }
 
     /**
      * Преобразует заказ в детальный админский DTO.
      */
-    private function mapDetail(FoodOrder $order): AdminOrderDetailDto
+    private function mapDetail(FoodOrderRecord $order): AdminOrderDetailDto
     {
         return new AdminOrderDetailDto(
             id: $order->id,
             status: $order->status->value,
-            restaurantId: $order->restaurant_id,
-            restaurantName: (string) $order->restaurant?->name,
-            customerMaxUserId: $order->max_user_id,
-            customerFirstName: $order->maxUser?->first_name,
-            customerLastName: $order->maxUser?->last_name,
-            customerUsername: $order->maxUser?->username,
-            deliveryAddress: $order->delivery_address,
-            deliveryDate: $order->delivery_date?->format('Y-m-d'),
-            itemsTotal: $this->formatMoney($order->items_total),
-            deliveryCost: $order->delivery_cost !== null ? $this->formatMoney($order->delivery_cost) : null,
+            restaurantId: $order->restaurantId,
+            restaurantName: (string) ($order->restaurantName ?? ''),
+            customerMaxUserId: $order->maxUserId,
+            customerFirstName: $order->customerFirstName,
+            customerLastName: $order->customerLastName,
+            customerUsername: $order->customerUsername,
+            deliveryAddress: $order->deliveryAddress,
+            deliveryDate: $order->deliveryDate,
+            itemsTotal: $this->formatMoney($order->itemsTotal),
+            deliveryCost: $order->deliveryCost !== null ? $this->formatMoney($order->deliveryCost) : null,
             total: $this->formatMoney($order->total),
-            itemsSnapshot: $order->items_snapshot ?? [],
-            addressReviewStatus: $order->address_review_status->value,
-            compositionReviewStatus: $order->composition_review_status->value,
-            paymentReviewStatus: $order->payment_review_status->value,
-            addressReviewedBy: $order->address_reviewed_by,
-            addressReviewedAt: $order->address_reviewed_at?->toIso8601String(),
-            addressRejectionComment: $order->address_rejection_comment,
-            compositionReviewedBy: $order->composition_reviewed_by,
-            compositionReviewedAt: $order->composition_reviewed_at?->toIso8601String(),
-            compositionRejectionComment: $order->composition_rejection_comment,
-            paymentReviewedBy: $order->payment_reviewed_by,
-            paymentReviewedAt: $order->payment_reviewed_at?->toIso8601String(),
-            paymentRejectionComment: $order->payment_rejection_comment,
-            createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
+            itemsSnapshot: $order->itemsSnapshot,
+            addressReviewStatus: $order->addressReviewStatus->value,
+            compositionReviewStatus: $order->compositionReviewStatus->value,
+            paymentReviewStatus: $order->paymentReviewStatus->value,
+            addressReviewedBy: $order->addressReviewedBy,
+            addressReviewedAt: $order->addressReviewedAt,
+            addressRejectionComment: $order->addressRejectionComment,
+            compositionReviewedBy: $order->compositionReviewedBy,
+            compositionReviewedAt: $order->compositionReviewedAt,
+            compositionRejectionComment: $order->compositionRejectionComment,
+            paymentReviewedBy: $order->paymentReviewedBy,
+            paymentReviewedAt: $order->paymentReviewedAt,
+            paymentRejectionComment: $order->paymentRejectionComment,
+            createdAt: $order->createdAt,
         );
     }
 

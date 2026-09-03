@@ -8,11 +8,11 @@ use App\DTO\Food\Chat\OrderMessageDto;
 use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Enums\Food\Review\OrderRejectionScope;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserDisplayDto;
 use App\Support\Food\Composition\OrderSnapshotComboResolver;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Carbon;
 
 /**
  * Формирование текста уведомления о заказе для MAX с усечением по лимиту.
@@ -36,10 +36,10 @@ class FoodOrderMaxMessageBuilder
      */
     public function build(
         OrderDto $order,
-        MaxUser $maxUser,
+        MaxUserDisplayDto $customer,
         int $maxTextLength = self::DEFAULT_MAX_TEXT_LENGTH,
     ): string {
-        $header = $this->buildHeader($order, $maxUser);
+        $header = $this->buildHeader($order, $customer);
         $footer = $this->buildFooter($order);
         $items = $this->extractItems($order);
 
@@ -75,12 +75,12 @@ class FoodOrderMaxMessageBuilder
     /**
      * Собирает заголовок MAX-сообщения о заказе.
      */
-    private function buildHeader(OrderDto $order, MaxUser $maxUser): string
+    private function buildHeader(OrderDto $order, MaxUserDisplayDto $customer): string
     {
         $lines = [
             sprintf('Новая заявка №%d', $order->id),
             sprintf('Ресторан: %s', $order->restaurantName),
-            sprintf('Клиент: %s', $this->formatClient($maxUser)),
+            sprintf('Клиент: %s', $this->formatClient($customer)),
         ];
 
         $address = trim((string) $order->deliveryAddress);
@@ -101,7 +101,7 @@ class FoodOrderMaxMessageBuilder
     /**
      * Короткое уведомление клиенту о новом сообщении в чате заказа (без текста сообщения).
      */
-    public function buildOrderChatCustomerNotification(FoodOrder $order): string
+    public function buildOrderChatCustomerNotification(FoodOrderRecord $order): string
     {
         return sprintf('В чат заказа №%d поступило сообщение', $order->id);
     }
@@ -109,7 +109,7 @@ class FoodOrderMaxMessageBuilder
     /**
      * Уведомление в MAX_UI_STAND_* о новом сообщении в чате заказа (с текстом сообщения).
      */
-    public function buildOrderChatUiStandNotification(FoodOrder $order, OrderMessageDto $message): string
+    public function buildOrderChatUiStandNotification(FoodOrderRecord $order, OrderMessageDto $message): string
     {
         return implode("\n", [
             sprintf('В чат заказа №%d поступило сообщение', $order->id),
@@ -149,7 +149,7 @@ class FoodOrderMaxMessageBuilder
     /**
      * Текст уведомления клиенту о принятии заказа на рассмотрение.
      */
-    public function buildCustomerSubmitted(FoodOrder $order): string
+    public function buildCustomerSubmitted(FoodOrderRecord $order): string
     {
         return sprintf(
             'Заказ №%d принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
@@ -160,7 +160,7 @@ class FoodOrderMaxMessageBuilder
     /**
      * Текст уведомления клиенту о подтверждении заявки.
      */
-    public function buildCustomerConfirmed(FoodOrder $order): string
+    public function buildCustomerConfirmed(FoodOrderRecord $order): string
     {
         return sprintf('Заявка №%d принята к исполнению', $order->id);
     }
@@ -174,18 +174,16 @@ class FoodOrderMaxMessageBuilder
      * 2. Блюдо 1 / Блюдо 2, 130г / 150г – 160р - 1шт.
      */
     public function buildManualOrderCreatorConfirmed(
-        FoodOrder $order,
+        FoodOrderRecord $order,
         int $maxTextLength = self::DEFAULT_MAX_TEXT_LENGTH,
     ): string {
-        $order->loadMissing('maxUser');
-
         $header = sprintf(
             'Заказ на %s. от %s:',
-            $this->formatOrderDate($order->delivery_date ?? $order->created_at),
-            $this->formatCustomerDisplayName($order->maxUser),
+            $this->formatOrderDate($order->deliveryDate ?? $order->createdAt),
+            $this->formatCustomerDisplayNameFromRecord($order),
         );
 
-        $itemsSnapshot = is_array($order->items_snapshot) ? $order->items_snapshot : [];
+        $itemsSnapshot = $order->itemsSnapshot;
         $itemLines = $this->formatManualOrderItemLines($itemsSnapshot);
 
         if ($itemLines === []) {
@@ -220,12 +218,12 @@ class FoodOrderMaxMessageBuilder
     /**
      * Текст уведомления клиенту об отклонении заявки.
      */
-    public function buildCustomerRejected(FoodOrder $order, OrderRejectionScope $scope): string
+    public function buildCustomerRejected(FoodOrderRecord $order, OrderRejectionScope $scope): string
     {
         $comment = match ($scope) {
-            OrderRejectionScope::Address => trim((string) $order->address_rejection_comment),
-            OrderRejectionScope::Composition => trim((string) $order->composition_rejection_comment),
-            OrderRejectionScope::Payment => trim((string) $order->payment_rejection_comment),
+            OrderRejectionScope::Address => trim((string) ($order->addressRejectionComment ?? '')),
+            OrderRejectionScope::Composition => trim((string) ($order->compositionRejectionComment ?? '')),
+            OrderRejectionScope::Payment => trim((string) ($order->paymentRejectionComment ?? '')),
         };
 
         $lines = [
@@ -244,26 +242,22 @@ class FoodOrderMaxMessageBuilder
      * Текст уведомления клиенту об окончательном варианте заказа после правки состава.
      */
     public function buildCustomerCompositionChanged(
-        FoodOrder $order,
+        FoodOrderRecord $order,
         int $maxTextLength = self::DEFAULT_MAX_TEXT_LENGTH,
     ): string {
-        $order->loadMissing('restaurant');
-
         $headerLines = [
             'Заказ изменен по вашему согласованию',
             sprintf('Заказ №%d', $order->id),
-            sprintf('Ресторан: %s', (string) ($order->restaurant?->name ?? '')),
+            sprintf('Ресторан: %s', (string) ($order->restaurantName ?? '')),
         ];
 
-        $address = trim((string) $order->delivery_address);
+        $address = trim((string) ($order->deliveryAddress ?? ''));
 
         if ($address !== '') {
             $headerLines[] = sprintf('Адрес: %s', $address);
         }
 
-        $deliveryDateLabel = $this->formatDeliveryDateLabel(
-            $order->delivery_date?->format('Y-m-d'),
-        );
+        $deliveryDateLabel = $this->formatDeliveryDateLabel($order->deliveryDate);
 
         if ($deliveryDateLabel !== null) {
             $headerLines[] = sprintf('Дата доставки: %s', $deliveryDateLabel);
@@ -272,17 +266,17 @@ class FoodOrderMaxMessageBuilder
         $header = implode("\n", $headerLines);
 
         $footerLines = [
-            sprintf('Сумма блюд: %s ₽', $this->formatMoneyAmount($order->items_total)),
+            sprintf('Сумма блюд: %s ₽', $this->formatMoneyAmount($order->itemsTotal)),
         ];
 
-        if ($order->delivery_cost !== null) {
-            $footerLines[] = sprintf('Доставка: %s ₽', $this->formatMoneyAmount($order->delivery_cost));
+        if ($order->deliveryCost !== null) {
+            $footerLines[] = sprintf('Доставка: %s ₽', $this->formatMoneyAmount($order->deliveryCost));
         }
 
         $footerLines[] = sprintf('Итого: %s ₽', $this->formatMoneyAmount($order->total));
         $footer = implode("\n", $footerLines);
 
-        $items = $this->extractItemsFromSnapshot(is_array($order->items_snapshot) ? $order->items_snapshot : []);
+        $items = $this->extractItemsFromSnapshot($order->itemsSnapshot);
 
         if ($items === []) {
             return $this->ensureWithinLimit($this->assembleMessage($header, '', $footer), $maxTextLength);
@@ -349,20 +343,20 @@ class FoodOrderMaxMessageBuilder
     /**
      * Форматирует данные клиента для сообщения.
      */
-    private function formatClient(MaxUser $maxUser): string
+    private function formatClient(MaxUserDisplayDto $customer): string
     {
         $name = trim(implode(' ', array_filter([
-            $maxUser->first_name,
-            $maxUser->last_name,
+            $customer->firstName,
+            $customer->lastName,
         ])));
 
         $details = [];
 
-        if ($maxUser->username !== null && trim($maxUser->username) !== '') {
-            $details[] = '@'.trim($maxUser->username);
+        if ($customer->username !== null && trim($customer->username) !== '') {
+            $details[] = '@'.trim($customer->username);
         }
 
-        $details[] = 'id '.$maxUser->max_user_id;
+        $details[] = 'id '.$customer->maxUserId;
 
         $detailsText = implode(', ', $details);
 
@@ -374,28 +368,24 @@ class FoodOrderMaxMessageBuilder
     }
 
     /**
-     * Отображаемое имя клиента, на кого оформлен заказ.
+     * Отображаемое имя клиента из проекции заказа.
      */
-    private function formatCustomerDisplayName(?MaxUser $maxUser): string
+    private function formatCustomerDisplayNameFromRecord(FoodOrderRecord $order): string
     {
-        if ($maxUser === null) {
-            return 'клиент';
-        }
-
         $name = trim(implode(' ', array_filter([
-            $maxUser->first_name,
-            $maxUser->last_name,
+            $order->customerFirstName,
+            $order->customerLastName,
         ])));
 
         if ($name !== '') {
             return $name;
         }
 
-        if ($maxUser->username !== null && trim($maxUser->username) !== '') {
-            return '@'.trim($maxUser->username);
+        if ($order->customerUsername !== null && trim($order->customerUsername) !== '') {
+            return '@'.trim($order->customerUsername);
         }
 
-        return 'id '.$maxUser->max_user_id;
+        return 'id '.$order->maxUserId;
     }
 
     /**

@@ -1,17 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Max\UiStand;
 
+use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
-use App\Support\Max\MaxOpenAppTargetResolver;
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Support\Facades\Log;
+use App\Contracts\Shared\ApplicationConfigInterface;
+use App\Support\Max\MaxOpenAppButtonFactory;
 use RuntimeException;
-use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
-use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
-use Shared\MaxMessenger\Exceptions\MaxMessengerException;
-use Throwable;
 
 /**
  * Отправка приветственного сообщения стенда MAX с inline-клавиатурой.
@@ -19,10 +17,10 @@ use Throwable;
 class MaxUiStandGreetingSender
 {
     public function __construct(
-        private readonly MaxMessengerClientInterface $client,
-        private readonly Repository $config,
-        private readonly MaxOpenAppTargetResolver $openAppTargetResolver,
+        private readonly ApplicationConfigInterface $config,
+        private readonly MaxOpenAppButtonFactory $openAppButtonFactory,
         private readonly MaxUiStandRecipientResolverInterface $recipientResolver,
+        private readonly MaxMessengerNotificationSenderInterface $notificationSender,
     ) {}
 
     /**
@@ -65,7 +63,16 @@ class MaxUiStandGreetingSender
         $failureCount = 0;
 
         foreach ($chatIds as $chatId) {
-            if ($this->trySendInlineKeyboard($text, $buttonRows, chatId: $chatId)) {
+            if ($this->notificationSender->send(
+                text: $text,
+                chatId: $chatId,
+                buttonRows: $buttonRows,
+                failureLogMessage: 'MAX greeting send failed',
+                logContext: [
+                    'chat_id' => $chatId,
+                    'user_id' => null,
+                ],
+            )) {
                 $successCount++;
             } else {
                 $failureCount++;
@@ -73,7 +80,16 @@ class MaxUiStandGreetingSender
         }
 
         foreach ($userIds as $userId) {
-            if ($this->trySendInlineKeyboard($text, $buttonRows, userId: $userId)) {
+            if ($this->notificationSender->send(
+                text: $text,
+                userId: $userId,
+                buttonRows: $buttonRows,
+                failureLogMessage: 'MAX greeting send failed',
+                logContext: [
+                    'chat_id' => null,
+                    'user_id' => $userId,
+                ],
+            )) {
                 $successCount++;
             } else {
                 $failureCount++;
@@ -86,64 +102,13 @@ class MaxUiStandGreetingSender
     }
 
     /**
-     * Пытается отправить сообщение с inline-клавиатурой.
-     *
-     * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
-     */
-    private function trySendInlineKeyboard(
-        string $text,
-        array $buttonRows,
-        ?int $chatId = null,
-        ?int $userId = null,
-    ): bool {
-        try {
-            $this->client->sendInlineKeyboardMessage(new MaxInlineKeyboardMessageDto(
-                text: $text,
-                buttonRows: $buttonRows,
-                chatId: $chatId,
-                userId: $userId,
-            ));
-
-            return true;
-        } catch (MaxMessengerException $exception) {
-            Log::channel('max_log')->warning('MAX greeting send failed', [
-                'chat_id' => $chatId,
-                'user_id' => $userId,
-                'error' => $exception->userMessage(),
-            ]);
-
-            return false;
-        } catch (Throwable $exception) {
-            Log::channel('max_log')->warning('MAX greeting send failed', [
-                'chat_id' => $chatId,
-                'user_id' => $userId,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    /**
      * Строит ряды кнопок приветственного сообщения.
      *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */
     private function buildButtonRows(): array
     {
-        $rows = [];
-
-        $openAppTarget = $this->openAppTargetResolver->resolveWebApp();
-        if ($openAppTarget !== null) {
-            $rows[] = [
-                new MaxInlineKeyboardButtonDto(
-                    text: (string) $this->config->get('max.ui_stand.mini_app_button_text', 'Заказ еды'),
-                    type: 'open_app',
-                    webApp: $openAppTarget,
-                    contactId: $this->openAppTargetResolver->resolveContactId(),
-                ),
-            ];
-        }
+        $rows = $this->openAppButtonFactory->buildGenericMiniAppButtonRows();
 
         $rows[] = [
             new MaxInlineKeyboardButtonDto(

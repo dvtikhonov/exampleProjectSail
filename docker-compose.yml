@@ -282,7 +282,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
-    entrypoint: ["php", "artisan"]
+    entrypoint: ["docker-queue-entrypoint.sh"]
     command: ["queue:work", "--timeout=900", "--tries=1"]
     environment:
       - APP_ENV=local

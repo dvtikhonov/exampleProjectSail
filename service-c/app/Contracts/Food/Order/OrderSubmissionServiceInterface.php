@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Order;
 
 use App\DTO\Food\Order\OrderDto;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Оформление заказа из черновика корзины.
@@ -18,7 +18,7 @@ interface OrderSubmissionServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function submit(MaxUser $maxUser): OrderDto;
+    public function submit(MaxUserIdentity $user): OrderDto;
 
     /**
      * Создаёт ручной заказ из корзины менеджера от имени клиента.
@@ -29,8 +29,8 @@ interface OrderSubmissionServiceInterface
      * @throws FoodDomainException
      */
     public function submitManual(
-        MaxUser $customer,
-        MaxUser $manager,
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
         ?string $deliveryDate = null,
     ): OrderDto;
 
@@ -42,8 +42,8 @@ interface OrderSubmissionServiceInterface
      * @throws FoodDomainException
      */
     public function submitDraftAfterScanning(
-        MaxUser $customer,
-        MaxUser $manager,
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
         ?string $deliveryDate = null,
     ): OrderDto;
 }

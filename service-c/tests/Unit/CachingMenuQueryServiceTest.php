@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
+use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Menu\DishDto;
 use App\DTO\Food\Menu\MenuCategoryDto;
 use App\DTO\Food\Menu\MenuDto;
@@ -12,6 +13,7 @@ use App\DTO\Food\Shared\RestaurantSummaryDto;
 use App\Services\Food\Menu\CachingMenuQueryService;
 use App\Services\Food\Menu\MenuCatalogCacheInvalidator;
 use Illuminate\Support\Facades\Cache;
+use Psr\Log\LoggerInterface;
 use Tests\TestCase;
 
 /**
@@ -81,7 +83,10 @@ class CachingMenuQueryServiceTest extends TestCase
     public function test_version_bump_invalidates_cached_hits(): void
     {
         $service = $this->makeCachingService();
-        $invalidator = new MenuCatalogCacheInvalidator(Cache::store());
+        $invalidator = new MenuCatalogCacheInvalidator(
+            $this->app->make(CacheStoreInterface::class),
+            $this->app->make(LoggerInterface::class),
+        );
 
         $service->listActiveRestaurants();
         $service->getRestaurantMenu(10, false);
@@ -165,7 +170,7 @@ class CachingMenuQueryServiceTest extends TestCase
 
         return new CachingMenuQueryService(
             inner: $inner,
-            cache: Cache::store(),
+            cache: $this->app->make(CacheStoreInterface::class),
             ttlSeconds: 600,
             enabled: $enabled,
         );

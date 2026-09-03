@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
+use App\DTO\Shared\UploadedFileDto;
 use App\Exceptions\Food\FoodDomainException;
-use Illuminate\Http\UploadedFile;
 
 /**
  * Загрузка и удаление локальных фото блюд на public disk.
@@ -17,7 +17,7 @@ interface DishImageUploadInterface
      *
      * @throws FoodDomainException
      */
-    public function upload(int $dishId, UploadedFile $file): string;
+    public function upload(int $dishId, UploadedFileDto $file): string;
 
     /**
      * Удаляет файл с public disk, если путь задан и файл существует.

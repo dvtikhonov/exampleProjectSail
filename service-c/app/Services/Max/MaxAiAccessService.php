@@ -7,8 +7,8 @@ namespace App\Services\Max;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\DTO\Max\AiAccessStatusDto;
+use App\DTO\Max\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 use Carbon\CarbonImmutable;
 use DateTimeInterface;
 
@@ -42,24 +42,24 @@ class MaxAiAccessService implements MaxAiAccessServiceInterface
 
         return new AiAccessStatusDto(
             enabled: true,
-            activeMaxUserId: $activeUser->max_user_id,
-            expiresAt: $activeUser->ai_access_until?->toIso8601String(),
+            activeMaxUserId: $activeUser->maxUserId,
+            expiresAt: $activeUser->aiAccessUntil,
         );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function toggle(MaxUser $currentUser, DateTimeInterface $now): AiAccessStatusDto
+    public function toggle(MaxUserIdentity $currentUser, DateTimeInterface $now): AiAccessStatusDto
     {
         $this->maxUserRepository->clearExpiredAiAccess($now);
 
         $activeUser = $this->maxUserRepository->findActiveAiAccessUser($now);
 
         // Текущий пользователь активен → выключаем.
-        if ($activeUser !== null && $activeUser->max_user_id === $currentUser->max_user_id) {
+        if ($activeUser !== null && $activeUser->maxUserId === $currentUser->maxUserId) {
             $this->maxUserRepository->clearAiAccessForUserIfActive(
-                maxUserId: $currentUser->max_user_id,
+                maxUserId: $currentUser->maxUserId,
                 now: $now,
             );
 
@@ -75,7 +75,7 @@ class MaxAiAccessService implements MaxAiAccessServiceInterface
 
         // Атомарное включение: обновляем только если на момент now нет активных записей.
         $updated = $this->maxUserRepository->setAiAccessUntilIfNoneActive(
-            maxUserId: $currentUser->max_user_id,
+            maxUserId: $currentUser->maxUserId,
             until: $until,
             now: $now,
         );

@@ -45,11 +45,11 @@ class MaxFoodAdminAssignCommand extends Command
             return self::FAILURE;
         }
 
-        $assignment = $adminRepository->assignActiveRole($maxUserId, $role);
+        $assignmentId = $adminRepository->assignActiveRole($maxUserId, $role);
 
         $this->info(
             "Роль {$role->value} назначена пользователю max_user_id={$maxUserId} "
-            ."(запись #{$assignment->id}, is_active=1).",
+            ."(запись #{$assignmentId}, is_active=1).",
         );
 
         return self::SUCCESS;

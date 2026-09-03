@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\DTO\Food\Menu\MenuCategoryRecord;
 use App\Models\Food\Dish;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\MenuCategoryAvailabilityOffset;
@@ -15,14 +16,20 @@ use Illuminate\Support\Str;
  */
 class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
 {
+    public function __construct(
+        private readonly DishMapper $dishMapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
-    public function findById(int $id): ?MenuCategory
+    public function findById(int $id): ?MenuCategoryRecord
     {
-        return MenuCategory::query()
+        $category = MenuCategory::query()
             ->with(['restaurant', 'availabilityOffsets'])
             ->find($id);
+
+        return $category !== null ? $this->dishMapper->toCategoryRecord($category) : null;
     }
 
     /**
@@ -42,37 +49,48 @@ class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
             $query->where('max_menu_categories.restaurant_id', $restaurantId);
         }
 
-        return $query->get()->all();
+        return $query
+            ->get()
+            ->map(fn (MenuCategory $category): MenuCategoryRecord => $this->dishMapper->toCategoryRecord($category))
+            ->values()
+            ->all();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function create(array $attributes): MenuCategory
+    public function create(array $attributes): MenuCategoryRecord
     {
-        return MenuCategory::query()->create($attributes);
+        $category = MenuCategory::query()->create($attributes);
+
+        return $this->dishMapper->toCategoryRecord(
+            $category->load(['restaurant', 'availabilityOffsets']),
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function update(MenuCategory $category, array $attributes): MenuCategory
+    public function update(int $categoryId, array $attributes): MenuCategoryRecord
     {
+        $category = MenuCategory::query()->findOrFail($categoryId);
         $category->update($attributes);
 
-        return $category->fresh(['restaurant', 'availabilityOffsets']) ?? $category;
+        $fresh = $category->fresh(['restaurant', 'availabilityOffsets']) ?? $category->load(['restaurant', 'availabilityOffsets']);
+
+        return $this->dishMapper->toCategoryRecord($fresh);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function syncAvailabilityOffsets(MenuCategory $category, array $offsets): void
+    public function syncAvailabilityOffsets(int $categoryId, array $offsets): void
     {
-        $category->availabilityOffsets()->delete();
+        MenuCategoryAvailabilityOffset::query()
+            ->where('menu_category_id', $categoryId)
+            ->delete();
 
         if ($offsets === []) {
-            $category->unsetRelation('availabilityOffsets');
-
             return;
         }
 
@@ -84,7 +102,7 @@ class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
 
             foreach ($offset->weekdays as $weekday) {
                 $rows[] = [
-                    'menu_category_id' => $category->id,
+                    'menu_category_id' => $categoryId,
                     'group_key' => $groupKey,
                     'weekday' => $weekday,
                     'offset_days' => $offset->offsetDays,
@@ -97,16 +115,14 @@ class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
         if ($rows !== []) {
             MenuCategoryAvailabilityOffset::query()->insert($rows);
         }
-
-        $category->unsetRelation('availabilityOffsets');
     }
 
     /**
      * {@inheritDoc}
      */
-    public function delete(MenuCategory $category): void
+    public function delete(int $categoryId): void
     {
-        $category->delete();
+        MenuCategory::query()->whereKey($categoryId)->delete();
     }
 
     /**

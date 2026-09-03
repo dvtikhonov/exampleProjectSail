@@ -5,43 +5,25 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\DTO\Food\Delivery\DeliveryTierDto;
-use App\Models\Food\CustomerCategory;
-use App\Models\Max\MaxUser;
 use App\Services\Food\Delivery\DeliveryCostResolver;
 use Tests\TestCase;
 
 class DeliveryCostResolverTest extends TestCase
 {
-    /** isApplicable возвращает false, если у пользователя нет категории. */
+    /** isApplicable возвращает false, если категория не задана. */
     public function test_is_applicable_returns_false_when_user_has_no_category(): void
     {
-        $maxUser = MaxUser::query()->make([
-            'max_user_id' => 12_001,
-            'customer_category_id' => null,
-        ]);
-
         $resolver = new DeliveryCostResolver;
 
-        $this->assertFalse($resolver->isApplicable($maxUser));
+        $this->assertFalse($resolver->isApplicable(null));
     }
 
-    /** isApplicable возвращает true, если у пользователя есть категория. */
+    /** isApplicable возвращает true, если категория задана. */
     public function test_is_applicable_returns_true_when_user_has_category(): void
     {
-        $category = CustomerCategory::query()->make([
-            'id' => 1,
-            'name' => 'Standard',
-        ]);
-
-        $maxUser = MaxUser::query()->make([
-            'max_user_id' => 12_002,
-            'customer_category_id' => 1,
-        ]);
-        $maxUser->setRelation('customerCategory', $category);
-
         $resolver = new DeliveryCostResolver;
 
-        $this->assertTrue($resolver->isApplicable($maxUser));
+        $this->assertTrue($resolver->isApplicable(1));
     }
 
     /** resolve возвращает ноль, если тарифы не настроены. */

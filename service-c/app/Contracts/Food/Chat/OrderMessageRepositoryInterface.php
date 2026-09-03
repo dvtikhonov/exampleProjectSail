@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Chat;
 
-use App\Models\Food\FoodOrderMessage;
+use App\DTO\Food\Chat\OrderMessageRecord;
 
 /**
  * Репозиторий сообщений чата по заказам еды.
@@ -14,19 +14,19 @@ interface OrderMessageRepositoryInterface
     /**
      * Создаёт сообщение в чате заказа.
      */
-    public function create(int $foodOrderId, int $senderMaxUserId, string $body): FoodOrderMessage;
+    public function create(int $foodOrderId, int $senderMaxUserId, string $body): OrderMessageRecord;
 
     /**
      * Сообщения заказа в хронологическом порядке; при указании after_id — только с id больше.
      *
-     * @return list<FoodOrderMessage>
+     * @return list<OrderMessageRecord>
      */
     public function listForOrder(int $foodOrderId, ?int $afterId = null, int $limit = 50): array;
 
     /**
      * Находит сообщение чата по идентификатору.
      */
-    public function findById(int $id): ?FoodOrderMessage;
+    public function findById(int $id): ?OrderMessageRecord;
 
     /**
      * Статистика чата по заказам для списка клиента.

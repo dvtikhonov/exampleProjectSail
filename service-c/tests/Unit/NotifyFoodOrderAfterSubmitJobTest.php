@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
+use App\DTO\Food\Shared\MaxUserDisplayDto;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
+use App\Mappers\Max\MaxUserDisplayMapper;
 use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Psr\Log\LoggerInterface;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
@@ -83,14 +89,14 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
         $maxNotifier = $this->createMock(FoodOrderMaxNotifierInterface::class);
         $maxNotifier->expects($this->once())->method('notify')->with(
             $this->callback(fn (OrderDto $o): bool => $o->id === $order->id),
-            $this->callback(fn (MaxUser $u): bool => $u->max_user_id === $maxUser->max_user_id),
+            $this->callback(fn (MaxUserDisplayDto $u): bool => $u->maxUserId === $maxUser->max_user_id),
         );
 
         $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
         $customerNotifier
             ->expects($this->once())
             ->method('notifySubmitted')
-            ->with($this->callback(fn (FoodOrder $o): bool => $o->id === $order->id));
+            ->with($this->callback(fn (FoodOrderRecord $o): bool => $o->id === $order->id));
         $customerNotifier->expects($this->never())->method('notifyConfirmed');
 
         $job = new NotifyFoodOrderAfterSubmitJob(
@@ -100,6 +106,13 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
             kind: FoodOrderAfterSubmitNotifyKind::Submitted,
         );
 
-        $job->handle($maxNotifier, $customerNotifier);
+        $job->handle(
+            $maxNotifier,
+            $customerNotifier,
+            app(FoodOrderCustomerReadRepositoryInterface::class),
+            app(MaxUserRepositoryInterface::class),
+            app(MaxUserDisplayMapper::class),
+            app(LoggerInterface::class),
+        );
     }
 }

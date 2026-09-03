@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Max\UiStand;
 
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
@@ -16,7 +18,8 @@ class MaxCallbackHandler
 {
     public function __construct(
         private readonly MaxMessengerClientInterface $client,
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -28,7 +31,7 @@ class MaxCallbackHandler
         $answerLabel = $update->payload === $yesPayload ? 'да' : 'нет';
         $responseText = "Вы нажали кнопку: {$answerLabel}";
 
-        Log::channel('max_log')->info('MAX button clicked', [
+        $this->logger->info('MAX button clicked', [
             'answer' => $answerLabel,
             'payload' => $update->payload,
             'callback_id' => $update->callbackId,
@@ -42,11 +45,11 @@ class MaxCallbackHandler
                 messageText: $responseText,
             );
 
-            Log::channel('max_log')->info('MAX callback answered', [
+            $this->logger->info('MAX callback answered', [
                 'callback_id' => $update->callbackId,
             ]);
         } catch (MaxMessengerException $exception) {
-            Log::channel('max_log')->warning('MAX callback answer failed, retrying with notification only', [
+            $this->logger->warning('MAX callback answer failed, retrying with notification only', [
                 'callback_id' => $update->callbackId,
                 'error' => $exception->userMessage(),
             ]);
@@ -57,11 +60,11 @@ class MaxCallbackHandler
                     notification: $responseText,
                 );
 
-                Log::channel('max_log')->info('MAX callback answered with notification', [
+                $this->logger->info('MAX callback answered with notification', [
                     'callback_id' => $update->callbackId,
                 ]);
             } catch (Throwable $retryException) {
-                Log::channel('max_log')->warning('MAX callback notification failed, retrying empty answer', [
+                $this->logger->warning('MAX callback notification failed, retrying empty answer', [
                     'callback_id' => $update->callbackId,
                     'error' => $retryException instanceof MaxMessengerException
                         ? $retryException->userMessage()
@@ -71,11 +74,11 @@ class MaxCallbackHandler
                 try {
                     $this->client->answerCallback($update->callbackId);
 
-                    Log::channel('max_log')->info('MAX callback answered without payload', [
+                    $this->logger->info('MAX callback answered without payload', [
                         'callback_id' => $update->callbackId,
                     ]);
                 } catch (Throwable $finalException) {
-                    Log::channel('max_log')->error('MAX callback answer failed', [
+                    $this->logger->error('MAX callback answer failed', [
                         'callback_id' => $update->callbackId,
                         'error' => $finalException instanceof MaxMessengerException
                             ? $finalException->userMessage()

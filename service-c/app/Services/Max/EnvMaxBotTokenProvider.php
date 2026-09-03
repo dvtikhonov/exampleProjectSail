@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Max;
 
-use Illuminate\Contracts\Config\Repository;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface;
 
 /**
@@ -11,7 +13,7 @@ use Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface;
 class EnvMaxBotTokenProvider implements MaxBotTokenProviderInterface
 {
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
     ) {}
 
     /**

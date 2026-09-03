@@ -63,6 +63,16 @@ jobs:
         working-directory: ${{ matrix.service }}
         run: vendor/bin/pint --test
 
+      - name: Check Food layer isolation
+        if: matrix.service == 'service-c'
+        working-directory: service-c
+        run: bash scripts/check-food-layer-isolation.sh
+
+      - name: Check core layer isolation baseline
+        if: matrix.service == 'service-c'
+        working-directory: service-c
+        run: bash scripts/check-core-layer-isolation.sh
+
       - name: Run PHP-CS-Fixer
         if: matrix.service == 'service-e'
         working-directory: service-e

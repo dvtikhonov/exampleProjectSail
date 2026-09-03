@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Review;
 
-use App\Models\Food\FoodOrder;
+use App\DTO\Food\Order\FoodOrderRecord;
 
 /**
- * Резолвер получателей клиентских push-уведомлений о заказе.
- *
- * Для обычного заказа — владелец заказа; для ручного — активные max_manager.
+ * Определяет MAX user id получателей клиентских уведомлений по заказу.
  */
 interface OrderCustomerNotifyRecipientResolverInterface
 {
     /**
-     * Возвращает max_user_id получателей клиентского уведомления по заказу.
+     * Возвращает список max_user_id получателей уведомления.
      *
      * @return list<int>
      */
-    public function resolveMaxUserIds(FoodOrder $order): array;
+    public function resolveMaxUserIds(FoodOrderRecord $order): array;
 }

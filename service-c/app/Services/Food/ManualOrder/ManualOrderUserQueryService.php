@@ -7,8 +7,9 @@ namespace App\Services\Food\ManualOrder;
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\DTO\Food\ManualOrder\ManualOrderUserDto;
+use App\DTO\Food\Shared\MaxUserIdentity;
+use App\DTO\Max\MaxUserRecord;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Поиск клиентов MAX для оформления ручного заказа.
@@ -28,20 +29,20 @@ class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterfac
 
         return [
             'users' => array_map(
-                static fn (MaxUser $user): ManualOrderUserDto => new ManualOrderUserDto(
-                    maxUserId: $user->max_user_id,
-                    firstName: $user->first_name,
-                    lastName: $user->last_name,
+                static fn (MaxUserRecord $user): ManualOrderUserDto => new ManualOrderUserDto(
+                    maxUserId: $user->maxUserId,
+                    firstName: $user->firstName,
+                    lastName: $user->lastName,
                     username: $user->username,
-                    deliveryAddress: $user->delivery_address,
+                    deliveryAddress: $user->deliveryAddress,
                 ),
-                $paginator->items(),
+                $paginator->items,
             ),
             'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
+                'current_page' => $paginator->currentPage,
+                'per_page' => $paginator->perPage,
+                'total' => $paginator->total,
+                'last_page' => $paginator->lastPage,
             ],
         ];
     }
@@ -49,7 +50,7 @@ class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterfac
     /**
      * {@inheritDoc}
      */
-    public function findCustomerOrFail(int $maxUserId): MaxUser
+    public function findCustomerOrFail(int $maxUserId): MaxUserIdentity
     {
         $customer = $this->maxUserRepository->findByMaxUserId($maxUserId);
 
@@ -57,6 +58,9 @@ class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterfac
             throw new FoodDomainException('Пользователь не найден.', 404);
         }
 
-        return $customer;
+        return new MaxUserIdentity(
+            maxUserId: $customer->maxUserId,
+            adminRoles: [],
+        );
     }
 }

@@ -7,9 +7,8 @@ namespace App\Services\Food\Composition;
 use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\DTO\Food\Composition\OrderCompositionSnapshotDto;
+use App\DTO\Food\Menu\DishRecord;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Dish;
-use App\Models\Max\MaxUser;
 use App\Services\Food\Cart\CartTotalsCalculator;
 use App\Services\Food\Order\OrderItemsSnapshotBuilder;
 use App\Services\Food\Shared\FoodMoneyFormatter;
@@ -32,7 +31,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
      */
     public function build(
         int $restaurantId,
-        MaxUser $customer,
+        int $customerMaxUserId,
         array $items,
         array $existingDishIds = [],
     ): OrderCompositionSnapshotDto {
@@ -48,7 +47,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
 
         $totals = $this->cartTotalsCalculator->calculate(
             restaurantId: $restaurantId,
-            maxUser: $customer,
+            maxUserId: $customerMaxUserId,
             itemsTotal: $snapshot->itemsTotal,
         );
 
@@ -73,7 +72,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
      * }>  $items
      * @param  array<int, true>  $existingDishIdSet
      * @return list<array{
-     *     dish: Dish,
+     *     dish: DishRecord,
      *     quantity: int,
      *     combo_ref: string|null,
      *     combo_partner_dish_id: int|null
@@ -91,7 +90,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
 
         foreach ($items as $item) {
             $dishId = (int) $item['dish_id'];
-            $dish = $dishesById->get($dishId);
+            $dish = $dishesById[$dishId] ?? null;
 
             if ($dish === null) {
                 throw new FoodDomainException('Блюдо не найдено.', 404);
@@ -99,11 +98,11 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
 
             $wasAlreadyInOrder = isset($existingDishIdSet[$dishId]);
 
-            if (! $wasAlreadyInOrder && ! $dish->is_available) {
+            if (! $wasAlreadyInOrder && ! $dish->isAvailable) {
                 throw new FoodDomainException('Блюдо недоступно.');
             }
 
-            $dishRestaurantId = (int) $dish->menuCategory->restaurant_id;
+            $dishRestaurantId = $dish->menuCategory?->restaurantId;
 
             if ($dishRestaurantId !== $restaurantId) {
                 throw new FoodDomainException('Блюдо не принадлежит ресторану заказа.');
@@ -124,7 +123,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
      * Проверяет целостность комбо-пар в новом составе.
      *
      * @param  list<array{
-     *     dish: Dish,
+     *     dish: DishRecord,
      *     quantity: int,
      *     combo_ref: string|null,
      *     combo_partner_dish_id: int|null
@@ -135,7 +134,7 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
      */
     private function assertComboPairsValid(array $lines, array $existingDishIdSet): void
     {
-        /** @var array<string, list<array{dish: Dish, quantity: int, combo_ref: string|null, combo_partner_dish_id: int|null}>> $groups */
+        /** @var array<string, list<array{dish: DishRecord, quantity: int, combo_ref: string|null, combo_partner_dish_id: int|null}>> $groups */
         $groups = [];
 
         foreach ($lines as $line) {
@@ -162,8 +161,8 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
             }
 
             if (
-                (int) $first['combo_partner_dish_id'] !== (int) $second['dish']->id
-                || (int) $second['combo_partner_dish_id'] !== (int) $first['dish']->id
+                (int) $first['combo_partner_dish_id'] !== $second['dish']->id
+                || (int) $second['combo_partner_dish_id'] !== $first['dish']->id
             ) {
                 throw new FoodDomainException(
                     sprintf('ID блюд-партнёров комбо-пары «%s» должны ссылаться друг на друга.', $comboRef),

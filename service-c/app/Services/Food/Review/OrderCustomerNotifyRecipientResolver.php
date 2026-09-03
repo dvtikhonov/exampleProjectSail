@@ -6,9 +6,9 @@ namespace App\Services\Food\Review;
 
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Models\Food\FoodOrder;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 
 /**
  * Определяет получателей клиентских уведомлений: клиент или активные max_manager.
@@ -17,23 +17,24 @@ final class OrderCustomerNotifyRecipientResolver implements OrderCustomerNotifyR
 {
     public function __construct(
         private readonly FoodOrderAdminRepositoryInterface $adminRepository,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function resolveMaxUserIds(FoodOrder $order): array
+    public function resolveMaxUserIds(FoodOrderRecord $order): array
     {
-        if (! $order->is_manual) {
-            return [(int) $order->max_user_id];
+        if (! $order->isManual) {
+            return [$order->maxUserId];
         }
 
         $managerIds = $this->adminRepository->listActiveMaxUserIdsByRole(FoodOrderAdminRole::MaxManager);
 
         if ($managerIds === []) {
-            Log::channel('max_log')->warning('MAX manual order customer notification: no active max_manager recipients', [
+            $this->logger->warning('MAX manual order customer notification: no active max_manager recipients', [
                 'order_id' => $order->id,
-                'max_user_id' => $order->max_user_id,
+                'max_user_id' => $order->maxUserId,
             ]);
         }
 

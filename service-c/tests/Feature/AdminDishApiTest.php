@@ -10,7 +10,7 @@ use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Food\Dish;
 use App\Models\Food\MenuCategoryAvailabilityOffset;
 use App\Models\Max\MaxUser;
-use App\Services\Max\LaravelMaxAdminBotTestSender;
+use App\Infrastructure\Laravel\LaravelMaxAdminBotTestSender;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;

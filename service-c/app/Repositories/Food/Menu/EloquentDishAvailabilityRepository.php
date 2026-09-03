@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
+use App\DTO\Food\Menu\DishRecord;
 use App\Models\Food\Dish;
 use App\Models\Food\DishAvailabilityDate;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\DB;
  */
 class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryInterface
 {
+    public function __construct(
+        private readonly DishMapper $dishMapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
@@ -27,6 +32,7 @@ class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryIn
             )
             ->orderBy('name')
             ->get()
+            ->map(fn (Dish $dish): DishRecord => $this->dishMapper->toRecord($dish))
             ->all();
     }
 

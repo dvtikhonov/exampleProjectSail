@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Food\Chat;
 
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
+use App\DTO\Food\Chat\OrderMessageRecord;
 use App\Models\Food\FoodOrderChatRead;
 use App\Models\Food\FoodOrderMessage;
 use Illuminate\Support\Carbon;
@@ -15,16 +16,24 @@ use Illuminate\Support\Facades\DB;
  */
 class EloquentOrderMessageRepository implements OrderMessageRepositoryInterface
 {
+    public function __construct(
+        private readonly OrderMessageMapper $orderMessageMapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
-    public function create(int $foodOrderId, int $senderMaxUserId, string $body): FoodOrderMessage
+    public function create(int $foodOrderId, int $senderMaxUserId, string $body): OrderMessageRecord
     {
-        return FoodOrderMessage::query()->create([
+        $message = FoodOrderMessage::query()->create([
             'food_order_id' => $foodOrderId,
             'sender_max_user_id' => $senderMaxUserId,
             'body' => $body,
         ]);
+
+        $message->loadMissing('sender');
+
+        return $this->orderMessageMapper->toRecord($message);
     }
 
     /**
@@ -44,17 +53,20 @@ class EloquentOrderMessageRepository implements OrderMessageRepositoryInterface
         return $query
             ->limit($limit)
             ->get()
+            ->map(fn (FoodOrderMessage $message): OrderMessageRecord => $this->orderMessageMapper->toRecord($message))
             ->all();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findById(int $id): ?FoodOrderMessage
+    public function findById(int $id): ?OrderMessageRecord
     {
-        return FoodOrderMessage::query()
+        $message = FoodOrderMessage::query()
             ->with('sender')
             ->find($id);
+
+        return $message !== null ? $this->orderMessageMapper->toRecord($message) : null;
     }
 
     /**

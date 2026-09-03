@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts\Max;
 
 use App\DTO\Max\AiAccessStatusDto;
+use App\DTO\Max\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 use DateTimeInterface;
 
 /**
@@ -28,5 +28,5 @@ interface MaxAiAccessServiceInterface
      *
      * @throws FoodDomainException если активный доступ AI уже включен у другого пользователя (HTTP 409).
      */
-    public function toggle(MaxUser $currentUser, DateTimeInterface $now): AiAccessStatusDto;
+    public function toggle(MaxUserIdentity $currentUser, DateTimeInterface $now): AiAccessStatusDto;
 }

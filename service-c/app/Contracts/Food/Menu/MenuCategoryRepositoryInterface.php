@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Menu;
 
 use App\DTO\Food\Menu\MenuCategoryAvailabilityOffsetDto;
-use App\Models\Food\MenuCategory;
+use App\DTO\Food\Menu\MenuCategoryRecord;
 
 /**
  * Репозиторий категорий меню для административного API.
@@ -13,14 +13,14 @@ use App\Models\Food\MenuCategory;
 interface MenuCategoryRepositoryInterface
 {
     /**
-     * Находит категорию меню по идентификатору.
+     * Находит категорию меню по идентификатору (с рестораном и offsets при наличии).
      */
-    public function findById(int $id): ?MenuCategory;
+    public function findById(int $id): ?MenuCategoryRecord;
 
     /**
      * Категории для select в админке (с рестораном), отсортированные для UI.
      *
-     * @return list<MenuCategory>
+     * @return list<MenuCategoryRecord>
      */
     public function listForAdmin(?int $restaurantId = null): array;
 
@@ -29,26 +29,26 @@ interface MenuCategoryRepositoryInterface
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function create(array $attributes): MenuCategory;
+    public function create(array $attributes): MenuCategoryRecord;
 
     /**
-     * Обновляет категорию меню.
+     * Обновляет категорию меню по идентификатору.
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function update(MenuCategory $category, array $attributes): MenuCategory;
+    public function update(int $categoryId, array $attributes): MenuCategoryRecord;
 
     /**
      * Полностью заменяет правила смещения доступности категории.
      *
      * @param  list<MenuCategoryAvailabilityOffsetDto>  $offsets
      */
-    public function syncAvailabilityOffsets(MenuCategory $category, array $offsets): void;
+    public function syncAvailabilityOffsets(int $categoryId, array $offsets): void;
 
     /**
-     * Удаляет категорию меню.
+     * Удаляет категорию меню по идентификатору.
      */
-    public function delete(MenuCategory $category): void;
+    public function delete(int $categoryId): void;
 
     /**
      * Возвращает число блюд в категории.

@@ -12,6 +12,7 @@ use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -515,7 +516,7 @@ class AdminManualOrderApiTest extends TestCase
         $customerNotifier
             ->expects($this->once())
             ->method('notifyConfirmed')
-            ->willReturnCallback(function (FoodOrder $order) use (&$capturedCustomerOrder): void {
+            ->willReturnCallback(function (FoodOrderRecord $order) use (&$capturedCustomerOrder): void {
                 $capturedCustomerOrder = $order;
             });
         $customerNotifier->expects($this->never())->method('notifySubmitted');
@@ -560,9 +561,9 @@ class AdminManualOrderApiTest extends TestCase
         ]);
 
         $this->assertNotNull($capturedCustomerOrder);
-        $this->assertTrue($capturedCustomerOrder->is_manual);
-        $this->assertSame($customer->max_user_id, $capturedCustomerOrder->max_user_id);
-        $this->assertSame($manager['user']->max_user_id, $capturedCustomerOrder->created_by_max_user_id);
+        $this->assertTrue($capturedCustomerOrder->isManual);
+        $this->assertSame($customer->max_user_id, $capturedCustomerOrder->maxUserId);
+        $this->assertSame($manager['user']->max_user_id, $capturedCustomerOrder->createdByMaxUserId);
         $this->assertSame(OrderStatus::Confirmed, $capturedCustomerOrder->status);
     }
 

@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
+use App\Contracts\Food\Cart\CartDeliveryAddressServiceInterface;
 use App\Contracts\Food\Cart\CartRepositoryInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
-use App\Models\Max\MaxUser;
+use App\DTO\Food\Shared\MaxUserIdentity;
 
 /**
  * Обновление адреса доставки в черновике корзины.
  */
-class CartDeliveryAddressService
+class CartDeliveryAddressService implements CartDeliveryAddressServiceInterface
 {
     public function __construct(
         private readonly CartDtoFactory $cartDtoFactory,
@@ -25,21 +26,21 @@ class CartDeliveryAddressService
      *
      * Без корзины адрес всё равно сохраняется в профиле MAX — чтобы показывать его в меню.
      */
-    public function update(MaxUser $maxUser, string $deliveryAddress): ?CartDto
+    public function update(MaxUserIdentity $maxUser, string $deliveryAddress): ?CartDto
     {
-        $this->maxUserDeliveryAddressService->persist($maxUser, $deliveryAddress);
+        $this->maxUserDeliveryAddressService->persistForMaxUserId($maxUser->maxUserId, $deliveryAddress);
 
-        $cart = $this->cartRepository->findDraftByMaxUserId($maxUser->max_user_id);
+        $cart = $this->cartRepository->findDraftByMaxUserId($maxUser->maxUserId);
 
         if ($cart === null) {
             return null;
         }
 
-        $this->cartRepository->updateDeliveryAddress($cart, $deliveryAddress);
+        $this->cartRepository->updateDeliveryAddress($cart->id, $deliveryAddress);
 
-        return $this->cartDtoFactory->fromModel(
-            $this->cartRepository->refreshForDto($cart),
-            $maxUser,
+        return $this->cartDtoFactory->fromRecord(
+            $this->cartRepository->refreshForDto($cart->id),
+            $maxUser->maxUserId,
         );
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Exceptions\Food\FoodDomainException;
+use App\Http\Support\UploadedFileDtoFactory;
 use App\Services\Food\Menu\DishImageUploadService;
 use App\Support\Food\Menu\DishPhotoAllowedExtensions;
 use Illuminate\Http\UploadedFile;
@@ -22,13 +23,13 @@ class DishImageUploadServiceTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
-        $this->service = new DishImageUploadService;
+        $this->service = $this->app->make(DishImageUploadService::class);
     }
 
     /** Upload сохраняет валидный JPEG в путь dishes. */
     public function test_upload_stores_valid_jpeg_under_dishes_path(): void
     {
-        $file = DishPhotoTestImageFactory::jpeg(800, 600);
+        $file = UploadedFileDtoFactory::fromUploadedFile(DishPhotoTestImageFactory::jpeg(800, 600));
 
         $path = $this->service->upload(42, $file);
 
@@ -40,7 +41,7 @@ class DishImageUploadServiceTest extends TestCase
     /** Upload сохраняет валидный PNG с расширением png. */
     public function test_upload_stores_valid_png_with_png_extension(): void
     {
-        $file = DishPhotoTestImageFactory::png(1920, 1080);
+        $file = UploadedFileDtoFactory::fromUploadedFile(DishPhotoTestImageFactory::png(1920, 1080));
 
         $path = $this->service->upload(7, $file);
 
@@ -51,7 +52,7 @@ class DishImageUploadServiceTest extends TestCase
     /** Upload отклоняет изображение с малыми размерами. */
     public function test_upload_rejects_small_dimensions(): void
     {
-        $file = DishPhotoTestImageFactory::jpeg(799, 600);
+        $file = UploadedFileDtoFactory::fromUploadedFile(DishPhotoTestImageFactory::jpeg(799, 600));
 
         $this->expectException(FoodDomainException::class);
         $this->expectExceptionMessage('800×600');
@@ -62,7 +63,9 @@ class DishImageUploadServiceTest extends TestCase
     /** Upload отклоняет недопустимое расширение. */
     public function test_upload_rejects_disallowed_extension(): void
     {
-        $file = DishPhotoTestImageFactory::jpeg(800, 600, 'dish.gif');
+        $file = UploadedFileDtoFactory::fromUploadedFile(
+            DishPhotoTestImageFactory::jpeg(800, 600, 'dish.gif'),
+        );
 
         $this->expectException(FoodDomainException::class);
 
@@ -74,7 +77,9 @@ class DishImageUploadServiceTest extends TestCase
     {
         $path = tempnam(sys_get_temp_dir(), 'fake_jpg_');
         file_put_contents($path, 'not-an-image');
-        $file = new UploadedFile($path, 'dish.jpg', 'image/jpeg', null, true);
+        $file = UploadedFileDtoFactory::fromUploadedFile(
+            new UploadedFile($path, 'dish.jpg', 'image/jpeg', null, true),
+        );
 
         $this->expectException(FoodDomainException::class);
 

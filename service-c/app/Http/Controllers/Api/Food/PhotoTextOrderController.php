@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Api\Food;
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\DTO\Food\Shared\RestaurantSummaryDto;
-use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\PhotoText\PhotoTextAgentOrderRequest;
 use App\Http\Requests\Food\PhotoText\PhotoTextCatalogRequest;
@@ -46,14 +45,10 @@ class PhotoTextOrderController extends Controller
      */
     public function catalog(PhotoTextCatalogRequest $request): JsonResponse
     {
-        try {
-            $menu = $this->menuQueryService->getRestaurantMenu(
-                $request->restaurantId(),
-                includeUnavailable: true,
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $menu = $this->menuQueryService->getRestaurantMenu(
+            $request->restaurantId(),
+            includeUnavailable: true,
+        );
 
         return response()->json([
             'catalog' => $menu->toArray(),
@@ -65,15 +60,11 @@ class PhotoTextOrderController extends Controller
      */
     public function match(PhotoTextAgentOrderRequest $request): JsonResponse
     {
-        try {
-            $result = $this->placementService->match(
-                $request->customerQuery(),
-                $request->restaurantId(),
-                $request->items(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $result = $this->placementService->match(
+            $request->customerQuery(),
+            $request->restaurantId(),
+            $request->items(),
+        );
 
         return response()->json($result->toArray());
     }
@@ -83,31 +74,17 @@ class PhotoTextOrderController extends Controller
      */
     public function store(PhotoTextAgentOrderRequest $request): JsonResponse
     {
-        try {
-            $result = $this->placementService->place(
-                $request->customerQuery(),
-                $request->orderDate(),
-                $request->restaurantId(),
-                $request->items(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $result = $this->placementService->place(
+            $request->customerQuery(),
+            $request->orderDate(),
+            $request->restaurantId(),
+            $request->items(),
+        );
 
         if ($result->orderId === null) {
             return response()->json($result->toArray(), JsonResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return response()->json($result->toArray(), JsonResponse::HTTP_CREATED);
-    }
-
-    /**
-     * JSON-ответ с сообщением доменного исключения.
-     */
-    private function domainError(FoodDomainException $exception): JsonResponse
-    {
-        return response()->json([
-            'message' => $exception->getMessage(),
-        ], $exception->statusCode());
     }
 }

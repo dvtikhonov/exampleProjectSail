@@ -10,18 +10,17 @@ use App\Contracts\Food\Menu\DishImageUploadInterface;
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Food\Menu\CreateDishDto;
+use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\Menu\ImportDishRowDto;
 use App\DTO\Food\Menu\UpdateDishDto;
+use App\DTO\Shared\UploadedFileDto;
 use App\Enums\Food\Menu\AdminDishAvailabilityFilter;
 use App\Enums\Food\Menu\DishVatRate;
-use App\Enums\Food\Menu\DishWeightUnit;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Dish;
 use App\Services\Food\Shared\FoodMoneyFormatter;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Административный CRUD блюд меню.
@@ -36,6 +35,7 @@ class DishAdminService implements DishAdminServiceInterface
         private readonly FoodMoneyFormatter $moneyFormatter,
         private readonly DishDefaultImageProvider $defaultImageProvider,
         private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
@@ -56,10 +56,10 @@ class DishAdminService implements DishAdminServiceInterface
             $availability->toIsAvailable(),
         );
 
-        return $dishes
-            ->map(fn (Dish $dish): AdminDishDto => $this->mapToAdminDto($dish))
-            ->values()
-            ->all();
+        return array_map(
+            fn (DishRecord $dish): AdminDishDto => $this->mapToAdminDto($dish),
+            $dishes,
+        );
     }
 
     /**
@@ -69,9 +69,7 @@ class DishAdminService implements DishAdminServiceInterface
      */
     public function show(int $dishId): AdminDishDto
     {
-        $dish = $this->findDishOrFail($dishId);
-
-        return $this->mapToAdminDto($dish);
+        return $this->mapToAdminDto($this->findDishOrFail($dishId));
     }
 
     /**
@@ -79,14 +77,14 @@ class DishAdminService implements DishAdminServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function create(CreateDishDto $dto, UploadedFile $photo): AdminDishDto
+    public function create(CreateDishDto $dto, UploadedFileDto $photo): AdminDishDto
     {
         $this->assertMenuCategoryExists($dto->menuCategoryId);
 
-        $result = DB::transaction(function () use ($dto, $photo): AdminDishDto {
+        $result = $this->transactionManager->run(function () use ($dto, $photo): AdminDishDto {
             $dish = $this->dishRepository->create($this->attributesFromCreateDto($dto));
             $imagePath = $this->dishImageUpload->upload($dish->id, $photo);
-            $dish = $this->dishRepository->update($dish, ['image_url' => $imagePath]);
+            $dish = $this->dishRepository->update($dish->id, ['image_url' => $imagePath]);
 
             return $this->mapToAdminDto($dish);
         });
@@ -111,7 +109,7 @@ class DishAdminService implements DishAdminServiceInterface
             return 0;
         }
 
-        $importedCount = DB::transaction(function () use ($rows, $menuCategoryId): int {
+        $importedCount = $this->transactionManager->run(function () use ($rows, $menuCategoryId): int {
             /** @var array<string, ImportDishRowDto> $byName */
             $byName = [];
             foreach ($rows as $row) {
@@ -127,10 +125,10 @@ class DishAdminService implements DishAdminServiceInterface
             $toCreate = [];
 
             foreach ($byName as $name => $row) {
-                $dish = $existing->get($name);
+                $dish = $existing[$name] ?? null;
 
                 if ($dish !== null) {
-                    $pricesById[(int) $dish->id] = $row->price;
+                    $pricesById[$dish->id] = $row->price;
                 } else {
                     $toCreate[] = [
                         'menu_category_id' => $menuCategoryId,
@@ -150,7 +148,7 @@ class DishAdminService implements DishAdminServiceInterface
 
             $created = $this->dishRepository->createMany($toCreate);
             $imageUrls = $this->defaultImageProvider->copyForDishes(
-                $created->map(static fn (Dish $dish): int => (int) $dish->id)->all(),
+                array_map(static fn (DishRecord $dish): int => $dish->id, $created),
             );
             $this->dishRepository->updateImageUrlsByIds($imageUrls);
 
@@ -167,26 +165,26 @@ class DishAdminService implements DishAdminServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function update(int $dishId, UpdateDishDto $dto, ?UploadedFile $photo = null): AdminDishDto
+    public function update(int $dishId, UpdateDishDto $dto, ?UploadedFileDto $photo = null): AdminDishDto
     {
         $dish = $this->findDishOrFail($dishId);
         $this->assertMenuCategoryExists($dto->menuCategoryId);
 
-        $result = DB::transaction(function () use ($dish, $dto, $photo): AdminDishDto {
-            $previousImagePath = $dish->image_url;
+        $result = $this->transactionManager->run(function () use ($dish, $dto, $photo): AdminDishDto {
+            $previousImagePath = $dish->imageUrl;
             $attributes = $this->attributesFromUpdateDto($dto);
 
             if ($photo !== null) {
                 $attributes['image_url'] = $this->dishImageUpload->upload($dish->id, $photo);
             }
 
-            $dish = $this->dishRepository->update($dish, $attributes);
+            $updated = $this->dishRepository->update($dish->id, $attributes);
 
             if ($photo !== null) {
                 $this->dishImageUpload->deleteIfExists($previousImagePath);
             }
 
-            return $this->mapToAdminDto($dish);
+            return $this->mapToAdminDto($updated);
         });
 
         $this->catalogCacheInvalidator->invalidateAll();
@@ -201,7 +199,7 @@ class DishAdminService implements DishAdminServiceInterface
      */
     public function delete(int $dishId): void
     {
-        $dish = $this->findDishOrFail($dishId);
+        $this->findDishOrFail($dishId);
 
         if ($this->dishRepository->existsInDraftCarts($dishId)) {
             throw new FoodDomainException(
@@ -210,8 +208,8 @@ class DishAdminService implements DishAdminServiceInterface
             );
         }
 
-        DB::transaction(function () use ($dish): void {
-            $this->dishRepository->delete($dish);
+        $this->transactionManager->run(function () use ($dishId): void {
+            $this->dishRepository->delete($dishId);
         });
 
         $this->catalogCacheInvalidator->invalidateAll();
@@ -222,7 +220,7 @@ class DishAdminService implements DishAdminServiceInterface
      *
      * @throws FoodDomainException
      */
-    private function findDishOrFail(int $dishId): Dish
+    private function findDishOrFail(int $dishId): DishRecord
     {
         $dish = $this->dishRepository->findById($dishId);
 
@@ -288,21 +286,21 @@ class DishAdminService implements DishAdminServiceInterface
     }
 
     /**
-     * Преобразует модель блюда в админский DTO.
+     * Преобразует доменную проекцию блюда в админский DTO.
      */
-    private function mapToAdminDto(Dish $dish): AdminDishDto
+    private function mapToAdminDto(DishRecord $dish): AdminDishDto
     {
         $category = $dish->menuCategory;
         $restaurant = $category?->restaurant;
-        $weightUnit = $dish->weight_unit ?? DishWeightUnit::Gram;
-        $vatRate = DishVatRate::fromValue($dish->vat_rate);
+        $weightUnit = $dish->weightUnit;
+        $vatRate = DishVatRate::fromValue($dish->vatRate);
 
         return new AdminDishDto(
             id: $dish->id,
             name: $dish->name,
             description: $dish->description,
-            menuCategoryId: (int) $dish->menu_category_id,
-            menuCategoryName: (string) $category?->name,
+            menuCategoryId: $dish->menuCategoryId,
+            menuCategoryName: (string) ($category?->name ?? ''),
             restaurantId: (int) ($restaurant?->id ?? 0),
             restaurantName: (string) ($restaurant?->name ?? ''),
             weight: $this->formatWeight($dish->weight),
@@ -311,8 +309,8 @@ class DishAdminService implements DishAdminServiceInterface
             price: $this->moneyFormatter->format($dish->price),
             vatRate: $vatRate->value(),
             vatRateLabel: $vatRate->label(),
-            isAvailable: $dish->is_available,
-            imageUrl: $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->image_url),
+            isAvailable: $dish->isAvailable,
+            imageUrl: $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->imageUrl),
         );
     }
 

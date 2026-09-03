@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Chat;
 
 use App\DTO\Food\Chat\OrderMessageDto;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Чтение и отправка сообщений в чате по заказу еды.
@@ -19,7 +19,7 @@ interface OrderChatServiceInterface
      * @throws FoodDomainException
      */
     public function listMessages(
-        MaxUser $actor,
+        MaxUserIdentity $actor,
         int $orderId,
         ?int $afterId = null,
         int $limit = 50,
@@ -28,5 +28,5 @@ interface OrderChatServiceInterface
     /**
      * @throws FoodDomainException
      */
-    public function sendMessage(MaxUser $actor, int $orderId, string $body): OrderMessageDto;
+    public function sendMessage(MaxUserIdentity $actor, int $orderId, string $body): OrderMessageDto;
 }

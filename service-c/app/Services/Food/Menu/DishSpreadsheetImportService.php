@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
+use App\Contracts\Food\Menu\DishSpreadsheetImportServiceInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\DishImportResultDto;
 use App\DTO\Food\Menu\ImportDishRowDto;
+use App\DTO\Shared\UploadedFileDto;
 use App\Exceptions\Food\FoodDomainException;
-use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Импорт блюд из XLS/XLSX в выбранную категорию меню.
  */
-class DishSpreadsheetImportService
+class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterface
 {
     public function __construct(
         private readonly DishAdminServiceInterface $dishAdminService,
@@ -28,15 +29,15 @@ class DishSpreadsheetImportService
      *
      * @throws FoodDomainException
      */
-    public function import(UploadedFile $file, int $menuCategoryId): DishImportResultDto
+    public function import(UploadedFileDto $file, int $menuCategoryId): DishImportResultDto
     {
         if ($this->menuCategoryRepository->findById($menuCategoryId) === null) {
             throw new FoodDomainException('Категория меню не найдена.', 422);
         }
 
-        $path = $file->getRealPath();
+        $path = $file->path;
 
-        if ($path === false) {
+        if ($path === '' || ! is_readable($path)) {
             throw new FoodDomainException('Файл таблицы недействителен.', 422);
         }
 

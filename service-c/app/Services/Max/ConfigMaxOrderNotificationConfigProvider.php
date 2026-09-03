@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Services\Max;
 
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\DTO\Max\MaxOrderNotificationConfig;
-use Illuminate\Contracts\Config\Repository;
 
 /**
- * Чтение настроек уведомлений о заказах из конфигурации Laravel.
+ * Чтение настроек уведомлений о заказах из конфигурации приложения.
  */
 class ConfigMaxOrderNotificationConfigProvider implements MaxOrderNotificationConfigProviderInterface
 {
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
     ) {}
 
     /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
-use App\Models\Food\Dish;
+use App\DTO\Food\Menu\DishRecord;
 
 /**
  * Репозиторий графика доступности блюд по датам.
@@ -14,7 +14,7 @@ interface DishAvailabilityRepositoryInterface
     /**
      * Блюда категории ресторана для отображения в графике.
      *
-     * @return list<Dish>
+     * @return list<DishRecord>
      */
     public function listDishesForCategory(int $restaurantId, int $categoryId): array;
 

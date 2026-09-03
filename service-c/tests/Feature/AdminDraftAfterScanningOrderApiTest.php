@@ -10,6 +10,7 @@ use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Enums\Food\Review\OrderReviewStatus;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Models\Food\Cart;
 use App\Models\Food\Dish;
 use App\Models\Food\FoodOrder;
@@ -119,7 +120,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
         $customerNotifier
             ->expects($this->once())
             ->method('notifyManualOrderCreatorConfirmed')
-            ->willReturnCallback(function (FoodOrder $notifiedOrder) use (&$capturedOrder): void {
+            ->willReturnCallback(function (FoodOrderRecord $notifiedOrder) use (&$capturedOrder): void {
                 $capturedOrder = $notifiedOrder;
             });
         $customerNotifier->expects($this->never())->method('notifyConfirmed');
@@ -153,7 +154,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
 
         $this->assertNotNull($capturedOrder);
         $this->assertSame($order->id, $capturedOrder->id);
-        $this->assertSame($creator->max_user_id, $capturedOrder->created_by_max_user_id);
+        $this->assertSame($creator->max_user_id, $capturedOrder->createdByMaxUserId);
         $this->assertSame(OrderStatus::Confirmed, $capturedOrder->status);
     }
 

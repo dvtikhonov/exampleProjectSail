@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Max\UiStand;
 
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
+use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Support\Facades\Log;
-use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
-use Shared\MaxMessenger\DTO\MaxMessageDto;
-use Shared\MaxMessenger\Exceptions\MaxMessengerException;
-use Throwable;
+use Psr\Log\LoggerInterface;
 
 /**
  * Уведомление в MAX о доступности меню на дату «Блюда на».
@@ -25,10 +22,11 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     private const string TIMEZONE = 'Europe/Moscow';
 
     public function __construct(
-        private readonly MaxMessengerClientInterface $client,
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly MaxUserRepositoryInterface $maxUserRepository,
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
+        private readonly MaxMessengerNotificationSenderInterface $notificationSender,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -37,7 +35,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     public function notify(CarbonImmutable $menuDate): int
     {
         if (! $this->isBotConfigured()) {
-            Log::channel('max_log')->warning('MAX menu availability notification skipped: bot is not configured');
+            $this->logger->warning('MAX menu availability notification skipped: bot is not configured');
 
             return 0;
         }
@@ -46,7 +44,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
         $userIds = $this->resolveRecipientUserIds($notificationConfig->userIds);
 
         if ($notificationConfig->chatIds === [] && $userIds === []) {
-            Log::channel('max_log')->warning('MAX menu availability notification skipped: recipients are not configured');
+            $this->logger->warning('MAX menu availability notification skipped: recipients are not configured');
 
             return 0;
         }
@@ -55,13 +53,29 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
         $sentCount = 0;
 
         foreach ($notificationConfig->chatIds as $chatId) {
-            if ($this->trySendMessage($text, chatId: $chatId)) {
+            if ($this->notificationSender->send(
+                text: $text,
+                chatId: $chatId,
+                failureLogMessage: 'MAX menu availability notification send failed',
+                logContext: [
+                    'chat_id' => $chatId,
+                    'user_id' => null,
+                ],
+            )) {
                 $sentCount++;
             }
         }
 
         foreach ($userIds as $userId) {
-            if ($this->trySendMessage($text, userId: $userId)) {
+            if ($this->notificationSender->send(
+                text: $text,
+                userId: $userId,
+                failureLogMessage: 'MAX menu availability notification send failed',
+                logContext: [
+                    'chat_id' => null,
+                    'user_id' => $userId,
+                ],
+            )) {
                 $sentCount++;
             }
         }
@@ -102,37 +116,5 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
         $botAccessToken = trim((string) $this->config->get('max.bot_access_token', ''));
 
         return $botUsername !== '' && $botAccessToken !== '';
-    }
-
-    /**
-     * Пытается отправить сообщение о доступности меню.
-     */
-    private function trySendMessage(string $text, ?int $chatId = null, ?int $userId = null): bool
-    {
-        try {
-            $this->client->sendMessage(new MaxMessageDto(
-                text: $text,
-                chatId: $chatId,
-                userId: $userId,
-            ));
-        } catch (MaxMessengerException $exception) {
-            Log::channel('max_log')->warning('MAX menu availability notification send failed', [
-                'chat_id' => $chatId,
-                'user_id' => $userId,
-                'error' => $exception->userMessage(),
-            ]);
-
-            return false;
-        } catch (Throwable $exception) {
-            Log::channel('max_log')->warning('MAX menu availability notification send failed', [
-                'chat_id' => $chatId,
-                'user_id' => $userId,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return false;
-        }
-
-        return true;
     }
 }

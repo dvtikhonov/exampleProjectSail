@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Enums\Food\Review;
 
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
 
 /**
  * Конфигурация этапа проверки заказа: поля БД, роль администратора и область отклонения.
@@ -89,11 +89,15 @@ enum OrderReviewStep: string
     }
 
     /**
-     * Текущий статус этапа на модели заказа.
+     * Текущий статус этапа на проекции заказа.
      */
-    public function currentStatus(FoodOrder $order): OrderReviewStatus
+    public function currentStatus(FoodOrderRecord $order): OrderReviewStatus
     {
-        return $order->{$this->statusField()};
+        return match ($this) {
+            self::Address => $order->addressReviewStatus,
+            self::Composition => $order->compositionReviewStatus,
+            self::Payment => $order->paymentReviewStatus,
+        };
     }
 
     /**
@@ -101,7 +105,7 @@ enum OrderReviewStep: string
      *
      * @throws FoodDomainException
      */
-    public function assertPending(FoodOrder $order): void
+    public function assertPending(FoodOrderRecord $order): void
     {
         match ($this) {
             self::Address => $this->assertStrictPending(
@@ -123,7 +127,7 @@ enum OrderReviewStep: string
      *
      * @throws FoodDomainException
      */
-    private function assertStrictPending(FoodOrder $order, string $alreadyCompletedMessage, string $notAwaitingMessage): void
+    private function assertStrictPending(FoodOrderRecord $order, string $alreadyCompletedMessage, string $notAwaitingMessage): void
     {
         if ($this->currentStatus($order) !== OrderReviewStatus::Pending) {
             throw new FoodDomainException($alreadyCompletedMessage, 422);
@@ -139,7 +143,7 @@ enum OrderReviewStep: string
      *
      * @throws FoodDomainException
      */
-    private function assertCompositionPending(FoodOrder $order): void
+    private function assertCompositionPending(FoodOrderRecord $order): void
     {
         if (! $order->isInCompositionReviewQueue()) {
             throw new FoodDomainException('Проверка состава уже завершена.', 422);

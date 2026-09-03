@@ -10,13 +10,9 @@ use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\DTO\Food\Menu\AdminMenuCategoryDto;
 use App\DTO\Food\Menu\CreateMenuCategoryDto;
-use App\DTO\Food\Menu\MenuCategoryAvailabilityOffsetDto;
+use App\DTO\Food\Menu\MenuCategoryRecord;
 use App\DTO\Food\Menu\UpdateMenuCategoryDto;
-use App\Enums\Food\Menu\Weekday;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\MenuCategory;
-use App\Models\Food\MenuCategoryAvailabilityOffset;
-use Illuminate\Support\Collection;
 
 /**
  * Административный CRUD категорий меню.
@@ -37,7 +33,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     public function list(?int $restaurantId = null): array
     {
         return array_map(
-            fn (MenuCategory $category): AdminMenuCategoryDto => $this->mapToAdminDto($category),
+            fn (MenuCategoryRecord $category): AdminMenuCategoryDto => $this->mapToAdminDto($category),
             $this->menuCategoryRepository->listForAdmin($restaurantId),
         );
     }
@@ -68,9 +64,9 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             'is_combo_available' => $dto->isComboAvailable,
         ]);
 
-        $this->menuCategoryRepository->syncAvailabilityOffsets($category, $dto->availabilityOffsets);
+        $this->menuCategoryRepository->syncAvailabilityOffsets($category->id, $dto->availabilityOffsets);
 
-        $result = $this->mapToAdminDto($category->load(['restaurant', 'availabilityOffsets']));
+        $result = $this->mapToAdminDto($this->findCategoryOrFail($category->id));
         $this->catalogCacheInvalidator->invalidateAll();
 
         return $result;
@@ -86,7 +82,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
         $category = $this->findCategoryOrFail($categoryId);
         $this->assertRestaurantExists($dto->restaurantId);
 
-        if ($dto->restaurantId !== (int) $category->restaurant_id
+        if ($dto->restaurantId !== $category->restaurantId
             && $this->menuCategoryRepository->countDishes($categoryId) > 0
         ) {
             throw new FoodDomainException(
@@ -95,7 +91,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             );
         }
 
-        $category = $this->menuCategoryRepository->update($category, [
+        $this->menuCategoryRepository->update($categoryId, [
             'restaurant_id' => $dto->restaurantId,
             'name' => $dto->name,
             'sort_order' => $dto->sortOrder,
@@ -103,11 +99,10 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
         ]);
 
         if ($dto->availabilityOffsets !== null) {
-            $this->menuCategoryRepository->syncAvailabilityOffsets($category, $dto->availabilityOffsets);
-            $category->load('availabilityOffsets');
+            $this->menuCategoryRepository->syncAvailabilityOffsets($categoryId, $dto->availabilityOffsets);
         }
 
-        $result = $this->mapToAdminDto($category);
+        $result = $this->mapToAdminDto($this->findCategoryOrFail($categoryId));
         $this->catalogCacheInvalidator->invalidateAll();
 
         return $result;
@@ -120,7 +115,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
      */
     public function delete(int $categoryId): void
     {
-        $category = $this->findCategoryOrFail($categoryId);
+        $this->findCategoryOrFail($categoryId);
 
         if ($this->menuCategoryRepository->countDishes($categoryId) > 0) {
             throw new FoodDomainException(
@@ -129,7 +124,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             );
         }
 
-        $this->menuCategoryRepository->delete($category);
+        $this->menuCategoryRepository->delete($categoryId);
         $this->catalogCacheInvalidator->invalidateAll();
     }
 
@@ -138,7 +133,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
      *
      * @throws FoodDomainException
      */
-    private function findCategoryOrFail(int $categoryId): MenuCategory
+    private function findCategoryOrFail(int $categoryId): MenuCategoryRecord
     {
         $category = $this->menuCategoryRepository->findById($categoryId);
 
@@ -162,57 +157,19 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     }
 
     /**
-     * Преобразует модель категории в админский DTO.
+     * Преобразует доменную проекцию категории в админский DTO.
      */
-    private function mapToAdminDto(MenuCategory $category): AdminMenuCategoryDto
+    private function mapToAdminDto(MenuCategoryRecord $category): AdminMenuCategoryDto
     {
         return new AdminMenuCategoryDto(
             id: $category->id,
             name: $category->name,
-            restaurantId: (int) $category->restaurant_id,
-            restaurantName: (string) $category->restaurant?->name,
-            sortOrder: (int) $category->sort_order,
-            isComboAvailable: (bool) $category->is_combo_available,
+            restaurantId: $category->restaurantId,
+            restaurantName: (string) ($category->restaurant?->name ?? ''),
+            sortOrder: $category->sortOrder,
+            isComboAvailable: $category->isComboAvailable,
             dishesCount: $this->menuCategoryRepository->countDishes($category->id),
-            availabilityOffsets: $this->mapAvailabilityOffsets($category),
+            availabilityOffsets: $category->availabilityOffsets,
         );
-    }
-
-    /**
-     * Группирует строки смещений по group_key в список правил.
-     *
-     * @return list<MenuCategoryAvailabilityOffsetDto>
-     */
-    private function mapAvailabilityOffsets(MenuCategory $category): array
-    {
-        /** @var Collection<string, Collection<int, MenuCategoryAvailabilityOffset>> $grouped */
-        $grouped = $category->availabilityOffsets
-            ->groupBy(static fn (MenuCategoryAvailabilityOffset $row): string => (string) $row->group_key);
-
-        $result = [];
-
-        foreach ($grouped as $rows) {
-            /** @var list<int> $weekdays */
-            $weekdays = $rows
-                ->map(static function (MenuCategoryAvailabilityOffset $row): int {
-                    $weekday = $row->weekday;
-
-                    return $weekday instanceof Weekday ? $weekday->value : (int) $weekday;
-                })
-                ->unique()
-                ->sort()
-                ->values()
-                ->all();
-
-            /** @var MenuCategoryAvailabilityOffset $first */
-            $first = $rows->first();
-
-            $result[] = new MenuCategoryAvailabilityOffsetDto(
-                weekdays: $weekdays,
-                offsetDays: (int) $first->offset_days,
-            );
-        }
-
-        return $result;
     }
 }

@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
+use App\DTO\Food\Shared\MaxUserDisplayDto;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Menu\Weekday;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
@@ -81,7 +83,7 @@ class FoodOrderApiTest extends TestCase
         $notifier
             ->expects($this->once())
             ->method('notify')
-            ->willReturnCallback(function (OrderDto $order, MaxUser $user) use (&$capturedOrder, &$capturedUser): void {
+            ->willReturnCallback(function (OrderDto $order, MaxUserDisplayDto $user) use (&$capturedOrder, &$capturedUser): void {
                 $capturedOrder = $order;
                 $capturedUser = $user;
             });
@@ -90,7 +92,7 @@ class FoodOrderApiTest extends TestCase
         $customerNotifier
             ->expects($this->once())
             ->method('notifySubmitted')
-            ->willReturnCallback(function (FoodOrder $order) use (&$capturedCustomerOrder): void {
+            ->willReturnCallback(function (FoodOrderRecord $order) use (&$capturedCustomerOrder): void {
                 $capturedCustomerOrder = $order;
             });
 
@@ -111,10 +113,10 @@ class FoodOrderApiTest extends TestCase
         $this->assertNotNull($capturedOrder);
         $this->assertNotNull($capturedUser);
         $this->assertNotNull($capturedCustomerOrder);
-        $this->assertSame($auth['user']->max_user_id, $capturedUser->max_user_id);
+        $this->assertSame($auth['user']->max_user_id, $capturedUser->maxUserId);
         $this->assertSame($response->json('order.id'), $capturedOrder->id);
         $this->assertSame($response->json('order.id'), $capturedCustomerOrder->id);
-        $this->assertSame($auth['user']->max_user_id, $capturedCustomerOrder->max_user_id);
+        $this->assertSame($auth['user']->max_user_id, $capturedCustomerOrder->maxUserId);
         $this->assertSame(OrderStatus::PendingReview->value, $capturedOrder->status);
         $this->assertSame('Notify Place', $capturedOrder->restaurantName);
         $this->assertSame('1000.00', $capturedOrder->itemsTotal);

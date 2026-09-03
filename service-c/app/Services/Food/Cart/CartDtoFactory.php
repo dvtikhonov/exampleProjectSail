@@ -9,13 +9,12 @@ use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Cart\CartItemDto;
+use App\DTO\Food\Cart\CartRecord;
 use App\Enums\Food\Menu\DishWeightUnit;
-use App\Models\Food\Cart;
-use App\Models\Max\MaxUser;
 use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
- * Сборка CartDto из модели корзины с расчётом сумм.
+ * Сборка CartDto из доменной проекции корзины с расчётом сумм.
  */
 class CartDtoFactory
 {
@@ -28,49 +27,51 @@ class CartDtoFactory
     ) {}
 
     /**
-     * Преобразует модель корзины в DTO с актуальными суммами.
+     * Преобразует проекцию корзины в DTO с актуальными суммами.
      */
-    public function fromModel(Cart $cart, MaxUser $maxUser): CartDto
+    public function fromRecord(CartRecord $cart, int $maxUserId): CartDto
     {
-        $cart->loadMissing(['restaurant', 'items.dish', 'items.comboPartnerDish']);
-
         $items = [];
         $itemsTotal = 0.0;
 
         foreach ($cart->items as $item) {
-            $unitPrice = (float) $item->dish->price;
+            $dish = $item->dish ?? throw new \LogicException(
+                'Для CartDtoFactory требуется загруженное блюдо в CartItemRecord.',
+            );
+
+            $unitPrice = (float) $dish->price;
             $lineTotal = $unitPrice * $item->quantity;
             $itemsTotal += $lineTotal;
 
-            $weightUnit = $item->dish->weight_unit ?? DishWeightUnit::Gram;
+            $weightUnit = $dish->weightUnit ?? DishWeightUnit::Gram;
 
             $items[] = new CartItemDto(
                 id: $item->id,
-                dishId: $item->dish_id,
-                dishName: $item->dish->name,
+                dishId: $item->dishId,
+                dishName: $dish->name,
                 unitPrice: $this->moneyFormatter->format($unitPrice),
                 quantity: $item->quantity,
                 lineTotal: $this->moneyFormatter->format($lineTotal),
-                imageUrl: $this->imageUrlResolver->resolvePublicUrl($item->dish_id, $item->dish->image_url),
-                weight: $this->formatWeight($item->dish->weight),
+                imageUrl: $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->imageUrl),
+                weight: $this->formatWeight($dish->weight),
                 weightUnit: $weightUnit->value,
                 weightUnitLabel: $weightUnit->label(),
-                comboRef: $item->combo_ref,
-                comboPartnerDishId: $item->combo_partner_dish_id,
-                comboPartnerDishName: $item->comboPartnerDish?->name,
+                comboRef: $item->comboRef,
+                comboPartnerDishId: $item->comboPartnerDishId,
+                comboPartnerDishName: $item->comboPartnerDishName,
             );
         }
 
         $totals = $this->cartTotalsCalculator->calculate(
-            restaurantId: $cart->restaurant_id,
-            maxUser: $maxUser,
+            restaurantId: $cart->restaurantId,
+            maxUserId: $maxUserId,
             itemsTotal: $itemsTotal,
         );
 
         return new CartDto(
             id: $cart->id,
-            restaurantId: $cart->restaurant_id,
-            restaurantName: $cart->restaurant->name,
+            restaurantId: $cart->restaurantId,
+            restaurantName: (string) ($cart->restaurantName ?? ''),
             status: $cart->status->value,
             items: $items,
             itemsTotal: $this->moneyFormatter->format($totals->itemsTotal),
@@ -78,7 +79,7 @@ class CartDtoFactory
                 ? $this->moneyFormatter->format($totals->deliveryCost)
                 : null,
             total: $this->moneyFormatter->format($totals->total),
-            deliveryAddress: $this->resolveDeliveryAddress($cart, $maxUser),
+            deliveryAddress: $this->resolveDeliveryAddress($cart, $maxUserId),
             deliveryDate: $this->menuAvailabilityDateResolver->resolve()->date,
             customerCategory: $totals->customerCategory,
             deliveryApplicable: $totals->deliveryApplicable,
@@ -97,15 +98,15 @@ class CartDtoFactory
     /**
      * Адрес из корзины или сохранённый в профиле пользователя.
      */
-    private function resolveDeliveryAddress(Cart $cart, MaxUser $maxUser): ?string
+    private function resolveDeliveryAddress(CartRecord $cart, int $maxUserId): ?string
     {
-        $fromCart = $cart->delivery_address;
+        $fromCart = $cart->deliveryAddress;
 
         if ($fromCart !== null && trim($fromCart) !== '') {
             return trim($fromCart);
         }
 
-        return $this->maxUserDeliveryAddressService->defaultFor($maxUser);
+        return $this->maxUserDeliveryAddressService->defaultForMaxUserId($maxUserId);
     }
 
     /**

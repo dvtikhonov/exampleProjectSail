@@ -6,17 +6,17 @@ namespace App\Services\Food\ManualOrder;
 
 use App\Contracts\Food\Cart\CartRepositoryInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
-use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Cart\CartDto;
+use App\DTO\Food\Cart\CartItemRecord;
+use App\DTO\Food\Cart\CartRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Cart\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Cart;
-use App\Models\Food\CartItem;
-use App\Models\Max\MaxUser;
+use App\Services\Food\Cart\CartAddItemPolicy;
 use App\Services\Food\Cart\CartDtoFactory;
-use App\Services\Food\Composition\ComboPairValidator;
-use Illuminate\Support\Facades\DB;
+use App\Services\Food\Cart\CartItemMutationCoordinator;
 
 /**
  * Управление ручной корзиной менеджера от имени клиента.
@@ -25,16 +25,16 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
 {
     public function __construct(
         private readonly CartDtoFactory $cartDtoFactory,
-        private readonly ComboPairValidator $comboPairValidator,
+        private readonly CartItemMutationCoordinator $cartItemMutationCoordinator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly CartRepositoryInterface $cartRepository,
-        private readonly DishCatalogRepositoryInterface $dishRepository,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function getDraftCart(MaxUser $customer, MaxUser $manager): ?CartDto
+    public function getDraftCart(MaxUserIdentity $customer, MaxUserIdentity $manager): ?CartDto
     {
         $cart = $this->findManualDraft($customer, $manager);
 
@@ -42,15 +42,18 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
             return null;
         }
 
-        return $this->cartDtoFactory->fromModel($cart, $customer);
+        return $this->cartDtoFactory->fromRecord($cart, $customer->maxUserId);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function updateDeliveryAddress(MaxUser $customer, MaxUser $manager, string $deliveryAddress): ?CartDto
-    {
-        $this->maxUserDeliveryAddressService->persist($customer, $deliveryAddress);
+    public function updateDeliveryAddress(
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
+        string $deliveryAddress,
+    ): ?CartDto {
+        $this->maxUserDeliveryAddressService->persistForMaxUserId($customer->maxUserId, $deliveryAddress);
 
         $cart = $this->findManualDraft($customer, $manager);
 
@@ -58,11 +61,11 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
             return null;
         }
 
-        $this->cartRepository->updateDeliveryAddress($cart, $deliveryAddress);
+        $this->cartRepository->updateDeliveryAddress($cart->id, $deliveryAddress);
 
-        return $this->cartDtoFactory->fromModel(
-            $this->cartRepository->refreshForDto($cart),
-            $customer,
+        return $this->cartDtoFactory->fromRecord(
+            $this->cartRepository->refreshForDto($cart->id),
+            $customer->maxUserId,
         );
     }
 
@@ -70,14 +73,14 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
      * {@inheritDoc}
      */
     public function addItem(
-        MaxUser $customer,
-        MaxUser $manager,
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
         int $dishId,
         int $quantity,
         ?string $comboRef = null,
         ?int $comboPartnerDishId = null,
     ): CartDto {
-        return DB::transaction(function () use (
+        return $this->transactionManager->run(function () use (
             $customer,
             $manager,
             $dishId,
@@ -85,46 +88,18 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
             $comboRef,
             $comboPartnerDishId,
         ): CartDto {
-            $dish = $this->dishRepository->findAvailableWithRestaurant($dishId);
-
-            if ($dish === null) {
-                throw new FoodDomainException('Блюдо не найдено.', 404);
-            }
-
-            // Ручной режим: is_available не блокирует добавление в корзину.
-            $restaurant = $dish->menuCategory->restaurant;
-
-            if (! $restaurant->is_active) {
-                throw new FoodDomainException('Ресторан недоступен.');
-            }
-
-            $cart = $this->findManualDraft($customer, $manager);
-
-            if ($cart === null) {
-                $cart = $this->cartRepository->createDraft([
-                    'max_user_id' => $customer->max_user_id,
-                    'created_by_max_user_id' => $manager->max_user_id,
-                    'restaurant_id' => $restaurant->id,
-                    'status' => CartStatus::Draft,
-                    'delivery_address' => $this->maxUserDeliveryAddressService->defaultFor($customer),
-                ]);
-            } elseif ($cart->restaurant_id !== $restaurant->id) {
-                throw new FoodDomainException(
-                    'В корзине уже есть блюда из другого ресторана. Очистите корзину перед добавлением блюд из другого ресторана.',
-                );
-            }
-
-            if ($comboRef !== null && $comboPartnerDishId !== null) {
-                $this->comboPairValidator->validatePair($dish, $comboPartnerDishId, requirePartnerAvailable: false);
-                $this->upsertComboCartItem($cart, $dish->id, $quantity, $comboRef, $comboPartnerDishId);
-            } else {
-                $this->upsertRegularCartItem($cart, $dish->id, $quantity);
-            }
-
-            return $this->cartDtoFactory->fromModel(
-                $this->cartRepository->refreshForDto($cart),
-                $customer,
+            $cart = $this->cartItemMutationCoordinator->performAddItem(
+                CartAddItemPolicy::manualOrderCart(),
+                $this->findManualDraft($customer, $manager),
+                $dishId,
+                $quantity,
+                $comboRef,
+                $comboPartnerDishId,
+                $customer->maxUserId,
+                $manager->maxUserId,
             );
+
+            return $this->cartDtoFactory->fromRecord($cart, $customer->maxUserId);
         });
     }
 
@@ -132,19 +107,19 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
      * {@inheritDoc}
      */
     public function updateItemQuantity(
-        MaxUser $customer,
-        MaxUser $manager,
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
         int $cartItemId,
         int $quantity,
     ): CartDto {
-        return DB::transaction(function () use ($customer, $manager, $cartItemId, $quantity): CartDto {
+        return $this->transactionManager->run(function () use ($customer, $manager, $cartItemId, $quantity): CartDto {
             $cartItem = $this->findOwnedManualCartItem($customer, $manager, $cartItemId);
 
-            $this->cartRepository->updateItemQuantity($cartItem, $quantity);
+            $this->cartRepository->updateItemQuantity($cartItem->id, $quantity);
 
-            return $this->cartDtoFactory->fromModel(
-                $this->cartRepository->refreshForDto($cartItem->cart),
-                $customer,
+            return $this->cartDtoFactory->fromRecord(
+                $this->cartRepository->refreshForDto($cartItem->cartId),
+                $customer->maxUserId,
             );
         });
     }
@@ -152,120 +127,77 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
     /**
      * {@inheritDoc}
      */
-    public function removeItem(MaxUser $customer, MaxUser $manager, int $cartItemId): ?CartDto
-    {
-        return DB::transaction(function () use ($customer, $manager, $cartItemId): ?CartDto {
+    public function removeItem(
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
+        int $cartItemId,
+    ): ?CartDto {
+        return $this->transactionManager->run(function () use ($customer, $manager, $cartItemId): ?CartDto {
             $cartItem = $this->findOwnedManualCartItem($customer, $manager, $cartItemId);
-            $cart = $cartItem->cart;
-            $this->cartRepository->deleteItem($cartItem);
+            $cartId = $cartItem->cartId;
+            $this->cartRepository->deleteItem($cartItem->id);
 
-            $cart = $this->cartRepository->refreshForDto($cart);
+            $cart = $this->cartRepository->refreshForDto($cartId);
 
-            if ($cart->items->isEmpty()) {
-                $this->cartRepository->delete($cart);
+            if ($cart->isEmpty()) {
+                $this->cartRepository->delete($cart->id);
 
                 return null;
             }
 
-            return $this->cartDtoFactory->fromModel($cart, $customer);
+            return $this->cartDtoFactory->fromRecord($cart, $customer->maxUserId);
         });
     }
 
     /**
      * {@inheritDoc}
      */
-    public function clear(MaxUser $customer, MaxUser $manager): void
+    public function clear(MaxUserIdentity $customer, MaxUserIdentity $manager): void
     {
-        DB::transaction(function () use ($customer, $manager): void {
+        $this->transactionManager->run(function () use ($customer, $manager): void {
             $cart = $this->findManualDraft($customer, $manager);
 
             if ($cart === null) {
                 return;
             }
 
-            $this->cartRepository->delete($cart);
+            $this->cartRepository->delete($cart->id);
         });
-    }
-
-    /**
-     * Создаёт или увеличивает обычную позицию корзины.
-     */
-    private function upsertRegularCartItem(Cart $cart, int $dishId, int $quantity): void
-    {
-        $cartItem = $this->cartRepository->findRegularItemByCartAndDish($cart->id, $dishId);
-
-        if ($cartItem === null) {
-            $this->cartRepository->createItem([
-                'cart_id' => $cart->id,
-                'dish_id' => $dishId,
-                'quantity' => $quantity,
-            ]);
-
-            return;
-        }
-
-        $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
-    }
-
-    /**
-     * Создаёт или увеличивает комбо-позицию корзины.
-     */
-    private function upsertComboCartItem(
-        Cart $cart,
-        int $dishId,
-        int $quantity,
-        string $comboRef,
-        int $comboPartnerDishId,
-    ): void {
-        $cartItem = $this->cartRepository->findComboItemByCartDishAndRef($cart->id, $dishId, $comboRef);
-
-        if ($cartItem === null) {
-            $this->cartRepository->createItem([
-                'cart_id' => $cart->id,
-                'dish_id' => $dishId,
-                'quantity' => $quantity,
-                'combo_ref' => $comboRef,
-                'combo_partner_dish_id' => $comboPartnerDishId,
-            ]);
-
-            return;
-        }
-
-        $this->cartRepository->incrementItemQuantity($cartItem, $quantity);
     }
 
     /**
      * Находит ручной черновик корзины клиента, созданный менеджером.
      */
-    private function findManualDraft(MaxUser $customer, MaxUser $manager): ?Cart
+    private function findManualDraft(MaxUserIdentity $customer, MaxUserIdentity $manager): ?CartRecord
     {
         return $this->cartRepository->findManualDraft(
-            $customer->max_user_id,
-            $manager->max_user_id,
+            $customer->maxUserId,
+            $manager->maxUserId,
         );
     }
 
     /**
      * Находит позицию ручного черновика корзины менеджера для клиента.
      */
-    private function findOwnedManualCartItem(MaxUser $customer, MaxUser $manager, int $cartItemId): CartItem
-    {
+    private function findOwnedManualCartItem(
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
+        int $cartItemId,
+    ): CartItemRecord {
         $cartItem = $this->cartRepository->findItemById($cartItemId);
 
         if ($cartItem === null) {
             throw new FoodDomainException('Позиция корзины не найдена.', 404);
         }
 
-        $cart = $cartItem->cart;
-
         if (
-            $cart->max_user_id !== $customer->max_user_id
-            || $cart->created_by_max_user_id !== $manager->max_user_id
+            $cartItem->cartMaxUserId !== $customer->maxUserId
+            || $cartItem->cartCreatedByMaxUserId !== $manager->maxUserId
         ) {
             throw new FoodDomainException('Позиция корзины не найдена.', 404);
         }
 
-        if ($cart->status !== CartStatus::Draft) {
+        if ($cartItem->cartStatus !== CartStatus::Draft) {
             throw new FoodDomainException('Корзина больше недоступна для редактирования.');
         }
 

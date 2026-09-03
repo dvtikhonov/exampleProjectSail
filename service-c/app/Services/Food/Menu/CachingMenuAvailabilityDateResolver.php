@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
+use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
  * Кэш успешного resolve() на календарный день (MSK) и в рамках экземпляра.
@@ -28,7 +28,7 @@ class CachingMenuAvailabilityDateResolver implements MenuAvailabilityDateResolve
 
     public function __construct(
         private readonly MenuAvailabilityDateResolverInterface $resolver,
-        private readonly CacheRepository $cache,
+        private readonly CacheStoreInterface $cache,
     ) {}
 
     /**
@@ -58,13 +58,14 @@ class CachingMenuAvailabilityDateResolver implements MenuAvailabilityDateResolve
             // Не кэшируем «нет данных»: offsets могут появиться в течение дня
             // (админка / тесты / mid-day updates), иначе stale null залипает до конца суток.
             if ($computed->date !== null && $computed->error === null) {
+                $ttlSeconds = max(1, $day->endOfDay()->getTimestamp() - time());
                 $this->cache->put(
                     $key,
                     [
                         'date' => $computed->date,
                         'error' => $computed->error,
                     ],
-                    $day->endOfDay(),
+                    $ttlSeconds,
                 );
             }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Food\Menu;
 
 use App\Contracts\Food\Menu\DailyMenuCatalogRepositoryInterface;
+use App\DTO\Food\Menu\DishRecord;
 use App\Models\Food\Dish;
 
 /**
@@ -12,6 +13,10 @@ use App\Models\Food\Dish;
  */
 class EloquentDailyMenuCatalogRepository implements DailyMenuCatalogRepositoryInterface
 {
+    public function __construct(
+        private readonly DishMapper $dishMapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
@@ -35,6 +40,7 @@ class EloquentDailyMenuCatalogRepository implements DailyMenuCatalogRepositoryIn
                 fn (Dish $dish): int => (int) $dish->id,
             ])
             ->values()
+            ->map(fn (Dish $dish): DishRecord => $this->dishMapper->toRecord($dish))
             ->all();
     }
 }

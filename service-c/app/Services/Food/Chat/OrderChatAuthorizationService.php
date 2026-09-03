@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Chat;
 
-use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
 
 /**
  * Проверка прав доступа к чату заказа для клиента и администратора.
  */
 class OrderChatAuthorizationService
 {
-    public function __construct(
-        private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
-    ) {}
-
     /**
      * Запрещает доступ к чату, если пользователь не владелец и не активный админ.
      *
      * @throws FoodDomainException
      */
-    public function assertCanAccessChat(MaxUser $user, FoodOrder $order): void
+    public function assertCanAccessChat(MaxUserIdentity $user, FoodOrderRecord $order): void
     {
         if ($this->canAccessChat($user, $order)) {
             return;
@@ -36,7 +31,7 @@ class OrderChatAuthorizationService
     /**
      * Проверяет, может ли пользователь читать и писать в чат заказа.
      */
-    public function canAccessChat(MaxUser $user, FoodOrder $order): bool
+    public function canAccessChat(MaxUserIdentity $user, FoodOrderRecord $order): bool
     {
         return $this->isOrderOwner($user, $order) || $this->isActiveAdmin($user);
     }
@@ -46,7 +41,7 @@ class OrderChatAuthorizationService
      *
      * @throws FoodDomainException
      */
-    public function resolveAuthorType(MaxUser $user, FoodOrder $order): OrderMessageAuthorType
+    public function resolveAuthorType(MaxUserIdentity $user, FoodOrderRecord $order): OrderMessageAuthorType
     {
         if ($this->isOrderOwner($user, $order)) {
             return OrderMessageAuthorType::Customer;
@@ -62,16 +57,16 @@ class OrderChatAuthorizationService
     /**
      * Является ли пользователь владельцем заказа.
      */
-    private function isOrderOwner(MaxUser $user, FoodOrder $order): bool
+    private function isOrderOwner(MaxUserIdentity $user, FoodOrderRecord $order): bool
     {
-        return $order->max_user_id === $user->max_user_id;
+        return $order->maxUserId === $user->maxUserId;
     }
 
     /**
      * Есть ли у пользователя хотя бы одна активная роль админа заказов.
      */
-    private function isActiveAdmin(MaxUser $user): bool
+    private function isActiveAdmin(MaxUserIdentity $user): bool
     {
-        return $this->foodOrderAdminRepository->getActiveRoles($user->max_user_id) !== [];
+        return $user->adminRoles !== [];
     }
 }

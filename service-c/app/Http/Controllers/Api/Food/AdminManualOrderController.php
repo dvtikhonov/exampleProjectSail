@@ -9,9 +9,11 @@ use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
 use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\DraftAfterScanningOrderActionRequest;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Http\Requests\Food\Admin\ListManualOrdersRequest;
 use App\Http\Requests\Food\Admin\ListManualOrderUsersRequest;
 use App\Http\Requests\Food\Admin\ManualAddCartItemRequest;
@@ -20,10 +22,8 @@ use App\Http\Requests\Food\Admin\ManualUpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\Admin\ManualUpdateCartItemRequest;
 use App\Http\Requests\Food\Admin\ShowManualOrderCartRequest;
 use App\Http\Requests\Food\Admin\SubmitManualOrderRequest;
-use App\Models\Max\MaxUser;
-use App\Services\Max\MaxUserDeliveryAddressService;
+use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
@@ -37,7 +37,8 @@ class AdminManualOrderController extends Controller
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
         private readonly OrderSubmissionServiceInterface $orderSubmissionService,
         private readonly DraftAfterScanningOrderServiceInterface $draftAfterScanningOrderService,
-        private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
+        private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
+        private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
 
     /**
@@ -68,11 +69,7 @@ class AdminManualOrderController extends Controller
      */
     public function show(int $order): JsonResponse
     {
-        try {
-            $detail = $this->manualOrderQueryService->show($order);
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $detail = $this->manualOrderQueryService->show($order);
 
         return response()->json([
             'order' => $detail->toArray(),
@@ -103,18 +100,14 @@ class AdminManualOrderController extends Controller
      */
     public function showCart(ShowManualOrderCartRequest $request): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
 
         $cart = $this->manualOrderCartService->getDraftCart($customer, $manager);
 
         return response()->json([
             'cart' => $cart?->toArray(),
             'delivery_address' => $cart?->deliveryAddress
-                ?? $this->maxUserDeliveryAddressService->defaultFor($customer),
+                ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($customer->maxUserId),
         ]);
     }
 
@@ -123,21 +116,17 @@ class AdminManualOrderController extends Controller
      */
     public function updateDeliveryAddress(ManualUpdateCartDeliveryAddressRequest $request): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-            $cart = $this->manualOrderCartService->updateDeliveryAddress(
-                $customer,
-                $manager,
-                $request->deliveryAddress(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
+        $cart = $this->manualOrderCartService->updateDeliveryAddress(
+            $customer,
+            $manager,
+            $request->deliveryAddress(),
+        );
 
         return response()->json([
             'cart' => $cart?->toArray(),
             'delivery_address' => $cart?->deliveryAddress
-                ?? $this->maxUserDeliveryAddressService->defaultFor($customer)
+                ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($customer->maxUserId)
                 ?? $request->deliveryAddress(),
         ]);
     }
@@ -147,19 +136,15 @@ class AdminManualOrderController extends Controller
      */
     public function storeItem(ManualAddCartItemRequest $request): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-            $cart = $this->manualOrderCartService->addItem(
-                $customer,
-                $manager,
-                $request->dishId(),
-                $request->quantity(),
-                $request->comboRef(),
-                $request->comboPartnerDishId(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
+        $cart = $this->manualOrderCartService->addItem(
+            $customer,
+            $manager,
+            $request->dishId(),
+            $request->quantity(),
+            $request->comboRef(),
+            $request->comboPartnerDishId(),
+        );
 
         return response()->json([
             'cart' => $cart->toArray(),
@@ -171,17 +156,13 @@ class AdminManualOrderController extends Controller
      */
     public function updateItem(ManualUpdateCartItemRequest $request, int $item): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-            $cart = $this->manualOrderCartService->updateItemQuantity(
-                $customer,
-                $manager,
-                $item,
-                $request->quantity(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
+        $cart = $this->manualOrderCartService->updateItemQuantity(
+            $customer,
+            $manager,
+            $item,
+            $request->quantity(),
+        );
 
         return response()->json([
             'cart' => $cart->toArray(),
@@ -193,12 +174,8 @@ class AdminManualOrderController extends Controller
      */
     public function destroyItem(ShowManualOrderCartRequest $request, int $item): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-            $cart = $this->manualOrderCartService->removeItem($customer, $manager, $item);
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
+        $cart = $this->manualOrderCartService->removeItem($customer, $manager, $item);
 
         return response()->json([
             'cart' => $cart?->toArray(),
@@ -210,11 +187,7 @@ class AdminManualOrderController extends Controller
      */
     public function clearCart(ShowManualOrderCartRequest $request): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
 
         $this->manualOrderCartService->clear($customer, $manager);
 
@@ -228,16 +201,12 @@ class AdminManualOrderController extends Controller
      */
     public function submit(SubmitManualOrderRequest $request): JsonResponse
     {
-        try {
-            [$customer, $manager] = $this->resolveCustomerAndManager($request);
-            $order = $this->orderSubmissionService->submitManual(
-                $customer,
-                $manager,
-                $request->deliveryDate(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        [$customer, $manager] = $this->resolveCustomerAndManager($request);
+        $order = $this->orderSubmissionService->submitManual(
+            $customer,
+            $manager,
+            $request->deliveryDate(),
+        );
 
         return response()->json([
             'order' => $order->toArray(),
@@ -249,15 +218,11 @@ class AdminManualOrderController extends Controller
      */
     public function complete(DraftAfterScanningOrderActionRequest $request): JsonResponse
     {
-        try {
-            $this->draftAfterScanningOrderService->complete(
-                $request->orderId(),
-                $this->manager($request),
-            );
-            $detail = $this->manualOrderQueryService->show($request->orderId());
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $this->draftAfterScanningOrderService->complete(
+            $request->orderId(),
+            $this->authenticatedMaxUserResolver->identity(),
+        );
+        $detail = $this->manualOrderQueryService->show($request->orderId());
 
         return response()->json([
             'order' => $detail->toArray(),
@@ -269,14 +234,10 @@ class AdminManualOrderController extends Controller
      */
     public function moveToCart(DraftAfterScanningOrderActionRequest $request): JsonResponse
     {
-        try {
-            $result = $this->draftAfterScanningOrderService->moveToCart(
-                $request->orderId(),
-                $this->manager($request),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $result = $this->draftAfterScanningOrderService->moveToCart(
+            $request->orderId(),
+            $this->authenticatedMaxUserResolver->identity(),
+        );
 
         return response()->json($result->toArray());
     }
@@ -284,16 +245,12 @@ class AdminManualOrderController extends Controller
     /**
      * Удаляет ручной заказ в статусе «Черновик после сканирования».
      */
-    public function destroy(DraftAfterScanningOrderActionRequest $request): Response|JsonResponse
+    public function destroy(DraftAfterScanningOrderActionRequest $request): Response
     {
-        try {
-            $this->draftAfterScanningOrderService->delete(
-                $request->orderId(),
-                $this->manager($request),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $this->draftAfterScanningOrderService->delete(
+            $request->orderId(),
+            $this->authenticatedMaxUserResolver->identity(),
+        );
 
         return response()->noContent();
     }
@@ -301,7 +258,7 @@ class AdminManualOrderController extends Controller
     /**
      * Резолвит клиента и текущего менеджера из запроса.
      *
-     * @return array{0: MaxUser, 1: MaxUser}
+     * @return array{0: MaxUserIdentity, 1: MaxUserIdentity}
      *
      * @throws FoodDomainException
      */
@@ -311,27 +268,6 @@ class AdminManualOrderController extends Controller
             $request->customerMaxUserId(),
         );
 
-        return [$customer, $this->manager($request)];
-    }
-
-    /**
-     * Текущий аутентифицированный менеджер MAX из запроса.
-     */
-    private function manager(Request $request): MaxUser
-    {
-        /** @var MaxUser $manager */
-        $manager = $request->user();
-
-        return $manager;
-    }
-
-    /**
-     * JSON-ответ с сообщением доменного исключения.
-     */
-    private function domainError(FoodDomainException $exception): JsonResponse
-    {
-        return response()->json([
-            'message' => $exception->getMessage(),
-        ], $exception->statusCode());
+        return [$customer, $this->authenticatedMaxUserResolver->identity()];
     }
 }

@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Chat\OrderChatServiceInterface;
-use App\Exceptions\Food\FoodDomainException;
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\ListOrderMessagesRequest;
 use App\Http\Requests\Food\SendOrderMessageRequest;
-use App\Models\Max\MaxUser;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * API чата по заказу еды для клиента и администратора MAX mini-app.
@@ -20,6 +18,7 @@ class OrderChatController extends Controller
 {
     public function __construct(
         private readonly OrderChatServiceInterface $orderChatService,
+        private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
 
     /**
@@ -27,18 +26,12 @@ class OrderChatController extends Controller
      */
     public function index(ListOrderMessagesRequest $request, int $order): JsonResponse
     {
-        try {
-            $messages = $this->orderChatService->listMessages(
-                $this->maxUser($request),
-                $order,
-                $request->afterId(),
-                $request->limit(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $messages = $this->orderChatService->listMessages(
+            $this->authenticatedMaxUserResolver->identity(),
+            $order,
+            $request->afterId(),
+            $request->limit(),
+        );
 
         return response()->json([
             'messages' => array_map(
@@ -53,31 +46,14 @@ class OrderChatController extends Controller
      */
     public function store(SendOrderMessageRequest $request, int $order): JsonResponse
     {
-        try {
-            $message = $this->orderChatService->sendMessage(
-                $this->maxUser($request),
-                $order,
-                $request->body(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $message = $this->orderChatService->sendMessage(
+            $this->authenticatedMaxUserResolver->identity(),
+            $order,
+            $request->body(),
+        );
 
         return response()->json([
             'message' => $message->toArray(),
         ], JsonResponse::HTTP_CREATED);
-    }
-
-    /**
-     * Текущий аутентифицированный пользователь MAX из запроса.
-     */
-    private function maxUser(Request $request): MaxUser
-    {
-        /** @var MaxUser $maxUser */
-        $maxUser = $request->user();
-
-        return $maxUser;
     }
 }

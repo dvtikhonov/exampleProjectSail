@@ -5,17 +5,22 @@ declare(strict_types=1);
 namespace App\Repositories\Max;
 
 use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\DTO\Max\MaxUserRecord;
+use App\DTO\Max\MaxWebAppInitDataDto;
+use App\DTO\Shared\PaginatedResultDto;
 use App\Models\Max\MaxUser;
 use DateTimeInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 
 /**
  * Eloquent-реализация репозитория пользователей MAX.
  */
 class EloquentMaxUserRepository implements MaxUserRepositoryInterface
 {
+    public function __construct(
+        private readonly MaxUserMapper $mapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
@@ -34,15 +39,71 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function findByMaxUserId(int $maxUserId): ?MaxUser
+    public function findByMaxUserId(int $maxUserId): ?MaxUserRecord
     {
-        return MaxUser::query()->find($maxUserId);
+        $model = MaxUser::query()->find($maxUserId);
+
+        return $model !== null ? $this->mapper->toRecord($model) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function paginateForManualOrders(?string $query, int $perPage): LengthAwarePaginator
+    public function upsertFromInitData(
+        MaxWebAppInitDataDto $initData,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $initData->maxUserId]);
+
+        $maxUser->fill([
+            'first_name' => $initData->firstName,
+            'last_name' => $initData->lastName,
+            'username' => $initData->username,
+            'language_code' => $initData->languageCode,
+            'photo_url' => $initData->photoUrl,
+        ]);
+
+        if ($maxUser->customer_category_id === null && $defaultCustomerCategoryId !== null) {
+            $maxUser->customer_category_id = $defaultCustomerCategoryId;
+        }
+
+        $maxUser->save();
+
+        return $this->mapper->toRecord($maxUser);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function upsertLoadTestUser(
+        int $maxUserId,
+        string $firstName,
+        string $username,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $maxUserId]);
+
+        if (! $maxUser->exists) {
+            $maxUser->fill([
+                'first_name' => $firstName,
+                'username' => $username,
+                'language_code' => 'ru',
+            ]);
+        }
+
+        if ($maxUser->customer_category_id === null && $defaultCustomerCategoryId !== null) {
+            $maxUser->customer_category_id = $defaultCustomerCategoryId;
+        }
+
+        $maxUser->save();
+
+        return $this->mapper->toRecord($maxUser);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function paginateForManualOrders(?string $query, int $perPage): PaginatedResultDto
     {
         $builder = MaxUser::query()->orderBy('max_user_id');
 
@@ -64,18 +125,32 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
             });
         }
 
-        return $builder->paginate($perPage);
+        $paginator = $builder->paginate($perPage);
+
+        /** @var list<MaxUserRecord> $items */
+        $items = $paginator->getCollection()
+            ->map(fn (MaxUser $model): MaxUserRecord => $this->mapper->toRecord($model))
+            ->values()
+            ->all();
+
+        return new PaginatedResultDto(
+            items: $items,
+            total: $paginator->total(),
+            perPage: $paginator->perPage(),
+            currentPage: $paginator->currentPage(),
+            lastPage: $paginator->lastPage(),
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findByNameFieldsSubstring(string $query): Collection
+    public function findByNameFieldsSubstring(string $query): array
     {
         $normalizedQuery = trim($query);
 
         if ($normalizedQuery === '') {
-            return collect();
+            return [];
         }
 
         $like = '%'.$normalizedQuery.'%';
@@ -88,7 +163,20 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
                     ->orWhere('username', 'like', $like);
             })
             ->orderBy('max_user_id')
-            ->get();
+            ->get()
+            ->map(fn (MaxUser $model): MaxUserRecord => $this->mapper->toRecord($model))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function updateDeliveryAddress(int $maxUserId, string $deliveryAddress): void
+    {
+        MaxUser::query()
+            ->where('max_user_id', $maxUserId)
+            ->update(['delivery_address' => $deliveryAddress]);
     }
 
     /**
@@ -105,13 +193,15 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function findActiveAiAccessUser(DateTimeInterface $now): ?MaxUser
+    public function findActiveAiAccessUser(DateTimeInterface $now): ?MaxUserRecord
     {
-        return MaxUser::query()
+        $model = MaxUser::query()
             ->whereNotNull('ai_access_until')
             ->where('ai_access_until', '>', $now)
             ->orderBy('max_user_id')
             ->first();
+
+        return $model !== null ? $this->mapper->toRecord($model) : null;
     }
 
     /**

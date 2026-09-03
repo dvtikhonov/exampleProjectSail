@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
 use App\DTO\Max\AiAccessStatusDto;
-use App\Exceptions\Food\FoodDomainException;
+use App\DTO\Max\MaxUserIdentity;
 use App\Http\Controllers\Controller;
-use App\Models\Max\MaxUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,6 +19,7 @@ class AdminAiAccessController extends Controller
 {
     public function __construct(
         private readonly MaxAiAccessServiceInterface $maxAiAccessService,
+        private readonly AuthenticatedMaxUserResolverInterface $maxUserResolver,
     ) {}
 
     /**
@@ -36,27 +37,14 @@ class AdminAiAccessController extends Controller
      */
     public function toggle(Request $request): JsonResponse
     {
-        try {
-            $status = $this->maxAiAccessService->toggle(
-                $this->manager($request),
-                now(),
-            );
-        } catch (FoodDomainException $exception) {
-            return $this->domainError($exception);
-        }
+        $status = $this->maxAiAccessService->toggle(
+            new MaxUserIdentity(
+                maxUserId: $this->maxUserResolver->identity()->maxUserId,
+            ),
+            now(),
+        );
 
         return response()->json($this->statusPayload($status));
-    }
-
-    /**
-     * Текущий аутентифицированный менеджер MAX из запроса.
-     */
-    private function manager(Request $request): MaxUser
-    {
-        /** @var MaxUser $manager */
-        $manager = $request->user();
-
-        return $manager;
     }
 
     /**
@@ -71,15 +59,5 @@ class AdminAiAccessController extends Controller
             'active_max_user_id' => $status->activeMaxUserId,
             'expires_at' => $status->expiresAt,
         ];
-    }
-
-    /**
-     * JSON-ответ с сообщением доменного исключения.
-     */
-    private function domainError(FoodDomainException $exception): JsonResponse
-    {
-        return response()->json([
-            'message' => $exception->getMessage(),
-        ], $exception->statusCode());
     }
 }

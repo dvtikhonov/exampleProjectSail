@@ -54,9 +54,9 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $this->assertNotNull($restaurant);
         $this->assertSame($fixture['restaurant']->id, $restaurant->id);
         $this->assertCount(1, $restaurant->menuCategories);
-        $this->assertSame('Main', $restaurant->menuCategories->first()->name);
-        $this->assertCount(1, $restaurant->menuCategories->first()->dishes);
-        $this->assertSame('Test Pasta', $restaurant->menuCategories->first()->dishes->first()->name);
+        $this->assertSame('Main', $restaurant->menuCategories[0]->name);
+        $this->assertCount(1, $restaurant->menuCategories[0]->dishes);
+        $this->assertSame('Test Pasta', $restaurant->menuCategories[0]->dishes[0]->name);
     }
 
     /** findActiveWithMenu возвращает null для неактивного ресторана. */
@@ -91,8 +91,8 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $loaded = $repository->findActiveWithMenu($restaurant->id);
 
         $this->assertNotNull($loaded);
-        $this->assertSame('Starters', $loaded->menuCategories->first()->name);
-        $this->assertSame('Desserts', $loaded->menuCategories->last()->name);
+        $this->assertSame('Starters', $loaded->menuCategories[0]->name);
+        $this->assertSame('Desserts', $loaded->menuCategories[array_key_last($loaded->menuCategories)]->name);
     }
 
     /** findActiveWithMenu с includeUnavailable включает недоступные блюда. */
@@ -107,10 +107,10 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $withUnavailable = $repository->findActiveWithMenu($fixture['restaurant']->id, true);
 
         $this->assertNotNull($withoutUnavailable);
-        $this->assertCount(0, $withoutUnavailable->menuCategories->first()->dishes);
+        $this->assertCount(0, $withoutUnavailable->menuCategories[0]->dishes);
 
         $this->assertNotNull($withUnavailable);
-        $this->assertCount(1, $withUnavailable->menuCategories->first()->dishes);
-        $this->assertFalse($withUnavailable->menuCategories->first()->dishes->first()->is_available);
+        $this->assertCount(1, $withUnavailable->menuCategories[0]->dishes);
+        $this->assertFalse($withUnavailable->menuCategories[0]->dishes[0]->isAvailable);
     }
 }

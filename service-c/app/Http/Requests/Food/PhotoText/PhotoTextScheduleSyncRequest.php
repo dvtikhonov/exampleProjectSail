@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food\PhotoText;
 
 use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
+use App\Http\Requests\Food\PhotoText\Concerns\ValidatesActiveRestaurant;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -15,6 +16,8 @@ use Illuminate\Validation\Validator;
  */
 class PhotoTextScheduleSyncRequest extends FormRequest
 {
+    use ValidatesActiveRestaurant;
+
     /**
      * Разрешает любой запрос.
      */
@@ -52,14 +55,7 @@ class PhotoTextScheduleSyncRequest extends FormRequest
         };
 
         return [
-            'restaurant_id' => [
-                'required',
-                'integer',
-                'min:1',
-                Rule::exists('max_restaurants', 'id')
-                    ->where('is_active', true)
-                    ->whereNull('deleted_at'),
-            ],
+            'restaurant_id' => $this->activeRestaurantIdRules(),
             'category_id' => [
                 'nullable',
                 'integer',
@@ -160,8 +156,7 @@ class PhotoTextScheduleSyncRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'restaurant_id.required' => 'Укажите ресторан.',
-            'restaurant_id.exists' => 'Ресторан не найден или неактивен.',
+            ...$this->activeRestaurantIdMessages(),
             'category_id.exists' => 'Категория меню не найдена для выбранного ресторана.',
             'category_ids.min' => 'Укажите хотя бы одну категорию.',
             'category_ids.*.exists' => 'Категория меню не найдена для выбранного ресторана.',
@@ -171,14 +166,6 @@ class PhotoTextScheduleSyncRequest extends FormRequest
             'entries.required' => 'Передайте хотя бы одну позицию графика.',
             'entries.min' => 'Передайте хотя бы одну позицию графика.',
         ];
-    }
-
-    /**
-     * Идентификатор активного ресторана.
-     */
-    public function restaurantId(): int
-    {
-        return (int) $this->validated('restaurant_id');
     }
 
     /**

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Max\UiStand;
 
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Contracts\Shared\ApplicationConfigInterface;
+use App\Contracts\Shared\HttpClientInterface;
+use App\DTO\Shared\HttpResponseDto;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
@@ -31,7 +31,9 @@ class MaxWebhookSubscriber
     ];
 
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
+        private readonly HttpClientInterface $httpClient,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -46,15 +48,15 @@ class MaxWebhookSubscriber
     {
         $token = $this->botAccessToken();
 
-        $response = $this->httpClient($token)->get(self::SUBSCRIPTIONS_ENDPOINT);
+        $response = $this->platformRequest('GET', self::SUBSCRIPTIONS_ENDPOINT, $token);
 
-        if ($response->status() === 401) {
+        if ($response->status === 401) {
             throw new MaxMessengerAuthException;
         }
 
-        if (! $response->successful()) {
+        if (! $response->successful) {
             throw new MaxMessengerRequestException(
-                safeUserMessage: $this->safeErrorMessageForStatus($response->status()),
+                safeUserMessage: $this->safeErrorMessageForStatus($response->status),
             );
         }
 
@@ -92,23 +94,27 @@ class MaxWebhookSubscriber
         }
 
         try {
-            $response = Http::withHeaders([
-                'X-Max-Bot-Api-Secret' => $secret,
-            ])
-                ->acceptJson()
-                ->asJson()
-                ->timeout(15)
-                ->post($url, [
+            $response = $this->httpClient->request(
+                method: 'POST',
+                url: $url,
+                headers: [
+                    'X-Max-Bot-Api-Secret' => $secret,
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ],
+                jsonBody: [
                     'update_type' => 'probe',
-                ]);
-
-            $body = $response->body();
+                ],
+                timeoutSeconds: 15,
+            );
 
             return [
                 'url' => $url,
-                'http_status' => $response->status(),
-                'reachable' => $response->successful(),
-                'error' => $response->successful() ? null : $this->formatProbeError($response->status(), $body),
+                'http_status' => $response->status,
+                'reachable' => $response->successful,
+                'error' => $response->successful
+                    ? null
+                    : $this->formatProbeError($response->status, $response->body),
             ];
         } catch (Throwable $exception) {
             return [
@@ -137,23 +143,25 @@ class MaxWebhookSubscriber
 
         $token = $this->botAccessToken();
 
-        $response = $this->httpClient($token)->delete(
+        $response = $this->platformRequest(
+            'DELETE',
             self::SUBSCRIPTIONS_ENDPOINT.'?url='.rawurlencode($url),
+            $token,
         );
 
-        if ($response->successful()) {
-            Log::info('MAX webhook subscription removed.', [
+        if ($response->successful) {
+            $this->logger->info('MAX webhook subscription removed.', [
                 'endpoint' => self::SUBSCRIPTIONS_ENDPOINT,
-                'http_status' => $response->status(),
+                'http_status' => $response->status,
                 'webhook_url' => $url,
             ]);
 
             return;
         }
 
-        $status = $response->status();
+        $status = $response->status;
 
-        Log::warning('MAX webhook unsubscribe failed.', [
+        $this->logger->warning('MAX webhook unsubscribe failed.', [
             'endpoint' => self::SUBSCRIPTIONS_ENDPOINT,
             'http_status' => $status,
             'webhook_url' => $url,
@@ -240,16 +248,21 @@ class MaxWebhookSubscriber
 
         $token = $this->botAccessToken();
 
-        $response = $this->httpClient($token)->post(self::SUBSCRIPTIONS_ENDPOINT, [
-            'url' => $url,
-            'secret' => $secret,
-            'update_types' => self::UPDATE_TYPES,
-        ]);
+        $response = $this->platformRequest(
+            'POST',
+            self::SUBSCRIPTIONS_ENDPOINT,
+            $token,
+            [
+                'url' => $url,
+                'secret' => $secret,
+                'update_types' => self::UPDATE_TYPES,
+            ],
+        );
 
-        if ($response->successful()) {
-            Log::info('MAX webhook subscription registered.', [
+        if ($response->successful) {
+            $this->logger->info('MAX webhook subscription registered.', [
                 'endpoint' => self::SUBSCRIPTIONS_ENDPOINT,
-                'http_status' => $response->status(),
+                'http_status' => $response->status,
                 'webhook_url' => $url,
                 'update_types' => self::UPDATE_TYPES,
             ]);
@@ -257,9 +270,9 @@ class MaxWebhookSubscriber
             return;
         }
 
-        $status = $response->status();
+        $status = $response->status;
 
-        Log::warning('MAX webhook subscription failed.', [
+        $this->logger->warning('MAX webhook subscription failed.', [
             'endpoint' => self::SUBSCRIPTIONS_ENDPOINT,
             'http_status' => $status,
             'webhook_url' => $url,
@@ -271,6 +284,28 @@ class MaxWebhookSubscriber
 
         throw new MaxMessengerRequestException(
             safeUserMessage: $this->safeErrorMessageForStatus($status),
+        );
+    }
+
+    /**
+     * Выполняет запрос к platform-api.max.ru.
+     *
+     * @param  array<string, mixed>|null  $jsonBody
+     */
+    private function platformRequest(
+        string $method,
+        string $path,
+        string $token,
+        ?array $jsonBody = null,
+    ): HttpResponseDto {
+        return $this->httpClient->request(
+            method: $method,
+            url: $path,
+            headers: [
+                'Authorization' => $token,
+            ],
+            jsonBody: $jsonBody,
+            baseUrl: self::BASE_URL,
         );
     }
 
@@ -327,19 +362,6 @@ class MaxWebhookSubscriber
         }
 
         return $token;
-    }
-
-    /**
-     * Возвращает HTTP-клиент для запросов к API MAX.
-     */
-    private function httpClient(string $token): PendingRequest
-    {
-        return Http::baseUrl(self::BASE_URL)
-            ->withHeaders([
-                'Authorization' => $token,
-            ])
-            ->acceptJson()
-            ->asJson();
     }
 
     /**

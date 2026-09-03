@@ -13,9 +13,9 @@ use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\DTO\Food\PhotoText\PhotoTextMatchedLineDto;
 use App\DTO\Food\PhotoText\PhotoTextPlacementResultDto;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Сверка имён в restaurant_id и оформление matched как черновик после сканирования.
@@ -72,7 +72,11 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
             );
         }
 
-        $order = $this->orderSubmissionService->submitDraftAfterScanning($customer, $manager, $orderDate);
+        $order = $this->orderSubmissionService->submitDraftAfterScanning(
+            $customer,
+            $manager,
+            $orderDate,
+        );
 
         return $result->withOrderId($order->id);
     }
@@ -82,7 +86,7 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
      *
      * @throws FoodDomainException
      */
-    private function resolveManager(): MaxUser
+    private function resolveManager(): MaxUserIdentity
     {
         $managerId = (int) config('phototext.manager_max_user_id');
 
@@ -100,7 +104,10 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
             throw new FoodDomainException('PhotoText-менеджер не имеет роли max_manager.', 500);
         }
 
-        return $manager;
+        return new MaxUserIdentity(
+            maxUserId: $managerId,
+            adminRoles: [FoodOrderAdminRole::MaxManager],
+        );
     }
 
     /**

@@ -7,8 +7,10 @@ namespace App\Http\Requests\Food\Admin;
 use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Food\Menu\CreateDishDto;
 use App\DTO\Food\Menu\UpdateDishDto;
+use App\DTO\Shared\UploadedFileDto;
 use App\Enums\Food\Menu\DishVatRate;
 use App\Enums\Food\Menu\DishWeightUnit;
+use App\Http\Support\UploadedFileDtoFactory;
 use App\Rules\MinImageDimensions;
 use App\Rules\ValidDishPhotoMime;
 use App\Support\Food\Menu\DishPhotoAllowedExtensions;
@@ -197,6 +199,14 @@ abstract class BaseDishFormRequest extends FormRequest
     }
 
     /**
+     * Возвращает DTO загруженной фотографии (обязательный).
+     */
+    public function photoDto(): UploadedFileDto
+    {
+        return UploadedFileDtoFactory::fromUploadedFile($this->photo());
+    }
+
+    /**
      * Возвращает загруженный файл фотографии или null.
      */
     public function photoOrNull(): ?UploadedFile
@@ -204,6 +214,16 @@ abstract class BaseDishFormRequest extends FormRequest
         $photo = $this->file('photo');
 
         return $photo instanceof UploadedFile ? $photo : null;
+    }
+
+    /**
+     * Возвращает DTO загруженной фотографии или null.
+     */
+    public function photoDtoOrNull(): ?UploadedFileDto
+    {
+        $photo = $this->photoOrNull();
+
+        return $photo !== null ? UploadedFileDtoFactory::fromUploadedFile($photo) : null;
     }
 
     /**

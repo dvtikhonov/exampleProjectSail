@@ -45,7 +45,7 @@ class OrderCompositionSnapshotBuilderTest extends TestCase
 
         $result = app(OrderCompositionSnapshotBuilder::class)->build(
             restaurantId: $fixture['restaurant']->id,
-            customer: $customer,
+            customerMaxUserId: $customer->max_user_id,
             items: [
                 [
                     'dish_id' => $fixture['dish']->id,
@@ -90,7 +90,7 @@ class OrderCompositionSnapshotBuilderTest extends TestCase
 
         $result = app(OrderCompositionSnapshotBuilder::class)->build(
             restaurantId: $fixture['restaurant']->id,
-            customer: $customer,
+            customerMaxUserId: $customer->max_user_id,
             items: [
                 [
                     'dish_id' => $fixture['dish']->id,
@@ -128,7 +128,7 @@ class OrderCompositionSnapshotBuilderTest extends TestCase
 
         app(OrderCompositionSnapshotBuilder::class)->build(
             restaurantId: $fixture['restaurant']->id,
-            customer: $customer,
+            customerMaxUserId: $customer->max_user_id,
             items: [
                 [
                     'dish_id' => $other['dish']->id,
@@ -152,7 +152,7 @@ class OrderCompositionSnapshotBuilderTest extends TestCase
 
         app(OrderCompositionSnapshotBuilder::class)->build(
             restaurantId: $fixture['restaurant']->id,
-            customer: $customer,
+            customerMaxUserId: $customer->max_user_id,
             items: [
                 [
                     'dish_id' => $fixture['dish']->id,

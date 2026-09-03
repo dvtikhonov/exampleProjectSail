@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Http\Middleware\Concerns\ComparesConfiguredHeaderSecret;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class VerifyPhotoTextAgentToken
 {
+    use ComparesConfiguredHeaderSecret;
+
     /**
      * Сравнивает X-PhotoText-Token с PHOTOTEXT_AGENT_TOKEN через hash_equals.
      *
@@ -21,20 +23,15 @@ class VerifyPhotoTextAgentToken
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $expected = (string) config('phototext.agent_token');
+        $rejected = $this->verifyHeaderSecret(
+            $request,
+            'phototext.agent_token',
+            'X-PhotoText-Token',
+            'PhotoText agent',
+        );
 
-        if ($expected === '') {
-            Log::warning('PhotoText agent rejected: PHOTOTEXT_AGENT_TOKEN is not configured.');
-
-            return response('', Response::HTTP_UNAUTHORIZED);
-        }
-
-        $provided = (string) $request->header('X-PhotoText-Token', '');
-
-        if (! hash_equals($expected, $provided)) {
-            Log::warning('PhotoText agent rejected: invalid X-PhotoText-Token header.');
-
-            return response('', Response::HTTP_UNAUTHORIZED);
+        if ($rejected !== null) {
+            return $rejected;
         }
 
         return $next($request);

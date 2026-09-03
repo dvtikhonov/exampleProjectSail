@@ -1,13 +1,17 @@
 <?php
 
-namespace App\DTO\Auth;
+declare(strict_types=1);
 
-use App\Models\User;
+namespace App\DTO\Auth;
 
 /**
  * Пользователь приложения, аутентифицированный через nginx-gateway.
  */
 readonly class GatewayUserDto
 {
-    public function __construct(public User $user) {}
+    public function __construct(
+        public int $id,
+        public string $name,
+        public string $email,
+    ) {}
 }

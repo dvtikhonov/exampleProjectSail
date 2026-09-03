@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
+use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Delivery\DeliveryTierRepositoryInterface;
 use App\DTO\Food\Cart\CartTotalsDto;
-use App\DTO\Food\Delivery\CustomerCategoryDto;
-use App\Models\Max\MaxUser;
 use App\Services\Food\Delivery\DeliveryCostResolver;
 
 /**
@@ -18,14 +17,17 @@ class CartTotalsCalculator
     public function __construct(
         private readonly DeliveryCostResolver $deliveryCostResolver,
         private readonly DeliveryTierRepositoryInterface $deliveryTierRepository,
+        private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
     ) {}
 
     /**
      * Рассчитывает суммы блюд, доставки и итог корзины.
      */
-    public function calculate(int $restaurantId, MaxUser $maxUser, float $itemsTotal): CartTotalsDto
+    public function calculate(int $restaurantId, int $maxUserId, float $itemsTotal): CartTotalsDto
     {
-        if (! $this->deliveryCostResolver->isApplicable($maxUser)) {
+        $category = $this->customerCategoryRepository->findCategoryForMaxUserId($maxUserId);
+
+        if ($category === null || ! $this->deliveryCostResolver->isApplicable($category->id)) {
             return new CartTotalsDto(
                 itemsTotal: $itemsTotal,
                 deliveryCost: null,
@@ -35,16 +37,9 @@ class CartTotalsCalculator
             );
         }
 
-        $maxUser->loadMissing('customerCategory');
-
-        $categoryDto = new CustomerCategoryDto(
-            id: $maxUser->customerCategory->id,
-            name: $maxUser->customerCategory->name,
-        );
-
         $tiers = $this->deliveryTierRepository->findTiersFor(
             $restaurantId,
-            $maxUser->customer_category_id,
+            $category->id,
         );
 
         $deliveryCost = $this->deliveryCostResolver->resolve($itemsTotal, $tiers);
@@ -69,7 +64,7 @@ class CartTotalsCalculator
             deliveryCost: $deliveryCost,
             total: $itemsTotal + $deliveryCost,
             deliveryApplicable: true,
-            customerCategory: $categoryDto,
+            customerCategory: $category,
             nextTierMinTotal: $nextTierMinTotal,
             nextTierDeliveryCost: $nextTierDeliveryCost,
             amountToNextTier: $amountToNextTier,

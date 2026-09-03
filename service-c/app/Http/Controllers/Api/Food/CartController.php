@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Food;
 
+use App\Contracts\Food\Cart\CartDeliveryAddressServiceInterface;
 use App\Contracts\Food\Cart\CartServiceInterface;
-use App\Exceptions\Food\FoodDomainException;
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
+use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\AddCartItemRequest;
 use App\Http\Requests\Food\UpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\UpdateCartItemRequest;
-use App\Models\Max\MaxUser;
-use App\Services\Food\Cart\CartDeliveryAddressService;
-use App\Services\Max\MaxUserDeliveryAddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,8 +22,9 @@ class CartController extends Controller
 {
     public function __construct(
         private readonly CartServiceInterface $cartService,
-        private readonly CartDeliveryAddressService $cartDeliveryAddressService,
-        private readonly MaxUserDeliveryAddressService $maxUserDeliveryAddressService,
+        private readonly CartDeliveryAddressServiceInterface $cartDeliveryAddressService,
+        private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
+        private readonly AuthenticatedMaxUserResolverInterface $maxUserResolver,
     ) {}
 
     /**
@@ -34,13 +34,13 @@ class CartController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        $maxUser = $this->maxUser($request);
-        $cart = $this->cartService->getDraftCart($maxUser);
+        $identity = $this->maxUserResolver->identity();
+        $cart = $this->cartService->getDraftCart($identity);
 
         return response()->json([
             'cart' => $cart?->toArray(),
             'delivery_address' => $cart?->deliveryAddress
-                ?? $this->maxUserDeliveryAddressService->defaultFor($maxUser),
+                ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($identity->maxUserId),
         ]);
     }
 
@@ -49,21 +49,18 @@ class CartController extends Controller
      */
     public function updateDeliveryAddress(UpdateCartDeliveryAddressRequest $request): JsonResponse
     {
-        $maxUser = $this->maxUser($request);
+        $identity = $this->maxUserResolver->identity();
         $deliveryAddress = $request->deliveryAddress();
 
-        try {
-            $cart = $this->cartDeliveryAddressService->update($maxUser, $deliveryAddress);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $cart = $this->cartDeliveryAddressService->update(
+            $identity,
+            $deliveryAddress,
+        );
 
         return response()->json([
             'cart' => $cart?->toArray(),
             'delivery_address' => $cart?->deliveryAddress
-                ?? $this->maxUserDeliveryAddressService->defaultFor($maxUser)
+                ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($identity->maxUserId)
                 ?? $deliveryAddress,
         ]);
     }
@@ -73,19 +70,13 @@ class CartController extends Controller
      */
     public function store(AddCartItemRequest $request): JsonResponse
     {
-        try {
-            $cart = $this->cartService->addItem(
-                $this->maxUser($request),
-                $request->dishId(),
-                $request->quantity(),
-                $request->comboRef(),
-                $request->comboPartnerDishId(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $cart = $this->cartService->addItem(
+            $this->maxUserResolver->identity(),
+            $request->dishId(),
+            $request->quantity(),
+            $request->comboRef(),
+            $request->comboPartnerDishId(),
+        );
 
         return response()->json([
             'cart' => $cart->toArray(),
@@ -97,17 +88,11 @@ class CartController extends Controller
      */
     public function update(UpdateCartItemRequest $request, int $item): JsonResponse
     {
-        try {
-            $cart = $this->cartService->updateItemQuantity(
-                $this->maxUser($request),
-                $item,
-                $request->quantity(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $cart = $this->cartService->updateItemQuantity(
+            $this->maxUserResolver->identity(),
+            $item,
+            $request->quantity(),
+        );
 
         return response()->json([
             'cart' => $cart->toArray(),
@@ -119,13 +104,10 @@ class CartController extends Controller
      */
     public function destroy(Request $request, int $item): JsonResponse
     {
-        try {
-            $cart = $this->cartService->removeItem($this->maxUser($request), $item);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $cart = $this->cartService->removeItem(
+            $this->maxUserResolver->identity(),
+            $item,
+        );
 
         return response()->json([
             'cart' => $cart?->toArray(),
@@ -137,21 +119,12 @@ class CartController extends Controller
      */
     public function clear(Request $request): JsonResponse
     {
-        $this->cartService->clear($this->maxUser($request));
+        $this->cartService->clear(
+            $this->maxUserResolver->identity(),
+        );
 
         return response()->json([
             'cart' => null,
         ]);
-    }
-
-    /**
-     * Текущий аутентифицированный пользователь MAX из запроса.
-     */
-    private function maxUser(Request $request): MaxUser
-    {
-        /** @var MaxUser $maxUser */
-        $maxUser = $request->user();
-
-        return $maxUser;
     }
 }

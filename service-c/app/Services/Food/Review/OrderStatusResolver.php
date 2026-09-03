@@ -6,7 +6,7 @@ namespace App\Services\Food\Review;
 
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
-use App\Models\Food\FoodOrder;
+use App\DTO\Food\Order\FoodOrderRecord;
 
 /**
  * Вычисляет итоговый статус заказа по статусам этапов проверки.
@@ -39,12 +39,12 @@ class OrderStatusResolver
     /**
      * Итоговый статус по полям этапов проверки модели заказа.
      */
-    public function resolveForOrder(FoodOrder $order): OrderStatus
+    public function resolveForOrder(FoodOrderRecord $order): OrderStatus
     {
         return $this->resolve(
-            $order->address_review_status,
-            $order->composition_review_status,
-            $order->payment_review_status,
+            $order->addressReviewStatus,
+            $order->compositionReviewStatus,
+            $order->paymentReviewStatus,
         );
     }
 }
