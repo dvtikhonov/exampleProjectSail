@@ -8,11 +8,11 @@ use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
 use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Support\Max\MaxUiStandRecipientResolver;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
@@ -32,7 +32,8 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
         private readonly DailyMenuLineCollectorInterface $lineCollector,
         private readonly MaxManagerDailyMenuMessageBuilderInterface $messageBuilder,
         private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -41,7 +42,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
     public function notify(CarbonImmutable $menuDate): int
     {
         if (! $this->isBotConfigured()) {
-            Log::channel('max_log')->warning('MAX manager daily menu notification skipped: bot is not configured');
+            $this->logger->warning('MAX manager daily menu notification skipped: bot is not configured');
 
             return 0;
         }
@@ -51,7 +52,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
         );
 
         if ($managerIds === []) {
-            Log::channel('max_log')->warning('MAX manager daily menu notification skipped: no active max_manager recipients');
+            $this->logger->warning('MAX manager daily menu notification skipped: no active max_manager recipients');
 
             return 0;
         }
@@ -97,7 +98,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('max_log')->warning(
+            $this->logger->warning(
                 'MAX manager daily menu notification fallback skipped: UI Stand recipients are not configured',
                 ['user_id' => $failedUserId],
             );
@@ -146,7 +147,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
                 userId: $userId,
             ));
         } catch (MaxMessengerException $exception) {
-            Log::channel('max_log')->warning('MAX manager daily menu notification send failed', [
+            $this->logger->warning('MAX manager daily menu notification send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'failed_user_id' => $failedUserId,
@@ -155,7 +156,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
 
             return false;
         } catch (Throwable $exception) {
-            Log::channel('max_log')->warning('MAX manager daily menu notification send failed', [
+            $this->logger->warning('MAX manager daily menu notification send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'failed_user_id' => $failedUserId,

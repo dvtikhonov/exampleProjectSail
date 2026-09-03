@@ -8,15 +8,17 @@ use App\Contracts\Food\ManualOrder\DraftAfterScanningOrderServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Shared\ClockInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\ManualOrder\DraftAfterScanningMoveToCartResultDto;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Order\FoodOrderUpdateCommand;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
-use Illuminate\Support\Facades\DB;
+use DateTimeInterface;
 
 /**
  * Use-case действия с ручным заказом в статусе «Черновик после сканирования».
@@ -26,31 +28,32 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     public function __construct(
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly TransactionManagerInterface $transactionManager,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function complete(int $orderId, MaxUser $manager): FoodOrder
+    public function complete(int $orderId, MaxUserIdentity $manager): FoodOrderRecord
     {
-        $order = DB::transaction(function () use ($orderId, $manager): FoodOrder {
+        $order = $this->transactionManager->run(function () use ($orderId, $manager): FoodOrderRecord {
             $order = $this->lockEligibleOrder($orderId);
-            $reviewedAt = now();
+            $reviewedAt = $this->clock->now()->format(DateTimeInterface::ATOM);
 
-            return $this->foodOrderWriteRepository->update($order, [
-                'status' => OrderStatus::Confirmed,
-                'address_review_status' => OrderReviewStatus::Approved,
-                'composition_review_status' => OrderReviewStatus::Approved,
-                'payment_review_status' => OrderReviewStatus::Approved,
-                'address_reviewed_by' => $manager->max_user_id,
-                'address_reviewed_at' => $reviewedAt,
-                'composition_reviewed_by' => $manager->max_user_id,
-                'composition_reviewed_at' => $reviewedAt,
-                'payment_reviewed_by' => $manager->max_user_id,
-                'payment_reviewed_at' => $reviewedAt,
-            ]);
+            return $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
+                status: OrderStatus::Confirmed,
+                addressReviewStatus: OrderReviewStatus::Approved,
+                compositionReviewStatus: OrderReviewStatus::Approved,
+                paymentReviewStatus: OrderReviewStatus::Approved,
+                addressReviewedBy: $manager->maxUserId,
+                addressReviewedAt: $reviewedAt,
+                compositionReviewedBy: $manager->maxUserId,
+                compositionReviewedAt: $reviewedAt,
+                paymentReviewedBy: $manager->maxUserId,
+                paymentReviewedAt: $reviewedAt,
+            ));
         });
 
         $this->foodOrderCustomerNotifier->notifyManualOrderCreatorConfirmed($order);
@@ -61,12 +64,12 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     /**
      * {@inheritDoc}
      */
-    public function moveToCart(int $orderId, MaxUser $manager): DraftAfterScanningMoveToCartResultDto
+    public function moveToCart(int $orderId, MaxUserIdentity $manager): DraftAfterScanningMoveToCartResultDto
     {
-        return DB::transaction(function () use ($orderId, $manager): DraftAfterScanningMoveToCartResultDto {
+        return $this->transactionManager->run(function () use ($orderId, $manager): DraftAfterScanningMoveToCartResultDto {
             $order = $this->lockEligibleOrder($orderId);
-            $customer = $this->resolveCustomer($order);
-            $lines = $this->cartLinesFromSnapshot($order->items_snapshot ?? []);
+            $customer = new MaxUserIdentity($order->maxUserId, []);
+            $lines = $this->cartLinesFromSnapshot($order->itemsSnapshot);
 
             if ($lines === []) {
                 throw new FoodDomainException('В заказе нет позиций для переноса в корзину.');
@@ -87,7 +90,7 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
                 );
             }
 
-            $deliveryAddress = $this->normalizedDeliveryAddress($order->delivery_address);
+            $deliveryAddress = $this->normalizedDeliveryAddress($order->deliveryAddress);
 
             if ($deliveryAddress !== null) {
                 $updatedCart = $this->manualOrderCartService->updateDeliveryAddress(
@@ -105,14 +108,14 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
                 throw new FoodDomainException('Не удалось сформировать ручную корзину из заказа.');
             }
 
-            $orderDeliveryDate = $order->delivery_date?->format('Y-m-d');
+            $orderDeliveryDate = $order->deliveryDate;
             $cart = $cart->withDeliveryDate($orderDeliveryDate);
 
             $this->foodOrderWriteRepository->delete($order);
 
             return new DraftAfterScanningMoveToCartResultDto(
                 cart: $cart,
-                customerMaxUserId: $customer->max_user_id,
+                customerMaxUserId: $order->maxUserId,
                 deliveryAddress: $cart->deliveryAddress,
                 deliveryDate: $orderDeliveryDate,
             );
@@ -122,9 +125,9 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     /**
      * {@inheritDoc}
      */
-    public function delete(int $orderId, MaxUser $manager): void
+    public function delete(int $orderId, MaxUserIdentity $manager): void
     {
-        DB::transaction(function () use ($orderId): void {
+        $this->transactionManager->run(function () use ($orderId): void {
             $order = $this->lockEligibleOrder($orderId);
             $this->foodOrderWriteRepository->delete($order);
         });
@@ -135,11 +138,11 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
      *
      * @throws FoodDomainException
      */
-    private function lockEligibleOrder(int $orderId): FoodOrder
+    private function lockEligibleOrder(int $orderId): FoodOrderRecord
     {
         $order = $this->foodOrderWriteRepository->findByIdForUpdate($orderId);
 
-        if ($order === null || ! $order->is_manual) {
+        if ($order === null || ! $order->isManual) {
             throw new FoodDomainException('Заказ не найден.', 404);
         }
 
@@ -154,25 +157,9 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     }
 
     /**
-     * Клиент ручного заказа.
-     *
-     * @throws FoodDomainException
-     */
-    private function resolveCustomer(FoodOrder $order): MaxUser
-    {
-        $customer = $this->maxUserRepository->findByMaxUserId((int) $order->max_user_id);
-
-        if ($customer === null) {
-            throw new FoodDomainException('Клиент заказа не найден.', 422);
-        }
-
-        return $customer;
-    }
-
-    /**
      * Строки корзины из items_snapshot: dish_id, quantity, combo_ref и партнёр из combo_partner_dish_ids[0].
      *
-     * @param  list<array<string, mixed>>|array<int, mixed>  $itemsSnapshot
+     * @param  list<array<string, mixed>>  $itemsSnapshot
      * @return list<array{dish_id: int, quantity: int, combo_ref: string|null, combo_partner_dish_id: int|null}>
      *
      * @throws FoodDomainException
@@ -227,9 +214,9 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     /**
      * Нормализованный адрес доставки заказа или null, если пустой.
      */
-    private function normalizedDeliveryAddress(mixed $deliveryAddress): ?string
+    private function normalizedDeliveryAddress(?string $deliveryAddress): ?string
     {
-        if (! is_string($deliveryAddress)) {
+        if ($deliveryAddress === null) {
             return null;
         }
 

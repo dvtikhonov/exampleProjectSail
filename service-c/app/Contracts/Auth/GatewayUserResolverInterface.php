@@ -1,17 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Contracts\Auth;
 
+use App\DTO\Auth\GatewayAuthCredentialsDto;
 use App\DTO\Auth\GatewayUserDto;
-use Illuminate\Http\Request;
 
 /**
- * Разрешение пользователя gateway из заголовков HTTP-запроса.
+ * Разрешение пользователя gateway из учётных данных HTTP-запроса.
  */
 interface GatewayUserResolverInterface
 {
     /**
-     * Извлекает пользователя из X-User-Id или возвращает null.
+     * Извлекает пользователя по gateway-credentials или возвращает null.
      */
-    public function resolveFromRequest(Request $request): ?GatewayUserDto;
+    public function resolve(GatewayAuthCredentialsDto $credentials): ?GatewayUserDto;
 }

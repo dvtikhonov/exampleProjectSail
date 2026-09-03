@@ -1,0 +1,5 @@
+# Baseline: known Illuminate\ / App\Models\ leaks in app/Services and app/Contracts.
+# Phase 0 inventory for Laravel core isolation. Remove a path when the file is cleaned.
+# Do not add new paths — fix the leak instead (ports in Contracts/Shared, adapters in Infrastructure/Laravel).
+# Update via: bash scripts/architecture-leak-inventory.sh --write-baseline
+# Target end-state: empty baseline (0 leaks).

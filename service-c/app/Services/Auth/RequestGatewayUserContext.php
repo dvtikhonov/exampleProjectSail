@@ -1,26 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Auth;
 
-use App\Contracts\Auth\GatewayUserContextInterface;
-use Illuminate\Http\Request;
-
-/**
- * Контекст текущего пользователя gateway из HTTP-запроса.
- */
-class RequestGatewayUserContext implements GatewayUserContextInterface
-{
-    public function __construct(
-        private readonly Request $request,
-    ) {}
-
-    /**
-     * {@inheritDoc}
-     */
-    public function currentUserId(): ?int
-    {
-        $userId = $this->request->user()?->id;
-
-        return is_int($userId) ? $userId : null;
-    }
-}
+/** @deprecated Use App\Infrastructure\Laravel\RequestGatewayUserContext instead. */
+class RequestGatewayUserContext extends \App\Infrastructure\Laravel\RequestGatewayUserContext {}

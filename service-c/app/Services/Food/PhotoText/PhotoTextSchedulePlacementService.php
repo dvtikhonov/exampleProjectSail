@@ -6,19 +6,19 @@ namespace App\Services\Food\PhotoText;
 
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
-use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\Contracts\Food\PhotoText\PhotoTextDishNameMatcherInterface;
 use App\Contracts\Food\PhotoText\PhotoTextSchedulePlacementServiceInterface;
 use App\DTO\Food\Menu\DishAvailabilityChangeDto;
 use App\DTO\Food\Menu\DishAvailabilityUpdateDto;
+use App\DTO\Food\Menu\DishRecord;
+use App\DTO\Food\Menu\MenuCategoryRecord;
 use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleIssueDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleMatchedDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
 use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Dish;
-use App\Models\Food\MenuCategory;
 
 /**
  * Exact match имён графика PhotoText и запись через DishAvailabilityScheduleService.
@@ -27,7 +27,7 @@ use App\Models\Food\MenuCategory;
 class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementServiceInterface
 {
     public function __construct(
-        private readonly DishCatalogRepositoryInterface $dishRepository,
+        private readonly PhotoTextDishNameMatcherInterface $dishNameMatcher,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
         private readonly DishAvailabilityRepositoryInterface $availabilityRepository,
         private readonly DishAvailabilityScheduleServiceInterface $scheduleService,
@@ -144,97 +144,27 @@ class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementSer
             );
         }
 
-        $found = $this->findUniqueDish($searchName, $restaurantId, $categoryIds);
+        $matchResult = $this->dishNameMatcher->match($searchName, $restaurantId, $categoryIds);
 
-        if (! $found instanceof Dish) {
-            return $this->issueFromFindFailure(
-                $found,
-                $searchName,
-                $entry->name,
-                $entry->dates,
-                $restaurantId,
-                $categoryIds,
+        if (! $matchResult->isSuccess()) {
+            return new PhotoTextScheduleIssueDto(
+                code: $matchResult->code ?? PhotoTextMatchIssueCode::DishNotFound,
+                message: $matchResult->message ?? 'Блюдо не найдено: '.$searchName,
+                rawTitle: $entry->name,
+                dates: $entry->dates,
             );
         }
 
+        $found = $matchResult->dish;
         $category = $found->menuCategory;
 
         return new PhotoTextScheduleMatchedDto(
             rawTitle: $entry->name,
-            dishId: (int) $found->id,
-            dishName: (string) $found->name,
-            categoryId: (int) $category->id,
-            categoryName: (string) $category->name,
+            dishId: $found->id,
+            dishName: $found->name,
+            categoryId: (int) ($category?->id ?? 0),
+            categoryName: (string) ($category?->name ?? ''),
             dates: $entry->dates,
-        );
-    }
-
-    /**
-     * @param  list<int>|null  $categoryIds
-     */
-    private function findUniqueDish(
-        string $searchName,
-        int $restaurantId,
-        ?array $categoryIds,
-    ): Dish|PhotoTextMatchIssueCode {
-        $inRestaurant = $this->dishRepository->findByNameCaseInsensitive($searchName, $restaurantId);
-
-        if ($categoryIds !== null) {
-            $allowed = array_fill_keys($categoryIds, true);
-            $inRestaurant = $inRestaurant->filter(
-                static fn (Dish $dish): bool => isset($allowed[(int) $dish->menu_category_id]),
-            )->values();
-        }
-
-        if ($inRestaurant->count() === 1) {
-            /** @var Dish $dish */
-            $dish = $inRestaurant->first();
-
-            return $dish;
-        }
-
-        if ($inRestaurant->count() > 1) {
-            return PhotoTextMatchIssueCode::DishAmbiguous;
-        }
-
-        return PhotoTextMatchIssueCode::DishNotFound;
-    }
-
-    /**
-     * @param  list<string>  $dates
-     * @param  list<int>|null  $categoryIds
-     */
-    private function issueFromFindFailure(
-        PhotoTextMatchIssueCode $code,
-        string $searchName,
-        string $rawTitle,
-        array $dates,
-        int $restaurantId,
-        ?array $categoryIds,
-    ): PhotoTextScheduleIssueDto {
-        $message = $code === PhotoTextMatchIssueCode::DishAmbiguous
-            ? 'Найдено несколько блюд: '.$searchName
-            : 'Блюдо не найдено: '.$searchName;
-
-        if ($code === PhotoTextMatchIssueCode::DishNotFound) {
-            $inRestaurant = $this->dishRepository->findByNameCaseInsensitive($searchName, $restaurantId);
-
-            if ($categoryIds !== null && $inRestaurant->isNotEmpty()) {
-                $message = 'Блюдо не относится к указанной категории: '.$searchName;
-            } elseif ($inRestaurant->isEmpty()) {
-                $anywhere = $this->dishRepository->findByNameCaseInsensitive($searchName);
-
-                if ($anywhere->isNotEmpty()) {
-                    $message = 'Блюдо не относится к указанному ресторану: '.$searchName;
-                }
-            }
-        }
-
-        return new PhotoTextScheduleIssueDto(
-            code: $code,
-            message: $message,
-            rawTitle: $rawTitle,
-            dates: $dates,
         );
     }
 
@@ -271,8 +201,8 @@ class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementSer
         }
 
         return array_values(array_map(
-            static fn (MenuCategory $category): int => (int) $category->id,
-            $this->menuCategoryRepository->listForAdmin($restaurantId),
+            static fn (MenuCategoryRecord $category): int => $category->id,
+            $this->listCategoryRecords($restaurantId),
         ));
     }
 
@@ -290,12 +220,22 @@ class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementSer
         $dishes = $this->availabilityRepository->listDishesForCategory($restaurantId, $categoryId);
 
         return array_map(
-            static fn (Dish $dish): DishAvailabilityChangeDto => new DishAvailabilityChangeDto(
-                dishId: (int) $dish->id,
-                dates: $datesByDishId[(int) $dish->id] ?? [],
+            static fn (DishRecord $dish): DishAvailabilityChangeDto => new DishAvailabilityChangeDto(
+                dishId: $dish->id,
+                dates: $datesByDishId[$dish->id] ?? [],
             ),
             $dishes,
         );
+    }
+
+    /**
+     * Категории ресторана как доменные Record.
+     *
+     * @return list<MenuCategoryRecord>
+     */
+    private function listCategoryRecords(int $restaurantId): array
+    {
+        return $this->menuCategoryRepository->listForAdmin($restaurantId);
     }
 
     /**
@@ -329,9 +269,9 @@ class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementSer
         }
 
         foreach ($categoryIds as $categoryId) {
-            $category = $this->menuCategoryRepository->findById($categoryId);
+            $record = $this->menuCategoryRepository->findById($categoryId);
 
-            if ($category === null || (int) $category->restaurant_id !== $restaurantId) {
+            if ($record === null || $record->restaurantId !== $restaurantId) {
                 throw new FoodDomainException('Категория меню не найдена для выбранного ресторана.', 422);
             }
         }

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
 use App\Exceptions\Max\MaxWebAppInitDataException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Max\ValidateInitDataRequest;
-use App\Services\Max\MaxMiniAppAuthService;
 use App\Support\Max\MaxMiniAppAccessLogger;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,7 +20,7 @@ class MaxAuthController extends Controller
 {
     public function __construct(
         private readonly MaxWebAppInitDataValidatorInterface $initDataValidator,
-        private readonly MaxMiniAppAuthService $authService,
+        private readonly MaxMiniAppAuthServiceInterface $authService,
         private readonly MaxMiniAppAccessLogger $accessLogger,
     ) {}
 

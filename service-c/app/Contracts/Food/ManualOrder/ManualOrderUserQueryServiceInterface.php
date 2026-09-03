@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts\Food\ManualOrder;
 
 use App\DTO\Food\ManualOrder\ManualOrderUserDto;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Поиск клиентов MAX для оформления ручного заказа.
@@ -28,5 +28,5 @@ interface ManualOrderUserQueryServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function findCustomerOrFail(int $maxUserId): MaxUser;
+    public function findCustomerOrFail(int $maxUserId): MaxUserIdentity;
 }

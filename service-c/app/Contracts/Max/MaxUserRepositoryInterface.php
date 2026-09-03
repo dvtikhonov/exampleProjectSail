@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Contracts\Max;
 
-use App\Models\Max\MaxUser;
+use App\DTO\Max\MaxUserRecord;
+use App\DTO\Max\MaxWebAppInitDataDto;
+use App\DTO\Shared\PaginatedResultDto;
 use DateTimeInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 /**
  * Репозиторий пользователей MAX mini-app.
@@ -24,21 +24,46 @@ interface MaxUserRepositoryInterface
     /**
      * Находит пользователя по max_user_id.
      */
-    public function findByMaxUserId(int $maxUserId): ?MaxUser;
+    public function findByMaxUserId(int $maxUserId): ?MaxUserRecord;
+
+    /**
+     * Создаёт или обновляет профиль пользователя из initData MAX WebApp.
+     *
+     * @param  int|null  $defaultCustomerCategoryId  категория, если у пользователя ещё нет
+     */
+    public function upsertFromInitData(
+        MaxWebAppInitDataDto $initData,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord;
+
+    /**
+     * Создаёт или обновляет пользователя нагрузочного стенда.
+     */
+    public function upsertLoadTestUser(
+        int $maxUserId,
+        string $firstName,
+        string $username,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord;
 
     /**
      * Постраничный поиск пользователей для ручных заказов.
      *
-     * @return LengthAwarePaginator<int, MaxUser>
+     * @return PaginatedResultDto<MaxUserRecord>
      */
-    public function paginateForManualOrders(?string $query, int $perPage): LengthAwarePaginator;
+    public function paginateForManualOrders(?string $query, int $perPage): PaginatedResultDto;
 
     /**
      * Поиск пользователей по подстроке в first_name / last_name / username (без delivery_address).
      *
-     * @return Collection<int, MaxUser>
+     * @return list<MaxUserRecord>
      */
-    public function findByNameFieldsSubstring(string $query): Collection;
+    public function findByNameFieldsSubstring(string $query): array;
+
+    /**
+     * Обновляет адрес доставки пользователя.
+     */
+    public function updateDeliveryAddress(int $maxUserId, string $deliveryAddress): void;
 
     /**
      * Очищает просроченный доступ AI (ставит `ai_access_until = null`).
@@ -50,9 +75,9 @@ interface MaxUserRepositoryInterface
     /**
      * Находит пользователя с активным доступом AI на момент `now`.
      *
-     * @return MaxUser|null Пользователь или `null`, если активного доступа нет.
+     * @return MaxUserRecord|null Пользователь или `null`, если активного доступа нет.
      */
-    public function findActiveAiAccessUser(DateTimeInterface $now): ?MaxUser;
+    public function findActiveAiAccessUser(DateTimeInterface $now): ?MaxUserRecord;
 
     /**
      * Очищает доступ AI для конкретного пользователя только если он активен на `now`.

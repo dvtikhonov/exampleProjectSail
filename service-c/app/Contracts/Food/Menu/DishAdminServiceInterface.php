@@ -8,9 +8,9 @@ use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Food\Menu\CreateDishDto;
 use App\DTO\Food\Menu\ImportDishRowDto;
 use App\DTO\Food\Menu\UpdateDishDto;
+use App\DTO\Shared\UploadedFileDto;
 use App\Enums\Food\Menu\AdminDishAvailabilityFilter;
 use App\Exceptions\Food\FoodDomainException;
-use Illuminate\Http\UploadedFile;
 
 /**
  * Административный CRUD блюд меню.
@@ -35,7 +35,7 @@ interface DishAdminServiceInterface
     /**
      * @throws FoodDomainException
      */
-    public function create(CreateDishDto $dto, UploadedFile $photo): AdminDishDto;
+    public function create(CreateDishDto $dto, UploadedFileDto $photo): AdminDishDto;
 
     /**
      * Пакетный импорт строк из таблицы: при точном совпадении названия обновляет только цену.
@@ -49,7 +49,7 @@ interface DishAdminServiceInterface
     /**
      * @throws FoodDomainException
      */
-    public function update(int $dishId, UpdateDishDto $dto, ?UploadedFile $photo = null): AdminDishDto;
+    public function update(int $dishId, UpdateDishDto $dto, ?UploadedFileDto $photo = null): AdminDishDto;
 
     /**
      * @throws FoodDomainException

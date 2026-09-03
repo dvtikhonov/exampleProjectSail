@@ -42,7 +42,7 @@ class MaxLocalDevInitDataTest extends TestCase
 
         $this->assertNotNull($initData);
 
-        $validator = new MaxWebAppInitDataValidator(config());
+        $validator = $this->app->make(MaxWebAppInitDataValidator::class);
         $dto = $validator->validate((string) $initData);
 
         $this->assertSame(1002, $dto->maxUserId);
@@ -66,7 +66,7 @@ class MaxLocalDevInitDataTest extends TestCase
 
         $this->assertNotNull($initData);
 
-        $validator = new MaxWebAppInitDataValidator(config());
+        $validator = $this->app->make(MaxWebAppInitDataValidator::class);
         $dto = $validator->validate((string) $initData);
 
         $this->assertSame(1003, $dto->maxUserId);
@@ -156,7 +156,7 @@ class MaxLocalDevInitDataTest extends TestCase
             'user' => is_string($userPayload) ? $userPayload : '{}',
         ]);
 
-        $validator = new MaxWebAppInitDataValidator(config());
+        $validator = $this->app->make(MaxWebAppInitDataValidator::class);
         $dto = $validator->validate($initData);
 
         $this->assertSame(67_890, $dto->maxUserId);

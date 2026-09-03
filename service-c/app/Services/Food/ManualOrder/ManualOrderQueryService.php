@@ -8,9 +8,9 @@ use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\DTO\Food\ManualOrder\ManualOrderDetailDto;
 use App\DTO\Food\ManualOrder\ManualOrderListItemDto;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
 use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
@@ -53,14 +53,14 @@ class ManualOrderQueryService implements ManualOrderQueryServiceInterface
 
         return [
             'orders' => array_map(
-                fn (FoodOrder $order): ManualOrderListItemDto => $this->mapListItem($order),
-                $paginator->items(),
+                fn (FoodOrderRecord $order): ManualOrderListItemDto => $this->mapListItem($order),
+                $paginator->items,
             ),
             'meta' => [
-                'current_page' => $paginator->currentPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'last_page' => $paginator->lastPage(),
+                'current_page' => $paginator->currentPage,
+                'per_page' => $paginator->perPage,
+                'total' => $paginator->total,
+                'last_page' => $paginator->lastPage,
                 'total_amount' => $this->moneyFormatter->format($totalAmount),
             ],
         ];
@@ -83,53 +83,53 @@ class ManualOrderQueryService implements ManualOrderQueryServiceInterface
     /**
      * Преобразует заказ в DTO элемента списка ручных заказов.
      */
-    private function mapListItem(FoodOrder $order): ManualOrderListItemDto
+    private function mapListItem(FoodOrderRecord $order): ManualOrderListItemDto
     {
         return new ManualOrderListItemDto(
             id: $order->id,
             status: $order->status->value,
-            restaurantId: $order->restaurant_id,
-            restaurantName: (string) $order->restaurant?->name,
-            customerMaxUserId: $order->max_user_id,
-            customerFirstName: $order->maxUser?->first_name,
-            customerLastName: $order->maxUser?->last_name,
-            customerUsername: $order->maxUser?->username,
-            deliveryAddress: $order->delivery_address,
-            deliveryDate: $order->delivery_date?->format('Y-m-d'),
-            itemsTotal: $this->moneyFormatter->format($order->items_total),
-            deliveryCost: $order->delivery_cost !== null
-                ? $this->moneyFormatter->format($order->delivery_cost)
+            restaurantId: $order->restaurantId,
+            restaurantName: (string) ($order->restaurantName ?? ''),
+            customerMaxUserId: $order->maxUserId,
+            customerFirstName: $order->customerFirstName,
+            customerLastName: $order->customerLastName,
+            customerUsername: $order->customerUsername,
+            deliveryAddress: $order->deliveryAddress,
+            deliveryDate: $order->deliveryDate,
+            itemsTotal: $this->moneyFormatter->format($order->itemsTotal),
+            deliveryCost: $order->deliveryCost !== null
+                ? $this->moneyFormatter->format($order->deliveryCost)
                 : null,
             total: $this->moneyFormatter->format($order->total),
-            createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
+            createdAt: $order->createdAt,
         );
     }
 
     /**
      * Преобразует заказ в детальный DTO для просмотра.
      */
-    private function mapDetail(FoodOrder $order): ManualOrderDetailDto
+    private function mapDetail(FoodOrderRecord $order): ManualOrderDetailDto
     {
         return new ManualOrderDetailDto(
             id: $order->id,
             status: $order->status->value,
-            restaurantId: $order->restaurant_id,
-            restaurantName: (string) $order->restaurant?->name,
-            customerMaxUserId: $order->max_user_id,
-            customerFirstName: $order->maxUser?->first_name,
-            customerLastName: $order->maxUser?->last_name,
-            customerUsername: $order->maxUser?->username,
-            deliveryAddress: $order->delivery_address,
-            deliveryDate: $order->delivery_date?->format('Y-m-d'),
-            itemsTotal: $this->moneyFormatter->format($order->items_total),
-            deliveryApplicable: $order->delivery_cost !== null,
-            deliveryCost: $order->delivery_cost !== null
-                ? $this->moneyFormatter->format($order->delivery_cost)
+            restaurantId: $order->restaurantId,
+            restaurantName: (string) ($order->restaurantName ?? ''),
+            customerMaxUserId: $order->maxUserId,
+            customerFirstName: $order->customerFirstName,
+            customerLastName: $order->customerLastName,
+            customerUsername: $order->customerUsername,
+            deliveryAddress: $order->deliveryAddress,
+            deliveryDate: $order->deliveryDate,
+            itemsTotal: $this->moneyFormatter->format($order->itemsTotal),
+            deliveryApplicable: $order->deliveryCost !== null,
+            deliveryCost: $order->deliveryCost !== null
+                ? $this->moneyFormatter->format($order->deliveryCost)
                 : null,
             total: $this->moneyFormatter->format($order->total),
-            itemsSnapshot: $order->items_snapshot ?? [],
-            createdAt: $order->created_at?->toIso8601String() ?? now()->toIso8601String(),
-            hasMessages: (bool) $order->messages_exists,
+            itemsSnapshot: $order->itemsSnapshot,
+            createdAt: $order->createdAt,
+            hasMessages: (bool) ($order->hasMessages ?? false),
         );
     }
 }

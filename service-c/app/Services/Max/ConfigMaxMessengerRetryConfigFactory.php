@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Max;
 
-use Illuminate\Contracts\Config\Repository;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use Shared\MaxMessenger\Config\MaxMessengerRetryConfig;
 
 /**
@@ -11,11 +13,11 @@ use Shared\MaxMessenger\Config\MaxMessengerRetryConfig;
 class ConfigMaxMessengerRetryConfigFactory
 {
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
     ) {}
 
     /**
-     * Создаёт конфигурацию retry из настроек Laravel.
+     * Создаёт конфигурацию retry из настроек приложения.
      */
     public function make(): MaxMessengerRetryConfig
     {

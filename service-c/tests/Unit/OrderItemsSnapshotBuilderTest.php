@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Models\Food\CartItem;
+use App\DTO\Food\Cart\CartItemRecord;
 use App\Models\Food\Dish;
 use App\Models\Food\MenuCategory;
+use App\Repositories\Food\Menu\DishMapper;
 use App\Services\Food\Order\OrderItemsSnapshotBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -33,14 +34,17 @@ class OrderItemsSnapshotBuilderTest extends TestCase
     public function test_build_creates_snapshot_with_formatted_amounts_and_image_url(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Bistro', 'Steak', 700.0);
+        $dishRecord = app(DishMapper::class)->toRecord($fixture['dish']);
 
-        $item = new CartItem([
-            'dish_id' => $fixture['dish']->id,
-            'quantity' => 2,
-        ]);
-        $item->setRelation('dish', $fixture['dish']);
+        $item = new CartItemRecord(
+            id: 1,
+            cartId: 1,
+            dishId: $dishRecord->id,
+            quantity: 2,
+            dish: $dishRecord,
+        );
 
-        $snapshot = app(OrderItemsSnapshotBuilder::class)->build(collect([$item]));
+        $snapshot = app(OrderItemsSnapshotBuilder::class)->build([$item]);
 
         $this->assertSame(1400.0, $snapshot->itemsTotal);
         $this->assertCount(1, $snapshot->itemsSnapshot);
@@ -58,14 +62,15 @@ class OrderItemsSnapshotBuilderTest extends TestCase
         );
     }
 
-    /** buildFromDishes строит снимок из Dish без зависимости от CartItem. */
+    /** buildFromDishes строит снимок из DishRecord без зависимости от CartItem. */
     public function test_build_from_dishes_creates_snapshot_from_catalog_dishes(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Bistro', 'Soup', 320.0);
+        $dishRecord = app(DishMapper::class)->toRecord($fixture['dish']);
 
         $snapshot = app(OrderItemsSnapshotBuilder::class)->buildFromDishes([
             [
-                'dish' => $fixture['dish'],
+                'dish' => $dishRecord,
                 'quantity' => 3,
             ],
         ]);
@@ -99,16 +104,17 @@ class OrderItemsSnapshotBuilderTest extends TestCase
             'price' => 100.0,
         ]);
         $comboRef = (string) Str::uuid();
+        $mapper = app(DishMapper::class);
 
         $snapshot = app(OrderItemsSnapshotBuilder::class)->buildFromDishes([
             [
-                'dish' => $fixture['dish'],
+                'dish' => $mapper->toRecord($fixture['dish']),
                 'quantity' => 2,
                 'combo_ref' => $comboRef,
                 'combo_partner_dish_id' => $sideDish->id,
             ],
             [
-                'dish' => $sideDish,
+                'dish' => $mapper->toRecord($sideDish),
                 'quantity' => 2,
                 'combo_ref' => $comboRef,
                 'combo_partner_dish_id' => $fixture['dish']->id,

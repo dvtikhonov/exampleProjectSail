@@ -7,10 +7,10 @@ namespace App\Http\Controllers\Api\Food;
 use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\AdminMenuCategoryDto;
-use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\StoreMenuCategoryRequest;
 use App\Http\Requests\Food\Admin\UpdateMenuCategoryRequest;
+use App\Support\Http\QueryParamParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,6 +23,7 @@ class AdminMenuCategoryController extends Controller
     public function __construct(
         private readonly MenuCategoryAdminServiceInterface $menuCategoryAdminService,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
+        private readonly QueryParamParser $queryParamParser,
     ) {}
 
     /**
@@ -30,7 +31,7 @@ class AdminMenuCategoryController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $restaurantId = $this->optionalPositiveIntQuery($request, 'restaurant_id');
+        $restaurantId = $this->queryParamParser->optionalPositiveInt($request, 'restaurant_id');
         $categories = $this->menuCategoryAdminService->list($restaurantId);
 
         return response()->json([
@@ -84,13 +85,7 @@ class AdminMenuCategoryController extends Controller
      */
     public function destroy(int $menuCategory): Response
     {
-        try {
-            $this->menuCategoryAdminService->delete($menuCategory);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $this->menuCategoryAdminService->delete($menuCategory);
 
         return response()->noContent();
     }
@@ -100,32 +95,10 @@ class AdminMenuCategoryController extends Controller
      */
     private function respondCategory(callable $action, int $status = 200): JsonResponse
     {
-        try {
-            $category = $action();
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $category = $action();
 
         return response()->json([
             'category' => $category->toArray(),
         ], $status);
-    }
-
-    /**
-     * Опциональный положительный int из query-параметра.
-     */
-    private function optionalPositiveIntQuery(Request $request, string $key): ?int
-    {
-        $value = $request->query($key);
-
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        $intValue = (int) $value;
-
-        return $intValue >= 1 ? $intValue : null;
     }
 }

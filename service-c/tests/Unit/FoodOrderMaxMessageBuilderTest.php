@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
-use App\Models\Food\FoodOrder;
-use App\Models\Food\Restaurant;
-use App\Models\Max\MaxUser;
+use App\DTO\Food\Shared\MaxUserDisplayDto;
+use App\Enums\Food\Order\OrderStatus;
+use App\Enums\Food\Review\OrderReviewStatus;
 use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
 use App\Support\Food\Composition\OrderSnapshotComboResolver;
 use Tests\TestCase;
@@ -350,18 +351,37 @@ TEXT,
         ?string $deliveryCost,
         string $total,
         array $itemsSnapshot,
-    ): FoodOrder {
-        $order = new FoodOrder([
-            'delivery_address' => $deliveryAddress,
-            'items_total' => $itemsTotal,
-            'delivery_cost' => $deliveryCost,
-            'total' => $total,
-            'items_snapshot' => $itemsSnapshot,
-        ]);
-        $order->id = $id;
-        $order->setRelation('restaurant', new Restaurant(['name' => $restaurantName]));
-
-        return $order;
+    ): FoodOrderRecord {
+        return new FoodOrderRecord(
+            id: $id,
+            cartId: null,
+            maxUserId: 1000,
+            isManual: false,
+            createdByMaxUserId: null,
+            restaurantId: 1,
+            status: OrderStatus::PendingReview,
+            addressReviewStatus: OrderReviewStatus::Pending,
+            compositionReviewStatus: OrderReviewStatus::Pending,
+            paymentReviewStatus: OrderReviewStatus::Pending,
+            addressReviewedBy: null,
+            addressReviewedAt: null,
+            compositionReviewedBy: null,
+            compositionReviewedAt: null,
+            addressRejectionComment: null,
+            compositionRejectionComment: null,
+            paymentReviewedBy: null,
+            paymentReviewedAt: null,
+            paymentRejectionComment: null,
+            total: $total,
+            deliveryAddress: $deliveryAddress,
+            deliveryDate: null,
+            deliveryCost: $deliveryCost,
+            itemsTotal: $itemsTotal,
+            itemsSnapshot: $itemsSnapshot,
+            createdAt: now()->toIso8601String(),
+            updatedAt: null,
+            restaurantName: $restaurantName,
+        );
     }
 
     /**
@@ -394,18 +414,18 @@ TEXT,
         );
     }
 
-    /** Создаёт тестового пользователя MAX. */
+    /** Создаёт тестового пользователя MAX для текста уведомления. */
     private function makeMaxUser(
         int $maxUserId,
         ?string $firstName = null,
         ?string $lastName = null,
         ?string $username = null,
-    ): MaxUser {
-        return new MaxUser([
-            'max_user_id' => $maxUserId,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'username' => $username,
-        ]);
+    ): MaxUserDisplayDto {
+        return new MaxUserDisplayDto(
+            maxUserId: $maxUserId,
+            firstName: $firstName,
+            lastName: $lastName,
+            username: $username,
+        );
     }
 }

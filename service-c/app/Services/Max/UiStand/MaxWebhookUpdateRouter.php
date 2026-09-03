@@ -7,7 +7,7 @@ namespace App\Services\Max\UiStand;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
 use App\Support\Max\MaxUiStandRecipientRegistry;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 
 /**
  * Маршрутизация webhook-обновлений MAX по типу события.
@@ -18,6 +18,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
         private readonly MaxCallbackHandler $callbackHandler,
         private readonly MaxUiStandGreetingSender $greetingSender,
         private readonly MaxUiStandRecipientRegistry $recipientRegistry,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -29,7 +30,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
     {
         $updateType = (string) ($payload['update_type'] ?? '');
 
-        Log::channel('max_log')->info('MAX webhook received', [
+        $this->logger->info('MAX webhook received', [
             'update_type' => $updateType !== '' ? $updateType : 'unknown',
         ]);
 
@@ -107,7 +108,7 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
             $userId = (int) $payload['user_id'];
         }
 
-        Log::channel('max_log')->info('bot_started', ['user_id' => $userId]);
+        $this->logger->info('bot_started', ['user_id' => $userId]);
 
         if ($userId > 0) {
             $this->recipientRegistry->rememberUserId($userId);

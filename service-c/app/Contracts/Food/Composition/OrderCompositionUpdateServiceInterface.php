@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Composition;
 
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
 
 /**
  * Обновление состава заказа в очереди проверки composition_reviewer.
@@ -14,16 +14,11 @@ use App\Models\Max\MaxUser;
 interface OrderCompositionUpdateServiceInterface
 {
     /**
-     * Заменяет состав заказа и пересчитывает суммы.
+     * Обновляет состав заказа и пересчитывает суммы.
      *
-     * @param  list<array{
-     *     dish_id: int,
-     *     quantity: int,
-     *     combo_ref: string|null,
-     *     combo_partner_dish_id: int|null
-     * }>  $items
+     * @param  list<array{dish_id: int, quantity: int}>  $items
      *
      * @throws FoodDomainException
      */
-    public function update(int $orderId, MaxUser $admin, array $items): FoodOrder;
+    public function update(int $orderId, MaxUserIdentity $admin, array $items): FoodOrderRecord;
 }

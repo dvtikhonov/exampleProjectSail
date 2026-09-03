@@ -6,16 +6,17 @@ namespace App\Services\Food\Review;
 
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\OrderReviewStepHandlerInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Единый обработчик approve/reject для всех этапов проверки заказа.
  */
-class OrderReviewStepHandler
+class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
 {
     public function __construct(
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
@@ -23,6 +24,7 @@ class OrderReviewStepHandler
         private readonly OrderReviewUpdateFactory $orderReviewUpdateFactory,
         private readonly OrderReviewCompletionService $orderReviewCompletionService,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
@@ -30,11 +32,11 @@ class OrderReviewStepHandler
      *
      * @throws FoodDomainException
      */
-    public function approve(OrderReviewStep $step, int $orderId, MaxUser $admin): FoodOrder
+    public function approve(OrderReviewStep $step, int $orderId, MaxUserIdentity $admin): FoodOrderRecord
     {
         $statusBefore = null;
 
-        $order = DB::transaction(function () use ($step, $orderId, $admin, &$statusBefore): FoodOrder {
+        $order = $this->transactionManager->run(function () use ($step, $orderId, $admin, &$statusBefore): FoodOrderRecord {
             $order = $this->findOrderForReview($orderId);
             $statusBefore = $order->status;
 
@@ -42,7 +44,7 @@ class OrderReviewStepHandler
 
             return $this->foodOrderWriteRepository->update(
                 $order,
-                $this->orderReviewUpdateFactory->buildApprovalUpdate($step, $order, $admin->max_user_id),
+                $this->orderReviewUpdateFactory->buildApprovalUpdate($step, $order, $admin->maxUserId),
             );
         });
 
@@ -56,16 +58,16 @@ class OrderReviewStepHandler
      *
      * @throws FoodDomainException
      */
-    public function reject(OrderReviewStep $step, int $orderId, MaxUser $admin, string $comment): FoodOrder
+    public function reject(OrderReviewStep $step, int $orderId, MaxUserIdentity $admin, string $comment): FoodOrderRecord
     {
-        $order = DB::transaction(function () use ($step, $orderId, $admin, $comment): FoodOrder {
+        $order = $this->transactionManager->run(function () use ($step, $orderId, $admin, $comment): FoodOrderRecord {
             $order = $this->findOrderForReview($orderId);
 
             $this->orderReviewAuthorizationService->assertCanReject($admin, $order, $step, $comment);
 
             return $this->foodOrderWriteRepository->update(
                 $order,
-                $this->orderReviewUpdateFactory->buildRejectionUpdate($step, $order, $admin->max_user_id, $comment),
+                $this->orderReviewUpdateFactory->buildRejectionUpdate($step, $order, $admin->maxUserId, $comment),
             );
         });
 
@@ -79,7 +81,7 @@ class OrderReviewStepHandler
      *
      * @throws FoodDomainException
      */
-    private function findOrderForReview(int $orderId): FoodOrder
+    private function findOrderForReview(int $orderId): FoodOrderRecord
     {
         $order = $this->foodOrderWriteRepository->findByIdForUpdate($orderId);
 

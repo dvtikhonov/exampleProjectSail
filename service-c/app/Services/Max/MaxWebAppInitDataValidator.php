@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Max;
 
 use App\Contracts\Max\MaxWebAppInitDataValidatorInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Exceptions\Max\MaxWebAppInitDataException;
-use Illuminate\Contracts\Config\Repository;
 
 /**
  * Валидация подписи и срока действия initData MAX WebApp.
@@ -15,7 +15,7 @@ use Illuminate\Contracts\Config\Repository;
 class MaxWebAppInitDataValidator implements MaxWebAppInitDataValidatorInterface
 {
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
     ) {}
 
     /**

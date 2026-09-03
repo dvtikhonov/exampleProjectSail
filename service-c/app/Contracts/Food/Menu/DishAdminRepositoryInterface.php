@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
-use App\Models\Food\Dish;
-use Illuminate\Support\Collection;
+use App\DTO\Food\Menu\DishRecord;
 
 /**
  * Репозиторий блюд для административного CRUD.
@@ -15,20 +14,20 @@ interface DishAdminRepositoryInterface
     /**
      * Находит блюдо по идентификатору.
      */
-    public function findById(int $id): ?Dish;
+    public function findById(int $id): ?DishRecord;
 
     /**
      * Ищет блюдо по точному совпадению названия в категории меню.
      */
-    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?Dish;
+    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?DishRecord;
 
     /**
      * Ищет блюда по списку названий в категории (первое совпадение на имя, без soft-deleted).
      *
      * @param  list<string>  $names
-     * @return Collection<string, Dish> keyed by name
+     * @return array<string, DishRecord> keyed by name
      */
-    public function findByNamesAndMenuCategoryId(array $names, int $menuCategoryId): Collection;
+    public function findByNamesAndMenuCategoryId(array $names, int $menuCategoryId): array;
 
     /**
      * Пакетно обновляет цены блюд по id.
@@ -38,12 +37,12 @@ interface DishAdminRepositoryInterface
     public function updatePricesByIds(array $pricesById): void;
 
     /**
-     * Пакетно создаёт блюда и возвращает созданные модели с id.
+     * Пакетно создаёт блюда и возвращает созданные проекции с id.
      *
      * @param  list<array<string, mixed>>  $rows
-     * @return Collection<int, Dish>
+     * @return list<DishRecord>
      */
-    public function createMany(array $rows): Collection;
+    public function createMany(array $rows): array;
 
     /**
      * Пакетно обновляет image_url блюд по id.
@@ -56,33 +55,33 @@ interface DishAdminRepositoryInterface
      * Список блюд для админки с опциональными фильтрами.
      * Без ресторана и категории — не более 10 записей; при выбранном ресторане — без лимита.
      *
-     * @return Collection<int, Dish>
+     * @return list<DishRecord>
      */
     public function listForAdmin(
         ?int $restaurantId,
         ?int $categoryId,
         ?string $nameSearch = null,
         ?bool $isAvailable = null,
-    ): Collection;
+    ): array;
 
     /**
      * Создаёт блюдо.
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function create(array $attributes): Dish;
+    public function create(array $attributes): DishRecord;
 
     /**
-     * Обновляет блюдо.
+     * Обновляет блюдо по идентификатору.
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function update(Dish $dish, array $attributes): Dish;
+    public function update(int $dishId, array $attributes): DishRecord;
 
     /**
-     * Удаляет блюдо.
+     * Удаляет блюдо по идентификатору.
      */
-    public function delete(Dish $dish): void;
+    public function delete(int $dishId): void;
 
     /**
      * Проверяет, есть ли блюдо в черновых корзинах пользователей.

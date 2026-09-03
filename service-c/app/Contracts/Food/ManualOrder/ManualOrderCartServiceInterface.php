@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts\Food\ManualOrder;
 
 use App\DTO\Food\Cart\CartDto;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Управление ручной корзиной менеджера от имени клиента.
@@ -16,12 +16,16 @@ interface ManualOrderCartServiceInterface
     /**
      * Возвращает ручной черновик корзины клиента или null.
      */
-    public function getDraftCart(MaxUser $customer, MaxUser $manager): ?CartDto;
+    public function getDraftCart(MaxUserIdentity $customer, MaxUserIdentity $manager): ?CartDto;
 
     /**
      * Обновляет адрес доставки в профиле клиента и ручной корзине (если есть).
      */
-    public function updateDeliveryAddress(MaxUser $customer, MaxUser $manager, string $deliveryAddress): ?CartDto;
+    public function updateDeliveryAddress(
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
+        string $deliveryAddress,
+    ): ?CartDto;
 
     /**
      * Добавляет блюдо в ручную корзину или увеличивает количество.
@@ -29,8 +33,8 @@ interface ManualOrderCartServiceInterface
      * @throws FoodDomainException
      */
     public function addItem(
-        MaxUser $customer,
-        MaxUser $manager,
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
         int $dishId,
         int $quantity,
         ?string $comboRef = null,
@@ -43,8 +47,8 @@ interface ManualOrderCartServiceInterface
      * @throws FoodDomainException
      */
     public function updateItemQuantity(
-        MaxUser $customer,
-        MaxUser $manager,
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
         int $cartItemId,
         int $quantity,
     ): CartDto;
@@ -54,10 +58,14 @@ interface ManualOrderCartServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function removeItem(MaxUser $customer, MaxUser $manager, int $cartItemId): ?CartDto;
+    public function removeItem(
+        MaxUserIdentity $customer,
+        MaxUserIdentity $manager,
+        int $cartItemId,
+    ): ?CartDto;
 
     /**
      * Удаляет ручной черновик корзины клиента.
      */
-    public function clear(MaxUser $customer, MaxUser $manager): void;
+    public function clear(MaxUserIdentity $customer, MaxUserIdentity $manager): void;
 }

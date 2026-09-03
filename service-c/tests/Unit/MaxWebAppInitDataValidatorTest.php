@@ -26,7 +26,7 @@ class MaxWebAppInitDataValidatorTest extends TestCase
             'max.miniapp.auth_date_max_age_seconds' => 86_400,
         ]);
 
-        $this->validator = new MaxWebAppInitDataValidator(config());
+        $this->validator = $this->app->make(MaxWebAppInitDataValidator::class);
     }
 
     /** Валидирует фиксированную фикстуру, когда проверка auth_date отключена. */

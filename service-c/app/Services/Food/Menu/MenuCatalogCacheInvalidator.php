@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
-use Illuminate\Support\Facades\Log;
+use App\Contracts\Shared\CacheStoreInterface;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -23,7 +23,8 @@ class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterfac
     private const int DEFAULT_VERSION = 1;
 
     public function __construct(
-        private readonly CacheRepository $cache,
+        private readonly CacheStoreInterface $cache,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -40,7 +41,7 @@ class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterfac
 
             $this->cache->forever(self::VERSION_CACHE_KEY, $current + 1);
         } catch (Throwable $exception) {
-            Log::warning('Menu catalog cache invalidation failed.', [
+            $this->logger->warning('Menu catalog cache invalidation failed.', [
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
                 'cache_key' => self::VERSION_CACHE_KEY,

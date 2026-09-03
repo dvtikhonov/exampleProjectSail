@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
+use App\Contracts\Food\Menu\DishSpreadsheetImportServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\DTO\Food\Menu\AdminDishDto;
@@ -15,7 +16,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
-use App\Services\Food\Menu\DishSpreadsheetImportService;
+use App\Support\Http\QueryParamParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -29,9 +30,10 @@ class AdminDishController extends Controller
 {
     public function __construct(
         private readonly DishAdminServiceInterface $dishAdminService,
-        private readonly DishSpreadsheetImportService $dishSpreadsheetImportService,
+        private readonly DishSpreadsheetImportServiceInterface $dishSpreadsheetImportService,
         private readonly MaxAdminBotTestSenderInterface $maxAdminBotTestSender,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
+        private readonly QueryParamParser $queryParamParser,
     ) {}
 
     /**
@@ -39,9 +41,9 @@ class AdminDishController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $restaurantId = $this->optionalPositiveIntQuery($request, 'restaurant_id');
-        $categoryId = $this->optionalPositiveIntQuery($request, 'category_id');
-        $nameSearch = $this->optionalTrimmedStringQuery($request, 'name', 255);
+        $restaurantId = $this->queryParamParser->optionalPositiveInt($request, 'restaurant_id');
+        $categoryId = $this->queryParamParser->optionalPositiveInt($request, 'category_id');
+        $nameSearch = $this->queryParamParser->optionalTrimmedString($request, 'name', 255);
         $availability = $this->optionalAvailabilityQuery($request);
 
         $dishes = $this->dishAdminService->list(
@@ -98,16 +100,10 @@ class AdminDishController extends Controller
      */
     public function import(ImportDishesSpreadsheetRequest $request): JsonResponse
     {
-        try {
-            $result = $this->dishSpreadsheetImportService->import(
-                $request->spreadsheetFile(),
-                $request->menuCategoryId(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $result = $this->dishSpreadsheetImportService->import(
+            $request->spreadsheetFileDto(),
+            $request->menuCategoryId(),
+        );
 
         if ($result->errors !== []) {
             return response()->json([
@@ -127,7 +123,7 @@ class AdminDishController extends Controller
         return $this->respondDish(function () use ($request) {
             return $this->dishAdminService->create(
                 $request->toCreateDto(),
-                $request->photo(),
+                $request->photoDto(),
             );
         }, 201);
     }
@@ -143,7 +139,7 @@ class AdminDishController extends Controller
             return $this->dishAdminService->update(
                 $dish,
                 $request->toUpdateDtoFromExisting($existing),
-                $request->photoOrNull(),
+                $request->photoDtoOrNull(),
             );
         });
     }
@@ -153,13 +149,7 @@ class AdminDishController extends Controller
      */
     public function destroy(int $dish): Response
     {
-        try {
-            $this->dishAdminService->delete($dish);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $this->dishAdminService->delete($dish);
 
         return response()->noContent();
     }
@@ -169,13 +159,7 @@ class AdminDishController extends Controller
      */
     private function respondTestBotSend(callable $action): JsonResponse
     {
-        try {
-            $result = $action();
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $result = $action();
 
         return response()->json([
             'message' => 'Тестовое сообщение отправлено.',
@@ -191,11 +175,11 @@ class AdminDishController extends Controller
     {
         try {
             $dish = $action();
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
         } catch (Throwable $exception) {
+            if ($exception instanceof FoodDomainException) {
+                throw $exception;
+            }
+
             Log::error('Admin dish action failed.', [
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
@@ -212,47 +196,11 @@ class AdminDishController extends Controller
     }
 
     /**
-     * Опциональный положительный int из query-параметра.
-     */
-    private function optionalPositiveIntQuery(Request $request, string $key): ?int
-    {
-        $value = $request->query($key);
-
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        $intValue = (int) $value;
-
-        return $intValue >= 1 ? $intValue : null;
-    }
-
-    /**
-     * Опциональная обрезанная строка из query-параметра.
-     */
-    private function optionalTrimmedStringQuery(Request $request, string $key, int $maxLength): ?string
-    {
-        $value = $request->query($key);
-
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $trimmed = trim($value);
-
-        if ($trimmed === '') {
-            return null;
-        }
-
-        return mb_substr($trimmed, 0, $maxLength);
-    }
-
-    /**
      * Режим отображения по availability: all|available|hidden (по умолчанию all).
      */
     private function optionalAvailabilityQuery(Request $request): AdminDishAvailabilityFilter
     {
-        $value = $this->optionalTrimmedStringQuery($request, 'availability', 32);
+        $value = $this->queryParamParser->optionalTrimmedString($request, 'availability', 32);
 
         if ($value === null) {
             return AdminDishAvailabilityFilter::All;

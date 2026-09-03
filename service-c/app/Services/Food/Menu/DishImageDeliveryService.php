@@ -6,9 +6,11 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Food\Menu\DishImageDeliveryInterface;
-use App\Models\Food\Dish;
-use Illuminate\Support\Facades\Storage;
+use App\Contracts\Shared\FileStorageInterface;
+use App\DTO\Food\Menu\DishRecord;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Отдача изображения блюда из локального public disk.
@@ -17,6 +19,7 @@ class DishImageDeliveryService implements DishImageDeliveryInterface
 {
     public function __construct(
         private readonly DishCatalogRepositoryInterface $dishRepository,
+        private readonly FileStorageInterface $fileStorage,
     ) {}
 
     /**
@@ -27,33 +30,35 @@ class DishImageDeliveryService implements DishImageDeliveryInterface
         $dish = $this->dishRepository->findByIdWithTrashed($dishId);
 
         if ($dish === null) {
-            abort(404);
+            throw new NotFoundHttpException;
         }
 
         return $this->deliver($dish);
     }
 
     /**
-     * {@inheritDoc}
+     * Отдаёт изображение блюда клиенту из локального public disk.
      */
-    public function deliver(Dish $dish): Response
+    private function deliver(DishRecord $dish): Response
     {
-        $source = $dish->image_url;
+        $source = $dish->imageUrl;
 
         if ($source === null || $source === '') {
-            abort(404);
+            throw new NotFoundHttpException;
         }
 
         if (str_starts_with($source, 'http://') || str_starts_with($source, 'https://')) {
-            abort(404);
+            throw new NotFoundHttpException;
         }
 
-        if (! Storage::disk('public')->exists($source)) {
-            abort(404);
+        if (! $this->fileStorage->exists($source)) {
+            throw new NotFoundHttpException;
         }
 
-        return Storage::disk('public')->response($source, headers: [
-            'Cache-Control' => 'public, max-age=86400, immutable',
-        ]);
+        return new BinaryFileResponse(
+            $this->fileStorage->path($source),
+            200,
+            ['Cache-Control' => 'public, max-age=86400, immutable'],
+        );
     }
 }

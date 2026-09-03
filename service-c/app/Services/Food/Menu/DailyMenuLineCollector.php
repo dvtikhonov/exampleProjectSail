@@ -8,10 +8,10 @@ use App\Contracts\Food\Menu\DailyMenuCatalogRepositoryInterface;
 use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
 use App\DTO\Food\Menu\DailyMenuDishPartDto;
 use App\DTO\Food\Menu\DailyMenuLineDto;
+use App\DTO\Food\Menu\DishRecord;
+use App\DTO\Food\Menu\MenuCategoryRecord;
 use App\Enums\Food\Menu\DailyMenuLineType;
 use App\Enums\Food\Menu\DishWeightUnit;
-use App\Models\Food\Dish;
-use App\Models\Food\MenuCategory;
 
 /**
  * Собирает позиции ежедневного меню: одиночные блюда и комбо-пары.
@@ -43,15 +43,15 @@ class DailyMenuLineCollector implements DailyMenuLineCollectorInterface
     }
 
     /**
-     * @param  list<Dish>  $dishes
-     * @return array<int, list<Dish>>
+     * @param  list<DishRecord>  $dishes
+     * @return array<int, list<DishRecord>>
      */
     private function groupByRestaurant(array $dishes): array
     {
         $grouped = [];
 
         foreach ($dishes as $dish) {
-            $restaurantId = (int) ($dish->menuCategory?->restaurant_id ?? 0);
+            $restaurantId = $dish->menuCategory?->restaurantId ?? 0;
 
             if ($restaurantId === 0) {
                 continue;
@@ -66,7 +66,7 @@ class DailyMenuLineCollector implements DailyMenuLineCollectorInterface
     }
 
     /**
-     * @param  list<Dish>  $dishes
+     * @param  list<DishRecord>  $dishes
      * @return list<DailyMenuLineDto>
      */
     private function collectForRestaurant(array $dishes): array
@@ -81,9 +81,9 @@ class DailyMenuLineCollector implements DailyMenuLineCollectorInterface
                 continue;
             }
 
-            $categoryId = (int) $category->id;
+            $categoryId = $category->id;
 
-            if ((bool) $category->is_combo_available) {
+            if ($category->isComboAvailable) {
                 $comboByCategory[$categoryId]['category'] = $category;
                 $comboByCategory[$categoryId]['dishes'][] = $dish;
             } else {
@@ -135,28 +135,28 @@ class DailyMenuLineCollector implements DailyMenuLineCollectorInterface
     }
 
     /**
-     * @param  list<array{category: MenuCategory, dishes: list<Dish>}>  $groups
-     * @return list<array{category: MenuCategory, dishes: list<Dish>}>
+     * @param  list<array{category: MenuCategoryRecord, dishes: list<DishRecord>}>  $groups
+     * @return list<array{category: MenuCategoryRecord, dishes: list<DishRecord>}>
      */
     private function sortCategoryGroups(array $groups): array
     {
         usort(
             $groups,
             static function (array $left, array $right): int {
-                $sortCmp = ((int) $left['category']->sort_order) <=> ((int) $right['category']->sort_order);
+                $sortCmp = $left['category']->sortOrder <=> $right['category']->sortOrder;
 
                 if ($sortCmp !== 0) {
                     return $sortCmp;
                 }
 
-                return ((int) $left['category']->id) <=> ((int) $right['category']->id);
+                return $left['category']->id <=> $right['category']->id;
             },
         );
 
         foreach ($groups as &$group) {
             usort(
                 $group['dishes'],
-                static fn (Dish $left, Dish $right): int => $left->id <=> $right->id,
+                static fn (DishRecord $left, DishRecord $right): int => $left->id <=> $right->id,
             );
         }
         unset($group);
@@ -164,7 +164,7 @@ class DailyMenuLineCollector implements DailyMenuLineCollectorInterface
         return $groups;
     }
 
-    private function singleLine(Dish $dish): DailyMenuLineDto
+    private function singleLine(DishRecord $dish): DailyMenuLineDto
     {
         return new DailyMenuLineDto(
             type: DailyMenuLineType::Single,
@@ -173,26 +173,26 @@ class DailyMenuLineCollector implements DailyMenuLineCollectorInterface
         );
     }
 
-    private function toPart(Dish $dish): DailyMenuDishPartDto
+    private function toPart(DishRecord $dish): DailyMenuDishPartDto
     {
         $description = trim((string) ($dish->description ?? ''));
 
         return new DailyMenuDishPartDto(
-            name: trim((string) $dish->name),
+            name: trim($dish->name),
             description: $description !== '' ? $description : null,
             weightLabel: $this->formatWeightLabel($dish),
             price: (float) $dish->price,
         );
     }
 
-    private function formatWeightLabel(Dish $dish): ?string
+    private function formatWeightLabel(DishRecord $dish): ?string
     {
-        if ($dish->weight === null || $dish->weight === '') {
+        if ($dish->weight === '') {
             return null;
         }
 
-        $unit = $dish->weight_unit instanceof DishWeightUnit
-            ? $dish->weight_unit
+        $unit = $dish->weightUnit instanceof DishWeightUnit
+            ? $dish->weightUnit
             : DishWeightUnit::Gram;
 
         return sprintf('%s%s', (string) (int) round((float) $dish->weight), $unit->label());

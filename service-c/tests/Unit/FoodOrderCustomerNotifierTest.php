@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderRejectionScope;
-use App\Models\Food\FoodOrder;
-use App\Models\Food\Restaurant;
-use App\Models\Max\MaxUser;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Infrastructure\Laravel\LaravelFoodOrderCustomerNotifier;
 use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
-use App\Services\Max\Food\LaravelFoodOrderCustomerNotifier;
+use App\Services\Max\MaxMessengerNotificationSender;
 use App\Support\Food\Composition\OrderSnapshotComboResolver;
-use App\Support\Max\MaxOpenAppTargetResolver;
+use App\Support\Max\MaxOpenAppButtonFactory;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -680,13 +682,23 @@ TEXT,
         ?MaxUiStandRecipientResolverInterface $uiStandRecipientResolver = null,
     ): LaravelFoodOrderCustomerNotifier {
         return new LaravelFoodOrderCustomerNotifier(
-            client: $client,
             messageBuilder: $this->messageBuilder,
-            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
+            openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
             recipientResolver: $recipientResolver
                 ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
             uiStandRecipientResolver: $uiStandRecipientResolver
                 ?? $this->app->make(MaxUiStandRecipientResolverInterface::class),
+            notificationSender: $this->makeNotificationSender($client),
+        );
+    }
+
+    /** Создаёт sender с подставным MAX-клиентом. */
+    private function makeNotificationSender(MaxMessengerClientInterface $client): MaxMessengerNotificationSenderInterface
+    {
+        return new MaxMessengerNotificationSender(
+            $client,
+            $this->app->make(MaxUiStandRecipientResolverInterface::class),
+            Log::channel('max_log'),
         );
     }
 
@@ -716,37 +728,38 @@ TEXT,
         ?string $createdAt = null,
         ?string $customerFirstName = null,
         ?string $customerLastName = null,
-    ): FoodOrder {
-        $order = new FoodOrder([
-            'max_user_id' => $maxUserId,
-            'is_manual' => $isManual,
-            'created_by_max_user_id' => $createdByMaxUserId,
-            'address_rejection_comment' => $addressRejectionComment,
-            'composition_rejection_comment' => $compositionRejectionComment,
-            'delivery_address' => $deliveryAddress,
-            'items_total' => $itemsTotal,
-            'delivery_cost' => $deliveryCost,
-            'total' => $total,
-            'items_snapshot' => $itemsSnapshot,
-        ]);
-        $order->id = $id;
-
-        if ($createdAt !== null) {
-            $order->created_at = $createdAt;
-        }
-
-        if ($restaurantName !== null) {
-            $order->setRelation('restaurant', new Restaurant(['name' => $restaurantName]));
-        }
-
-        if ($customerFirstName !== null || $customerLastName !== null) {
-            $order->setRelation('maxUser', new MaxUser([
-                'max_user_id' => $maxUserId,
-                'first_name' => $customerFirstName,
-                'last_name' => $customerLastName,
-            ]));
-        }
-
-        return $order;
+    ): FoodOrderRecord {
+        return new FoodOrderRecord(
+            id: $id,
+            cartId: null,
+            maxUserId: $maxUserId,
+            isManual: $isManual,
+            createdByMaxUserId: $createdByMaxUserId,
+            restaurantId: 1,
+            status: OrderStatus::PendingReview,
+            addressReviewStatus: OrderReviewStatus::Pending,
+            compositionReviewStatus: OrderReviewStatus::Pending,
+            paymentReviewStatus: OrderReviewStatus::Pending,
+            addressReviewedBy: null,
+            addressReviewedAt: null,
+            compositionReviewedBy: null,
+            compositionReviewedAt: null,
+            addressRejectionComment: $addressRejectionComment,
+            compositionRejectionComment: $compositionRejectionComment,
+            paymentReviewedBy: null,
+            paymentReviewedAt: null,
+            paymentRejectionComment: null,
+            total: $total ?? '0.00',
+            deliveryAddress: $deliveryAddress,
+            deliveryDate: null,
+            deliveryCost: $deliveryCost,
+            itemsTotal: $itemsTotal ?? '0.00',
+            itemsSnapshot: $itemsSnapshot ?? [],
+            createdAt: $createdAt ?? now()->toIso8601String(),
+            updatedAt: null,
+            restaurantName: $restaurantName,
+            customerFirstName: $customerFirstName,
+            customerLastName: $customerLastName,
+        );
     }
 }

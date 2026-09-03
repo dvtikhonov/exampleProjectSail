@@ -5,19 +5,15 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Chat;
 
 use App\DTO\Food\Chat\OrderMessageDto;
-use App\Models\Food\FoodOrder;
+use App\DTO\Food\Order\FoodOrderRecord;
 
 /**
- * Push-уведомления MAX о новых сообщениях в чате заказа.
+ * Уведомление участников чата заказа о новом сообщении через MAX.
  */
 interface OrderChatNotifierInterface
 {
     /**
-     * Отправляет push о новом сообщении в чате заказа.
-     *
-     * Всегда — в MAX_UI_STAND_* (текст + тело сообщения).
-     * Сообщение от админа — дополнительно клиенту-владельцу (без тела сообщения).
-     * Сообщение клиента клиенту не дублируется.
+     * Отправляет MAX-уведомления о новом сообщении в чате заказа.
      */
-    public function notify(FoodOrder $order, OrderMessageDto $message): void;
+    public function notify(FoodOrderRecord $order, OrderMessageDto $message): void;
 }

@@ -6,8 +6,9 @@ namespace App\Services\Food\ManualOrder;
 
 use App\Contracts\Food\ManualOrder\ManualOrderCustomerResolverInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\DTO\Food\Shared\MaxUserIdentity;
+use App\DTO\Max\MaxUserRecord;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Max\MaxUser;
 
 /**
  * Поиск ровно одного клиента MAX по подстроке имени (STOP при 0 или >1).
@@ -21,7 +22,7 @@ class ManualOrderCustomerResolver implements ManualOrderCustomerResolverInterfac
     /**
      * {@inheritDoc}
      */
-    public function resolveExactlyOne(string $customerQuery): MaxUser
+    public function resolveExactlyOne(string $customerQuery): MaxUserIdentity
     {
         $query = trim($customerQuery);
 
@@ -31,21 +32,24 @@ class ManualOrderCustomerResolver implements ManualOrderCustomerResolverInterfac
 
         $users = $this->maxUserRepository->findByNameFieldsSubstring($query);
 
-        if ($users->isEmpty()) {
+        if ($users === []) {
             throw new FoodDomainException('Клиент не найден: '.$query);
         }
 
-        if ($users->count() > 1) {
-            $ids = $users
-                ->map(static fn (MaxUser $user): string => (string) $user->max_user_id)
-                ->implode(', ');
+        if (count($users) > 1) {
+            $ids = implode(
+                ', ',
+                array_map(static fn (MaxUserRecord $user): string => (string) $user->maxUserId, $users),
+            );
 
             throw new FoodDomainException('Найдено несколько клиентов: '.$query.' (max_user_id: '.$ids.')');
         }
 
-        /** @var MaxUser $customer */
-        $customer = $users->first();
+        $customer = $users[0];
 
-        return $customer;
+        return new MaxUserIdentity(
+            maxUserId: $customer->maxUserId,
+            adminRoles: [],
+        );
     }
 }

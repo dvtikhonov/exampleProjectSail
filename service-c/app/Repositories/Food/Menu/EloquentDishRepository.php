@@ -6,9 +6,9 @@ namespace App\Repositories\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAdminRepositoryInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
+use App\DTO\Food\Menu\DishRecord;
 use App\Enums\Food\Cart\CartStatus;
 use App\Models\Food\Dish;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -21,44 +21,54 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
      */
     private const int UNFILTERED_ADMIN_LIST_LIMIT = 10;
 
+    public function __construct(
+        private readonly DishMapper $dishMapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
-    public function findById(int $id): ?Dish
+    public function findById(int $id): ?DishRecord
     {
-        return Dish::query()
+        $dish = Dish::query()
             ->with(['menuCategory.restaurant'])
             ->find($id);
+
+        return $dish !== null ? $this->dishMapper->toRecord($dish) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findByIdWithTrashed(int $id): ?Dish
+    public function findByIdWithTrashed(int $id): ?DishRecord
     {
-        return Dish::query()
+        $dish = Dish::query()
             ->withTrashed()
             ->find($id);
+
+        return $dish !== null ? $this->dishMapper->toRecord($dish) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?Dish
+    public function findByNameAndMenuCategoryId(string $name, int $menuCategoryId): ?DishRecord
     {
-        return Dish::query()
+        $dish = Dish::query()
             ->where('menu_category_id', $menuCategoryId)
             ->where('name', $name)
             ->first();
+
+        return $dish !== null ? $this->dishMapper->toRecord($dish) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findByNamesAndMenuCategoryId(array $names, int $menuCategoryId): Collection
+    public function findByNamesAndMenuCategoryId(array $names, int $menuCategoryId): array
     {
         if ($names === []) {
-            return collect();
+            return [];
         }
 
         $uniqueNames = array_values(array_unique($names));
@@ -69,13 +79,14 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
             ->orderBy('id')
             ->get();
 
-        $keyed = collect();
+        /** @var array<string, DishRecord> $keyed */
+        $keyed = [];
 
         foreach ($dishes as $dish) {
             $name = (string) $dish->name;
 
-            if (! $keyed->has($name)) {
-                $keyed->put($name, $dish);
+            if (! array_key_exists($name, $keyed)) {
+                $keyed[$name] = $this->dishMapper->toRecord($dish);
             }
         }
 
@@ -113,12 +124,12 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
     /**
      * {@inheritDoc}
      */
-    public function createMany(array $rows): Collection
+    public function createMany(array $rows): array
     {
-        $created = collect();
+        $created = [];
 
         foreach ($rows as $attributes) {
-            $created->push(Dish::query()->create($attributes));
+            $created[] = $this->dishMapper->toRecord(Dish::query()->create($attributes));
         }
 
         return $created;
@@ -160,7 +171,7 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
         ?int $categoryId,
         ?string $nameSearch = null,
         ?bool $isAvailable = null,
-    ): Collection {
+    ): array {
         $query = Dish::query()
             ->with(['menuCategory.restaurant'])
             ->orderBy('name');
@@ -188,33 +199,42 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
             $query->limit(self::UNFILTERED_ADMIN_LIST_LIMIT);
         }
 
-        return $query->get();
+        return $query
+            ->get()
+            ->map(fn (Dish $dish): DishRecord => $this->dishMapper->toRecord($dish))
+            ->values()
+            ->all();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function create(array $attributes): Dish
+    public function create(array $attributes): DishRecord
     {
-        return Dish::query()->create($attributes);
+        $dish = Dish::query()->create($attributes);
+
+        return $this->dishMapper->toRecord($dish->load(['menuCategory.restaurant']));
     }
 
     /**
      * {@inheritDoc}
      */
-    public function update(Dish $dish, array $attributes): Dish
+    public function update(int $dishId, array $attributes): DishRecord
     {
+        $dish = Dish::query()->findOrFail($dishId);
         $dish->update($attributes);
 
-        return $dish->refresh(['menuCategory.restaurant']);
+        $fresh = $dish->fresh(['menuCategory.restaurant']) ?? $dish->load(['menuCategory.restaurant']);
+
+        return $this->dishMapper->toRecord($fresh);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function delete(Dish $dish): void
+    public function delete(int $dishId): void
     {
-        $dish->delete();
+        Dish::query()->whereKey($dishId)->delete();
     }
 
     /**
@@ -234,40 +254,49 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
     /**
      * {@inheritDoc}
      */
-    public function findAvailableWithRestaurant(int $id): ?Dish
+    public function findAvailableWithRestaurant(int $id): ?DishRecord
     {
-        return Dish::query()
+        $dish = Dish::query()
             ->with('menuCategory.restaurant')
             ->find($id);
+
+        return $dish !== null ? $this->dishMapper->toRecord($dish) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findAvailableWithRestaurantByIds(array $ids): Collection
+    public function findAvailableWithRestaurantByIds(array $ids): array
     {
         $uniqueIds = array_values(array_unique(array_map(static fn (int $id): int => $id, $ids)));
 
         if ($uniqueIds === []) {
-            return collect();
+            return [];
         }
 
-        return Dish::query()
-            ->with('menuCategory.restaurant')
-            ->whereIn('id', $uniqueIds)
-            ->get()
-            ->keyBy(static fn (Dish $dish): int => (int) $dish->id);
+        $result = [];
+
+        foreach (
+            Dish::query()
+                ->with('menuCategory.restaurant')
+                ->whereIn('id', $uniqueIds)
+                ->get() as $dish
+        ) {
+            $result[(int) $dish->id] = $this->dishMapper->toRecord($dish);
+        }
+
+        return $result;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findByNameCaseInsensitive(string $name, ?int $restaurantId = null): Collection
+    public function findByNameCaseInsensitive(string $name, ?int $restaurantId = null): array
     {
         $normalized = trim($name);
 
         if ($normalized === '') {
-            return collect();
+            return [];
         }
 
         $lowerName = mb_strtolower($normalized, 'UTF-8');
@@ -285,6 +314,8 @@ class EloquentDishRepository implements DishAdminRepositoryInterface, DishCatalo
 
         return $query
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->map(fn (Dish $dish): DishRecord => $this->dishMapper->toRecord($dish))
+            ->all();
     }
 }

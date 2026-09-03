@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\DTO\Food\Cart\CartItemRecord;
+use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\Order\OrderItemsSnapshotDto;
 use App\Enums\Food\Menu\DishWeightUnit;
-use App\Models\Food\CartItem;
-use App\Models\Food\Dish;
 use App\Services\Food\Shared\FoodMoneyFormatter;
-use Illuminate\Support\Collection;
 
 /**
  * Построение снимка позиций заказа из позиций корзины или блюд каталога.
@@ -25,20 +24,22 @@ class OrderItemsSnapshotBuilder
     /**
      * Формирует items_snapshot и сумму блюд из позиций корзины.
      *
-     * @param  Collection<int, CartItem>  $items
+     * @param  list<CartItemRecord>|iterable<int, CartItemRecord>  $items
      */
-    public function build(Collection $items): OrderItemsSnapshotDto
+    public function build(iterable $items): OrderItemsSnapshotDto
     {
         $lines = [];
 
         foreach ($items as $item) {
+            $dish = $item->dish ?? throw new \LogicException(
+                'Для OrderItemsSnapshotBuilder требуется загруженное блюдо в CartItemRecord.',
+            );
+
             $lines[] = [
-                'dish' => $item->dish,
-                'quantity' => (int) $item->quantity,
-                'combo_ref' => $item->combo_ref,
-                'combo_partner_dish_id' => $item->combo_partner_dish_id !== null
-                    ? (int) $item->combo_partner_dish_id
-                    : null,
+                'dish' => $dish,
+                'quantity' => $item->quantity,
+                'combo_ref' => $item->comboRef,
+                'combo_partner_dish_id' => $item->comboPartnerDishId,
             ];
         }
 
@@ -49,7 +50,7 @@ class OrderItemsSnapshotBuilder
      * Формирует items_snapshot и сумму блюд из актуальных блюд каталога.
      *
      * @param  list<array{
-     *     dish: Dish,
+     *     dish: DishRecord,
      *     quantity: int,
      *     combo_ref?: string|null,
      *     combo_partner_dish_id?: int|null
@@ -67,10 +68,10 @@ class OrderItemsSnapshotBuilder
             $lineTotal = $unitPrice * $quantity;
             $itemsTotal += $lineTotal;
 
-            $weightUnit = $dish->weight_unit ?? DishWeightUnit::Gram;
+            $weightUnit = $dish->weightUnit ?? DishWeightUnit::Gram;
 
             $snapshotItem = [
-                'dish_id' => (int) $dish->id,
+                'dish_id' => $dish->id,
                 'dish_name' => $dish->name,
                 'description' => $this->normalizeDescription($dish->description),
                 'weight' => $this->formatWeight($dish->weight),
@@ -78,7 +79,7 @@ class OrderItemsSnapshotBuilder
                 'unit_price' => $this->moneyFormatter->format($unitPrice),
                 'quantity' => $quantity,
                 'line_total' => $this->moneyFormatter->format($lineTotal),
-                'image_url' => $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->image_url),
+                'image_url' => $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->imageUrl),
             ];
 
             $comboRef = $line['combo_ref'] ?? null;

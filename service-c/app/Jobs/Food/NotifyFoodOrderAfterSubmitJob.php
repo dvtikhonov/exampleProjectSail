@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Jobs\Food;
 
+use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
+use App\Mappers\Max\MaxUserDisplayMapper;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 
 /**
  * Асинхронная отправка MAX-уведомлений после commit оформления заказа.
@@ -42,12 +43,16 @@ class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
     public function handle(
         FoodOrderMaxNotifierInterface $maxNotifier,
         FoodOrderCustomerNotifierInterface $customerNotifier,
+        FoodOrderCustomerReadRepositoryInterface $foodOrderCustomerReadRepository,
+        MaxUserRepositoryInterface $maxUserRepository,
+        MaxUserDisplayMapper $maxUserDisplayMapper,
+        LoggerInterface $logger,
     ): void {
-        $order = FoodOrder::query()->find($this->orderId);
-        $maxUser = MaxUser::query()->where('max_user_id', $this->maxUserId)->first();
+        $order = $foodOrderCustomerReadRepository->findById($this->orderId);
+        $maxUser = $maxUserRepository->findByMaxUserId($this->maxUserId);
 
         if ($order === null || $maxUser === null) {
-            Log::warning('NotifyFoodOrderAfterSubmitJob skipped: order or user missing', [
+            $logger->warning('NotifyFoodOrderAfterSubmitJob skipped: order or user missing', [
                 'order_id' => $this->orderId,
                 'max_user_id' => $this->maxUserId,
                 'kind' => $this->kind->value,
@@ -56,7 +61,7 @@ class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
             return;
         }
 
-        $maxNotifier->notify($this->orderDto, $maxUser);
+        $maxNotifier->notify($this->orderDto, $maxUserDisplayMapper->fromRecord($maxUser));
 
         match ($this->kind) {
             FoodOrderAfterSubmitNotifyKind::Submitted => $customerNotifier->notifySubmitted($order),

@@ -35,7 +35,9 @@ class MaxLoadTestTokensCommand extends Command
 
         $count = (int) $this->argument('count');
         $output = $this->option('output');
-        $outputPath = is_string($output) && $output !== '' ? $output : null;
+        $outputPath = is_string($output) && $output !== ''
+            ? $output
+            : MaxLoadTestUserIds::defaultTokenFilePath();
 
         try {
             $result = $loadTestService->issueTokens($count, $outputPath);

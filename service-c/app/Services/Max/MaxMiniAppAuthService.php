@@ -6,24 +6,31 @@ namespace App\Services\Max;
 
 use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
+use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Models\Max\MaxUser;
-use Illuminate\Contracts\Config\Repository;
+use DateInterval;
 
 /**
  * Аутентификация пользователя MAX mini-app и выдача Sanctum-токена.
  */
-class MaxMiniAppAuthService
+class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
 {
     private const TOKEN_NAME = 'max-miniapp';
 
     private const TOKEN_ABILITY = 'max-miniapp';
 
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxMiniAppTokenIssuerInterface $tokenIssuer,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
@@ -33,47 +40,37 @@ class MaxMiniAppAuthService
      */
     public function issueToken(MaxWebAppInitDataDto $initData): array
     {
-        $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $initData->maxUserId]);
+        $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
+        $maxUser = $this->maxUserRepository->upsertFromInitData($initData, $defaultCategoryId);
 
-        $maxUser->fill([
-            'first_name' => $initData->firstName,
-            'last_name' => $initData->lastName,
-            'username' => $initData->username,
-            'language_code' => $initData->languageCode,
-            'photo_url' => $initData->photoUrl,
-        ]);
-
-        if ($maxUser->customer_category_id === null) {
-            $maxUser->customer_category_id = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
-        }
-
-        $maxUser->save();
-
-        $maxUser->tokens()->where('name', self::TOKEN_NAME)->delete();
+        $this->tokenIssuer->revokeNamedTokens($maxUser->maxUserId, self::TOKEN_NAME);
 
         $expiresInSeconds = (int) $this->config->get('max.miniapp.token_ttl_seconds', 86_400);
-        $accessToken = $maxUser->createToken(
+        $expiresAt = $this->clock->now()->add(new DateInterval('PT'.$expiresInSeconds.'S'));
+
+        $plainTextToken = $this->tokenIssuer->createToken(
+            $maxUser->maxUserId,
             self::TOKEN_NAME,
             [self::TOKEN_ABILITY],
-            now()->addSeconds($expiresInSeconds),
+            $expiresAt,
         );
 
         $adminRoles = array_map(
             static fn (FoodOrderAdminRole $role): string => $role->value,
-            $this->foodOrderAdminRepository->getActiveRoles($maxUser->max_user_id),
+            $this->foodOrderAdminRepository->getActiveRoles($maxUser->maxUserId),
         );
 
         return [
-            'token' => $accessToken->plainTextToken,
+            'token' => $plainTextToken,
             'token_type' => 'Bearer',
             'expires_in' => $expiresInSeconds,
             'user' => [
-                'max_user_id' => $maxUser->max_user_id,
-                'first_name' => $maxUser->first_name,
-                'last_name' => $maxUser->last_name,
+                'max_user_id' => $maxUser->maxUserId,
+                'first_name' => $maxUser->firstName,
+                'last_name' => $maxUser->lastName,
                 'username' => $maxUser->username,
-                'language_code' => $maxUser->language_code,
-                'photo_url' => $maxUser->photo_url,
+                'language_code' => $maxUser->languageCode,
+                'photo_url' => $maxUser->photoUrl,
                 'admin_roles' => $adminRoles,
             ],
         ];

@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
+use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
-use App\Models\Food\FoodOrder;
+use App\Enums\Food\Order\OrderStatus;
+use App\Enums\Food\Review\OrderReviewStatus;
+use App\Infrastructure\Laravel\LaravelOrderChatNotifier;
 use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
-use App\Services\Max\Food\LaravelOrderChatNotifier;
+use App\Services\Max\MaxMessengerNotificationSender;
 use App\Support\Food\Composition\OrderSnapshotComboResolver;
-use App\Support\Max\MaxOpenAppTargetResolver;
+use App\Support\Max\MaxOpenAppButtonFactory;
 use App\Support\Max\MaxUiStandRecipientResolver;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
@@ -326,12 +330,22 @@ TEXT,
         ?OrderCustomerNotifyRecipientResolverInterface $customerRecipientResolver = null,
     ): LaravelOrderChatNotifier {
         return new LaravelOrderChatNotifier(
-            client: $client,
             messageBuilder: $this->messageBuilder,
             uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolver::class),
-            openAppTargetResolver: $this->app->make(MaxOpenAppTargetResolver::class),
+            openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
             customerRecipientResolver: $customerRecipientResolver
                 ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
+            notificationSender: $this->makeNotificationSender($client),
+        );
+    }
+
+    /** Создаёт sender с подставным MAX-клиентом. */
+    private function makeNotificationSender(MaxMessengerClientInterface $client): MaxMessengerNotificationSenderInterface
+    {
+        return new MaxMessengerNotificationSender(
+            $client,
+            $this->app->make(MaxUiStandRecipientResolver::class),
+            Log::channel('max_log'),
         );
     }
 
@@ -345,15 +359,37 @@ TEXT,
     }
 
     /** Создаёт тестовый заказ. */
-    private function makeOrder(int $id, int $maxUserId = 1000, bool $isManual = false): FoodOrder
+    private function makeOrder(int $id, int $maxUserId = 1000, bool $isManual = false): FoodOrderRecord
     {
-        $order = new FoodOrder([
-            'max_user_id' => $maxUserId,
-            'is_manual' => $isManual,
-        ]);
-        $order->id = $id;
-
-        return $order;
+        return new FoodOrderRecord(
+            id: $id,
+            cartId: null,
+            maxUserId: $maxUserId,
+            isManual: $isManual,
+            createdByMaxUserId: null,
+            restaurantId: 1,
+            status: OrderStatus::PendingReview,
+            addressReviewStatus: OrderReviewStatus::Pending,
+            compositionReviewStatus: OrderReviewStatus::Pending,
+            paymentReviewStatus: OrderReviewStatus::Pending,
+            addressReviewedBy: null,
+            addressReviewedAt: null,
+            compositionReviewedBy: null,
+            compositionReviewedAt: null,
+            addressRejectionComment: null,
+            compositionRejectionComment: null,
+            paymentReviewedBy: null,
+            paymentReviewedAt: null,
+            paymentRejectionComment: null,
+            total: '0.00',
+            deliveryAddress: null,
+            deliveryDate: null,
+            deliveryCost: null,
+            itemsTotal: '0.00',
+            itemsSnapshot: [],
+            createdAt: '2026-06-24T12:00:00+00:00',
+            updatedAt: null,
+        );
     }
 
     /** Создаёт DTO сообщения чата. */

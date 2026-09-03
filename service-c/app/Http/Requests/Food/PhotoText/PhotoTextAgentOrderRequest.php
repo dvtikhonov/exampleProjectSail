@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food\PhotoText;
 
 use App\DTO\Food\PhotoText\PhotoTextAgentItemDto;
+use App\Http\Requests\Food\PhotoText\Concerns\ValidatesActiveRestaurant;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * Валидация тела match/place агента PhotoText (без цен, без серверного split комбо).
  */
 class PhotoTextAgentOrderRequest extends FormRequest
 {
+    use ValidatesActiveRestaurant;
+
     /**
      * Разрешает выполнение запроса.
      */
@@ -39,14 +41,7 @@ class PhotoTextAgentOrderRequest extends FormRequest
         return [
             'customer_query' => ['required', 'string', 'max:255'],
             'order_date' => ['required', 'date_format:Y-m-d'],
-            'restaurant_id' => [
-                'required',
-                'integer',
-                'min:1',
-                Rule::exists('max_restaurants', 'id')
-                    ->where('is_active', true)
-                    ->whereNull('deleted_at'),
-            ],
+            'restaurant_id' => $this->activeRestaurantIdRules(),
             'items' => ['required', 'array', 'min:1'],
             'items.*.name' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
@@ -68,14 +63,6 @@ class PhotoTextAgentOrderRequest extends FormRequest
     public function orderDate(): string
     {
         return (string) $this->validated('order_date');
-    }
-
-    /**
-     * Идентификатор активного ресторана.
-     */
-    public function restaurantId(): int
-    {
-        return (int) $this->validated('restaurant_id');
     }
 
     /**

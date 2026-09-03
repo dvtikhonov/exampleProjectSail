@@ -8,11 +8,12 @@ use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Order\FoodOrderUpdateCommand;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
 use App\Services\Food\Review\OrderReviewAuthorizationService;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Обновление состава заказа проверяющим composition_reviewer.
@@ -24,14 +25,15 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
         private readonly OrderReviewAuthorizationService $orderReviewAuthorizationService,
         private readonly OrderCompositionSnapshotBuilderInterface $orderCompositionSnapshotBuilder,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function update(int $orderId, MaxUser $admin, array $items): FoodOrder
+    public function update(int $orderId, MaxUserIdentity $admin, array $items): FoodOrderRecord
     {
-        $order = DB::transaction(function () use ($orderId, $admin, $items): FoodOrder {
+        $order = $this->transactionManager->run(function () use ($orderId, $admin, $items): FoodOrderRecord {
             $order = $this->foodOrderWriteRepository->findByIdForUpdate($orderId);
 
             if ($order === null) {
@@ -40,26 +42,19 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
 
             $this->orderReviewAuthorizationService->assertCanEditComposition($admin, $order);
 
-            $order->loadMissing('maxUser');
-            $customer = $order->maxUser;
-
-            if ($customer === null) {
-                throw new FoodDomainException('Клиент заказа не найден.', 422);
-            }
-
             $composition = $this->orderCompositionSnapshotBuilder->build(
-                restaurantId: (int) $order->restaurant_id,
-                customer: $customer,
+                restaurantId: $order->restaurantId,
+                customerMaxUserId: $order->maxUserId,
                 items: $items,
-                existingDishIds: $this->existingDishIdsFromSnapshot($order->items_snapshot ?? []),
+                existingDishIds: $this->existingDishIdsFromSnapshot($order->itemsSnapshot),
             );
 
-            return $this->foodOrderWriteRepository->update($order, [
-                'items_snapshot' => $composition->itemsSnapshot,
-                'items_total' => $composition->itemsTotal,
-                'delivery_cost' => $composition->deliveryCost,
-                'total' => $composition->total,
-            ]);
+            return $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
+                itemsSnapshot: $composition->itemsSnapshot,
+                itemsTotal: $composition->itemsTotal,
+                deliveryCost: $composition->deliveryCost,
+                total: $composition->total,
+            ));
         });
 
         $this->foodOrderCustomerNotifier->notifyCompositionChanged($order);
@@ -70,7 +65,7 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
     /**
      * dish_id из текущего items_snapshot — их можно оставлять при правке состава без is_available.
      *
-     * @param  list<array<string, mixed>>|array<int, mixed>  $itemsSnapshot
+     * @param  list<array<string, mixed>>  $itemsSnapshot
      * @return list<int>
      */
     private function existingDishIdsFromSnapshot(array $itemsSnapshot): array

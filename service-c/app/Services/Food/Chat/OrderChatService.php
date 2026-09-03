@@ -9,11 +9,11 @@ use App\Contracts\Food\Chat\OrderChatServiceInterface;
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
+use App\DTO\Food\Chat\OrderMessageRecord;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Food\FoodOrderMessage;
-use App\Models\Max\MaxUser;
 
 /**
  * Чтение и отправка сообщений в чате по заказу еды.
@@ -39,7 +39,7 @@ class OrderChatService implements OrderChatServiceInterface
      * @throws FoodDomainException
      */
     public function listMessages(
-        MaxUser $actor,
+        MaxUserIdentity $actor,
         int $orderId,
         ?int $afterId = null,
         int $limit = self::DEFAULT_LIST_LIMIT,
@@ -55,11 +55,11 @@ class OrderChatService implements OrderChatServiceInterface
 
         $this->orderMessageRepository->markMessagesAsRead(
             foodOrderId: $order->id,
-            readerMaxUserId: $actor->max_user_id,
+            readerMaxUserId: $actor->maxUserId,
         );
 
         return array_map(
-            fn (FoodOrderMessage $message): OrderMessageDto => $this->mapMessage($message, $order),
+            fn (OrderMessageRecord $message): OrderMessageDto => $this->mapMessage($message, $order),
             $messages,
         );
     }
@@ -69,7 +69,7 @@ class OrderChatService implements OrderChatServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function sendMessage(MaxUser $actor, int $orderId, string $body): OrderMessageDto
+    public function sendMessage(MaxUserIdentity $actor, int $orderId, string $body): OrderMessageDto
     {
         $normalizedBody = $this->normalizeBody($body);
         $order = $this->findOrderOrFail($orderId);
@@ -77,11 +77,9 @@ class OrderChatService implements OrderChatServiceInterface
 
         $message = $this->orderMessageRepository->create(
             foodOrderId: $order->id,
-            senderMaxUserId: $actor->max_user_id,
+            senderMaxUserId: $actor->maxUserId,
             body: $normalizedBody,
         );
-
-        $message->loadMissing('sender');
 
         $dto = $this->mapMessage($message, $order);
         $this->orderChatNotifier->notify($order, $dto);
@@ -94,7 +92,7 @@ class OrderChatService implements OrderChatServiceInterface
      *
      * @throws FoodDomainException
      */
-    private function findOrderOrFail(int $orderId): FoodOrder
+    private function findOrderOrFail(int $orderId): FoodOrderRecord
     {
         $order = $this->foodOrderReadRepository->findById($orderId);
 
@@ -141,26 +139,26 @@ class OrderChatService implements OrderChatServiceInterface
     }
 
     /**
-     * Преобразует модель сообщения в DTO.
+     * Преобразует доменную проекцию сообщения в API DTO.
      */
     private function mapMessage(
-        FoodOrderMessage $message,
-        FoodOrder $order,
+        OrderMessageRecord $message,
+        FoodOrderRecord $order,
     ): OrderMessageDto {
-        $authorType = $message->sender_max_user_id === $order->max_user_id
+        $authorType = $message->senderMaxUserId === $order->maxUserId
             ? OrderMessageAuthorType::Customer
             : OrderMessageAuthorType::Admin;
 
         return new OrderMessageDto(
             id: $message->id,
-            foodOrderId: $message->food_order_id,
-            senderMaxUserId: $message->sender_max_user_id,
-            senderFirstName: $message->sender?->first_name,
-            senderLastName: $message->sender?->last_name,
-            senderUsername: $message->sender?->username,
+            foodOrderId: $message->foodOrderId,
+            senderMaxUserId: $message->senderMaxUserId,
+            senderFirstName: $message->senderFirstName,
+            senderLastName: $message->senderLastName,
+            senderUsername: $message->senderUsername,
             authorType: $authorType,
             body: $message->body,
-            createdAt: $message->created_at?->toIso8601String() ?? now()->toIso8601String(),
+            createdAt: $message->createdAt,
         );
     }
 }

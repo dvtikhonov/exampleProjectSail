@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food\Composition;
 
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
+use App\DTO\Food\Menu\DishRecord;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Dish;
 
 /**
  * Валидация пары блюд для комбо: доступность, ресторан, разные категории с is_combo_available.
@@ -24,8 +24,11 @@ class ComboPairValidator
      *
      * @throws FoodDomainException
      */
-    public function validatePair(Dish $dish, int $partnerDishId, bool $requirePartnerAvailable = true): Dish
-    {
+    public function validatePair(
+        DishRecord $dish,
+        int $partnerDishId,
+        bool $requirePartnerAvailable = true,
+    ): DishRecord {
         $partner = $this->dishRepository->findAvailableWithRestaurant($partnerDishId);
 
         if ($partner === null) {
@@ -44,32 +47,39 @@ class ComboPairValidator
      *
      * @throws FoodDomainException
      */
-    public function assertCompatiblePair(Dish $dish, Dish $partner, bool $requirePartnerAvailable = true): void
-    {
-        if ((int) $partner->id === (int) $dish->id) {
+    public function assertCompatiblePair(
+        DishRecord $dish,
+        DishRecord $partner,
+        bool $requirePartnerAvailable = true,
+    ): void {
+        if ($partner->id === $dish->id) {
             throw new FoodDomainException('Блюдо-партнёр комбо должно отличаться от добавляемого блюда.');
         }
 
-        if ($requirePartnerAvailable && ! $partner->is_available) {
+        if ($requirePartnerAvailable && ! $partner->isAvailable) {
             throw new FoodDomainException('Блюдо-партнёр комбо недоступно.');
         }
 
-        $dishRestaurantId = $dish->menuCategory->restaurant_id;
-        $partnerRestaurantId = $partner->menuCategory->restaurant_id;
+        $dishRestaurantId = $dish->menuCategory?->restaurantId;
+        $partnerRestaurantId = $partner->menuCategory?->restaurantId;
+
+        if ($dishRestaurantId === null || $partnerRestaurantId === null) {
+            throw new FoodDomainException('Блюда комбо должны принадлежать одному ресторану.');
+        }
 
         if ($dishRestaurantId !== $partnerRestaurantId) {
             throw new FoodDomainException('Блюда комбо должны принадлежать одному ресторану.');
         }
 
-        if ($dish->menu_category_id === $partner->menu_category_id) {
+        if ($dish->menuCategoryId === $partner->menuCategoryId) {
             throw new FoodDomainException('Блюда комбо должны быть из разных категорий меню.');
         }
 
-        if (! (bool) $dish->menuCategory->is_combo_available) {
+        if (! ($dish->menuCategory?->isComboAvailable ?? false)) {
             throw new FoodDomainException('Категория первого блюда не поддерживает режим комбо.');
         }
 
-        if (! (bool) $partner->menuCategory->is_combo_available) {
+        if (! ($partner->menuCategory?->isComboAvailable ?? false)) {
             throw new FoodDomainException('Категория блюда-партнёра не поддерживает режим комбо.');
         }
     }

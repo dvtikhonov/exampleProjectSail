@@ -6,9 +6,8 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
 use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
-use App\Exceptions\Food\FoodDomainException;
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Http\Controllers\Controller;
-use App\Models\Max\MaxUser;
 use App\Support\Profiling\OrderSubmitTiming;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +20,7 @@ class OrderController extends Controller
     public function __construct(
         private readonly OrderSubmissionServiceInterface $orderSubmissionService,
         private readonly CustomerOrderQueryServiceInterface $customerOrderQueryService,
+        private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
 
     /**
@@ -28,7 +28,9 @@ class OrderController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $orders = $this->customerOrderQueryService->list($this->maxUser($request));
+        $orders = $this->customerOrderQueryService->list(
+            $this->authenticatedMaxUserResolver->identity(),
+        );
 
         return response()->json([
             'orders' => array_map(
@@ -43,13 +45,10 @@ class OrderController extends Controller
      */
     public function show(Request $request, int $order): JsonResponse
     {
-        try {
-            $orderDto = $this->customerOrderQueryService->show($this->maxUser($request), $order);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $orderDto = $this->customerOrderQueryService->show(
+            $this->authenticatedMaxUserResolver->identity(),
+            $order,
+        );
 
         return response()->json([
             'order' => $orderDto->toArray(),
@@ -61,13 +60,9 @@ class OrderController extends Controller
      */
     public function submit(Request $request): JsonResponse
     {
-        try {
-            $order = $this->orderSubmissionService->submit($this->maxUser($request));
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $order = $this->orderSubmissionService->submit(
+            $this->authenticatedMaxUserResolver->identity(),
+        );
 
         $response = response()->json([
             'order' => $order->toArray(),
@@ -80,16 +75,5 @@ class OrderController extends Controller
         }
 
         return $response;
-    }
-
-    /**
-     * Текущий аутентифицированный пользователь MAX из запроса.
-     */
-    private function maxUser(Request $request): MaxUser
-    {
-        /** @var MaxUser $maxUser */
-        $maxUser = $request->user();
-
-        return $maxUser;
     }
 }

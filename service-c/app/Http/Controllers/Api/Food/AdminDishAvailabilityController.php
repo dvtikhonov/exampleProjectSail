@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
-use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ShowDishAvailabilityScheduleRequest;
 use App\Http\Requests\Food\Admin\SyncDishAvailabilityScheduleRequest;
@@ -25,18 +24,12 @@ class AdminDishAvailabilityController extends Controller
      */
     public function show(ShowDishAvailabilityScheduleRequest $request): JsonResponse
     {
-        try {
-            $grid = $this->scheduleService->getGrid(
-                $request->restaurantId(),
-                $request->categoryId(),
-                $request->dateFrom(),
-                $request->dateTo(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $grid = $this->scheduleService->getGrid(
+            $request->restaurantId(),
+            $request->categoryId(),
+            $request->dateFrom(),
+            $request->dateTo(),
+        );
 
         return response()->json($grid->toArray());
     }
@@ -46,13 +39,7 @@ class AdminDishAvailabilityController extends Controller
      */
     public function sync(SyncDishAvailabilityScheduleRequest $request): JsonResponse
     {
-        try {
-            $this->scheduleService->syncSchedule($request->toDto());
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $this->scheduleService->syncSchedule($request->toDto());
 
         return response()->json([
             'message' => 'График производства блюд сохранён.',

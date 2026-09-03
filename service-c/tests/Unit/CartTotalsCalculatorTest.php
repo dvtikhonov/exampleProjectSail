@@ -35,7 +35,7 @@ class CartTotalsCalculatorTest extends TestCase
 
         $totals = app(CartTotalsCalculator::class)->calculate(
             restaurantId: $fixture['restaurant']->id,
-            maxUser: $maxUser,
+            maxUserId: $maxUser->max_user_id,
             itemsTotal: 300.0,
         );
 
@@ -62,7 +62,7 @@ class CartTotalsCalculatorTest extends TestCase
 
         $belowThreshold = $calculator->calculate(
             restaurantId: $fixture['restaurant']->id,
-            maxUser: $maxUser,
+            maxUserId: $maxUser->max_user_id,
             itemsTotal: 999.0,
         );
 
@@ -75,7 +75,7 @@ class CartTotalsCalculatorTest extends TestCase
 
         $atThreshold = $calculator->calculate(
             restaurantId: $fixture['restaurant']->id,
-            maxUser: $maxUser,
+            maxUserId: $maxUser->max_user_id,
             itemsTotal: 1000.0,
         );
 
@@ -95,7 +95,7 @@ class CartTotalsCalculatorTest extends TestCase
 
         $totals = app(CartTotalsCalculator::class)->calculate(
             restaurantId: $fixture['restaurant']->id,
-            maxUser: $maxUser,
+            maxUserId: $maxUser->max_user_id,
             itemsTotal: 100.0,
         );
 

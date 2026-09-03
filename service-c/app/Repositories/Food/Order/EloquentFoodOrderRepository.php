@@ -7,10 +7,13 @@ namespace App\Repositories\Food\Order;
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
+use App\DTO\Food\Order\FoodOrderCreateCommand;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Order\FoodOrderUpdateCommand;
+use App\DTO\Shared\PaginatedResultDto;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Models\Food\FoodOrder;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -18,56 +21,67 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterface, FoodOrderCustomerReadRepositoryInterface, FoodOrderWriteRepositoryInterface
 {
+    public function __construct(
+        private readonly FoodOrderMapper $mapper,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
-    public function create(array $attributes): FoodOrder
+    public function create(FoodOrderCreateCommand $command): FoodOrderRecord
     {
-        return FoodOrder::query()->create($attributes);
+        $model = FoodOrder::query()->create($this->mapper->toCreateAttributes($command));
+
+        return $this->mapper->toRecord($model);
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findById(int $id): ?FoodOrder
+    public function findById(int $id): ?FoodOrderRecord
     {
-        return FoodOrder::query()
+        $model = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
             ->find($id);
+
+        return $model !== null ? $this->mapper->toRecord($model) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function findByIdForUpdate(int $id): ?FoodOrder
+    public function findByIdForUpdate(int $id): ?FoodOrderRecord
     {
-        return FoodOrder::query()
+        $model = FoodOrder::query()
             ->lockForUpdate()
             ->find($id);
+
+        return $model !== null ? $this->mapper->toRecord($model) : null;
     }
 
     /**
      * {@inheritDoc}
      */
-    public function update(FoodOrder $order, array $attributes): FoodOrder
+    public function update(FoodOrderRecord $order, FoodOrderUpdateCommand $command): FoodOrderRecord
     {
-        $order->update($attributes);
+        $model = FoodOrder::query()->findOrFail($order->id);
+        $model->update($this->mapper->toUpdateAttributes($command));
 
-        return $order->refresh();
+        return $this->mapper->toRecord($model->refresh());
     }
 
     /**
      * {@inheritDoc}
      */
-    public function delete(FoodOrder $order): void
+    public function delete(FoodOrderRecord $order): void
     {
-        $order->delete();
+        FoodOrder::query()->whereKey($order->id)->delete();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function paginateForAddressReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator
+    public function paginateForAddressReview(OrderReviewStatus $reviewStatus, int $perPage): PaginatedResultDto
     {
         $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
@@ -87,16 +101,18 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
             });
         }
 
-        return $query
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        return $this->paginateRecords(
+            $query
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+            $perPage,
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    public function paginateForCompositionReview(OrderReviewStatus $reviewStatus, int $perPage): LengthAwarePaginator
+    public function paginateForCompositionReview(OrderReviewStatus $reviewStatus, int $perPage): PaginatedResultDto
     {
         $query = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
@@ -112,10 +128,12 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
             $query->where('composition_review_status', $reviewStatus);
         }
 
-        return $query
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        return $this->paginateRecords(
+            $query
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+            $perPage,
+        );
     }
 
     /**
@@ -142,19 +160,22 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
             ->where('max_user_id', $maxUserId)
             ->orderByDesc('created_at')
             ->get()
+            ->map(fn (FoodOrder $model): FoodOrderRecord => $this->mapper->toRecord($model))
             ->all();
     }
 
     /**
      * {@inheritDoc}
      */
-    public function paginateAll(int $perPage): LengthAwarePaginator
+    public function paginateAll(int $perPage): PaginatedResultDto
     {
-        return FoodOrder::query()
-            ->with(['restaurant', 'maxUser'])
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate($perPage);
+        return $this->paginateRecords(
+            FoodOrder::query()
+                ->with(['restaurant', 'maxUser'])
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+            $perPage,
+        );
     }
 
     /**
@@ -167,18 +188,20 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
         int $perPage,
         ?int $customerMaxUserId = null,
         ?OrderStatus $status = null,
-    ): LengthAwarePaginator {
-        return $this->manualOrdersQuery(
-            $query,
-            $dateFrom,
-            $dateTo,
-            $customerMaxUserId,
-            $status,
-        )
-            ->with(['restaurant', 'maxUser'])
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->paginate($perPage);
+    ): PaginatedResultDto {
+        return $this->paginateRecords(
+            $this->manualOrdersQuery(
+                $query,
+                $dateFrom,
+                $dateTo,
+                $customerMaxUserId,
+                $status,
+            )
+                ->with(['restaurant', 'maxUser'])
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+            $perPage,
+        );
     }
 
     /**
@@ -261,13 +284,40 @@ class EloquentFoodOrderRepository implements FoodOrderAdminReadRepositoryInterfa
     /**
      * {@inheritDoc}
      */
-    public function findManualOrderById(int $id): ?FoodOrder
+    public function findManualOrderById(int $id): ?FoodOrderRecord
     {
-        return FoodOrder::query()
+        $model = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
             ->withExists('messages')
             ->where('is_manual', true)
             ->whereKey($id)
             ->first();
+
+        return $model !== null ? $this->mapper->toRecord($model) : null;
+    }
+
+    /**
+     * Пагинирует Eloquent-запрос и возвращает страницу доменных Record.
+     *
+     * @param  Builder<FoodOrder>  $query
+     * @return PaginatedResultDto<FoodOrderRecord>
+     */
+    private function paginateRecords(Builder $query, int $perPage): PaginatedResultDto
+    {
+        $paginator = $query->paginate($perPage);
+
+        /** @var list<FoodOrderRecord> $records */
+        $records = $paginator->getCollection()
+            ->map(fn (FoodOrder $model): FoodOrderRecord => $this->mapper->toRecord($model))
+            ->values()
+            ->all();
+
+        return new PaginatedResultDto(
+            items: $records,
+            total: $paginator->total(),
+            perPage: $paginator->perPage(),
+            currentPage: $paginator->currentPage(),
+            lastPage: $paginator->lastPage(),
+        );
     }
 }

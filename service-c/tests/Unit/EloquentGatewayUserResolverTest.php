@@ -2,11 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\DTO\Auth\GatewayAuthCredentialsDto;
 use App\DTO\Auth\GatewayUserDto;
 use App\Models\User;
-use App\Services\Auth\EloquentGatewayUserResolver;
+use App\Repositories\Auth\EloquentGatewayUserResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Tests\TestCase;
 
 class EloquentGatewayUserResolverTest extends TestCase
@@ -17,46 +17,37 @@ class EloquentGatewayUserResolverTest extends TestCase
     public function test_returns_dto_when_user_exists(): void
     {
         $user = User::factory()->create();
-        $request = Request::create('/');
-        $request->headers->set('X-User-Id', (string) $user->id);
+        $credentials = new GatewayAuthCredentialsDto(userId: (int) $user->id);
 
-        $dto = (new EloquentGatewayUserResolver)->resolveFromRequest($request);
+        $dto = (new EloquentGatewayUserResolver)->resolve($credentials);
 
         $this->assertInstanceOf(GatewayUserDto::class, $dto);
-        $this->assertTrue($user->is($dto->user));
+        $this->assertSame((int) $user->id, $dto->id);
+        $this->assertSame((string) $user->name, $dto->name);
+        $this->assertSame((string) $user->email, $dto->email);
     }
 
-    /** Возвращает null, если заголовок отсутствует. */
-    public function test_returns_null_when_header_missing(): void
+    /** Возвращает null-credentials через factory при отсутствии заголовка. */
+    public function test_credentials_factory_returns_null_when_header_missing(): void
     {
-        $request = Request::create('/');
-
-        $dto = (new EloquentGatewayUserResolver)->resolveFromRequest($request);
-
-        $this->assertNull($dto);
+        $this->assertNull(GatewayAuthCredentialsDto::tryFromUserIdHeader(null));
     }
 
-    /** Возвращает null, если заголовок пуст. */
-    public function test_returns_null_when_header_empty(): void
+    /** Возвращает null-credentials при пустом заголовке. */
+    public function test_credentials_factory_returns_null_when_header_empty(): void
     {
-        $request = Request::create('/');
-        $request->headers->set('X-User-Id', '');
-
-        $dto = (new EloquentGatewayUserResolver)->resolveFromRequest($request);
-
-        $this->assertNull($dto);
+        $this->assertNull(GatewayAuthCredentialsDto::tryFromUserIdHeader(''));
     }
 
     /** Создаёт пользователя, если он не найден. */
     public function test_provisions_user_when_not_found(): void
     {
-        $request = Request::create('/');
-        $request->headers->set('X-User-Id', '999999');
+        $credentials = new GatewayAuthCredentialsDto(userId: 999999);
 
-        $dto = (new EloquentGatewayUserResolver)->resolveFromRequest($request);
+        $dto = (new EloquentGatewayUserResolver)->resolve($credentials);
 
         $this->assertInstanceOf(GatewayUserDto::class, $dto);
-        $this->assertSame(999999, $dto->user->id);
+        $this->assertSame(999999, $dto->id);
         $this->assertDatabaseHas('users', ['id' => 999999]);
     }
 }

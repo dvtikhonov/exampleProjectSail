@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
+use App\Contracts\Food\Order\AdminOrderQueryServiceInterface;
+use App\Contracts\Food\Review\OrderReviewStepHandlerInterface;
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ListAdminOrdersRequest;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
 use App\Http\Requests\Food\UpdateOrderCompositionRequest;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
-use App\Services\Food\Order\AdminOrderQueryService;
-use App\Services\Food\Review\OrderReviewStepHandler;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,9 +24,10 @@ use Illuminate\Http\Request;
 class AdminOrderReviewController extends Controller
 {
     public function __construct(
-        private readonly AdminOrderQueryService $adminOrderQueryService,
-        private readonly OrderReviewStepHandler $orderReviewStepHandler,
+        private readonly AdminOrderQueryServiceInterface $adminOrderQueryService,
+        private readonly OrderReviewStepHandlerInterface $orderReviewStepHandler,
         private readonly OrderCompositionUpdateServiceInterface $orderCompositionUpdateService,
+        private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
 
     /**
@@ -34,10 +35,10 @@ class AdminOrderReviewController extends Controller
      */
     public function me(Request $request): JsonResponse
     {
-        $admin = $this->maxUser($request);
-
         return response()->json([
-            'admin_roles' => $this->adminOrderQueryService->activeRoleValues($admin),
+            'admin_roles' => $this->adminOrderQueryService->activeRoleValues(
+                $this->authenticatedMaxUserResolver->identity(),
+            ),
         ]);
     }
 
@@ -46,18 +47,12 @@ class AdminOrderReviewController extends Controller
      */
     public function index(ListAdminOrdersRequest $request): JsonResponse
     {
-        try {
-            $result = $this->adminOrderQueryService->list(
-                $this->maxUser($request),
-                $request->scope(),
-                $request->listStatus(),
-                $request->perPage(),
-            );
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $result = $this->adminOrderQueryService->list(
+            $this->authenticatedMaxUserResolver->identity(),
+            $request->scope(),
+            $request->listStatus(),
+            $request->perPage(),
+        );
 
         return response()->json([
             'orders' => array_map(
@@ -73,19 +68,17 @@ class AdminOrderReviewController extends Controller
      */
     public function show(Request $request, int $order): JsonResponse
     {
-        try {
-            $scope = (string) $request->query('scope', '');
+        $scope = (string) $request->query('scope', '');
 
-            if ($scope === '') {
-                throw new FoodDomainException('Параметр запроса scope обязателен.', 422);
-            }
-
-            $orderDto = $this->adminOrderQueryService->detail($this->maxUser($request), $order, $scope);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
+        if ($scope === '') {
+            throw new FoodDomainException('Параметр запроса scope обязателен.', 422);
         }
+
+        $orderDto = $this->adminOrderQueryService->detail(
+            $this->authenticatedMaxUserResolver->identity(),
+            $order,
+            $scope,
+        );
 
         return response()->json([
             'order' => $orderDto->toArray(),
@@ -97,11 +90,11 @@ class AdminOrderReviewController extends Controller
      */
     public function approveAddress(Request $request, int $order): JsonResponse
     {
-        return $this->respondReviewDecision(function () use ($request, $order) {
+        return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
                 OrderReviewStep::Address,
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
             );
         });
     }
@@ -115,7 +108,7 @@ class AdminOrderReviewController extends Controller
             return $this->orderReviewStepHandler->reject(
                 OrderReviewStep::Address,
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
                 $request->comment(),
             );
         });
@@ -126,11 +119,11 @@ class AdminOrderReviewController extends Controller
      */
     public function approveComposition(Request $request, int $order): JsonResponse
     {
-        return $this->respondReviewDecision(function () use ($request, $order) {
+        return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
                 OrderReviewStep::Composition,
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
             );
         });
     }
@@ -144,7 +137,7 @@ class AdminOrderReviewController extends Controller
             return $this->orderReviewStepHandler->reject(
                 OrderReviewStep::Composition,
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
                 $request->comment(),
             );
         });
@@ -158,7 +151,7 @@ class AdminOrderReviewController extends Controller
         return $this->respondReviewDecision(function () use ($request, $order) {
             return $this->orderCompositionUpdateService->update(
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
                 $request->items(),
             );
         });
@@ -169,11 +162,11 @@ class AdminOrderReviewController extends Controller
      */
     public function approvePayment(Request $request, int $order): JsonResponse
     {
-        return $this->respondReviewDecision(function () use ($request, $order) {
+        return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
                 OrderReviewStep::Payment,
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
             );
         });
     }
@@ -187,39 +180,22 @@ class AdminOrderReviewController extends Controller
             return $this->orderReviewStepHandler->reject(
                 OrderReviewStep::Payment,
                 $order,
-                $this->maxUser($request),
+                $this->authenticatedMaxUserResolver->identity(),
                 $request->comment(),
             );
         });
     }
 
     /**
-     * @param  callable(): FoodOrder  $action
+     * @param  callable(): FoodOrderRecord  $action
      */
     private function respondReviewDecision(callable $action): JsonResponse
     {
-        try {
-            $order = $action();
-            $orderDto = $this->adminOrderQueryService->detailFromModel($order);
-        } catch (FoodDomainException $exception) {
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $exception->statusCode());
-        }
+        $order = $action();
+        $orderDto = $this->adminOrderQueryService->detailFromRecord($order);
 
         return response()->json([
             'order' => $orderDto->toArray(),
         ]);
-    }
-
-    /**
-     * Текущий аутентифицированный пользователь MAX из запроса.
-     */
-    private function maxUser(Request $request): MaxUser
-    {
-        /** @var MaxUser $maxUser */
-        $maxUser = $request->user();
-
-        return $maxUser;
     }
 }

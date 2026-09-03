@@ -9,11 +9,12 @@ use App\Contracts\Food\Menu\MenuQueryServiceInterface;
 use App\Contracts\Food\Shared\MenuReadRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\DTO\Food\Menu\DishDto;
+use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\Menu\MenuCategoryDto;
 use App\DTO\Food\Menu\MenuDto;
+use App\DTO\Food\Menu\RestaurantSummaryRecord;
 use App\DTO\Food\Shared\RestaurantSummaryDto;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Restaurant;
 use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
@@ -34,7 +35,7 @@ class MenuQueryService implements MenuQueryServiceInterface
     public function listActiveRestaurants(): array
     {
         return array_map(
-            static fn (Restaurant $restaurant): RestaurantSummaryDto => new RestaurantSummaryDto(
+            static fn (RestaurantSummaryRecord $restaurant): RestaurantSummaryDto => new RestaurantSummaryDto(
                 id: $restaurant->id,
                 name: $restaurant->name,
                 address: $restaurant->address,
@@ -57,17 +58,16 @@ class MenuQueryService implements MenuQueryServiceInterface
         $categories = [];
 
         foreach ($restaurant->menuCategories as $category) {
-            $dishes = [];
-
-            foreach ($category->dishes as $dish) {
-                $dishes[] = new DishDto(
+            $dishes = array_map(
+                fn (DishRecord $dish): DishDto => new DishDto(
                     id: $dish->id,
                     name: $dish->name,
                     price: $this->moneyFormatter->format($dish->price),
-                    isAvailable: $dish->is_available,
-                    imageUrl: $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->image_url),
-                );
-            }
+                    isAvailable: $dish->isAvailable,
+                    imageUrl: $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->imageUrl),
+                ),
+                $category->dishes,
+            );
 
             if ($dishes === []) {
                 continue;
@@ -76,7 +76,7 @@ class MenuQueryService implements MenuQueryServiceInterface
             $categories[] = new MenuCategoryDto(
                 id: $category->id,
                 name: $category->name,
-                isComboAvailable: (bool) $category->is_combo_available,
+                isComboAvailable: $category->isComboAvailable,
                 dishes: $dishes,
             );
         }

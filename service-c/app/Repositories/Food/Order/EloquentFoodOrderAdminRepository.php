@@ -44,9 +44,9 @@ class EloquentFoodOrderAdminRepository implements FoodOrderAdminRepositoryInterf
     /**
      * {@inheritDoc}
      */
-    public function assignActiveRole(int $maxUserId, FoodOrderAdminRole $role): FoodOrderAdmin
+    public function assignActiveRole(int $maxUserId, FoodOrderAdminRole $role): int
     {
-        return FoodOrderAdmin::query()->updateOrCreate(
+        $assignment = FoodOrderAdmin::query()->updateOrCreate(
             [
                 'max_user_id' => $maxUserId,
                 'role' => $role,
@@ -55,6 +55,8 @@ class EloquentFoodOrderAdminRepository implements FoodOrderAdminRepositoryInterf
                 'is_active' => true,
             ],
         );
+
+        return (int) $assignment->getKey();
     }
 
     /**

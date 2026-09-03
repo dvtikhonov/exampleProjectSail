@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
+use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
 use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -31,7 +31,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
 
         $resolver = new CachingMenuAvailabilityDateResolver(
             $inner,
-            $this->app->make(CacheRepository::class),
+            $this->app->make(CacheStoreInterface::class),
         );
 
         $now = CarbonImmutable::parse('2026-07-31', 'Europe/Moscow');
@@ -55,7 +55,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
 
         $resolver = new CachingMenuAvailabilityDateResolver(
             $inner,
-            $this->app->make(CacheRepository::class),
+            $this->app->make(CacheStoreInterface::class),
         );
 
         $now = CarbonImmutable::parse('2026-07-31', 'Europe/Moscow');
@@ -80,7 +80,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
                 new MenuAvailabilityDateResultDto(date: '2026-08-01', error: null),
             );
 
-        $cache = $this->app->make(CacheRepository::class);
+        $cache = $this->app->make(CacheStoreInterface::class);
         $resolver = new CachingMenuAvailabilityDateResolver($inner, $cache);
 
         $first = $resolver->resolve($now);
@@ -106,8 +106,9 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
 
         $now = CarbonImmutable::now('Europe/Moscow')->startOfDay();
         $key = 'food.menu_availability_date.resolve.'.$now->format('Y-m-d');
-        $cache = $this->app->make(CacheRepository::class);
-        $cache->put($key, ['date' => null, 'error' => 'нет данных'], $now->endOfDay());
+        $cache = $this->app->make(CacheStoreInterface::class);
+        $ttlSeconds = max(1, $now->endOfDay()->getTimestamp() - time());
+        $cache->put($key, ['date' => null, 'error' => 'нет данных'], $ttlSeconds);
 
         $inner = $this->createMock(MenuAvailabilityDateResolverInterface::class);
         $inner

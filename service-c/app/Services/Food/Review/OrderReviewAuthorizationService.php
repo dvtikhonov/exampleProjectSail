@@ -4,28 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
-use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\FoodOrder;
-use App\Models\Max\MaxUser;
 
 /**
  * Проверка прав администратора и допустимости перехода статуса проверки заказа.
  */
 class OrderReviewAuthorizationService
 {
-    public function __construct(
-        private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
-    ) {}
-
     /**
      * Проверяет право администратора одобрить шаг.
      *
      * @throws FoodDomainException
      */
-    public function assertCanApprove(MaxUser $admin, FoodOrder $order, OrderReviewStep $step): void
+    public function assertCanApprove(MaxUserIdentity $admin, FoodOrderRecord $order, OrderReviewStep $step): void
     {
         $this->assertHasRole($admin, $step->requiredRole());
         $step->assertPending($order);
@@ -36,7 +31,7 @@ class OrderReviewAuthorizationService
      *
      * @throws FoodDomainException
      */
-    public function assertCanReject(MaxUser $admin, FoodOrder $order, OrderReviewStep $step, string $comment): void
+    public function assertCanReject(MaxUserIdentity $admin, FoodOrderRecord $order, OrderReviewStep $step, string $comment): void
     {
         $this->assertCanApprove($admin, $order, $step);
         $this->assertRejectionCommentPresent($comment);
@@ -47,7 +42,7 @@ class OrderReviewAuthorizationService
      *
      * @throws FoodDomainException
      */
-    public function assertCanEditComposition(MaxUser $admin, FoodOrder $order): void
+    public function assertCanEditComposition(MaxUserIdentity $admin, FoodOrderRecord $order): void
     {
         $this->assertHasRole($admin, FoodOrderAdminRole::CompositionReviewer);
 
@@ -61,9 +56,9 @@ class OrderReviewAuthorizationService
      *
      * @throws FoodDomainException
      */
-    private function assertHasRole(MaxUser $admin, FoodOrderAdminRole $role): void
+    private function assertHasRole(MaxUserIdentity $admin, FoodOrderAdminRole $role): void
     {
-        if (! $this->foodOrderAdminRepository->hasActiveRole($admin->max_user_id, $role)) {
+        if (! $admin->hasAdminRole($role)) {
             throw new FoodDomainException('Доступ запрещён.', 403);
         }
     }

@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Enums\Food\Review\OrderRejectionScope;
@@ -228,7 +229,7 @@ class AdminOrderReviewApiTest extends TestCase
         $customerNotifier
             ->expects($this->once())
             ->method('notifyConfirmed')
-            ->with($this->callback(static fn (FoodOrder $order): bool => $order->id === $orderId));
+            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId));
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
@@ -276,7 +277,7 @@ class AdminOrderReviewApiTest extends TestCase
         $customerNotifier
             ->expects($this->once())
             ->method('notifyConfirmed')
-            ->with($this->callback(static fn (FoodOrder $order): bool => $order->id === $orderId));
+            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId));
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
@@ -331,7 +332,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->expects($this->once())
             ->method('notifyRejected')
             ->with(
-                $this->callback(static fn (FoodOrder $order): bool => $order->id === $orderId),
+                $this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId),
                 OrderRejectionScope::Address,
             );
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
@@ -429,7 +430,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->expects($this->once())
             ->method('notifyRejected')
             ->with(
-                $this->callback(static fn (FoodOrder $order): bool => $order->id === $orderId),
+                $this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId),
                 OrderRejectionScope::Composition,
             );
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
@@ -624,7 +625,7 @@ class AdminOrderReviewApiTest extends TestCase
             ->expects($this->once())
             ->method('notifyRejected')
             ->with(
-                $this->callback(static fn (FoodOrder $order): bool => $order->id === $orderId),
+                $this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId),
                 OrderRejectionScope::Payment,
             );
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
@@ -848,8 +849,8 @@ class AdminOrderReviewApiTest extends TestCase
             ->expects($this->once())
             ->method('notifyCompositionChanged')
             ->with($this->callback(
-                static fn (FoodOrder $order): bool => $order->id === $fixture['order_id']
-                    && (float) $order->items_total === 600.0,
+                static fn (FoodOrderRecord $order): bool => $order->id === $fixture['order_id']
+                    && (float) $order->itemsTotal === 600.0,
             ));
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
 
@@ -1080,11 +1081,11 @@ class AdminOrderReviewApiTest extends TestCase
         $customerNotifier
             ->expects($this->once())
             ->method('notifyCompositionChanged')
-            ->with($this->callback(static fn (FoodOrder $order): bool => $order->id === $fixture['order_id']));
+            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $fixture['order_id']));
         $customerNotifier
             ->expects($this->once())
             ->method('notifyConfirmed')
-            ->with($this->callback(static fn (FoodOrder $order): bool => $order->id === $fixture['order_id']));
+            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $fixture['order_id']));
         $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
 
         $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [

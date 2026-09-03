@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Food\Delivery;
 
 use App\DTO\Food\Delivery\DeliveryTierDto;
-use App\Models\Max\MaxUser;
 
 /**
  * Определение применимости и стоимости доставки по тарифам.
@@ -13,13 +12,11 @@ use App\Models\Max\MaxUser;
 class DeliveryCostResolver
 {
     /**
-     * Проверяет, доступна ли доставка для категории пользователя.
+     * Проверяет, доступна ли доставка при наличии категории клиента.
      */
-    public function isApplicable(MaxUser $maxUser): bool
+    public function isApplicable(?int $customerCategoryId): bool
     {
-        $maxUser->loadMissing('customerCategory');
-
-        return $maxUser->customer_category_id !== null && $maxUser->customerCategory !== null;
+        return $customerCategoryId !== null && $customerCategoryId > 0;
     }
 
     /**

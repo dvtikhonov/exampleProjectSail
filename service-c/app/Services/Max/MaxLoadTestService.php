@@ -6,19 +6,20 @@ namespace App\Services\Max;
 
 use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
+use App\Contracts\Max\MaxLoadTestDataRepositoryInterface;
 use App\Contracts\Max\MaxLoadTestServiceInterface;
+use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
+use App\Contracts\Shared\ApplicationEnvironmentInterface;
+use App\Contracts\Shared\ClockInterface;
+use App\Contracts\Shared\LocalFileWriterInterface;
 use App\DTO\Max\LoadTestCleanupResultDto;
 use App\DTO\Max\LoadTestPrepareMenuResultDto;
 use App\DTO\Max\LoadTestTokenDto;
 use App\DTO\Max\LoadTestTokensResultDto;
-use App\Models\Food\Cart;
-use App\Models\Food\Dish;
-use App\Models\Food\FoodOrder;
-use App\Models\Food\Restaurant;
-use App\Models\Max\MaxUser;
 use App\Support\Max\MaxLoadTestUserIds;
-use Illuminate\Contracts\Config\Repository;
-use Illuminate\Filesystem\Filesystem;
+use DateInterval;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -32,16 +33,21 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
     private const TOKEN_ABILITY = 'max-miniapp';
 
     public function __construct(
-        private readonly Repository $config,
+        private readonly ApplicationConfigInterface $config,
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
         private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
-        private readonly Filesystem $files,
+        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxLoadTestDataRepositoryInterface $loadTestDataRepository,
+        private readonly MaxMiniAppTokenIssuerInterface $tokenIssuer,
+        private readonly ClockInterface $clock,
+        private readonly ApplicationEnvironmentInterface $environment,
+        private readonly LocalFileWriterInterface $localFileWriter,
     ) {}
 
     /**
      * {@inheritdoc}
      */
-    public function issueTokens(int $count, ?string $outputPath = null): LoadTestTokensResultDto
+    public function issueTokens(int $count, string $outputPath): LoadTestTokensResultDto
     {
         $this->ensureAllowedEnvironment();
 
@@ -49,40 +55,36 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
             throw new InvalidArgumentException('count должен быть >= 1.');
         }
 
-        $outputPath ??= MaxLoadTestUserIds::defaultTokenFilePath();
+        if ($outputPath === '') {
+            throw new InvalidArgumentException('outputPath не должен быть пустым.');
+        }
+
         $expiresInSeconds = (int) $this->config->get('max.miniapp.token_ttl_seconds', 86_400);
         $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
+        $expiresAt = $this->clock->now()->add(new DateInterval('PT'.$expiresInSeconds.'S'));
 
         $tokens = [];
 
         foreach (MaxLoadTestUserIds::range($count) as $index => $maxUserId) {
-            $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $maxUserId]);
+            $this->maxUserRepository->upsertLoadTestUser(
+                maxUserId: $maxUserId,
+                firstName: 'LoadTest'.($index + 1),
+                username: 'load_test_'.($index + 1),
+                defaultCustomerCategoryId: $defaultCategoryId,
+            );
 
-            if (! $maxUser->exists) {
-                $maxUser->fill([
-                    'first_name' => 'LoadTest'.($index + 1),
-                    'username' => 'load_test_'.($index + 1),
-                    'language_code' => 'ru',
-                ]);
-            }
+            $this->tokenIssuer->revokeNamedTokens($maxUserId, self::TOKEN_NAME);
 
-            if ($maxUser->customer_category_id === null) {
-                $maxUser->customer_category_id = $defaultCategoryId;
-            }
-
-            $maxUser->save();
-
-            $maxUser->tokens()->where('name', self::TOKEN_NAME)->delete();
-
-            $accessToken = $maxUser->createToken(
+            $plainTextToken = $this->tokenIssuer->createToken(
+                $maxUserId,
                 self::TOKEN_NAME,
                 [self::TOKEN_ABILITY],
-                now()->addSeconds($expiresInSeconds),
+                $expiresAt,
             );
 
             $tokens[] = new LoadTestTokenDto(
                 maxUserId: $maxUserId,
-                token: $accessToken->plainTextToken,
+                token: $plainTextToken,
             );
         }
 
@@ -101,12 +103,7 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
     {
         $this->ensureAllowedEnvironment();
 
-        $restaurantIds = Restaurant::query()
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->pluck('id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->all();
+        $restaurantIds = $this->loadTestDataRepository->listActiveRestaurantIds();
 
         if ($restaurantIds === []) {
             return new LoadTestPrepareMenuResultDto(
@@ -115,13 +112,7 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
             );
         }
 
-        $dishesEnabled = Dish::query()
-            ->where('is_available', false)
-            ->whereHas(
-                'menuCategory',
-                static fn ($query) => $query->whereIn('restaurant_id', $restaurantIds),
-            )
-            ->update(['is_available' => true]);
+        $dishesEnabled = $this->loadTestDataRepository->enableUnavailableDishesForRestaurants($restaurantIds);
 
         $this->catalogCacheInvalidator->invalidateAll();
 
@@ -145,8 +136,8 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
         $maxUserIds = MaxLoadTestUserIds::range($count);
 
         // Сначала заказы: max_food_orders.cart_id → max_carts без cascade.
-        $ordersDeleted = FoodOrder::query()->whereIn('max_user_id', $maxUserIds)->delete();
-        $cartsDeleted = Cart::query()->whereIn('max_user_id', $maxUserIds)->delete();
+        $ordersDeleted = $this->loadTestDataRepository->deleteOrdersForMaxUserIds($maxUserIds);
+        $cartsDeleted = $this->loadTestDataRepository->deleteCartsForMaxUserIds($maxUserIds);
 
         return new LoadTestCleanupResultDto(
             ordersDeleted: $ordersDeleted,
@@ -160,7 +151,7 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
      */
     private function ensureAllowedEnvironment(): void
     {
-        if (! app()->environment(['local', 'testing'])) {
+        if (! $this->environment->is(['local', 'testing'])) {
             throw new RuntimeException(
                 'Команды max:load-test:* доступны только при APP_ENV=local или testing.',
             );
@@ -174,11 +165,7 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
      */
     private function writeTokensFile(string $outputPath, array $tokens): void
     {
-        $directory = dirname($outputPath);
-
-        if (! $this->files->isDirectory($directory)) {
-            $this->files->makeDirectory($directory, 0755, true);
-        }
+        $this->localFileWriter->ensureDirectory(dirname($outputPath));
 
         $payload = array_map(
             static fn (LoadTestTokenDto $token): array => $token->toArray(),
@@ -191,6 +178,6 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
             throw new RuntimeException('Не удалось сериализовать токены в JSON.');
         }
 
-        $this->files->put($outputPath, $json.PHP_EOL);
+        $this->localFileWriter->put($outputPath, $json.PHP_EOL);
     }
 }

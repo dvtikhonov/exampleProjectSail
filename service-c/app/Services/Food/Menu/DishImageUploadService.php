@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishImageUploadInterface;
+use App\Contracts\Shared\FileStorageInterface;
+use App\DTO\Shared\UploadedFileDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Support\Food\Menu\DishPhotoAllowedExtensions;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
@@ -18,10 +17,15 @@ use Throwable;
  */
 class DishImageUploadService implements DishImageUploadInterface
 {
+    public function __construct(
+        private readonly FileStorageInterface $fileStorage,
+        private readonly LoggerInterface $logger,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
-    public function upload(int $dishId, UploadedFile $file): string
+    public function upload(int $dishId, UploadedFileDto $file): string
     {
         $this->assertValidUpload($file);
         $this->assertAllowedExtension($file);
@@ -29,22 +33,20 @@ class DishImageUploadService implements DishImageUploadInterface
         $this->assertAllowedMime($file);
         $this->assertMinDimensions($file);
 
-        $extension = DishPhotoAllowedExtensions::normalizeExtension(
-            (string) $file->getClientOriginalExtension(),
-        );
-        $relativePath = sprintf('dishes/%d/%s.%s', $dishId, (string) Str::uuid(), $extension);
+        $extension = DishPhotoAllowedExtensions::normalizeExtension($file->extension());
+        $relativePath = sprintf('dishes/%d/%s.%s', $dishId, $this->generateUniqueId(), $extension);
         $directory = dirname($relativePath);
 
         try {
-            Storage::disk('public')->makeDirectory($directory);
+            $this->fileStorage->makeDirectory($directory);
 
-            $stored = Storage::disk('public')->putFileAs(
+            $stored = $this->fileStorage->putFileAs(
                 $directory,
-                $file,
+                $file->path,
                 basename($relativePath),
             );
         } catch (Throwable $exception) {
-            Log::error('Dish image upload failed.', [
+            $this->logger->error('Dish image upload failed.', [
                 'dish_id' => $dishId,
                 'path' => $relativePath,
                 'exception' => $exception::class,
@@ -57,10 +59,10 @@ class DishImageUploadService implements DishImageUploadInterface
         }
 
         if ($stored === false) {
-            Log::error('Dish image upload returned false (disk public, throw=false).', [
+            $this->logger->error('Dish image upload returned false (disk public, throw=false).', [
                 'dish_id' => $dishId,
                 'path' => $relativePath,
-                'storage_root' => storage_path('app/public'),
+                'storage_root' => $this->fileStorage->path(''),
             ]);
 
             throw new FoodDomainException(
@@ -84,9 +86,29 @@ class DishImageUploadService implements DishImageUploadInterface
             return;
         }
 
-        if (Storage::disk('public')->exists($relativePath)) {
-            Storage::disk('public')->delete($relativePath);
+        if ($this->fileStorage->exists($relativePath)) {
+            $this->fileStorage->delete($relativePath);
         }
+    }
+
+    /**
+     * Уникальный идентификатор файла (UUID v4).
+     */
+    private function generateUniqueId(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0F) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3F) | 0x80);
+        $hex = bin2hex($bytes);
+
+        return sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($hex, 0, 8),
+            substr($hex, 8, 4),
+            substr($hex, 12, 4),
+            substr($hex, 16, 4),
+            substr($hex, 20, 12),
+        );
     }
 
     /**
@@ -94,9 +116,9 @@ class DishImageUploadService implements DishImageUploadInterface
      *
      * @throws FoodDomainException
      */
-    private function assertValidUpload(UploadedFile $file): void
+    private function assertValidUpload(UploadedFileDto $file): void
     {
-        if (! $file->isValid()) {
+        if ($file->path === '' || ! is_readable($file->path)) {
             throw new FoodDomainException('Файл изображения недействителен.');
         }
     }
@@ -106,11 +128,9 @@ class DishImageUploadService implements DishImageUploadInterface
      *
      * @throws FoodDomainException
      */
-    private function assertAllowedExtension(UploadedFile $file): void
+    private function assertAllowedExtension(UploadedFileDto $file): void
     {
-        $extension = strtolower((string) $file->getClientOriginalExtension());
-
-        if (! DishPhotoAllowedExtensions::isAllowedExtension($extension)) {
+        if (! DishPhotoAllowedExtensions::isAllowedExtension($file->extension())) {
             throw new FoodDomainException('Допустимы только изображения PNG или JPEG.');
         }
     }
@@ -120,15 +140,13 @@ class DishImageUploadService implements DishImageUploadInterface
      *
      * @throws FoodDomainException
      */
-    private function assertMaxSize(UploadedFile $file): void
+    private function assertMaxSize(UploadedFileDto $file): void
     {
-        $size = $file->getSize();
-
-        if ($size === false || $size < 0) {
+        if ($file->size < 0) {
             throw new FoodDomainException('Файл изображения недействителен.');
         }
 
-        if ($size > DishPhotoAllowedExtensions::MAX_SIZE_BYTES) {
+        if ($file->size > DishPhotoAllowedExtensions::MAX_SIZE_BYTES) {
             throw new FoodDomainException('Размер изображения не должен превышать 25 МБ.');
         }
     }
@@ -138,15 +156,9 @@ class DishImageUploadService implements DishImageUploadInterface
      *
      * @throws FoodDomainException
      */
-    private function assertAllowedMime(UploadedFile $file): void
+    private function assertAllowedMime(UploadedFileDto $file): void
     {
-        $path = $file->getRealPath();
-
-        if ($path === false) {
-            throw new FoodDomainException('Файл изображения недействителен.');
-        }
-
-        $mime = DishPhotoAllowedExtensions::detectMimeFromPath($path);
+        $mime = DishPhotoAllowedExtensions::detectMimeFromPath($file->path);
 
         if ($mime === null || ! DishPhotoAllowedExtensions::isAllowedMime($mime)) {
             throw new FoodDomainException('Допустимы только изображения PNG или JPEG.');
@@ -158,9 +170,9 @@ class DishImageUploadService implements DishImageUploadInterface
      *
      * @throws FoodDomainException
      */
-    private function assertMinDimensions(UploadedFile $file): void
+    private function assertMinDimensions(UploadedFileDto $file): void
     {
-        $dimensions = DishPhotoAllowedExtensions::readDimensions($file);
+        $dimensions = DishPhotoAllowedExtensions::readDimensionsFromPath($file->path);
 
         if ($dimensions === null) {
             throw new FoodDomainException('Не удалось прочитать размеры изображения.');

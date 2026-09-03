@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
+use App\DTO\Shared\UploadedFileDto;
+use App\Http\Support\UploadedFileDtoFactory;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 
@@ -80,6 +82,14 @@ class ImportDishesSpreadsheetRequest extends FormRequest
         $file = $this->file('file');
 
         return $file;
+    }
+
+    /**
+     * Метаданные файла таблицы для сервисного слоя (без Illuminate UploadedFile).
+     */
+    public function spreadsheetFileDto(): UploadedFileDto
+    {
+        return UploadedFileDtoFactory::fromUploadedFile($this->spreadsheetFile());
     }
 
     /**

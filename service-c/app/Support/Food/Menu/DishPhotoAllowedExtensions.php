@@ -127,6 +127,20 @@ final class DishPhotoAllowedExtensions
             return null;
         }
 
+        return self::readDimensionsFromPath($path);
+    }
+
+    /**
+     * Читает ширину и высоту изображения по пути в ФС.
+     *
+     * @return array{width: int, height: int}|null
+     */
+    public static function readDimensionsFromPath(string $path): ?array
+    {
+        if ($path === '' || ! is_readable($path)) {
+            return null;
+        }
+
         $size = @getimagesize($path);
 
         if ($size === false) {

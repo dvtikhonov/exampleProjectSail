@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\DTO\Food\Order\FoodOrderRecord;
+use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Models\Food\FoodOrder;
+use App\Enums\Food\Review\OrderReviewStatus;
 use App\Services\Food\Review\OrderCustomerNotifyRecipientResolver;
-use Illuminate\Log\Events\MessageLogged;
-use Illuminate\Support\Facades\Log;
-use Tests\Support\MessMaxLogTestHelper;
+use PHPUnit\Framework\MockObject\MockObject;
+use Psr\Log\LoggerInterface;
 use Tests\TestCase;
 
 class OrderCustomerNotifyRecipientResolverTest extends TestCase
@@ -21,7 +22,10 @@ class OrderCustomerNotifyRecipientResolverTest extends TestCase
         $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
         $adminRepository->expects($this->never())->method('listActiveMaxUserIdsByRole');
 
-        $resolver = new OrderCustomerNotifyRecipientResolver($adminRepository);
+        $resolver = new OrderCustomerNotifyRecipientResolver(
+            $adminRepository,
+            $this->loggerExpectingNoWarning(),
+        );
         $order = $this->makeOrder(id: 10, maxUserId: 1002, isManual: false);
 
         $this->assertSame([1002], $resolver->resolveMaxUserIds($order));
@@ -37,7 +41,10 @@ class OrderCustomerNotifyRecipientResolverTest extends TestCase
             ->with(FoodOrderAdminRole::MaxManager)
             ->willReturn([9001, 9002]);
 
-        $resolver = new OrderCustomerNotifyRecipientResolver($adminRepository);
+        $resolver = new OrderCustomerNotifyRecipientResolver(
+            $adminRepository,
+            $this->loggerExpectingNoWarning(),
+        );
         $order = $this->makeOrder(id: 11, maxUserId: 1002, isManual: true);
 
         $this->assertSame([9001, 9002], $resolver->resolveMaxUserIds($order));
@@ -46,12 +53,6 @@ class OrderCustomerNotifyRecipientResolverTest extends TestCase
     /** Ручной заказ без менеджеров — пустой список и warning в лог. */
     public function test_resolve_manual_order_without_managers_logs_warning(): void
     {
-        $captured = [];
-
-        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
-            $captured[] = $event;
-        });
-
         $adminRepository = $this->createMock(FoodOrderAdminRepositoryInterface::class);
         $adminRepository
             ->expects($this->once())
@@ -59,29 +60,64 @@ class OrderCustomerNotifyRecipientResolverTest extends TestCase
             ->with(FoodOrderAdminRole::MaxManager)
             ->willReturn([]);
 
-        $resolver = new OrderCustomerNotifyRecipientResolver($adminRepository);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger
+            ->expects($this->once())
+            ->method('warning')
+            ->with(
+                'MAX manual order customer notification: no active max_manager recipients',
+                [
+                    'order_id' => 12,
+                    'max_user_id' => 1002,
+                ],
+            );
+
+        $resolver = new OrderCustomerNotifyRecipientResolver($adminRepository, $logger);
         $order = $this->makeOrder(id: 12, maxUserId: 1002, isManual: true);
 
         $this->assertSame([], $resolver->resolveMaxUserIds($order));
-
-        $log = MessMaxLogTestHelper::assertSingleMessage(
-            $captured,
-            'MAX manual order customer notification: no active max_manager recipients',
-        );
-        $this->assertSame('warning', $log->level);
-        $this->assertSame(12, $log->context['order_id']);
-        $this->assertSame(1002, $log->context['max_user_id']);
     }
 
-    /** Создаёт тестовый заказ. */
-    private function makeOrder(int $id, int $maxUserId, bool $isManual): FoodOrder
+    /** @return MockObject&LoggerInterface */
+    private function loggerExpectingNoWarning(): MockObject
     {
-        $order = new FoodOrder([
-            'max_user_id' => $maxUserId,
-            'is_manual' => $isManual,
-        ]);
-        $order->id = $id;
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('warning');
 
-        return $order;
+        return $logger;
+    }
+
+    /** Создаёт тестовую проекцию заказа. */
+    private function makeOrder(int $id, int $maxUserId, bool $isManual): FoodOrderRecord
+    {
+        return new FoodOrderRecord(
+            id: $id,
+            cartId: null,
+            maxUserId: $maxUserId,
+            isManual: $isManual,
+            createdByMaxUserId: null,
+            restaurantId: 1,
+            status: OrderStatus::PendingReview,
+            addressReviewStatus: OrderReviewStatus::Pending,
+            compositionReviewStatus: OrderReviewStatus::Pending,
+            paymentReviewStatus: OrderReviewStatus::Pending,
+            addressReviewedBy: null,
+            addressReviewedAt: null,
+            compositionReviewedBy: null,
+            compositionReviewedAt: null,
+            addressRejectionComment: null,
+            compositionRejectionComment: null,
+            paymentReviewedBy: null,
+            paymentReviewedAt: null,
+            paymentRejectionComment: null,
+            total: '0.00',
+            deliveryAddress: null,
+            deliveryDate: null,
+            deliveryCost: null,
+            itemsTotal: '0.00',
+            itemsSnapshot: [],
+            createdAt: now()->toIso8601String(),
+            updatedAt: null,
+        );
     }
 }

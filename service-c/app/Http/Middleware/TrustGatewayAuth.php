@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
 use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
+use App\DTO\Auth\GatewayAuthCredentialsDto;
 use App\Http\Responses\GatewayUnauthorizedResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -26,7 +29,15 @@ class TrustGatewayAuth
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $dto = $this->userResolver->resolveFromRequest($request);
+        $credentials = GatewayAuthCredentialsDto::tryFromUserIdHeader(
+            $request->header('X-User-Id'),
+        );
+
+        if ($credentials === null) {
+            return GatewayUnauthorizedResponse::make();
+        }
+
+        $dto = $this->userResolver->resolve($credentials);
 
         if ($dto === null) {
             return GatewayUnauthorizedResponse::make();

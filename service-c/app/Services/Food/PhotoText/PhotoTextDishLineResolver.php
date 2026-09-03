@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Food\PhotoText;
 
-use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Food\PhotoText\PhotoTextComboRefGrouperInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
+use App\Contracts\Food\PhotoText\PhotoTextDishNameMatcherInterface;
+use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\PhotoText\PhotoTextAgentItemDto;
 use App\DTO\Food\PhotoText\PhotoTextIssueDto;
 use App\DTO\Food\PhotoText\PhotoTextMatchedLineDto;
@@ -14,7 +15,6 @@ use App\DTO\Food\PhotoText\PhotoTextPlacementResultDto;
 use App\Enums\Food\PhotoText\PhotoTextComboRefGroupKind;
 use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Dish;
 use App\Services\Food\Composition\ComboPairValidator;
 
 /**
@@ -23,7 +23,7 @@ use App\Services\Food\Composition\ComboPairValidator;
 class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
 {
     public function __construct(
-        private readonly DishCatalogRepositoryInterface $dishRepository,
+        private readonly PhotoTextDishNameMatcherInterface $dishNameMatcher,
         private readonly ComboPairValidator $comboPairValidator,
         private readonly PhotoTextComboRefGrouperInterface $comboRefGrouper,
     ) {}
@@ -93,13 +93,18 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
             );
         }
 
-        $found = $this->findUniqueDish($searchName, $restaurantId);
+        $matchResult = $this->dishNameMatcher->match($searchName, $restaurantId);
 
-        if (! $found instanceof Dish) {
-            return $this->issueFromFindFailure($found, $searchName, $item->name, $item->quantity);
+        if (! $matchResult->isSuccess()) {
+            return new PhotoTextIssueDto(
+                code: $matchResult->code ?? PhotoTextMatchIssueCode::DishNotFound,
+                message: $matchResult->message ?? 'Блюдо не найдено: '.$searchName,
+                rawTitle: $item->name,
+                quantity: $item->quantity,
+            );
         }
 
-        return $this->matchedFromDish($item->name, $item->quantity, $found);
+        return $this->matchedFromDish($item->name, $item->quantity, $matchResult->dish);
     }
 
     /**
@@ -125,10 +130,12 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
             ];
         }
 
-        $left = $this->findUniqueDish($leftName, $restaurantId);
-        $right = $this->findUniqueDish($rightName, $restaurantId);
+        $leftResult = $this->dishNameMatcher->match($leftName, $restaurantId);
+        $rightResult = $this->dishNameMatcher->match($rightName, $restaurantId);
+        $left = $leftResult->dish;
+        $right = $rightResult->dish;
 
-        if (! $left instanceof Dish || ! $right instanceof Dish) {
+        if (! $left instanceof DishRecord || ! $right instanceof DishRecord) {
             return [
                 'matched' => [],
                 'issues' => [
@@ -165,66 +172,22 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
         ];
     }
 
-    private function findUniqueDish(string $searchName, int $restaurantId): Dish|PhotoTextMatchIssueCode
-    {
-        $inRestaurant = $this->dishRepository->findByNameCaseInsensitive($searchName, $restaurantId);
-
-        if ($inRestaurant->count() === 1) {
-            /** @var Dish $dish */
-            $dish = $inRestaurant->first();
-
-            return $dish;
-        }
-
-        if ($inRestaurant->count() > 1) {
-            return PhotoTextMatchIssueCode::DishAmbiguous;
-        }
-
-        return PhotoTextMatchIssueCode::DishNotFound;
-    }
-
-    private function issueFromFindFailure(
-        PhotoTextMatchIssueCode $code,
-        string $searchName,
-        string $rawTitle,
-        ?int $quantity,
-    ): PhotoTextIssueDto {
-        $message = $code === PhotoTextMatchIssueCode::DishAmbiguous
-            ? 'Найдено несколько блюд: '.$searchName
-            : 'Блюдо не найдено: '.$searchName;
-
-        if ($code === PhotoTextMatchIssueCode::DishNotFound) {
-            $anywhere = $this->dishRepository->findByNameCaseInsensitive($searchName);
-
-            if ($anywhere->isNotEmpty()) {
-                $message = 'Блюдо не относится к указанному ресторану: '.$searchName;
-            }
-        }
-
-        return new PhotoTextIssueDto(
-            code: $code,
-            message: $message,
-            rawTitle: $rawTitle,
-            quantity: $quantity,
-        );
-    }
-
     private function matchedFromDish(
         string $rawTitle,
         int $quantity,
-        Dish $dish,
-        ?Dish $partner = null,
+        DishRecord $dish,
+        ?DishRecord $partner = null,
         ?string $comboRef = null,
     ): PhotoTextMatchedLineDto {
         return new PhotoTextMatchedLineDto(
             rawTitle: $rawTitle,
             quantity: $quantity,
-            dishId: (int) $dish->id,
-            dishName: (string) $dish->name,
-            comboPartnerDishId: $partner !== null ? (int) $partner->id : null,
-            comboPartnerDishName: $partner !== null ? (string) $partner->name : null,
+            dishId: $dish->id,
+            dishName: $dish->name,
+            comboPartnerDishId: $partner?->id,
+            comboPartnerDishName: $partner?->name,
             comboRef: $comboRef,
-            restaurantId: (int) $dish->menuCategory->restaurant_id,
+            restaurantId: (int) ($dish->menuCategory?->restaurantId ?? 0),
         );
     }
 

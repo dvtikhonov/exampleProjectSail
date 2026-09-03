@@ -9,13 +9,13 @@ use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Menu\DishAvailabilityChangeDto;
 use App\DTO\Food\Menu\DishAvailabilityGridDto;
 use App\DTO\Food\Menu\DishAvailabilityUpdateDto;
+use App\DTO\Food\Menu\DishRecord;
 use App\Exceptions\Food\FoodDomainException;
-use App\Models\Food\Dish;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
 
 /**
  * График доступности блюд: чтение сетки и синхронизация дат (включая сегодня).
@@ -33,6 +33,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
         private readonly DishAvailabilitySyncService $availabilitySyncService,
         private readonly MenuAvailabilityDateResolverInterface $availabilityDateResolver,
         private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
@@ -48,7 +49,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
 
         [$resolvedFrom, $resolvedTo] = $this->resolveDateRange($dateFrom, $dateTo);
         $dishes = $this->availabilityRepository->listDishesForCategory($restaurantId, $categoryId);
-        $dishIds = array_map(static fn (Dish $dish): int => $dish->id, $dishes);
+        $dishIds = array_map(static fn (DishRecord $dish): int => $dish->id, $dishes);
         $schedule = $this->availabilityRepository->getScheduleForDishes($dishIds, $resolvedFrom, $resolvedTo);
 
         $scheduleForJson = [];
@@ -59,10 +60,10 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
 
         return new DishAvailabilityGridDto(
             dishes: array_map(
-                static fn (Dish $dish): array => [
+                static fn (DishRecord $dish): array => [
                     'id' => $dish->id,
                     'name' => $dish->name,
-                    'is_available' => $dish->is_available,
+                    'is_available' => $dish->isAvailable,
                 ],
                 $dishes,
             ),
@@ -105,7 +106,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
             $dishAvailableDates[$change->dishId] = $change->dates;
         }
 
-        DB::transaction(function () use ($dishAvailableDates, $rangeFrom, $rangeTo, $editableFrom): void {
+        $this->transactionManager->run(function () use ($dishAvailableDates, $rangeFrom, $rangeTo, $editableFrom): void {
             $this->availabilityRepository->syncDishesAvailabilityInRange(
                 $dishAvailableDates,
                 $rangeFrom,
@@ -134,7 +135,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     {
         $category = $this->menuCategoryRepository->findById($categoryId);
 
-        if ($category === null || (int) $category->restaurant_id !== $restaurantId) {
+        if ($category === null || $category->restaurantId !== $restaurantId) {
             throw new FoodDomainException('Категория меню не найдена для выбранного ресторана.', 422);
         }
     }

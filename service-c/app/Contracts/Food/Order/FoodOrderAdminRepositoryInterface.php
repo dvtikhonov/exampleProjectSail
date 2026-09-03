@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Order;
 
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Models\Food\FoodOrderAdmin;
 
 /**
  * Репозиторий ролей администратора проверки заказов еды.
@@ -27,7 +26,7 @@ interface FoodOrderAdminRepositoryInterface
     /**
      * Назначает или реактивирует роль администратора для пользователя MAX.
      */
-    public function assignActiveRole(int $maxUserId, FoodOrderAdminRole $role): FoodOrderAdmin;
+    public function assignActiveRole(int $maxUserId, FoodOrderAdminRole $role): int;
 
     /**
      * Уникальные max_user_id всех активных администраторов заказов.

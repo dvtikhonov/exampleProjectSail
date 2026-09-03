@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food;
 
+use App\Http\Requests\Food\Concerns\ValidatesDeliveryAddress;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class UpdateCartDeliveryAddressRequest extends FormRequest
 {
+    use ValidatesDeliveryAddress;
+
     /**
      * Разрешает выполнение запроса.
      */
@@ -26,9 +29,7 @@ class UpdateCartDeliveryAddressRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'delivery_address' => ['required', 'string', 'max:1000'],
-        ];
+        return $this->deliveryAddressRules();
     }
 
     /**
@@ -38,10 +39,7 @@ class UpdateCartDeliveryAddressRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'delivery_address.required' => 'Укажите адрес доставки.',
-            'delivery_address.max' => 'Адрес доставки не должен превышать 1000 символов.',
-        ];
+        return $this->deliveryAddressMessages();
     }
 
     /**
@@ -51,16 +49,6 @@ class UpdateCartDeliveryAddressRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return [
-            'delivery_address' => 'адрес доставки',
-        ];
-    }
-
-    /**
-     * Возвращает нормализованный адрес доставки.
-     */
-    public function deliveryAddress(): string
-    {
-        return trim((string) $this->validated('delivery_address'));
+        return $this->deliveryAddressAttributes();
     }
 }
