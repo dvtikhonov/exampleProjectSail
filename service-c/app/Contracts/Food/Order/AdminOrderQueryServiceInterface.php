@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Order;
 
 use App\DTO\Food\Order\AdminOrderDetailDto;
+use App\DTO\Food\Order\AdminOrderListItemDto;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
@@ -25,7 +26,7 @@ interface AdminOrderQueryServiceInterface
      * Возвращает постраничный список заказов для админского API по scope и статусу.
      *
      * @return array{
-     *     orders: list<\App\DTO\Food\Order\AdminOrderListItemDto>,
+     *     orders: list<AdminOrderListItemDto>,
      *     meta: array{current_page: int, per_page: int, total: int, last_page: int}
      * }
      *
