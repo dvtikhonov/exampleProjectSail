@@ -15,11 +15,14 @@ use RuntimeException;
 
 /**
  * HTTP-резолвер аутентифицированного MaxUser и его доменной проекции.
+ *
+ * Request не инжектится в конструктор: Route кэширует контроллер (и его
+ * зависимости) между HTTP-вызовами в одном процессе, из‑за чего устаревший
+ * Request отдавал чужую identity.
  */
 final class AuthenticatedMaxUserResolver implements AuthenticatedMaxUserResolverInterface
 {
     public function __construct(
-        private readonly Request $request,
         private readonly MaxUserIdentityMapper $identityMapper,
         private readonly MaxUserMapper $maxUserMapper,
     ) {}
@@ -47,7 +50,9 @@ final class AuthenticatedMaxUserResolver implements AuthenticatedMaxUserResolver
      */
     private function authenticatedMaxUser(): MaxUser
     {
-        $user = $this->request->user();
+        /** @var Request $request */
+        $request = app(Request::class);
+        $user = $request->user();
 
         if (! $user instanceof MaxUser) {
             throw new RuntimeException('Authenticated MaxUser is required.');

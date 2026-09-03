@@ -7,19 +7,20 @@ use Illuminate\Http\Request;
 
 /**
  * Контекст текущего пользователя gateway из HTTP-запроса.
+ *
+ * Request читается при каждом вызове, а не из конструктора: иначе при
+ * кэшировании зависимостей между HTTP-вызовами возвращается чужой user.
  */
 class RequestGatewayUserContext implements GatewayUserContextInterface
 {
-    public function __construct(
-        private readonly Request $request,
-    ) {}
-
     /**
      * {@inheritDoc}
      */
     public function currentUserId(): ?int
     {
-        $userId = $this->request->user()?->id;
+        /** @var Request $request */
+        $request = app(Request::class);
+        $userId = $request->user()?->id;
 
         return is_int($userId) ? $userId : null;
     }
