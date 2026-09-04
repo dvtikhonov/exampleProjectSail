@@ -10,10 +10,11 @@
 #
 # Переменные на VPS (корневой .env или export):
 #   MYSQL_ROOT_PASSWORD, SERVICE_B_DB_PASSWORD, SERVICE_C_DB_PASSWORD, SERVICE_D_DB_PASSWORD, SERVICE_F_DB_PASSWORD, SERVICE_G_DB_PASSWORD
-#   PASSPORT_CLIENT_SECRET, MAIL_HOST, MAIL_FROM_ADDRESS, REVERB_ALLOWED_ORIGINS
+#   PASSPORT_CLIENT_SECRET, MAIL_HOST, MAIL_FROM_ADDRESS, REVERB_ALLOWED_ORIGINS, VPS_DOMAIN
 #   REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io
+#   VPS_DOMAIN=94-228-117-27.sslip.io  # для VITE_REVERB_* (браузер → wss://$VPS_DOMAIN/app/...)
 #   GATEWAY_HTTP_PORT (по умолчанию 8080 — upstream для host nginx)
-#   VPS_DOMAIN, PMA_SUBDOMAIN (по умолчанию pma), PHPMYADMIN_PORT (по умолчанию 8085)
+#   PMA_SUBDOMAIN (по умолчанию pma), PHPMYADMIN_PORT (по умолчанию 8085)
 
 services:
   mysql-host:
@@ -71,6 +72,14 @@ services:
       - XDEBUG_MODE=off
       - DB_HOST=host.docker.internal
       - DB_PASSWORD=${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+      # PHP → reverb в docker-сети; браузер — через HTTPS gateway (/app/).
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8090
+      - REVERB_SCHEME=http
+      - VITE_REVERB_APP_KEY=${REVERB_APP_KEY:-local-app-key}
+      - VITE_REVERB_HOST=${VPS_DOMAIN:?set VPS_DOMAIN}
+      - VITE_REVERB_PORT=443
+      - VITE_REVERB_SCHEME=https
     volumes: !override
       - ./main-app/app:/var/www/html/app
       - ./main-app/routes:/var/www/html/routes
@@ -289,6 +298,8 @@ services:
     mem_limit: 1536m
 
   reverb:
+    # Снаружи только через host nginx → gateway → /app/ (не публиковать :8090).
+    ports: !override []
     environment:
       - APP_ENV=production
       - APP_DEBUG=false

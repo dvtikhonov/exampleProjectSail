@@ -635,7 +635,7 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 | `service-g` | `https://listtodo.94-228-117-27.sslip.io/` |
 | phpMyAdmin (только после настройки) | `https://pma.94-228-117-27.sslip.io/` |
 
-В `.env` на VPS: `main-app` → `APP_URL=https://94-228-117-27.sslip.io`; `REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io` (см. `docker-compose.prod.yml`).
+В `.env` на VPS: `main-app` → `APP_URL=https://94-228-117-27.sslip.io`; `REVERB_ALLOWED_ORIGINS=https://94-228-117-27.sslip.io`; корневой `.env` → `VPS_DOMAIN=94-228-117-27.sslip.io` (для `VITE_REVERB_*` в `docker-compose.prod.yml`). Live-stats service-b: браузер подключается к `wss://$VPS_DOMAIN/app/...` через host nginx → gateway → контейнер `reverb` (порт `8090` снаружи не публикуется). После смены `VITE_REVERB_*` — `docker compose exec -T main-app npm run build`.
 
 ### phpMyAdmin на VPS
 
