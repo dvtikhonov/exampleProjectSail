@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
-use App\Contracts\Food\Cart\CartRepositoryInterface;
+use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
+use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartCreateCommand;
@@ -19,7 +20,8 @@ use App\Services\Food\Composition\ComboPairValidator;
 class CartItemMutationCoordinator
 {
     public function __construct(
-        private readonly CartRepositoryInterface $cartRepository,
+        private readonly CartDraftRepositoryInterface $cartDraftRepository,
+        private readonly CartLifecycleRepositoryInterface $cartLifecycleRepository,
         private readonly DishCatalogRepositoryInterface $dishRepository,
         private readonly ComboPairValidator $comboPairValidator,
         private readonly CartItemUpserter $cartItemUpserter,
@@ -58,7 +60,7 @@ class CartItemMutationCoordinator
         }
 
         if ($cart === null) {
-            $cart = $this->cartRepository->createDraft(new CartCreateCommand(
+            $cart = $this->cartDraftRepository->createDraft(new CartCreateCommand(
                 maxUserId: $cartOwnerMaxUserId,
                 createdByMaxUserId: $cartCreatedByMaxUserId,
                 restaurantId: $restaurant->id,
@@ -88,6 +90,6 @@ class CartItemMutationCoordinator
             $this->cartItemUpserter->upsertRegular($cart, $dish->id, $quantity);
         }
 
-        return $this->cartRepository->refreshForDto($cart->id);
+        return $this->cartLifecycleRepository->refreshForDto($cart->id);
     }
 }

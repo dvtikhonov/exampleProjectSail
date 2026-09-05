@@ -6,6 +6,9 @@ use App\Contracts\Auth\GatewayAuthSessionInterface;
 use App\Contracts\Auth\GatewayUserContextInterface;
 use App\Contracts\Auth\GatewayUserResolverInterface;
 use App\Contracts\Food\Cart\CartDeliveryAddressServiceInterface;
+use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
+use App\Contracts\Food\Cart\CartItemRepositoryInterface;
+use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\Cart\CartRepositoryInterface;
 use App\Contracts\Food\Cart\CartServiceInterface;
 use App\Contracts\Food\Chat\OrderChatNotifierInterface;
@@ -44,7 +47,8 @@ use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
-use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\CustomerOrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextComboRefGrouperInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishNameMatcherInterface;
@@ -141,7 +145,8 @@ use App\Services\Food\Menu\MenuCategoryAdminService;
 use App\Services\Food\Menu\MenuQueryService;
 use App\Services\Food\Order\AdminOrderQueryService;
 use App\Services\Food\Order\CustomerOrderQueryService;
-use App\Services\Food\Order\OrderSubmissionService;
+use App\Services\Food\Order\CustomerOrderSubmissionService;
+use App\Services\Food\Order\ManualOrderSubmissionService;
 use App\Services\Food\PhotoText\PhotoTextComboRefGrouper;
 use App\Services\Food\PhotoText\PhotoTextDishLineResolver;
 use App\Services\Food\PhotoText\PhotoTextDishNameMatcher;
@@ -152,6 +157,7 @@ use App\Services\Food\Review\OrderReviewStepHandler;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
 use App\Services\Max\ConfigMaxOrderNotificationConfigProvider;
 use App\Services\Max\EnvMaxBotTokenProvider;
+use App\Services\Max\CachingMaxAiAccessService;
 use App\Services\Max\MaxAiAccessService;
 use App\Services\Max\MaxLoadTestService;
 use App\Services\Max\MaxMessengerNotificationSender;
@@ -210,6 +216,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DishAdminRepositoryInterface::class, EloquentDishRepository::class);
         $this->app->bind(DishCatalogRepositoryInterface::class, EloquentDishRepository::class);
         $this->app->bind(CartRepositoryInterface::class, EloquentCartRepository::class);
+        $this->app->bind(CartDraftRepositoryInterface::class, EloquentCartRepository::class);
+        $this->app->bind(CartItemRepositoryInterface::class, EloquentCartRepository::class);
+        $this->app->bind(CartLifecycleRepositoryInterface::class, EloquentCartRepository::class);
         $this->app->bind(CartServiceInterface::class, CartService::class);
         $this->app->bind(CartDeliveryAddressServiceInterface::class, CartDeliveryAddressService::class);
         $this->app->bind(ManualOrderCartServiceInterface::class, ManualOrderCartService::class);
@@ -254,7 +263,8 @@ class AppServiceProvider extends ServiceProvider
                 );
             },
         );
-        $this->app->bind(OrderSubmissionServiceInterface::class, OrderSubmissionService::class);
+        $this->app->bind(CustomerOrderSubmissionServiceInterface::class, CustomerOrderSubmissionService::class);
+        $this->app->bind(ManualOrderSubmissionServiceInterface::class, ManualOrderSubmissionService::class);
         $this->app->bind(OrderCompositionSnapshotBuilderInterface::class, OrderCompositionSnapshotBuilder::class);
         $this->app->bind(OrderCompositionUpdateServiceInterface::class, OrderCompositionUpdateService::class);
         $this->app->bind(OrderReviewStepHandlerInterface::class, OrderReviewStepHandler::class);
@@ -305,7 +315,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AuthenticatedMaxUserResolverInterface::class, AuthenticatedMaxUserResolver::class);
         $this->app->bind(MaxUserDeliveryAddressInterface::class, MaxUserDeliveryAddressService::class);
         $this->app->bind(MaxUserRepositoryInterface::class, EloquentMaxUserRepository::class);
-        $this->app->bind(MaxAiAccessServiceInterface::class, MaxAiAccessService::class);
+        $this->app->bind(
+            MaxAiAccessServiceInterface::class,
+            function ($app): CachingMaxAiAccessService {
+                return new CachingMaxAiAccessService(
+                    $app->make(MaxAiAccessService::class),
+                    $app->make(CacheStoreInterface::class),
+                    (bool) config('max.ai_access_cache_enabled', true),
+                );
+            },
+        );
         $this->app->bind(MaxMenuAvailabilityNotifierInterface::class, MaxMenuAvailabilityNotifier::class);
         $this->app->bind(
             MaxMessengerNotificationSenderInterface::class,
