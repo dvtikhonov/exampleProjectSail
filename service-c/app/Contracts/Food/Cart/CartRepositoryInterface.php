@@ -9,9 +9,4 @@ namespace App\Contracts\Food\Cart;
  *
  * Composition ISP: объединяет draft / item / lifecycle порты.
  */
-interface CartRepositoryInterface extends
-    CartDraftRepositoryInterface,
-    CartItemRepositoryInterface,
-    CartLifecycleRepositoryInterface
-{
-}
+interface CartRepositoryInterface extends CartDraftRepositoryInterface, CartItemRepositoryInterface, CartLifecycleRepositoryInterface {}

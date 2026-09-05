@@ -12,7 +12,6 @@ use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
-use App\Exceptions\Food\FoodDomainException;
 use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
 
 /**

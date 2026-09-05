@@ -258,7 +258,7 @@ class CachingMaxAiAccessServiceTest extends TestCase
     }
 
     /**
-     * @param MaxAiAccessServiceInterface $inner Внутренний сервис.
+     * @param  MaxAiAccessServiceInterface  $inner  Внутренний сервис.
      */
     private function makeService(MaxAiAccessServiceInterface $inner): CachingMaxAiAccessService
     {
