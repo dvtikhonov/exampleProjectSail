@@ -8,6 +8,7 @@ use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
@@ -22,7 +23,10 @@ class MaxAiAccessApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
         $this->resetFoodDomainTables();
+        config(['max.ai_access_cache_enabled' => true]);
     }
 
     /** Без роли max_manager доступ к API ai-access запрещён. */
@@ -107,6 +111,71 @@ class MaxAiAccessApiTest extends TestCase
         $manager['user']->forceFill([
             'ai_access_until' => $now->copy()->subMinute(),
         ])->save();
+
+        $this->getJson('/api/food/admin/ai-access', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('enabled', false)
+            ->assertJsonPath('active_max_user_id', null)
+            ->assertJsonPath('expires_at', null);
+
+        $this->assertDatabaseHas('max_users', [
+            'max_user_id' => $manager['user']->max_user_id,
+            'ai_access_until' => null,
+        ]);
+    }
+
+    /** После toggle GET сразу отражает актуальный статус (нет stale из кэша). */
+    public function test_show_reflects_toggle_without_stale_cache(): void
+    {
+        $now = Carbon::parse('2026-08-19 13:00:00');
+        $this->travelTo($now);
+
+        $manager = $this->maxManagerAuth(20_031);
+
+        $this->postJson('/api/food/admin/ai-access/toggle', [], $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('enabled', true)
+            ->assertJsonPath('active_max_user_id', $manager['user']->max_user_id);
+
+        $this->getJson('/api/food/admin/ai-access', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('enabled', true)
+            ->assertJsonPath('active_max_user_id', $manager['user']->max_user_id);
+
+        $this->postJson('/api/food/admin/ai-access/toggle', [], $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('enabled', false)
+            ->assertJsonPath('active_max_user_id', null)
+            ->assertJsonPath('expires_at', null);
+
+        $this->getJson('/api/food/admin/ai-access', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('enabled', false)
+            ->assertJsonPath('active_max_user_id', null)
+            ->assertJsonPath('expires_at', null);
+    }
+
+    /** После истечения expires_at GET отдаёт enabled: false (кэш не держит доступ дольше TTL). */
+    public function test_show_returns_disabled_after_expires_at_despite_cache(): void
+    {
+        $now = Carbon::parse('2026-08-19 14:00:00');
+        $this->travelTo($now);
+
+        $manager = $this->maxManagerAuth(20_041);
+
+        $enableResponse = $this->postJson('/api/food/admin/ai-access/toggle', [], $manager['headers']);
+        $enableResponse
+            ->assertOk()
+            ->assertJsonPath('enabled', true);
+
+        $expiresAt = Carbon::parse((string) $enableResponse->json('expires_at'));
+
+        $this->getJson('/api/food/admin/ai-access', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('enabled', true)
+            ->assertJsonPath('active_max_user_id', $manager['user']->max_user_id);
+
+        $this->travelTo($expiresAt->copy()->addSecond());
 
         $this->getJson('/api/food/admin/ai-access', $manager['headers'])
             ->assertOk()

@@ -288,6 +288,30 @@ class AdminDishApiTest extends TestCase
             ->assertJsonCount(2, 'dishes');
     }
 
+    /** Список блюд отклоняет невалидный availability вместо silent fallback. */
+    public function test_dishes_index_rejects_invalid_availability(): void
+    {
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes?availability=garbage', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['availability']);
+    }
+
+    /** Список блюд отклоняет невалидные numeric-фильтры. */
+    public function test_dishes_index_rejects_invalid_ids(): void
+    {
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes?restaurant_id=0', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['restaurant_id']);
+
+        $this->getJson('/api/food/admin/dishes?category_id=-1', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['category_id']);
+    }
+
     /** CRUD блюд менеджером меню проходит по успешному сценарию. */
     public function test_menu_manager_crud_happy_path(): void
     {

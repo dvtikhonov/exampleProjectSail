@@ -28,6 +28,7 @@ use App\Infrastructure\Laravel\LaravelLocalFileWriter;
 use App\Infrastructure\Laravel\LaravelMaxMiniAppTokenIssuer;
 use App\Repositories\Max\EloquentMaxLoadTestDataRepository;
 use DateTimeImmutable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Psr\Log\LoggerInterface;
 use Tests\TestCase;
@@ -57,6 +58,16 @@ class SharedInfrastructurePortsTest extends TestCase
         $now = $this->app->make(ClockInterface::class)->now();
 
         $this->assertInstanceOf(DateTimeImmutable::class, $now);
+    }
+
+    public function test_clock_respects_carbon_travel_to(): void
+    {
+        $frozen = Carbon::parse('2026-08-19 10:00:00');
+        $this->travelTo($frozen);
+
+        $now = $this->app->make(ClockInterface::class)->now();
+
+        $this->assertSame($frozen->format(DateTimeImmutable::ATOM), $now->format(DateTimeImmutable::ATOM));
     }
 
     public function test_application_config_reads_values(): void

@@ -6,6 +6,8 @@ namespace App\DTO\Food\Menu;
 
 /**
  * Данные для создания категории меню.
+ *
+ * Порядок сортировки назначает сервис через nextSortOrderForRestaurant.
  */
 readonly class CreateMenuCategoryDto
 {
@@ -15,7 +17,6 @@ readonly class CreateMenuCategoryDto
     public function __construct(
         public int $restaurantId,
         public string $name,
-        public int $sortOrder,
         public bool $isComboAvailable,
         public array $availabilityOffsets = [],
     ) {}

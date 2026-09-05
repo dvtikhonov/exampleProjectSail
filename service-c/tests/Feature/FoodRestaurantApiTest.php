@@ -159,6 +159,20 @@ class FoodRestaurantApiTest extends TestCase
             ->assertJsonCount(0, 'menu.categories');
     }
 
+    /** Меню отклоняет невалидный include_unavailable. */
+    public function test_menu_endpoint_rejects_invalid_include_unavailable(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+
+        $this->getJson(
+            '/api/food/restaurants/'.$fixture['restaurant']->id.'/menu?include_unavailable=maybe',
+            $auth['headers'],
+        )
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['include_unavailable']);
+    }
+
     /** Эндпоинт меню скрывает категории без доступных блюд. */
     public function test_menu_endpoint_hides_categories_without_available_dishes(): void
     {

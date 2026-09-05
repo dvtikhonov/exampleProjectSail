@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food\Cart;
 
 use App\Contracts\Food\Cart\CartDeliveryAddressServiceInterface;
-use App\Contracts\Food\Cart\CartRepositoryInterface;
+use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
+use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
@@ -18,7 +19,8 @@ class CartDeliveryAddressService implements CartDeliveryAddressServiceInterface
     public function __construct(
         private readonly CartDtoFactory $cartDtoFactory,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
-        private readonly CartRepositoryInterface $cartRepository,
+        private readonly CartDraftRepositoryInterface $cartDraftRepository,
+        private readonly CartLifecycleRepositoryInterface $cartLifecycleRepository,
     ) {}
 
     /**
@@ -30,16 +32,16 @@ class CartDeliveryAddressService implements CartDeliveryAddressServiceInterface
     {
         $this->maxUserDeliveryAddressService->persistForMaxUserId($maxUser->maxUserId, $deliveryAddress);
 
-        $cart = $this->cartRepository->findDraftByMaxUserId($maxUser->maxUserId);
+        $cart = $this->cartDraftRepository->findDraftByMaxUserId($maxUser->maxUserId);
 
         if ($cart === null) {
             return null;
         }
 
-        $this->cartRepository->updateDeliveryAddress($cart->id, $deliveryAddress);
+        $this->cartLifecycleRepository->updateDeliveryAddress($cart->id, $deliveryAddress);
 
         return $this->cartDtoFactory->fromRecord(
-            $this->cartRepository->refreshForDto($cart->id),
+            $this->cartLifecycleRepository->refreshForDto($cart->id),
             $maxUser->maxUserId,
         );
     }

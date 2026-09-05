@@ -7,18 +7,14 @@ namespace App\Http\Controllers\Api\Food;
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
 use App\Contracts\Food\Menu\DishSpreadsheetImportServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
-use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\DTO\Food\Menu\AdminDishDto;
-use App\DTO\Max\MaxAdminBotTestSendResultDto;
-use App\Enums\Food\Menu\AdminDishAvailabilityFilter;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
+use App\Http\Requests\Food\Admin\ListAdminDishesRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
-use App\Support\Http\QueryParamParser;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -31,26 +27,19 @@ class AdminDishController extends Controller
     public function __construct(
         private readonly DishAdminServiceInterface $dishAdminService,
         private readonly DishSpreadsheetImportServiceInterface $dishSpreadsheetImportService,
-        private readonly MaxAdminBotTestSenderInterface $maxAdminBotTestSender,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
-        private readonly QueryParamParser $queryParamParser,
     ) {}
 
     /**
      * Список блюд для админки.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListAdminDishesRequest $request): JsonResponse
     {
-        $restaurantId = $this->queryParamParser->optionalPositiveInt($request, 'restaurant_id');
-        $categoryId = $this->queryParamParser->optionalPositiveInt($request, 'category_id');
-        $nameSearch = $this->queryParamParser->optionalTrimmedString($request, 'name', 255);
-        $availability = $this->optionalAvailabilityQuery($request);
-
         $dishes = $this->dishAdminService->list(
-            $restaurantId,
-            $categoryId,
-            $nameSearch,
-            $availability,
+            $request->restaurantId(),
+            $request->categoryId(),
+            $request->nameSearch(),
+            $request->availability(),
         );
 
         $menuAvailability = $this->menuAvailabilityDateResolver->resolve();
@@ -73,26 +62,6 @@ class AdminDishController extends Controller
         return $this->respondDish(function () use ($dish) {
             return $this->dishAdminService->show($dish);
         });
-    }
-
-    /**
-     * Отправка тестового сообщения «Тест БОТ» получателям уведомлений о заказах.
-     */
-    public function sendTestBot(): JsonResponse
-    {
-        return $this->respondTestBotSend(
-            fn () => $this->maxAdminBotTestSender->sendTestMessage(),
-        );
-    }
-
-    /**
-     * Отправка тестового сообщения «тест бот 2» во все чаты из MAX_UI_STAND_CHAT_IDS.
-     */
-    public function sendTestBot2(): JsonResponse
-    {
-        return $this->respondTestBotSend(
-            fn () => $this->maxAdminBotTestSender->sendUiStandTestMessage(),
-        );
     }
 
     /**
@@ -155,20 +124,6 @@ class AdminDishController extends Controller
     }
 
     /**
-     * @param  callable(): MaxAdminBotTestSendResultDto  $action
-     */
-    private function respondTestBotSend(callable $action): JsonResponse
-    {
-        $result = $action();
-
-        return response()->json([
-            'message' => 'Тестовое сообщение отправлено.',
-            'sent_count' => $result->sentCount,
-            'bot_username' => (string) config('max.bot_username', ''),
-        ]);
-    }
-
-    /**
      * @param  callable(): AdminDishDto  $action
      */
     private function respondDish(callable $action, int $status = 200): JsonResponse
@@ -193,20 +148,5 @@ class AdminDishController extends Controller
         return response()->json([
             'dish' => $dish->toArray(),
         ], $status);
-    }
-
-    /**
-     * Режим отображения по availability: all|available|hidden (по умолчанию all).
-     */
-    private function optionalAvailabilityQuery(Request $request): AdminDishAvailabilityFilter
-    {
-        $value = $this->queryParamParser->optionalTrimmedString($request, 'availability', 32);
-
-        if ($value === null) {
-            return AdminDishAvailabilityFilter::All;
-        }
-
-        return AdminDishAvailabilityFilter::tryFrom($value)
-            ?? AdminDishAvailabilityFilter::All;
     }
 }

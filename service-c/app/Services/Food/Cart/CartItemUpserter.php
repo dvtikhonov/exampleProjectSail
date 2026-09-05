@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
-use App\Contracts\Food\Cart\CartRepositoryInterface;
+use App\Contracts\Food\Cart\CartItemRepositoryInterface;
 use App\DTO\Food\Cart\CartItemCreateCommand;
 use App\DTO\Food\Cart\CartRecord;
 
@@ -14,7 +14,7 @@ use App\DTO\Food\Cart\CartRecord;
 class CartItemUpserter
 {
     public function __construct(
-        private readonly CartRepositoryInterface $cartRepository,
+        private readonly CartItemRepositoryInterface $cartRepository,
     ) {}
 
     /**

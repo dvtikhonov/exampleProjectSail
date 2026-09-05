@@ -82,6 +82,24 @@ class AdminMenuCategoryApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'categories')
             ->assertJsonPath('categories.0.id', $first['category']->id);
+
+        $this->getJson(
+            '/api/food/admin/menu-categories?restaurant_id='.$second['restaurant']->id,
+            $auth['headers'],
+        )
+            ->assertOk()
+            ->assertJsonCount(1, 'categories')
+            ->assertJsonPath('categories.0.id', $second['category']->id);
+    }
+
+    /** Список категорий отклоняет невалидный restaurant_id. */
+    public function test_menu_categories_index_rejects_invalid_restaurant_id(): void
+    {
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/menu-categories?restaurant_id=0', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['restaurant_id']);
     }
 
     /** Менеджер меню может создать категорию меню. */

@@ -10,9 +10,10 @@ use App\Contracts\Food\Review\OrderReviewStepHandlerInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\OrderReviewStep;
-use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\ApproveOrderReviewRequest;
 use App\Http\Requests\Food\Admin\ListAdminOrdersRequest;
+use App\Http\Requests\Food\Admin\ShowAdminOrderReviewRequest;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
 use App\Http\Requests\Food\UpdateOrderCompositionRequest;
 use Illuminate\Http\JsonResponse;
@@ -66,18 +67,12 @@ class AdminOrderReviewController extends Controller
     /**
      * Детали заказа для проверки.
      */
-    public function show(Request $request, int $order): JsonResponse
+    public function show(ShowAdminOrderReviewRequest $request, int $order): JsonResponse
     {
-        $scope = (string) $request->query('scope', '');
-
-        if ($scope === '') {
-            throw new FoodDomainException('Параметр запроса scope обязателен.', 422);
-        }
-
         $orderDto = $this->adminOrderQueryService->detail(
             $this->authenticatedMaxUserResolver->identity(),
             $order,
-            $scope,
+            $request->scope(),
         );
 
         return response()->json([
@@ -88,7 +83,7 @@ class AdminOrderReviewController extends Controller
     /**
      * Подтверждает адрес доставки.
      */
-    public function approveAddress(Request $request, int $order): JsonResponse
+    public function approveAddress(ApproveOrderReviewRequest $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
@@ -117,7 +112,7 @@ class AdminOrderReviewController extends Controller
     /**
      * Подтверждает состав заказа.
      */
-    public function approveComposition(Request $request, int $order): JsonResponse
+    public function approveComposition(ApproveOrderReviewRequest $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(
@@ -160,7 +155,7 @@ class AdminOrderReviewController extends Controller
     /**
      * Подтверждает получение оплаты (проверяющий адреса).
      */
-    public function approvePayment(Request $request, int $order): JsonResponse
+    public function approvePayment(ApproveOrderReviewRequest $request, int $order): JsonResponse
     {
         return $this->respondReviewDecision(function () use ($order) {
             return $this->orderReviewStepHandler->approve(

@@ -6,9 +6,10 @@ namespace App\Infrastructure\Laravel;
 
 use App\Contracts\Shared\ClockInterface;
 use DateTimeImmutable;
+use Illuminate\Support\Carbon;
 
 /**
- * Laravel-адаптер {@see ClockInterface} поверх системных часов.
+ * Laravel-адаптер {@see ClockInterface} поверх часов приложения (с учётом travelTo в тестах).
  */
 class LaravelClock implements ClockInterface
 {
@@ -17,6 +18,6 @@ class LaravelClock implements ClockInterface
      */
     public function now(): DateTimeImmutable
     {
-        return new DateTimeImmutable('now');
+        return Carbon::now()->toDateTimeImmutable();
     }
 }
