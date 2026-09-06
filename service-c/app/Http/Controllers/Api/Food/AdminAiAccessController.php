@@ -6,11 +6,12 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Max\AiAccessStatusDto;
 use App\DTO\Max\MaxUserIdentity;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\ToggleAiAccessRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * API управления доступом AI к базе для роли max_manager.
@@ -20,6 +21,7 @@ class AdminAiAccessController extends Controller
     public function __construct(
         private readonly MaxAiAccessServiceInterface $maxAiAccessService,
         private readonly AuthenticatedMaxUserResolverInterface $maxUserResolver,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
@@ -27,7 +29,7 @@ class AdminAiAccessController extends Controller
      */
     public function show(): JsonResponse
     {
-        $status = $this->maxAiAccessService->getStatus(now());
+        $status = $this->maxAiAccessService->getStatus($this->clock->now());
 
         return response()->json($this->statusPayload($status));
     }
@@ -35,13 +37,13 @@ class AdminAiAccessController extends Controller
     /**
      * Переключает доступ AI для текущего max_manager и возвращает новый статус.
      */
-    public function toggle(Request $request): JsonResponse
+    public function toggle(ToggleAiAccessRequest $request): JsonResponse
     {
         $status = $this->maxAiAccessService->toggle(
             new MaxUserIdentity(
                 maxUserId: $this->maxUserResolver->identity()->maxUserId,
             ),
-            now(),
+            $this->clock->now(),
         );
 
         return response()->json($this->statusPayload($status));

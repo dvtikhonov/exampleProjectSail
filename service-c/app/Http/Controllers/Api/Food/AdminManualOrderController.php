@@ -8,7 +8,7 @@ use App\Contracts\Food\ManualOrder\DraftAfterScanningOrderServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
-use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Shared\MaxUserIdentity;
@@ -35,7 +35,7 @@ class AdminManualOrderController extends Controller
         private readonly ManualOrderUserQueryServiceInterface $manualOrderUserQueryService,
         private readonly ManualOrderQueryServiceInterface $manualOrderQueryService,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
-        private readonly OrderSubmissionServiceInterface $orderSubmissionService,
+        private readonly ManualOrderSubmissionServiceInterface $orderSubmissionService,
         private readonly DraftAfterScanningOrderServiceInterface $draftAfterScanningOrderService,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,

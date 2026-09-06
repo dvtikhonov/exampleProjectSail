@@ -33,6 +33,15 @@ return [
         'token_ttl_seconds' => (int) env('MAX_MINIAPP_TOKEN_TTL_SECONDS', 86_400),
     ],
 
+    /**
+     * Кэш статуса AI-доступа (CachingMaxAiAccessService).
+     * Отключить для отладки / сравнения с прямыми запросами к БД.
+     */
+    'ai_access_cache_enabled' => filter_var(
+        env('MAX_AI_ACCESS_CACHE_ENABLED', true),
+        FILTER_VALIDATE_BOOL,
+    ),
+
     // Подписанная заглушка initData на localhost:8083/max-app (только APP_ENV=local|testing).
     'local_dev_init_data' => filter_var(env('MAX_LOCAL_DEV_INIT_DATA', false), FILTER_VALIDATE_BOOL),
 

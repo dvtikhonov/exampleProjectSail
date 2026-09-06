@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
-use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Http\Controllers\Controller;
-use App\Models\Max\MaxUser;
+use App\Http\Requests\Food\RestaurantMenuRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * API списка ресторанов и меню для MAX mini-app.
@@ -19,7 +18,7 @@ class RestaurantController extends Controller
 {
     public function __construct(
         private readonly MenuQueryServiceInterface $menuQueryService,
-        private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
 
     /**
@@ -42,7 +41,7 @@ class RestaurantController extends Controller
      *
      * Query include_unavailable=1 — только для max_manager (ручной заказ).
      */
-    public function menu(Request $request, int $restaurant): JsonResponse
+    public function menu(RestaurantMenuRequest $request, int $restaurant): JsonResponse
     {
         $menu = $this->menuQueryService->getRestaurantMenu(
             $restaurant,
@@ -57,21 +56,14 @@ class RestaurantController extends Controller
     /**
      * Разрешает показ недоступных блюд только max_manager при явном запросе.
      */
-    private function shouldIncludeUnavailableDishes(Request $request): bool
+    private function shouldIncludeUnavailableDishes(RestaurantMenuRequest $request): bool
     {
-        if (! $request->boolean('include_unavailable')) {
+        if (! $request->includeUnavailable()) {
             return false;
         }
 
-        $maxUser = $request->user();
-
-        if (! $maxUser instanceof MaxUser) {
-            return false;
-        }
-
-        return $this->foodOrderAdminRepository->hasActiveRole(
-            $maxUser->max_user_id,
-            FoodOrderAdminRole::MaxManager,
-        );
+        return $this->authenticatedMaxUserResolver
+            ->identity()
+            ->hasAdminRole(FoodOrderAdminRole::MaxManager);
     }
 }

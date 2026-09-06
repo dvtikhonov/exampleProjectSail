@@ -9,17 +9,10 @@ use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
- * Оформление заказа из черновика корзины.
+ * Оформление ручного заказа менеджером из черновика корзины.
  */
-interface OrderSubmissionServiceInterface
+interface ManualOrderSubmissionServiceInterface
 {
-    /**
-     * Создаёт заказ из корзины пользователя.
-     *
-     * @throws FoodDomainException
-     */
-    public function submit(MaxUserIdentity $user): OrderDto;
-
     /**
      * Создаёт ручной заказ из корзины менеджера от имени клиента.
      * Сразу подтверждает адрес, оплату и состав (approved) и переводит заказ в confirmed.

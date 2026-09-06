@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
-use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\DTO\Food\Menu\AdminMenuCategoryDto;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\ListAdminMenuCategoriesRequest;
 use App\Http\Requests\Food\Admin\StoreMenuCategoryRequest;
 use App\Http\Requests\Food\Admin\UpdateMenuCategoryRequest;
-use App\Support\Http\QueryParamParser;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -22,17 +20,14 @@ class AdminMenuCategoryController extends Controller
 {
     public function __construct(
         private readonly MenuCategoryAdminServiceInterface $menuCategoryAdminService,
-        private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
-        private readonly QueryParamParser $queryParamParser,
     ) {}
 
     /**
      * Список категорий меню.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListAdminMenuCategoriesRequest $request): JsonResponse
     {
-        $restaurantId = $this->queryParamParser->optionalPositiveInt($request, 'restaurant_id');
-        $categories = $this->menuCategoryAdminService->list($restaurantId);
+        $categories = $this->menuCategoryAdminService->list($request->restaurantId());
 
         return response()->json([
             'categories' => array_map(
@@ -58,11 +53,8 @@ class AdminMenuCategoryController extends Controller
     public function store(StoreMenuCategoryRequest $request): JsonResponse
     {
         return $this->respondCategory(function () use ($request) {
-            $restaurantId = (int) $request->validated('restaurant_id');
-            $defaultSortOrder = $this->menuCategoryRepository->nextSortOrderForRestaurant($restaurantId);
-
             return $this->menuCategoryAdminService->create(
-                $request->toCreateDto($defaultSortOrder),
+                $request->toCreateDto(),
             );
         }, 201);
     }

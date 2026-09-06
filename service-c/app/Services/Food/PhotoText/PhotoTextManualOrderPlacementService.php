@@ -7,7 +7,7 @@ namespace App\Services\Food\PhotoText;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCustomerResolverInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
-use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
@@ -26,7 +26,7 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
         private readonly ManualOrderCustomerResolverInterface $customerResolver,
         private readonly PhotoTextDishLineResolverInterface $dishLineResolver,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
-        private readonly OrderSubmissionServiceInterface $orderSubmissionService,
+        private readonly ManualOrderSubmissionServiceInterface $orderSubmissionService,
         private readonly MaxUserRepositoryInterface $maxUserRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
     ) {}

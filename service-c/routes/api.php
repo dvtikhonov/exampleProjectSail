@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Food\AdminAiAccessController;
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
 use App\Http\Controllers\Api\Food\AdminManualOrderController;
+use App\Http\Controllers\Api\Food\AdminMaxBotTestController;
 use App\Http\Controllers\Api\Food\AdminMenuCategoryController;
 use App\Http\Controllers\Api\Food\AdminOrderReviewController;
 use App\Http\Controllers\Api\Food\CartController;
@@ -107,8 +108,8 @@ Route::middleware('max.miniapp.auth')->group(function () {
                     ->whereNumber('menuCategory');
 
                 Route::get('/dishes', [AdminDishController::class, 'index']);
-                Route::post('/dishes/test-bot', [AdminDishController::class, 'sendTestBot']);
-                Route::post('/dishes/test-bot-2', [AdminDishController::class, 'sendTestBot2']);
+                Route::post('/dishes/test-bot', [AdminMaxBotTestController::class, 'sendTestBot']);
+                Route::post('/dishes/test-bot-2', [AdminMaxBotTestController::class, 'sendTestBot2']);
                 Route::get('/dishes/{dish}', [AdminDishController::class, 'show'])
                     ->whereNumber('dish');
                 Route::post('/dishes/import', [AdminDishController::class, 'import']);

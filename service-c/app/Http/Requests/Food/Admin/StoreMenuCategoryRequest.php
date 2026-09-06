@@ -33,7 +33,6 @@ class StoreMenuCategoryRequest extends FormRequest
         return [
             'restaurant_id' => ['required', 'integer', 'min:1'],
             'name' => ['required', 'string', 'max:255'],
-            'sort_order' => ['sometimes', 'integer', 'min:0', 'max:65535'],
             'is_combo_available' => ['sometimes', 'boolean'],
             ...$this->availabilityOffsetRules(),
         ];
@@ -71,7 +70,6 @@ class StoreMenuCategoryRequest extends FormRequest
         return [
             'restaurant_id' => 'ресторан',
             'name' => 'название',
-            'sort_order' => 'порядок сортировки',
             'is_combo_available' => 'доступность в комбо',
             ...$this->availabilityOffsetAttributes(),
         ];
@@ -80,16 +78,13 @@ class StoreMenuCategoryRequest extends FormRequest
     /**
      * Собирает DTO создания категории меню.
      */
-    public function toCreateDto(int $defaultSortOrder): CreateMenuCategoryDto
+    public function toCreateDto(): CreateMenuCategoryDto
     {
         $validated = $this->validated();
 
         return new CreateMenuCategoryDto(
             restaurantId: (int) $validated['restaurant_id'],
             name: trim((string) $validated['name']),
-            sortOrder: array_key_exists('sort_order', $validated)
-                ? (int) $validated['sort_order']
-                : $defaultSortOrder,
             isComboAvailable: (bool) ($validated['is_combo_available'] ?? true),
             availabilityOffsets: $this->mapAvailabilityOffsetsFromValidated($validated),
         );

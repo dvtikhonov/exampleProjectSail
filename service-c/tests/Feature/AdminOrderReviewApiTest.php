@@ -485,7 +485,11 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->getJson("/api/food/admin/orders/{$orderId}", $auth['headers'])
             ->assertUnprocessable()
-            ->assertJsonPath('message', 'Параметр запроса scope обязателен.');
+            ->assertJsonValidationErrors(['scope']);
+
+        $this->getJson("/api/food/admin/orders/{$orderId}?scope=unknown", $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['scope']);
 
         $this->getJson("/api/food/admin/orders/{$orderId}?scope=address", $auth['headers'])
             ->assertOk()

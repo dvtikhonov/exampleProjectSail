@@ -60,7 +60,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
         $category = $this->menuCategoryRepository->create([
             'restaurant_id' => $dto->restaurantId,
             'name' => $dto->name,
-            'sort_order' => $dto->sortOrder,
+            'sort_order' => $this->menuCategoryRepository->nextSortOrderForRestaurant($dto->restaurantId),
             'is_combo_available' => $dto->isComboAvailable,
         ]);
 

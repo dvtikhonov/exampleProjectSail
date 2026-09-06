@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
-use App\Contracts\Food\Order\OrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\CustomerOrderSubmissionServiceInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Http\Controllers\Controller;
 use App\Support\Profiling\OrderSubmitTiming;
@@ -18,7 +18,7 @@ use Illuminate\Http\Request;
 class OrderController extends Controller
 {
     public function __construct(
-        private readonly OrderSubmissionServiceInterface $orderSubmissionService,
+        private readonly CustomerOrderSubmissionServiceInterface $orderSubmissionService,
         private readonly CustomerOrderQueryServiceInterface $customerOrderQueryService,
         private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
