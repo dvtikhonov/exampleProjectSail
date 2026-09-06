@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Max\UiStand;
 
+use App\Contracts\Max\MaxCallbackHandlerInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
 use Psr\Log\LoggerInterface;
@@ -14,7 +15,7 @@ use Throwable;
 /**
  * Обработка нажатий inline-кнопок стенда MAX.
  */
-class MaxCallbackHandler
+class MaxCallbackHandler implements MaxCallbackHandlerInterface
 {
     public function __construct(
         private readonly MaxMessengerClientInterface $client,

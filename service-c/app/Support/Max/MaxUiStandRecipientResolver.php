@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Max;
 
+use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use Illuminate\Contracts\Config\Repository;
 
@@ -14,7 +15,7 @@ final class MaxUiStandRecipientResolver implements MaxUiStandRecipientResolverIn
 {
     public function __construct(
         private readonly Repository $config,
-        private readonly MaxUiStandRecipientRegistry $recipientRegistry,
+        private readonly MaxUiStandRecipientRegistryInterface $recipientRegistry,
     ) {}
 
     /**

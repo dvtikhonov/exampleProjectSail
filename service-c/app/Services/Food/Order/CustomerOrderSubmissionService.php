@@ -6,6 +6,7 @@ namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
 use App\Contracts\Food\Order\CustomerOrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
 use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\RequestTimingRecorderInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
@@ -24,7 +25,7 @@ use Psr\Log\LoggerInterface;
 class CustomerOrderSubmissionService implements CustomerOrderSubmissionServiceInterface
 {
     public function __construct(
-        private readonly OrderFromCartCreator $orderFromCartCreator,
+        private readonly OrderFromCartCreatorInterface $orderFromCartCreator,
         private readonly CartDraftRepositoryInterface $cartDraftRepository,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly LoggerInterface $logger,

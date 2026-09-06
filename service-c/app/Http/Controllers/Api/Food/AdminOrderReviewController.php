@@ -11,13 +11,13 @@ use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\Admin\AdminReviewMeRequest;
 use App\Http\Requests\Food\Admin\ApproveOrderReviewRequest;
 use App\Http\Requests\Food\Admin\ListAdminOrdersRequest;
 use App\Http\Requests\Food\Admin\ShowAdminOrderReviewRequest;
 use App\Http\Requests\Food\RejectOrderReviewRequest;
 use App\Http\Requests\Food\UpdateOrderCompositionRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * API проверки заказов еды для администраторов MAX mini-app.
@@ -34,7 +34,7 @@ class AdminOrderReviewController extends Controller
     /**
      * Возвращает активные роли текущего администратора.
      */
-    public function me(Request $request): JsonResponse
+    public function me(AdminReviewMeRequest $request): JsonResponse
     {
         return response()->json([
             'admin_roles' => $this->adminOrderQueryService->activeRoleValues(

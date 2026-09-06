@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Models\Max\MaxUser;
 use Illuminate\Console\Command;
 
 /**
@@ -23,8 +23,10 @@ class MaxFoodAdminAssignCommand extends Command
     /**
      * Назначает активную роль администратора, если пользователь MAX существует.
      */
-    public function handle(FoodOrderAdminRepositoryInterface $adminRepository): int
-    {
+    public function handle(
+        FoodOrderAdminRepositoryInterface $adminRepository,
+        MaxUserRepositoryInterface $maxUserRepository,
+    ): int {
         $maxUserId = (int) $this->argument('max_user_id');
         $roleValue = (string) $this->argument('role');
         $role = FoodOrderAdminRole::tryFrom($roleValue);
@@ -39,7 +41,7 @@ class MaxFoodAdminAssignCommand extends Command
             return self::FAILURE;
         }
 
-        if (! MaxUser::query()->whereKey($maxUserId)->exists()) {
+        if ($maxUserRepository->findByMaxUserId($maxUserId) === null) {
             $this->error("Пользователь MAX с max_user_id={$maxUserId} не найден в max_users.");
 
             return self::FAILURE;

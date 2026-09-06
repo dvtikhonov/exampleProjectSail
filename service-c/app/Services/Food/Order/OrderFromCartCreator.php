@@ -7,6 +7,7 @@ namespace App\Services\Food\Order;
 use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
+use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Cart\CartRecord;
@@ -24,7 +25,7 @@ use DateTimeInterface;
 /**
  * Общее ядро: снимок корзины → заказ → markAsSubmitted.
  */
-class OrderFromCartCreator
+class OrderFromCartCreator implements OrderFromCartCreatorInterface
 {
     public function __construct(
         private readonly FoodMoneyFormatter $moneyFormatter,

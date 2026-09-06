@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\Max\UiStand\MaxUiStandGreetingSender;
+use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
 use App\Support\Max\MaxOpenAppTargetResolver;
 use Illuminate\Console\Command;
 use RuntimeException;
@@ -23,7 +23,7 @@ class MaxUiStandSendCommand extends Command
     /**
      * Отправляет приветственное сообщение настроенным получателям.
      */
-    public function handle(MaxUiStandGreetingSender $sender, MaxOpenAppTargetResolver $openAppTargetResolver): int
+    public function handle(MaxUiStandGreetingSenderInterface $sender, MaxOpenAppTargetResolver $openAppTargetResolver): int
     {
         $openAppTarget = $openAppTargetResolver->resolveWebApp();
 

@@ -1,26 +1,32 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Infrastructure\Laravel;
 
 use App\Contracts\Auth\GatewayUserContextInterface;
-use Illuminate\Http\Request;
+use App\Contracts\Shared\CurrentHttpRequestInterface;
 
 /**
  * Контекст текущего пользователя gateway из HTTP-запроса.
  *
- * Request читается при каждом вызове, а не из конструктора: иначе при
- * кэшировании зависимостей между HTTP-вызовами возвращается чужой user.
+ * User читается при каждом вызове через {@see CurrentHttpRequestInterface},
+ * а не из конструкторного Request: иначе при кэшировании зависимостей между
+ * HTTP-вызовами возвращается чужой user.
  */
 class RequestGatewayUserContext implements GatewayUserContextInterface
 {
+    public function __construct(
+        private readonly CurrentHttpRequestInterface $currentHttpRequest,
+    ) {}
+
     /**
      * {@inheritDoc}
      */
     public function currentUserId(): ?int
     {
-        /** @var Request $request */
-        $request = app(Request::class);
-        $userId = $request->user()?->id;
+        $user = $this->currentHttpRequest->user();
+        $userId = is_object($user) ? ($user->id ?? null) : null;
 
         return is_int($userId) ? $userId : null;
     }

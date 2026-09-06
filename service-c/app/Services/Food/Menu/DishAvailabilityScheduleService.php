@@ -6,6 +6,7 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
+use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
@@ -30,7 +31,7 @@ class DishAvailabilityScheduleService implements DishAvailabilityScheduleService
     public function __construct(
         private readonly DishAvailabilityRepositoryInterface $availabilityRepository,
         private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
-        private readonly DishAvailabilitySyncService $availabilitySyncService,
+        private readonly DishAvailabilitySyncServiceInterface $availabilitySyncService,
         private readonly MenuAvailabilityDateResolverInterface $availabilityDateResolver,
         private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
         private readonly TransactionManagerInterface $transactionManager,
