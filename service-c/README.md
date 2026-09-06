@@ -425,7 +425,7 @@ flowchart TD
 | Шаг | Поведение |
 |---|---|
 | Preview в корзине | `GET /cart` → `delivery_date` из `MenuAvailabilityDateResolver::resolve()` (lookback до 7 дней); UI — `CartSummaryFooter`, `CartOrderConfirmModal` |
-| Submit (клиент / ручной из mini-app) | `OrderSubmissionService` пишет `MenuAvailabilityDateResolver::resolve()->date` (снимок на момент оформления; дальше не пересчитывается) |
+| Submit (клиент / ручной из mini-app) | `CustomerOrderSubmissionService` / `ManualOrderSubmissionService` пишут `MenuAvailabilityDateResolver::resolve()->date` (снимок на момент оформления; дальше не пересчитывается) |
 | Submit (PhotoText) | `submitDraftAfterScanning(..., $orderDate)` пишет `delivery_date` из тела запроса (`Y-m-d` шапки промпта), а не с бланка и не из resolver; статус `draft_after_scanning` |
 | API заказа | Поле в `OrderDto`, `AdminOrderDetailDto`, `ManualOrderDetailDto`; UI — `OrderConfirmationPage`, `OrderDetailPage`, `AdminOrderDetailPage`, `ManualOrderDetailPage` (`formatIsoDateRu`) |
 | MAX | `FoodOrderMaxMessageBuilder`: строка «Дата доставки: ДД.ММ.ГГГГ» в уведомлении о новой заявке; `buildManualOrderCreatorConfirmed` — «Заказ на ДД.ММ» из `delivery_date`, fallback на `created_at` |
@@ -476,7 +476,7 @@ flowchart TD
 
 ### Оформление заявки
 
-Реализация: `OrderSubmissionService` (+ `MenuAvailabilityDateResolver` для `delivery_date`).
+Реализация: `CustomerOrderSubmissionService` (+ `MenuAvailabilityDateResolver` для `delivery_date`).
 
 1. В транзакции с `lockForUpdate` читается черновая корзина (непустая, с адресом).
 2. Строится `items_snapshot` через `OrderItemsSnapshotBuilder` (название, цена, количество, `image_url`; суммы форматирует `FoodMoneyFormatter`).
@@ -492,7 +492,7 @@ flowchart TD
 
 ### Ручные заказы (`max_manager`)
 
-Реализация: `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService`, `OrderSubmissionService::submitManual` / `submitDraftAfterScanning`, `OrderCustomerNotifyRecipientResolver`, `MaxAiAccessService`; Form Request в `app/Http/Requests/Food/Admin/` (`ListManualOrdersRequest`, `ListManualOrderUsersRequest`, `ShowManualOrderCartRequest`, `ManualAddCartItemRequest`, `ManualUpdateCartItemRequest`, `ManualUpdateCartDeliveryAddressRequest`, `SubmitManualOrderRequest`, `DraftAfterScanningOrderActionRequest`, базовый `ManualOrderCustomerFormRequest`); контроллеры `AdminManualOrderController`, `AdminAiAccessController`; DTO `ManualOrderUserDto`, `ManualOrderListItemDto`, `ManualOrderDetailDto`, `DraftAfterScanningMoveToCartResultDto`, `AiAccessStatusDto`. UI — вкладка «Ручные заказы» (`ManualOrdersRoot`), `useManualOrder`, `useAiAccess`, `ManualOrderUserSelectPage` (вкладки «Оформить» / «Просмотр»), `ManualOrderDetailPage`, `ManualOrderChatModal`, `ConfirmDeleteModal`, `AppSearchSelect`, reuse клиентского flow через `OrderingFlow` в `manual-order-mode` (`getTargetMaxUserId()` в `useCart` / `useRestaurantsMenu`). Агент Cursor создаёт заказ со статусом `draft_after_scanning` через [PhotoText](#phototext-агент-cursor), минуя mini-app.
+Реализация: `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService`, `ManualOrderSubmissionService::submitManual` / `submitDraftAfterScanning`, `OrderCustomerNotifyRecipientResolver`, `MaxAiAccessService`; Form Request в `app/Http/Requests/Food/Admin/` (`ListManualOrdersRequest`, `ListManualOrderUsersRequest`, `ShowManualOrderCartRequest`, `ManualAddCartItemRequest`, `ManualUpdateCartItemRequest`, `ManualUpdateCartDeliveryAddressRequest`, `SubmitManualOrderRequest`, `DraftAfterScanningOrderActionRequest`, базовый `ManualOrderCustomerFormRequest`); контроллеры `AdminManualOrderController`, `AdminAiAccessController`; DTO `ManualOrderUserDto`, `ManualOrderListItemDto`, `ManualOrderDetailDto`, `DraftAfterScanningMoveToCartResultDto`, `AiAccessStatusDto`. UI — вкладка «Ручные заказы» (`ManualOrdersRoot`), `useManualOrder`, `useAiAccess`, `ManualOrderUserSelectPage` (вкладки «Оформить» / «Просмотр»), `ManualOrderDetailPage`, `ManualOrderChatModal`, `ConfirmDeleteModal`, `AppSearchSelect`, reuse клиентского flow через `OrderingFlow` в `manual-order-mode` (`getTargetMaxUserId()` в `useCart` / `useRestaurantsMenu`). Агент Cursor создаёт заказ со статусом `draft_after_scanning` через [PhotoText](#phototext-агент-cursor), минуя mini-app.
 
 | Правило | Поведение |
 |---|---|
@@ -516,7 +516,7 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 
 HTTP API для slash-команд `/phototext-order` (заказ) и `/phototext-schedule` (график производства): агент делает OCR и вариации имён, сервер принимает **только канонические** `LOWER(name)` выбранного ресторана. Для заказов оформляет **черновик после сканирования** (`draft_after_scanning`); для графика — `syncSchedule` по matched. Fuzzy-поиск и split строки по `/` на сервере **нет**. Как вызывать из чата — [AI Cursor](#ai-cursor).
 
-Реализация (заказы): middleware `VerifyPhotoTextAgentToken` (`phototext.agent.token`) + `EnsurePhotoTextAiAccess` (`phototext.ai.access`), `PhotoTextOrderController`, Form Request `PhotoTextCatalogRequest` / `PhotoTextAgentOrderRequest`, `PhotoTextManualOrderPlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher` (exact `LOWER(name)` ± `category_ids`), `PhotoTextComboRefGrouper`, `ManualOrderCustomerResolver`; конфиг `config/phototext.php`. Каталог — `MenuQueryService::getRestaurantMenu($id, includeUnavailable: true)` (в т.ч. скрытые блюда). Поиск блюд — `PhotoTextDishNameMatcher` → `DishCatalogRepositoryInterface::findByNameCaseInsensitive`. Оформление — ручная корзина менеджера + `OrderSubmissionService::submitDraftAfterScanning(..., $orderDate)` (без MAX-уведомлений при создании).
+Реализация (заказы): middleware `VerifyPhotoTextAgentToken` (`phototext.agent.token`) + `EnsurePhotoTextAiAccess` (`phototext.ai.access`), `PhotoTextOrderController`, Form Request `PhotoTextCatalogRequest` / `PhotoTextAgentOrderRequest`, `PhotoTextManualOrderPlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher` (exact `LOWER(name)` ± `category_ids`), `PhotoTextComboRefGrouper`, `ManualOrderCustomerResolver`; конфиг `config/phototext.php`. Каталог — `MenuQueryService::getRestaurantMenu($id, includeUnavailable: true)` (в т.ч. скрытые блюда). Поиск блюд — `PhotoTextDishNameMatcher` → `DishCatalogRepositoryInterface::findByNameCaseInsensitive`. Оформление — ручная корзина менеджера + `ManualOrderSubmissionService::submitDraftAfterScanning(..., $orderDate)` (без MAX-уведомлений при создании).
 
 Реализация (график): `PhotoTextScheduleController` (`match` / `apply`), Form Request `PhotoTextScheduleSyncRequest` (окно ровно 7 дней), `PhotoTextSchedulePlacementService` → полная замена графика в окне (фото — источник истины; scope: `category_ids` / `category_id` или все категории ресторана) через `DishAvailabilityScheduleService::syncSchedule`. Playbook — `.cursor/commands/phototext-schedule.md`; словарь имён — `.cursor/commands/phototext-dish-aliases.md`. DTO: `PhotoTextScheduleEntryDto`, `PhotoTextScheduleMatchedDto`, `PhotoTextScheduleIssueDto`, `PhotoTextScheduleResultDto`.
 
@@ -639,11 +639,11 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | Поддомен | Путь | Сервисы / ключевые типы |
 |---|---|---|
 | Cart | `Services/Food/Cart/` | `CartService`, `CartDeliveryAddressService`, `CartTotalsCalculator`, `CartDtoFactory` |
-| Order | `Services/Food/Order/` | `OrderSubmissionService` (`submit` / `submitManual` / `submitDraftAfterScanning` → `NotifyFoodOrderAfterSubmitJob` для submit/manual), `OrderItemsSnapshotBuilder`, `CustomerOrderQueryService`, `AdminOrderQueryService` |
+| Order | `Services/Food/Order/` | `OrderFromCartCreator` (ядро снимок корзины → заказ; порт `OrderFromCartCreatorInterface`), `CustomerOrderSubmissionService` (`submit` → `NotifyFoodOrderAfterSubmitJob`), `ManualOrderSubmissionService` (`submitManual` / `submitDraftAfterScanning` → `NotifyFoodOrderAfterSubmitJob` для submitManual), `OrderItemsSnapshotBuilder`, `CustomerOrderQueryService`, `AdminOrderQueryService` |
 | Review | `Services/Food/Review/` | `OrderReviewStepHandler`, `OrderReviewAuthorizationService`, `OrderReviewUpdateFactory`, `OrderStatusResolver`, `OrderReviewCompletionService`, `OrderCustomerNotifyRecipientResolver` (+ enum `OrderReviewStep`) |
 | Composition | `Services/Food/Composition/` | `OrderCompositionUpdateService`, `OrderCompositionSnapshotBuilder`, `ComboPairValidator` (+ DTO `OrderCompositionSnapshotDto`) |
 | Chat | `Services/Food/Chat/` | `OrderChatService`, `OrderChatAuthorizationService` |
-| Menu | `Services/Food/Menu/` | `MenuQueryService`, `CachingMenuQueryService` (обёртка, TTL + bump версии), `MenuCatalogCacheInvalidator`, `MenuCategoryAdminService`, `DishAdminService`, `DishAvailabilityScheduleService`, `DishAvailabilitySyncService`, `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver`, `CachingMenuAvailabilityDateResolver` (DI на `MenuAvailabilityDateResolverInterface`: кэш успешного `resolve()` на день MSK; `resolveForCurrentWeekday()` без кэша) |
+| Menu | `Services/Food/Menu/` | `MenuQueryService`, `CachingMenuQueryService` (обёртка, TTL + bump версии), `MenuCatalogCacheInvalidator`, `MenuCategoryAdminService`, `DishAdminService`, `DishAvailabilityScheduleService`, `DishAvailabilitySyncService` (порт `DishAvailabilitySyncServiceInterface`), `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver`, `CachingMenuAvailabilityDateResolver` (DI на `MenuAvailabilityDateResolverInterface`: кэш успешного `resolve()` на день MSK; `resolveForCurrentWeekday()` без кэша) |
 | ManualOrder | `Services/Food/ManualOrder/` | `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService` |
 | PhotoText | `Services/Food/PhotoText/` | `PhotoTextManualOrderPlacementService`, `PhotoTextSchedulePlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher`, `PhotoTextComboRefGrouper` (+ enum `PhotoTextMatchIssueCode`, `PhotoTextComboRefGroupKind`) |
 | Delivery | `Services/Food/Delivery/` | `DeliveryCostResolver` |
@@ -752,7 +752,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | Сборка текста | `app/Services/Max/Food/FoodOrderMaxMessageBuilder.php` |
 | Отправка | `app/Infrastructure/Laravel/LaravelFoodOrderMaxNotifier.php` |
 | Job после submit | `app/Jobs/Food/NotifyFoodOrderAfterSubmitJob.php` (+ enum `FoodOrderAfterSubmitNotifyKind`) |
-| Интеграция | `app/Services/Food/Order/OrderSubmissionService.php` (`dispatch` после `DB::transaction`) |
+| Интеграция | `CustomerOrderSubmissionService` / `ManualOrderSubmissionService` (`dispatch` после commit транзакции) |
 | Уведомление клиенту (статус) | `app/Infrastructure/Laravel/LaravelFoodOrderCustomerNotifier.php`, `Services/Food/Review/OrderReviewCompletionService.php` |
 | HTTP-клиент | `shared/max-messenger` (`MaxMessengerClientInterface`) |
 
@@ -762,7 +762,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 | Событие | Когда | Сервис |
 |---|---|---|
-| Принят на рассмотрение | Сразу после `POST /orders/submit` (после commit → job); **не** для ручных заказов | `OrderSubmissionService` → `NotifyFoodOrderAfterSubmitJob` → `LaravelFoodOrderCustomerNotifier::notifySubmitted` (+ кнопка «Открыть заказ №N») |
+| Принят на рассмотрение | Сразу после `POST /orders/submit` (после commit → job); **не** для ручных заказов | `CustomerOrderSubmissionService` → `NotifyFoodOrderAfterSubmitJob` → `LaravelFoodOrderCustomerNotifier::notifySubmitted` (+ кнопка «Открыть заказ №N») |
 | Подтверждение (клиентский заказ) | Все три этапа → `approved`, заказ впервые переходит в `confirmed` | `OrderReviewCompletionService` → `notifyConfirmed` → клиенту (`order.max_user_id`) |
 | Подтверждение ручного заказа | Сразу после `POST .../manual-orders/submit` | `submitManual` → job `Confirmed` → `notifyConfirmed`: текст «Заявка №N принята к исполнению» **всем активным `max_manager`** (`OrderCustomerNotifyRecipientResolver`); клиент **не** получает |
 | Выполнение черновика после сканирования | `POST .../manual-orders/{id}/complete` (`draft_after_scanning` → `confirmed`) | `DraftAfterScanningOrderService` → `notifyManualOrderCreatorConfirmed` оформившему; **без** рассылки «принята к исполнению» всем менеджерам и без UI Stand при создании PhotoText |
@@ -1857,7 +1857,7 @@ docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).
 | Дата «Блюда на» / offsets | `tests/Unit/MenuAvailabilityDateResolverTest.php` (`resolve` с lookback; `resolveForCurrentWeekday` без lookback), `tests/Unit/CachingMenuAvailabilityDateResolverTest.php` |
 | Изоляция слоёв (core) | `tests/Architecture/CoreLayerIsolationTest.php` (+ `scripts/check-core-layer-isolation.sh`, `scripts/check-food-layer-isolation.sh`) |
 | Sync `is_available` (unit) | `tests/Unit/EloquentDishAvailabilitySyncTest.php`, `tests/Unit/DishAvailabilitySyncServiceTest.php` |
-| Food order admin repository | `tests/Unit/EloquentFoodOrderAdminRepositoryTest.php` |
+| Food order admin repository | `tests/Unit/EloquentFoodOrderAdminRepositoryTest.php`, `tests/Unit/MaxFoodAdminAssignCommandTest.php` |
 | MAX user repository | `tests/Unit/EloquentMaxUserRepositoryTest.php` (в т.ч. `ai_access_until`) |
 | Delivery tiers / categories / restaurants | `tests/Unit/EloquentDeliveryTierRepositoryTest.php`, `EloquentCustomerCategoryRepositoryTest.php`, `EloquentRestaurantRepositoryTest.php` |
 | Dish image delivery / upload | `tests/Feature/DishImageApiTest.php`, `tests/Unit/DishImageUrlResolverTest.php`, `DishImageUploadServiceTest.php`, `MinImageDimensionsTest.php`, `DishAdminEnumsTest.php` |

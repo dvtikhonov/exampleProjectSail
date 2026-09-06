@@ -10,10 +10,12 @@ use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\AddCartItemRequest;
+use App\Http\Requests\Food\ClearCartRequest;
+use App\Http\Requests\Food\DestroyCartItemRequest;
+use App\Http\Requests\Food\ShowCartRequest;
 use App\Http\Requests\Food\UpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\UpdateCartItemRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 /**
  * API корзины заказа еды для MAX mini-app.
@@ -32,7 +34,7 @@ class CartController extends Controller
      *
      * `delivery_address` — адрес из корзины или сохранённый в профиле (для шапки меню без корзины).
      */
-    public function show(Request $request): JsonResponse
+    public function show(ShowCartRequest $request): JsonResponse
     {
         $identity = $this->maxUserResolver->identity();
         $cart = $this->cartService->getDraftCart($identity);
@@ -102,7 +104,7 @@ class CartController extends Controller
     /**
      * Удаляет позицию из корзины.
      */
-    public function destroy(Request $request, int $item): JsonResponse
+    public function destroy(DestroyCartItemRequest $request, int $item): JsonResponse
     {
         $cart = $this->cartService->removeItem(
             $this->maxUserResolver->identity(),
@@ -117,7 +119,7 @@ class CartController extends Controller
     /**
      * Очищает черновую корзину пользователя.
      */
-    public function clear(Request $request): JsonResponse
+    public function clear(ClearCartRequest $request): JsonResponse
     {
         $this->cartService->clear(
             $this->maxUserResolver->identity(),

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Enums\Food\Menu\Weekday;
 use App\Models\Food\Dish;
 use App\Models\Food\DishAvailabilityDate;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\MenuCategoryAvailabilityOffset;
-use App\Services\Food\Menu\DishAvailabilitySyncService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -70,7 +70,7 @@ class DishAvailabilitySyncServiceTest extends TestCase
         $withoutOffset = FoodTestDataBuilder::createRestaurantWithDish('Cafe C', 'Без offset');
         $withoutOffset['dish']->update(['is_available' => true]);
 
-        $updated = app(DishAvailabilitySyncService::class)
+        $updated = app(DishAvailabilitySyncServiceInterface::class)
             ->syncForCurrentWeekdayCategoryOffsets($now);
 
         $this->assertGreaterThan(0, $updated);
@@ -88,7 +88,7 @@ class DishAvailabilitySyncServiceTest extends TestCase
         $fixture['dish']->update(['is_available' => true]);
         $this->createOffset((int) $fixture['category']->id, Weekday::Friday, 1);
 
-        app(DishAvailabilitySyncService::class)->syncForCurrentWeekdayCategoryOffsets($now);
+        app(DishAvailabilitySyncServiceInterface::class)->syncForCurrentWeekdayCategoryOffsets($now);
 
         $this->assertFalse($fixture['dish']->fresh()->is_available);
     }

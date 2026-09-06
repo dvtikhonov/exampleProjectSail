@@ -29,6 +29,7 @@ use App\Contracts\Food\Menu\DishAdminRepositoryInterface;
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleServiceInterface;
+use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Food\Menu\DishImageDeliveryInterface;
 use App\Contracts\Food\Menu\DishImageUploadInterface;
@@ -49,6 +50,7 @@ use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
 use App\Contracts\Food\PhotoText\PhotoTextComboRefGrouperInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishNameMatcherInterface;
@@ -63,6 +65,7 @@ use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
+use App\Contracts\Max\MaxCallbackHandlerInterface;
 use App\Contracts\Max\MaxLoadTestDataRepositoryInterface;
 use App\Contracts\Max\MaxLoadTestServiceInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
@@ -71,6 +74,8 @@ use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
+use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
@@ -80,6 +85,7 @@ use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Contracts\Shared\ApplicationEnvironmentInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\Contracts\Shared\ClockInterface;
+use App\Contracts\Shared\CurrentHttpRequestInterface;
 use App\Contracts\Shared\FileStorageInterface;
 use App\Contracts\Shared\HttpClientInterface;
 use App\Contracts\Shared\JobDispatcherInterface;
@@ -91,6 +97,7 @@ use App\Infrastructure\Laravel\LaravelApplicationConfig;
 use App\Infrastructure\Laravel\LaravelApplicationEnvironment;
 use App\Infrastructure\Laravel\LaravelCacheStore;
 use App\Infrastructure\Laravel\LaravelClock;
+use App\Infrastructure\Laravel\LaravelCurrentHttpRequest;
 use App\Infrastructure\Laravel\LaravelFileStorage;
 use App\Infrastructure\Laravel\LaravelFoodOrderCustomerNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderMaxNotifier;
@@ -134,6 +141,7 @@ use App\Services\Food\Menu\CachingMenuQueryService;
 use App\Services\Food\Menu\DailyMenuLineCollector;
 use App\Services\Food\Menu\DishAdminService;
 use App\Services\Food\Menu\DishAvailabilityScheduleService;
+use App\Services\Food\Menu\DishAvailabilitySyncService;
 use App\Services\Food\Menu\DishDefaultImageProvider;
 use App\Services\Food\Menu\DishImageDeliveryService;
 use App\Services\Food\Menu\DishImageUploadService;
@@ -147,6 +155,7 @@ use App\Services\Food\Order\AdminOrderQueryService;
 use App\Services\Food\Order\CustomerOrderQueryService;
 use App\Services\Food\Order\CustomerOrderSubmissionService;
 use App\Services\Food\Order\ManualOrderSubmissionService;
+use App\Services\Food\Order\OrderFromCartCreator;
 use App\Services\Food\PhotoText\PhotoTextComboRefGrouper;
 use App\Services\Food\PhotoText\PhotoTextDishLineResolver;
 use App\Services\Food\PhotoText\PhotoTextDishNameMatcher;
@@ -168,9 +177,11 @@ use App\Services\Max\Menu\MaxManagerDailyMenuMessageBuilder;
 use App\Services\Max\UiStand\MaxCallbackHandler;
 use App\Services\Max\UiStand\MaxManagerDailyMenuNotifier;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
+use App\Services\Max\UiStand\MaxUiStandGreetingSender;
 use App\Services\Max\UiStand\MaxWebhookSubscriber;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Support\Max\MaxAppRequestContext;
+use App\Support\Max\MaxUiStandRecipientRegistry;
 use App\Support\Max\MaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -204,6 +215,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CacheStoreInterface::class, LaravelCacheStore::class);
         $this->app->bind(LocalFileWriterInterface::class, LaravelLocalFileWriter::class);
         $this->app->bind(RequestTimingRecorderInterface::class, LaravelRequestTimingRecorder::class);
+        $this->app->bind(CurrentHttpRequestInterface::class, LaravelCurrentHttpRequest::class);
         $this->app->bind(LoggerInterface::class, static fn (): LoggerInterface => Log::channel());
         $this->app->bind(MaxMiniAppTokenIssuerInterface::class, LaravelMaxMiniAppTokenIssuer::class);
         $this->app->bind(MaxLoadTestDataRepositoryInterface::class, EloquentMaxLoadTestDataRepository::class);
@@ -239,6 +251,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MenuCatalogCacheInvalidatorInterface::class, MenuCatalogCacheInvalidator::class);
         $this->app->bind(DishAvailabilityRepositoryInterface::class, EloquentDishAvailabilityRepository::class);
         $this->app->bind(DishAvailabilityScheduleServiceInterface::class, DishAvailabilityScheduleService::class);
+        $this->app->bind(DishAvailabilitySyncServiceInterface::class, DishAvailabilitySyncService::class);
         $this->app->bind(
             MenuCategoryAvailabilityOffsetRepositoryInterface::class,
             EloquentMenuCategoryAvailabilityOffsetRepository::class,
@@ -265,6 +278,7 @@ class AppServiceProvider extends ServiceProvider
         );
         $this->app->bind(CustomerOrderSubmissionServiceInterface::class, CustomerOrderSubmissionService::class);
         $this->app->bind(ManualOrderSubmissionServiceInterface::class, ManualOrderSubmissionService::class);
+        $this->app->bind(OrderFromCartCreatorInterface::class, OrderFromCartCreator::class);
         $this->app->bind(OrderCompositionSnapshotBuilderInterface::class, OrderCompositionSnapshotBuilder::class);
         $this->app->bind(OrderCompositionUpdateServiceInterface::class, OrderCompositionUpdateService::class);
         $this->app->bind(OrderReviewStepHandlerInterface::class, OrderReviewStepHandler::class);
@@ -351,6 +365,12 @@ class AppServiceProvider extends ServiceProvider
             );
         });
         $this->app->bind(MaxWebhookUpdateRouterInterface::class, MaxWebhookUpdateRouter::class);
+        $this->app->bind(MaxCallbackHandlerInterface::class, MaxCallbackHandler::class);
+        $this->app->bind(MaxUiStandGreetingSenderInterface::class, MaxUiStandGreetingSender::class);
+        $this->app->bind(
+            MaxUiStandRecipientRegistryInterface::class,
+            MaxUiStandRecipientRegistry::class,
+        );
         $this->app->bind(MaxWebAppInitDataValidatorInterface::class, MaxWebAppInitDataValidator::class);
         $this->app->bind(MaxMiniAppAuthServiceInterface::class, MaxMiniAppAuthService::class);
         $this->app->bind(

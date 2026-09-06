@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Support\Max;
 
+use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
  * Известные получатели UI Stand из webhook (bot_started, message_callback).
  * Нужны для отправки «тест бот 2» в тот же чат/диалог, где отвечает «Вы нажали кнопку: …».
  */
-final class MaxUiStandRecipientRegistry
+final class MaxUiStandRecipientRegistry implements MaxUiStandRecipientRegistryInterface
 {
     private const CACHE_KEY = 'max.ui_stand.known_recipients';
 

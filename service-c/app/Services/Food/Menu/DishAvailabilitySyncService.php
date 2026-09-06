@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
+use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
 use Carbon\CarbonImmutable;
@@ -12,7 +13,7 @@ use Carbon\CarbonImmutable;
 /**
  * Синхронизация флага is_available у блюд по графику доступности.
  */
-class DishAvailabilitySyncService
+class DishAvailabilitySyncService implements DishAvailabilitySyncServiceInterface
 {
     private const string TIMEZONE = 'Europe/Moscow';
 

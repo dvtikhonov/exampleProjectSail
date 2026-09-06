@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Max\UiStand;
 
+use App\Contracts\Max\MaxCallbackHandlerInterface;
+use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
+use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use App\DTO\Max\MaxCallbackUpdateDto;
-use App\Support\Max\MaxUiStandRecipientRegistry;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -15,9 +17,9 @@ use Psr\Log\LoggerInterface;
 final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
 {
     public function __construct(
-        private readonly MaxCallbackHandler $callbackHandler,
-        private readonly MaxUiStandGreetingSender $greetingSender,
-        private readonly MaxUiStandRecipientRegistry $recipientRegistry,
+        private readonly MaxCallbackHandlerInterface $callbackHandler,
+        private readonly MaxUiStandGreetingSenderInterface $greetingSender,
+        private readonly MaxUiStandRecipientRegistryInterface $recipientRegistry,
         private readonly LoggerInterface $logger,
     ) {}
 

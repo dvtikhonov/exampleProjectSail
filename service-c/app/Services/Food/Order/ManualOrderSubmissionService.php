@@ -6,6 +6,7 @@ namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
 use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
 use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -20,7 +21,7 @@ use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
 class ManualOrderSubmissionService implements ManualOrderSubmissionServiceInterface
 {
     public function __construct(
-        private readonly OrderFromCartCreator $orderFromCartCreator,
+        private readonly OrderFromCartCreatorInterface $orderFromCartCreator,
         private readonly CartDraftRepositoryInterface $cartDraftRepository,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly JobDispatcherInterface $jobDispatcher,

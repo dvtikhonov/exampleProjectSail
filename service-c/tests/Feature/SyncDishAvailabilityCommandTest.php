@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
-use App\Services\Food\Menu\DishAvailabilitySyncService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -24,7 +24,7 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->method('resolveForCurrentWeekday')
             ->willReturn(new MenuAvailabilityDateResultDto(date: '2026-08-01', error: null));
 
-        $syncService = $this->createMock(DishAvailabilitySyncService::class);
+        $syncService = $this->createMock(DishAvailabilitySyncServiceInterface::class);
         $syncService
             ->expects($this->once())
             ->method('syncForCurrentWeekdayCategoryOffsets')
@@ -49,7 +49,7 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->willReturn(2);
 
         $this->app->instance(MenuAvailabilityDateResolverInterface::class, $dateResolver);
-        $this->app->instance(DishAvailabilitySyncService::class, $syncService);
+        $this->app->instance(DishAvailabilitySyncServiceInterface::class, $syncService);
         $this->app->instance(MaxMenuAvailabilityNotifierInterface::class, $notifier);
         $this->app->instance(MaxManagerDailyMenuNotifierInterface::class, $managerNotifier);
 
@@ -67,7 +67,7 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->method('resolveForCurrentWeekday')
             ->willReturn(new MenuAvailabilityDateResultDto(date: null, error: 'нет данных'));
 
-        $syncService = $this->createMock(DishAvailabilitySyncService::class);
+        $syncService = $this->createMock(DishAvailabilitySyncServiceInterface::class);
         $syncService->expects($this->never())->method('syncForCurrentWeekdayCategoryOffsets');
         $syncService->expects($this->never())->method('syncForDate');
         $syncService->expects($this->never())->method('syncForToday');
@@ -79,7 +79,7 @@ class SyncDishAvailabilityCommandTest extends TestCase
         $managerNotifier->expects($this->never())->method('notify');
 
         $this->app->instance(MenuAvailabilityDateResolverInterface::class, $dateResolver);
-        $this->app->instance(DishAvailabilitySyncService::class, $syncService);
+        $this->app->instance(DishAvailabilitySyncServiceInterface::class, $syncService);
         $this->app->instance(MaxMenuAvailabilityNotifierInterface::class, $notifier);
         $this->app->instance(MaxManagerDailyMenuNotifierInterface::class, $managerNotifier);
 

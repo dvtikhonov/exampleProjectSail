@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
-use App\Services\Food\Menu\DishAvailabilitySyncService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
@@ -30,7 +30,7 @@ class SyncDishAvailabilityCommand extends Command
      */
     public function handle(
         MenuAvailabilityDateResolverInterface $dateResolver,
-        DishAvailabilitySyncService $syncService,
+        DishAvailabilitySyncServiceInterface $syncService,
         MaxMenuAvailabilityNotifierInterface $notifier,
         MaxManagerDailyMenuNotifierInterface $managerMenuNotifier,
     ): int {

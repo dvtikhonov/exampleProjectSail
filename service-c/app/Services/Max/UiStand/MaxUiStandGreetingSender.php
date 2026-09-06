@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Max\UiStand;
 
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
+use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Support\Max\MaxOpenAppButtonFactory;
@@ -14,7 +15,7 @@ use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 /**
  * Отправка приветственного сообщения стенда MAX с inline-клавиатурой.
  */
-class MaxUiStandGreetingSender
+class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
 {
     public function __construct(
         private readonly ApplicationConfigInterface $config,

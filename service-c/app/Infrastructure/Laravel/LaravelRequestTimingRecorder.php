@@ -8,7 +8,7 @@ use App\Contracts\Shared\RequestTimingRecorderInterface;
 use Illuminate\Contracts\Foundation\Application;
 
 /**
- * Laravel-адаптер {@see RequestTimingRecorderInterface}: пишет в attributes HTTP-request.
+ * Laravel-адаптер {@see RequestTimingRecorderInterface}: пишет/читает attributes HTTP-request.
  */
 class LaravelRequestTimingRecorder implements RequestTimingRecorderInterface
 {
@@ -26,5 +26,19 @@ class LaravelRequestTimingRecorder implements RequestTimingRecorderInterface
         }
 
         $this->app->make('request')->attributes->set($attributeKey, $timing);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function get(string $attributeKey): ?array
+    {
+        if (! $this->app->bound('request')) {
+            return null;
+        }
+
+        $timing = $this->app->make('request')->attributes->get($attributeKey);
+
+        return is_array($timing) ? $timing : null;
     }
 }
