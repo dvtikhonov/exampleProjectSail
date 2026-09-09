@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Menu;
 
-use App\Contracts\Food\Menu\DishAvailabilityRepositoryInterface;
+use App\Contracts\Food\Menu\DishAvailabilityFlagSyncRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
-use Carbon\CarbonImmutable;
+use App\Contracts\Shared\ClockInterface;
+use DateInterval;
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
 
 /**
  * Синхронизация флага is_available у блюд по графику доступности.
@@ -18,9 +22,10 @@ class DishAvailabilitySyncService implements DishAvailabilitySyncServiceInterfac
     private const string TIMEZONE = 'Europe/Moscow';
 
     public function __construct(
-        private readonly DishAvailabilityRepositoryInterface $availabilityRepository,
+        private readonly DishAvailabilityFlagSyncRepositoryInterface $availabilityRepository,
         private readonly MenuCategoryAvailabilityOffsetRepositoryInterface $offsetRepository,
         private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
@@ -44,14 +49,12 @@ class DishAvailabilitySyncService implements DishAvailabilitySyncServiceInterfac
      *
      * @return int Количество обновлённых записей max_dishes
      */
-    public function syncForCurrentWeekdayCategoryOffsets(?CarbonImmutable $now = null): int
+    public function syncForCurrentWeekdayCategoryOffsets(?DateTimeInterface $now = null): int
     {
-        $referenceDate = ($now ?? CarbonImmutable::now(self::TIMEZONE))
-            ->timezone(self::TIMEZONE)
-            ->startOfDay();
+        $referenceDate = $this->toMoscowStartOfDay($now);
 
         $categoryOffsets = $this->offsetRepository->listCategoryOffsetsForWeekday(
-            $referenceDate->dayOfWeekIso,
+            (int) $referenceDate->format('N'),
         );
 
         $updatedCount = $this->availabilityRepository->clearAllDishesIsAvailable();
@@ -60,8 +63,8 @@ class DishAvailabilitySyncService implements DishAvailabilitySyncServiceInterfac
         $categoryIdToDate = [];
 
         foreach ($categoryOffsets as $categoryOffset) {
-            $categoryIdToDate[$categoryOffset->menuCategoryId] = $referenceDate
-                ->addDays($categoryOffset->offsetDays)
+            $categoryIdToDate[$categoryOffset->menuCategoryId] = $this
+                ->addDays($referenceDate, $categoryOffset->offsetDays)
                 ->format('Y-m-d');
         }
 
@@ -81,8 +84,36 @@ class DishAvailabilitySyncService implements DishAvailabilitySyncServiceInterfac
      */
     public function syncForToday(): int
     {
-        $today = CarbonImmutable::now(self::TIMEZONE)->toDateString();
+        $today = $this->toMoscowStartOfDay(null)->format('Y-m-d');
 
         return $this->syncForDate($today);
+    }
+
+    /**
+     * Нормализует «сейчас» к началу календарного дня Europe/Moscow.
+     */
+    private function toMoscowStartOfDay(?DateTimeInterface $now): DateTimeImmutable
+    {
+        $instant = DateTimeImmutable::createFromInterface($now ?? $this->clock->now());
+
+        return $instant
+            ->setTimezone(new DateTimeZone(self::TIMEZONE))
+            ->setTime(0, 0, 0);
+    }
+
+    /**
+     * Добавляет календарные дни.
+     */
+    private function addDays(DateTimeImmutable $date, int $days): DateTimeImmutable
+    {
+        if ($days === 0) {
+            return $date;
+        }
+
+        if ($days < 0) {
+            return $date->sub(new DateInterval('P'.abs($days).'D'));
+        }
+
+        return $date->add(new DateInterval('P'.$days.'D'));
     }
 }

@@ -6,8 +6,12 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
-use Carbon\CarbonImmutable;
+use DateInterval;
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
 
 /**
  * Расчёт даты «Блюда на дату» по offsets категорий меню (Europe/Moscow).
@@ -29,24 +33,23 @@ class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterf
 
     public function __construct(
         private readonly MenuCategoryAvailabilityOffsetRepositoryInterface $offsetRepository,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function resolve(?CarbonImmutable $now = null): MenuAvailabilityDateResultDto
+    public function resolve(?DateTimeInterface $now = null): MenuAvailabilityDateResultDto
     {
         if (! $this->offsetRepository->hasAnyOffsets()) {
             return new MenuAvailabilityDateResultDto(date: null, error: self::ERROR_NO_DATA);
         }
 
-        $referenceDate = ($now ?? CarbonImmutable::now(self::TIMEZONE))
-            ->timezone(self::TIMEZONE)
-            ->startOfDay();
+        $referenceDate = $this->toMoscowStartOfDay($now);
 
         for ($step = 0; $step < self::MAX_WEEKDAY_LOOKBACK; $step++) {
-            $candidate = $referenceDate->subDays($step);
-            $offsetDays = $this->offsetRepository->listOffsetDaysForWeekday($candidate->dayOfWeekIso);
+            $candidate = $this->subDays($referenceDate, $step);
+            $offsetDays = $this->offsetRepository->listOffsetDaysForWeekday($this->isoWeekday($candidate));
 
             if ($offsetDays === []) {
                 continue;
@@ -55,7 +58,7 @@ class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterf
             $daysToAdd = $this->resolveDaysToAdd($offsetDays);
 
             return new MenuAvailabilityDateResultDto(
-                date: $candidate->addDays($daysToAdd)->format('Y-m-d'),
+                date: $this->addDays($candidate, $daysToAdd)->format('Y-m-d'),
                 error: null,
             );
         }
@@ -66,13 +69,11 @@ class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterf
     /**
      * {@inheritDoc}
      */
-    public function resolveForCurrentWeekday(?CarbonImmutable $now = null): MenuAvailabilityDateResultDto
+    public function resolveForCurrentWeekday(?DateTimeInterface $now = null): MenuAvailabilityDateResultDto
     {
-        $referenceDate = ($now ?? CarbonImmutable::now(self::TIMEZONE))
-            ->timezone(self::TIMEZONE)
-            ->startOfDay();
+        $referenceDate = $this->toMoscowStartOfDay($now);
 
-        $offsetDays = $this->offsetRepository->listOffsetDaysForWeekday($referenceDate->dayOfWeekIso);
+        $offsetDays = $this->offsetRepository->listOffsetDaysForWeekday($this->isoWeekday($referenceDate));
 
         if ($offsetDays === []) {
             return new MenuAvailabilityDateResultDto(date: null, error: self::ERROR_NO_DATA);
@@ -81,7 +82,7 @@ class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterf
         $daysToAdd = $this->resolveDaysToAdd($offsetDays);
 
         return new MenuAvailabilityDateResultDto(
-            date: $referenceDate->addDays($daysToAdd)->format('Y-m-d'),
+            date: $this->addDays($referenceDate, $daysToAdd)->format('Y-m-d'),
             error: null,
         );
     }
@@ -94,5 +95,53 @@ class MenuAvailabilityDateResolver implements MenuAvailabilityDateResolverInterf
     private function resolveDaysToAdd(array $offsetDays): int
     {
         return max($offsetDays);
+    }
+
+    /**
+     * Нормализует «сейчас» к началу календарного дня Europe/Moscow.
+     */
+    private function toMoscowStartOfDay(?DateTimeInterface $now): DateTimeImmutable
+    {
+        $instant = DateTimeImmutable::createFromInterface($now ?? $this->clock->now());
+
+        return $instant
+            ->setTimezone(new DateTimeZone(self::TIMEZONE))
+            ->setTime(0, 0, 0);
+    }
+
+    /**
+     * ISO-номер дня недели (1=пн … 7=вс).
+     */
+    private function isoWeekday(DateTimeImmutable $date): int
+    {
+        return (int) $date->format('N');
+    }
+
+    /**
+     * Вычитает календарные дни.
+     */
+    private function subDays(DateTimeImmutable $date, int $days): DateTimeImmutable
+    {
+        if ($days === 0) {
+            return $date;
+        }
+
+        return $date->sub(new DateInterval('P'.$days.'D'));
+    }
+
+    /**
+     * Добавляет календарные дни.
+     */
+    private function addDays(DateTimeImmutable $date, int $days): DateTimeImmutable
+    {
+        if ($days === 0) {
+            return $date;
+        }
+
+        if ($days < 0) {
+            return $this->subDays($date, abs($days));
+        }
+
+        return $date->add(new DateInterval('P'.$days.'D'));
     }
 }

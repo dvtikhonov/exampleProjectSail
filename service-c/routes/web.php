@@ -1,8 +1,9 @@
 <?php
 
-use App\Support\Max\MaxAppRequestContext;
-use App\Support\Max\MaxLocalDevInitData;
-use App\Support\Max\MaxMiniAppAccessLogger;
+use App\Contracts\Max\MaxMiniAppAccessLoggerInterface;
+use App\Http\Mappers\MaxMiniAppAccessContextMapper;
+use App\Http\Support\MaxAppRequestContext;
+use App\Http\Support\MaxLocalDevInitData;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Vite;
 
@@ -10,8 +11,11 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/max-app', function (MaxMiniAppAccessLogger $accessLogger) {
-    $accessLogger->logPageRequest(request());
+Route::get('/max-app', function (
+    MaxMiniAppAccessLoggerInterface $accessLogger,
+    MaxMiniAppAccessContextMapper $accessContextMapper,
+) {
+    $accessLogger->logPageRequest($accessContextMapper->fromPageRequest(request()));
 
     if (! MaxAppRequestContext::isLocalDevelopmentRequest()) {
         // MAX (ПК/мобильный) через туннель: только production build, не Vite dev (localhost:5174).

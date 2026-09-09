@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\ManualOrder;
 
 use App\Contracts\Food\ManualOrder\ManualOrderCustomerResolverInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserManualOrderQueryRepositoryInterface;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\DTO\Max\MaxUserRecord;
 use App\Exceptions\Food\FoodDomainException;
@@ -16,7 +16,7 @@ use App\Exceptions\Food\FoodDomainException;
 class ManualOrderCustomerResolver implements ManualOrderCustomerResolverInterface
 {
     public function __construct(
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserManualOrderQueryRepositoryInterface $maxUserRepository,
     ) {}
 
     /**

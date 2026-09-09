@@ -9,7 +9,7 @@ use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
@@ -35,7 +35,7 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->expects($this->once())
             ->method('notify')
             ->with($this->callback(
-                fn (CarbonImmutable $date): bool => $date->toDateString() === '2026-08-01',
+                fn (DateTimeInterface $date): bool => $date->format('Y-m-d') === '2026-08-01',
             ))
             ->willReturn(1);
 
@@ -44,7 +44,7 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->expects($this->once())
             ->method('notify')
             ->with($this->callback(
-                fn (CarbonImmutable $date): bool => $date->toDateString() === '2026-08-01',
+                fn (DateTimeInterface $date): bool => $date->format('Y-m-d') === '2026-08-01',
             ))
             ->willReturn(2);
 

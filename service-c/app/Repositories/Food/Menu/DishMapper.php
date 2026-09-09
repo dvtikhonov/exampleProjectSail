@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Repositories\Food\Menu;
 
+use App\DTO\Food\Menu\CreateDishDto;
+use App\DTO\Food\Menu\CreateMenuCategoryDto;
 use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\Menu\MenuCategoryAvailabilityOffsetDto;
 use App\DTO\Food\Menu\MenuCategoryRecord;
 use App\DTO\Food\Menu\RestaurantSummaryRecord;
 use App\DTO\Food\Menu\RestaurantWithMenuRecord;
+use App\DTO\Food\Menu\UpdateDishDto;
+use App\DTO\Food\Menu\UpdateMenuCategoryDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Enums\Food\Menu\Weekday;
 use App\Models\Food\Dish;
@@ -18,10 +22,63 @@ use App\Models\Food\Restaurant;
 use Illuminate\Support\Collection;
 
 /**
- * Преобразование между Eloquent-моделями меню и доменными Record.
+ * Преобразование между Eloquent-моделями меню и доменными Record/DTO.
  */
 class DishMapper
 {
+    /**
+     * Атрибуты Eloquent для создания блюда (без фото).
+     *
+     * @return array<string, mixed>
+     */
+    public function toCreateAttributes(CreateDishDto $dto): array
+    {
+        return [
+            ...$this->toBaseDishAttributes($dto),
+            'image_url' => null,
+        ];
+    }
+
+    /**
+     * Атрибуты Eloquent для обновления полей блюда (без image_url).
+     *
+     * @return array<string, mixed>
+     */
+    public function toUpdateAttributes(UpdateDishDto $dto): array
+    {
+        return $this->toBaseDishAttributes($dto);
+    }
+
+    /**
+     * Атрибуты Eloquent для создания категории меню.
+     *
+     * @return array<string, mixed>
+     */
+    public function toCreateCategoryAttributes(CreateMenuCategoryDto $dto, int $sortOrder): array
+    {
+        return [
+            'restaurant_id' => $dto->restaurantId,
+            'name' => $dto->name,
+            'sort_order' => $sortOrder,
+            'is_combo_available' => $dto->isComboAvailable,
+        ];
+    }
+
+    /**
+     * Атрибуты Eloquent для обновления категории меню.
+     *
+     * @return array<string, mixed>
+     */
+    public function toUpdateCategoryAttributes(UpdateMenuCategoryDto $dto): array
+    {
+        return [
+            'restaurant_id' => $dto->restaurantId,
+            'name' => $dto->name,
+            'sort_order' => $dto->sortOrder,
+            'is_combo_available' => $dto->isComboAvailable,
+        ];
+    }
+
     /**
      * Преобразует модель блюда в доменную проекцию.
      */
@@ -108,6 +165,25 @@ class DishMapper
             name: (string) $model->name,
             menuCategories: $categories,
         );
+    }
+
+    /**
+     * Базовые атрибуты блюда из Create/Update DTO.
+     *
+     * @return array<string, mixed>
+     */
+    private function toBaseDishAttributes(CreateDishDto|UpdateDishDto $dto): array
+    {
+        return [
+            'menu_category_id' => $dto->menuCategoryId,
+            'name' => $dto->name,
+            'description' => $dto->description,
+            'weight' => $dto->weight,
+            'weight_unit' => $dto->weightUnit->value,
+            'price' => $dto->price,
+            'vat_rate' => $dto->vatRate->value(),
+            'is_available' => $dto->isAvailable,
+        ];
     }
 
     /**

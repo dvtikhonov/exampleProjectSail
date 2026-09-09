@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Chat;
 
+use App\Contracts\Food\Chat\OrderChatAuthorizationServiceInterface;
 use App\Contracts\Food\Chat\OrderChatNotifierInterface;
 use App\Contracts\Food\Chat\OrderChatServiceInterface;
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
@@ -27,7 +28,7 @@ class OrderChatService implements OrderChatServiceInterface
     public function __construct(
         private readonly FoodOrderCustomerReadRepositoryInterface $foodOrderReadRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
-        private readonly OrderChatAuthorizationService $orderChatAuthorizationService,
+        private readonly OrderChatAuthorizationServiceInterface $orderChatAuthorizationService,
         private readonly OrderChatNotifierInterface $orderChatNotifier,
     ) {}
 

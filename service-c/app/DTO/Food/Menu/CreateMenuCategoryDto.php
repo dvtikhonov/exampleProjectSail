@@ -7,7 +7,7 @@ namespace App\DTO\Food\Menu;
 /**
  * Данные для создания категории меню.
  *
- * Порядок сортировки назначает сервис через nextSortOrderForRestaurant.
+ * Порядок сортировки назначает репозиторий через nextSortOrderForRestaurant.
  */
 readonly class CreateMenuCategoryDto
 {

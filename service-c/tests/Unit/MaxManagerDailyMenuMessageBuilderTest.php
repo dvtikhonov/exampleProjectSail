@@ -8,7 +8,8 @@ use App\DTO\Food\Menu\DailyMenuDishPartDto;
 use App\DTO\Food\Menu\DailyMenuLineDto;
 use App\Enums\Food\Menu\DailyMenuLineType;
 use App\Services\Max\Menu\MaxManagerDailyMenuMessageBuilder;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeZone;
 use Tests\TestCase;
 
 class MaxManagerDailyMenuMessageBuilderTest extends TestCase
@@ -17,7 +18,7 @@ class MaxManagerDailyMenuMessageBuilderTest extends TestCase
     public function test_build_formats_single_and_combo_lines_with_and_without_delivery(): void
     {
         $builder = new MaxManagerDailyMenuMessageBuilder;
-        $menuDate = CarbonImmutable::parse('2026-07-22', 'Europe/Moscow');
+        $menuDate = new DateTimeImmutable('2026-07-22', new DateTimeZone('Europe/Moscow'));
 
         $messages = $builder->build($menuDate, [
             new DailyMenuLineDto(

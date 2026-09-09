@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\Http\QueryParamParser;
+use App\Http\Support\QueryParamParser;
 use Illuminate\Http\Request;
 use Tests\TestCase;
 

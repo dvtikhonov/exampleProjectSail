@@ -6,7 +6,6 @@ namespace App\Contracts\Food\Menu;
 
 use App\DTO\Food\Menu\AdminDishDto;
 use App\DTO\Food\Menu\CreateDishDto;
-use App\DTO\Food\Menu\ImportDishRowDto;
 use App\DTO\Food\Menu\UpdateDishDto;
 use App\DTO\Shared\UploadedFileDto;
 use App\Enums\Food\Menu\AdminDishAvailabilityFilter;
@@ -36,15 +35,6 @@ interface DishAdminServiceInterface
      * @throws FoodDomainException
      */
     public function create(CreateDishDto $dto, UploadedFileDto $photo): AdminDishDto;
-
-    /**
-     * Пакетный импорт строк из таблицы: при точном совпадении названия обновляет только цену.
-     *
-     * @param  list<ImportDishRowDto>  $rows
-     *
-     * @throws FoodDomainException
-     */
-    public function importSpreadsheetRows(array $rows, int $menuCategoryId): int;
 
     /**
      * @throws FoodDomainException

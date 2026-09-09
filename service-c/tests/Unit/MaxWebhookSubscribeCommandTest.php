@@ -2,28 +2,37 @@
 
 namespace Tests\Unit;
 
-use App\Services\Max\UiStand\MaxWebhookSubscriber;
+use App\Contracts\Max\MaxWebhookStaleDevTunnelCleanerInterface;
+use App\Contracts\Max\MaxWebhookSubscriptionClientInterface;
+use App\Contracts\Max\MaxWebhookUrlProbeInterface;
 use Illuminate\Support\Facades\Artisan;
 use RuntimeException;
 use Tests\TestCase;
 
 class MaxWebhookSubscribeCommandTest extends TestCase
 {
-    /** Команда регистрирует подписку через subscriber. */
+    /** Команда регистрирует подписку через узкие порты. */
     public function test_command_registers_subscription_via_subscriber(): void
     {
         config(['max.webhook.url' => '']);
 
-        $subscriber = $this->createMock(MaxWebhookSubscriber::class);
-        $subscriber->expects($this->once())->method('subscribe');
-        $subscriber->method('probeWebhookUrl')->willReturn([
+        $subscriptionClient = $this->createMock(MaxWebhookSubscriptionClientInterface::class);
+        $subscriptionClient->expects($this->once())->method('subscribe');
+
+        $urlProbe = $this->createMock(MaxWebhookUrlProbeInterface::class);
+        $urlProbe->method('probeWebhookUrl')->willReturn([
             'url' => '',
             'http_status' => 200,
             'reachable' => true,
             'error' => null,
         ]);
 
-        $this->app->instance(MaxWebhookSubscriber::class, $subscriber);
+        $staleCleaner = $this->createMock(MaxWebhookStaleDevTunnelCleanerInterface::class);
+        $staleCleaner->expects($this->never())->method('unsubscribeStaleDevTunnels');
+
+        $this->app->instance(MaxWebhookSubscriptionClientInterface::class, $subscriptionClient);
+        $this->app->instance(MaxWebhookUrlProbeInterface::class, $urlProbe);
+        $this->app->instance(MaxWebhookStaleDevTunnelCleanerInterface::class, $staleCleaner);
 
         $exitCode = Artisan::call('max:webhook:subscribe');
 
@@ -34,17 +43,22 @@ class MaxWebhookSubscribeCommandTest extends TestCase
         );
     }
 
-    /** Команда возвращает ошибку, если subscriber выбросил исключение. */
+    /** Команда возвращает ошибку, если subscription client выбросил исключение. */
     public function test_command_returns_failure_when_subscriber_throws(): void
     {
         config(['max.webhook.url' => '']);
 
-        $subscriber = $this->createMock(MaxWebhookSubscriber::class);
-        $subscriber->expects($this->once())
+        $subscriptionClient = $this->createMock(MaxWebhookSubscriptionClientInterface::class);
+        $subscriptionClient->expects($this->once())
             ->method('subscribe')
             ->willThrowException(new RuntimeException('MAX_WEBHOOK_URL не задан в конфигурации.'));
 
-        $this->app->instance(MaxWebhookSubscriber::class, $subscriber);
+        $this->app->instance(MaxWebhookSubscriptionClientInterface::class, $subscriptionClient);
+        $this->app->instance(MaxWebhookUrlProbeInterface::class, $this->createMock(MaxWebhookUrlProbeInterface::class));
+        $this->app->instance(
+            MaxWebhookStaleDevTunnelCleanerInterface::class,
+            $this->createMock(MaxWebhookStaleDevTunnelCleanerInterface::class),
+        );
 
         $exitCode = Artisan::call('max:webhook:subscribe');
 

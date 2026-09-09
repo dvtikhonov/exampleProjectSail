@@ -6,6 +6,8 @@ namespace Tests\Unit;
 
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
+use App\Contracts\Food\Review\OrderReviewCompletionServiceInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -57,11 +59,16 @@ class OrderReviewStepHandlerTest extends TestCase
         $clock = $this->createMock(ClockInterface::class);
         $clock->method('now')->willReturn(new DateTimeImmutable('2026-08-31T12:00:00+00:00'));
 
+        /** @var OrderReviewAuthorizationServiceInterface $authorizationService */
+        $authorizationService = new OrderReviewAuthorizationService;
+        /** @var OrderReviewCompletionServiceInterface $completionService */
+        $completionService = new OrderReviewCompletionService($this->customerNotifier);
+
         $this->handler = new OrderReviewStepHandler(
             $this->writeRepository,
-            new OrderReviewAuthorizationService,
+            $authorizationService,
             new OrderReviewUpdateFactory(new OrderStatusResolver, $clock),
-            new OrderReviewCompletionService($this->customerNotifier),
+            $completionService,
             $this->customerNotifier,
             $this->transactionManager,
         );

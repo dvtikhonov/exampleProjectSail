@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
 use App\Models\Max\MaxUser;
 use Tests\TestCase;
 
@@ -27,7 +27,7 @@ class EloquentMaxUserRepositoryTest extends TestCase
             );
         }
 
-        $userIds = $this->app->make(MaxUserRepositoryInterface::class)->listMaxUserIdsWithDeliveryAddress();
+        $userIds = $this->app->make(MaxUserDeliveryRepositoryInterface::class)->listMaxUserIdsWithDeliveryAddress();
 
         $this->assertContains(55_501, $userIds);
         $this->assertNotContains(55_502, $userIds);

@@ -8,7 +8,7 @@ use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
-use App\Support\Max\MaxOpenAppButtonFactory;
+use App\Infrastructure\Laravel\MaxOpenAppButtonFactory;
 use RuntimeException;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 

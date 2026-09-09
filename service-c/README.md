@@ -71,7 +71,8 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | DTO / Enum / Record | `*Dto` — JSON API; `*Record` / `*Command` — внутренний домен; Enum — статусы и роли; см. [Record vs DTO](#record-vs-dto-vs-command) |
 | Service + Repository | Домен Food в `app/Services/Food/{поддомен}/`; Eloquent в `app/Repositories/Food/{поддомен}/` |
 | Граница Max | Порты в `Contracts/Food/` и `Contracts/Max/`; notifiers / gateway / clock / storage — `Infrastructure/Laravel/`; сборка текстов и UI Stand — `Services/Max/{Food,Menu,UiStand}/` |
-| DI | Привязки `*Interface` → реализация в `AppServiceProvider` |
+| DI | Привязки `*Interface` → реализация в `FoodServiceProvider`, `MaxServiceProvider`, `SharedInfrastructureProvider` (`bootstrap/providers.php`); `AppServiceProvider` — только boot URL/HTTPS для туннеля |
+| Интерфейсы | **Контракт** — на границе пакета/поддомена (repo, use-case, notifier, cache port). **Concrete OK** — внутренние helpers одного поддомена (`*Factory`, `*Coordinator`, formatters), пока не шарятся между поддоменами и не мешают тестам. Не плодить `interface` «на каждый класс» |
 | Валидация | Form Request (`app/Http/Requests/Food/`) до контроллера; контроллер работает только с валидными данными |
 | Frontend | Vue 3 SPA без vue-router: `App.vue` (`AuthGate` + shells) + composables + модульный `api/` + Tailwind (`resources/css/max-app.css`) |
 | Тесты | Отдельная БД **`sail_db_testing`** (`phpunit.xml`, `.env.testing`) |
@@ -119,7 +120,8 @@ flowchart TB
 |---|---|---|---|
 | HTTP / Jobs | `Http/`, `Jobs/` | `$request->user()`, Eloquent для загрузки сущности на входе; сразу маппинг в domain-типы | Бизнес-правила без сервисов |
 | Application | `Services/Food/`, `Contracts/Food/` | `*Record`, `*Dto`, `*Command`, Enum, порты (`*Interface`), `Psr\Log\LoggerInterface` | `App\Models\*`, `DB::`, Laravel Facades |
-| Core (цель) | `Services/**`, `Contracts/**`, `DTO/`, `Enums/`, `Exceptions/` | порты, DTO, Enum, PSR-3 | `Illuminate\*`, `App\Models\*`, Facades, `app()`/`now()`/`request()`/`dispatch()` — контроль: `scripts/check-core-layer-isolation.sh`, `tests/Architecture/` |
+| Core | `Services/**`, `Contracts/**` (+ цель: `DTO/`, `Enums/`, `Exceptions/`) | порты, DTO, Enum, PSR-3 | `Illuminate\*`, `App\Models\*`, Facades, helpers (`config`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-core-layer-isolation.sh`, `tests/Architecture/CoreLayerIsolationTest`; **baseline пуст** (end-state для Services/Contracts достигнут) |
+| Support | `app/Support/` | чистые helpers (formatters, combo resolver, initData signer, `MaxPublicAppUrl`, …) | `Illuminate\*`, Facades, helpers (`config`/`request`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-support-layer-isolation.sh`, `tests/Architecture/SupportLayerIsolationTest` |
 | Infrastructure | `Repositories/{Food,Max,Auth}/`, `Infrastructure/Laravel/`, `Services/Max/` (builders, UI Stand; notifiers — в `Infrastructure/Laravel`) | Eloquent, `DB::transaction`, Storage, Cache, MAX HTTP | Доменные правила без портов |
 | API-контракт с клиентом | `DTO/Food/**/*Dto.php` | `toArray()` для JSON-ответов | Прямой доступ к БД |
 
@@ -140,7 +142,7 @@ flowchart TB
 
 | Место | Примеры |
 |---|---|
-| `app/Repositories/Food/**` | `EloquentFoodOrderRepository`, `EloquentCartRepository` |
+| `app/Repositories/Food/**` | `EloquentFoodOrderWriteRepository` / `EloquentFoodOrderCustomerReadRepository` / `EloquentFoodOrderAdminReadRepository`, `EloquentCartRepository` |
 | `app/Repositories/Max/**` | `EloquentMaxUserRepository`, `EloquentMaxLoadTestDataRepository` |
 | `app/Repositories/Auth/**` | `EloquentGatewayUserResolver` |
 | `app/Http/Mappers/**` | `MaxUserIdentityMapper::fromModel(MaxUser)` |
@@ -149,7 +151,9 @@ flowchart TB
 
 **Не допустимо:** `use App\Models\…` в `app/Contracts/Food/` и `app/Services/Food/`. Проверка в CI: `bash scripts/check-food-layer-isolation.sh` (также в GitHub Actions для `service-c`).
 
-Известный pragmatic-debt (вне guardrail `App\Models`): Menu-сервисы могут использовать `Illuminate\Contracts\Cache` и `Illuminate\Http\UploadedFile`; постепенно выносить в infra-порты по мере касания поддомена.
+**Core isolation:** `app/Services` и `app/Contracts` без Illuminate / Eloquent / Laravel helpers-facades; inventory `tests/Architecture/baselines/core-illuminate-models-leaks.txt` **пуст** (end-state).
+
+**Support isolation:** `app/Support` без Illuminate / Eloquent / Laravel helpers-facades (HTTP-адаптеры — в `Http/Support`, Max cache/config adapters — в `Infrastructure/Laravel`). CI: `bash scripts/check-support-layer-isolation.sh`.
 
 ## AI Cursor
 
@@ -428,7 +432,7 @@ flowchart TD
 | Submit (клиент / ручной из mini-app) | `CustomerOrderSubmissionService` / `ManualOrderSubmissionService` пишут `MenuAvailabilityDateResolver::resolve()->date` (снимок на момент оформления; дальше не пересчитывается) |
 | Submit (PhotoText) | `submitDraftAfterScanning(..., $orderDate)` пишет `delivery_date` из тела запроса (`Y-m-d` шапки промпта), а не с бланка и не из resolver; статус `draft_after_scanning` |
 | API заказа | Поле в `OrderDto`, `AdminOrderDetailDto`, `ManualOrderDetailDto`; UI — `OrderConfirmationPage`, `OrderDetailPage`, `AdminOrderDetailPage`, `ManualOrderDetailPage` (`formatIsoDateRu`) |
-| MAX | `FoodOrderMaxMessageBuilder`: строка «Дата доставки: ДД.ММ.ГГГГ» в уведомлении о новой заявке; `buildManualOrderCreatorConfirmed` — «Заказ на ДД.ММ» из `delivery_date`, fallback на `created_at` |
+| MAX | `FoodOrderCustomerMaxMessageBuilder`: строка «Дата доставки: ДД.ММ.ГГГГ» в уведомлении о новой заявке; `buildManualOrderCreatorConfirmed` — «Заказ на ДД.ММ» из `delivery_date`, fallback на `created_at` |
 
 Без настроенных `availability_offsets` дата может быть `null` («нет данных») — заказ всё равно оформляется.
 
@@ -518,7 +522,7 @@ HTTP API для slash-команд `/phototext-order` (заказ) и `/phototex
 
 Реализация (заказы): middleware `VerifyPhotoTextAgentToken` (`phototext.agent.token`) + `EnsurePhotoTextAiAccess` (`phototext.ai.access`), `PhotoTextOrderController`, Form Request `PhotoTextCatalogRequest` / `PhotoTextAgentOrderRequest`, `PhotoTextManualOrderPlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher` (exact `LOWER(name)` ± `category_ids`), `PhotoTextComboRefGrouper`, `ManualOrderCustomerResolver`; конфиг `config/phototext.php`. Каталог — `MenuQueryService::getRestaurantMenu($id, includeUnavailable: true)` (в т.ч. скрытые блюда). Поиск блюд — `PhotoTextDishNameMatcher` → `DishCatalogRepositoryInterface::findByNameCaseInsensitive`. Оформление — ручная корзина менеджера + `ManualOrderSubmissionService::submitDraftAfterScanning(..., $orderDate)` (без MAX-уведомлений при создании).
 
-Реализация (график): `PhotoTextScheduleController` (`match` / `apply`), Form Request `PhotoTextScheduleSyncRequest` (окно ровно 7 дней), `PhotoTextSchedulePlacementService` → полная замена графика в окне (фото — источник истины; scope: `category_ids` / `category_id` или все категории ресторана) через `DishAvailabilityScheduleService::syncSchedule`. Playbook — `.cursor/commands/phototext-schedule.md`; словарь имён — `.cursor/commands/phototext-dish-aliases.md`. DTO: `PhotoTextScheduleEntryDto`, `PhotoTextScheduleMatchedDto`, `PhotoTextScheduleIssueDto`, `PhotoTextScheduleResultDto`.
+Реализация (график): `PhotoTextScheduleController` (`match` / `apply`), Form Request `PhotoTextScheduleSyncRequest` (окно ровно 7 дней), `PhotoTextSchedulePlacementService` → полная замена графика в окне (фото — источник истины; scope: `category_ids` / `category_id` или все категории ресторана) через `DishAvailabilityScheduleWriterInterface::syncSchedule`. Playbook — `.cursor/commands/phototext-schedule.md`; словарь имён — `.cursor/commands/phototext-dish-aliases.md`. DTO: `PhotoTextScheduleEntryDto`, `PhotoTextScheduleMatchedDto`, `PhotoTextScheduleIssueDto`, `PhotoTextScheduleResultDto`.
 
 | Правило | Поведение |
 |---|---|
@@ -600,7 +604,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 ### Управление меню
 
-Реализация: `MenuCategoryAdminService`, `DishAdminService`, `DishAvailabilityScheduleService`, `DishImageUploadService`, `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `MenuAvailabilityDateResolver`.
+Реализация: `MenuCategoryAdminService`, `DishAdminService`, `DishAdminPhotoCoordinator`, `DishBulkImportWriter`, `DishAvailabilityScheduleService` (facade: Grid + Writer), `DishImageUploadService`, `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `MenuAvailabilityDateResolver`.
 
 **Категории меню** (`menu_manager`):
 
@@ -639,11 +643,11 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | Поддомен | Путь | Сервисы / ключевые типы |
 |---|---|---|
 | Cart | `Services/Food/Cart/` | `CartService`, `CartDeliveryAddressService`, `CartTotalsCalculator`, `CartDtoFactory` |
-| Order | `Services/Food/Order/` | `OrderFromCartCreator` (ядро снимок корзины → заказ; порт `OrderFromCartCreatorInterface`), `CustomerOrderSubmissionService` (`submit` → `NotifyFoodOrderAfterSubmitJob`), `ManualOrderSubmissionService` (`submitManual` / `submitDraftAfterScanning` → `NotifyFoodOrderAfterSubmitJob` для submitManual), `OrderItemsSnapshotBuilder`, `CustomerOrderQueryService`, `AdminOrderQueryService` |
+| Order | `Services/Food/Order/` | `OrderFromCartCreator` (ядро снимок корзины → заказ; порт `OrderFromCartCreatorInterface`), `CustomerOrderSubmissionService` (`submit` → `NotifyFoodOrderAfterSubmitJob`), `ManualOrderSubmissionService` (`submitManual` / `submitDraftAfterScanning` → `NotifyFoodOrderAfterSubmitJob` для submitManual), `OrderItemsSnapshotBuilder`, `CustomerOrderQueryService`, `AdminOrderQueryService` (facade: `AdminOrderReviewListResolver` + `AdminOrderListQueryService` + `AdminOrderDetailQueryService`) |
 | Review | `Services/Food/Review/` | `OrderReviewStepHandler`, `OrderReviewAuthorizationService`, `OrderReviewUpdateFactory`, `OrderStatusResolver`, `OrderReviewCompletionService`, `OrderCustomerNotifyRecipientResolver` (+ enum `OrderReviewStep`) |
 | Composition | `Services/Food/Composition/` | `OrderCompositionUpdateService`, `OrderCompositionSnapshotBuilder`, `ComboPairValidator` (+ DTO `OrderCompositionSnapshotDto`) |
 | Chat | `Services/Food/Chat/` | `OrderChatService`, `OrderChatAuthorizationService` |
-| Menu | `Services/Food/Menu/` | `MenuQueryService`, `CachingMenuQueryService` (обёртка, TTL + bump версии), `MenuCatalogCacheInvalidator`, `MenuCategoryAdminService`, `DishAdminService`, `DishAvailabilityScheduleService`, `DishAvailabilitySyncService` (порт `DishAvailabilitySyncServiceInterface`), `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver`, `CachingMenuAvailabilityDateResolver` (DI на `MenuAvailabilityDateResolverInterface`: кэш успешного `resolve()` на день MSK; `resolveForCurrentWeekday()` без кэша) |
+| Menu | `Services/Food/Menu/` | `MenuQueryService`, `CachingMenuQueryService` (обёртка, TTL + bump версии), `MenuCatalogCacheInvalidator`, `MenuCategoryAdminService`, `DishAdminService` (CRUD), `DishAdminPhotoCoordinator`, `DishBulkImportWriter`, `DishAvailabilityScheduleService` (facade ISP: `DishAvailabilityGridService` + `DishAvailabilityScheduleWriter` + `DishAvailabilityScheduleWindow`), `DishAvailabilitySyncService` (порт `DishAvailabilitySyncServiceInterface`), `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver`, `CachingMenuAvailabilityDateResolver` (DI на `MenuAvailabilityDateResolverInterface`: кэш успешного `resolve()` на день MSK; `resolveForCurrentWeekday()` без кэша) |
 | ManualOrder | `Services/Food/ManualOrder/` | `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService` |
 | PhotoText | `Services/Food/PhotoText/` | `PhotoTextManualOrderPlacementService`, `PhotoTextSchedulePlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher`, `PhotoTextComboRefGrouper` (+ enum `PhotoTextMatchIssueCode`, `PhotoTextComboRefGroupKind`) |
 | Delivery | `Services/Food/Delivery/` | `DeliveryCostResolver` |
@@ -657,7 +661,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | `Contracts/Food/Review/FoodOrderCustomerNotifierInterface` | `Infrastructure/Laravel/LaravelFoodOrderCustomerNotifier` |
 | `Contracts/Food/Chat/OrderChatNotifierInterface` | `Infrastructure/Laravel/LaravelOrderChatNotifier` |
 | `Contracts/Food/Menu/MaxManagerDailyMenuMessageBuilderInterface` | `Services/Max/Menu/MaxManagerDailyMenuMessageBuilder` (+ DTO `DTO/Max/MaxManagerDailyMenuMessagesDto`) |
-| — (сборка текста заказа) | `Services/Max/Food/FoodOrderMaxMessageBuilder` |
+| — (сборка текста заказа) | `Services/Max/Food/FoodOrderCustomerMaxMessageBuilder`, `FoodOrderChatMaxMessageBuilder` (+ `Support/Max/Food/Formatting/*`) |
 | `Contracts/Max/MaxUserDeliveryAddressInterface` | `Services/Max/MaxUserDeliveryAddressService` |
 | `Contracts/Max/MaxAiAccessServiceInterface` | `Services/Max/MaxAiAccessService` (TTL 30 мин, поле `max_users.ai_access_until`) |
 | `Contracts/Max/MaxMenuAvailabilityNotifierInterface` / `MaxManagerDailyMenuNotifierInterface` | `Services/Max/UiStand/MaxMenuAvailabilityNotifier`, `MaxManagerDailyMenuNotifier` |
@@ -665,11 +669,9 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | `Contracts/Max/MaxMiniAppTokenIssuerInterface` | `Infrastructure/Laravel/LaravelMaxMiniAppTokenIssuer` |
 | `Contracts/Max/AuthenticatedMaxUserResolverInterface` | `Http/Resolvers/AuthenticatedMaxUserResolver` |
 
-Классы `Services/Max/Food/LaravelFoodOrder*Notifier`, `Services/Max/LaravelMaxAdminBotTestSender`, `Services/Auth/*` — **@deprecated** alias на `Infrastructure/Laravel` / `Repositories/Auth` (для старых import’ов).
-
 `OrderCustomerNotifyRecipientResolver` остаётся в Food (`Review/`) — доменное правило «кому слать», не транспорт.
 
-Контракты Food — `app/Contracts/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|PhotoText|Delivery|Shared}/` (сервисы, notifiers, репозитории: раздельные read/write заказов `FoodOrderWrite*` / `FoodOrderCustomerRead*` / `FoodOrderAdminRead*`, `DishAdmin*` / `DishCatalog*` → один `EloquentDishRepository`, image-интерфейсы, `PhotoTextDishNameMatcherInterface` и т.д.). Max — `app/Contracts/Max/` (`AuthenticatedMaxUserResolver`, `MaxMiniAppAuthService`, `MaxMiniAppTokenIssuer`, `MaxMessengerNotificationSender`, `MaxLoadTest*`, `MaxAiAccess`, `MaxUserDeliveryAddress`, `MaxUiStandRecipientResolver`, notifiers UI Stand / bot-test, `MaxUserRepository`, `MaxWebAppInitDataValidator`, `MaxWebhookUpdateRouter`, `MaxOrderNotificationConfigProvider`). Shared: `Contracts/Shared/{TransactionManager,Clock,JobDispatcher,FileStorage,CacheStore,HttpClient,LocalFileWriter,ApplicationConfig,ApplicationEnvironment,RequestTimingRecorder}Interface` → `Infrastructure/Laravel/*`; `Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface` → `EnvMaxBotTokenProvider`. Eloquent — `app/Repositories/Food/{поддомен}/`, `app/Repositories/Max/`, `app/Repositories/Auth/`. Модели — `app/Models/Food/*`, `app/Models/Max/MaxUser` (`User` без изменений). Привязки DI — `AppServiceProvider`. Ошибки домена — `FoodDomainException` → JSON `{ message }` с HTTP 4xx.
+Контракты Food — `app/Contracts/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|PhotoText|Delivery|Shared}/` (сервисы, notifiers, репозитории: раздельные read/write заказов `FoodOrderWrite*` / `FoodOrderCustomerRead*` / `FoodOrderAdminRead*`, `DishAdmin*` → `EloquentDishAdminRepository`, `DishCatalog*` → `EloquentDishCatalogRepository`, image-интерфейсы, `PhotoTextDishNameMatcherInterface` и т.д.). Max — `app/Contracts/Max/` (`AuthenticatedMaxUserResolver`, `MaxMiniAppAuthService`, `MaxMiniAppTokenIssuer`, `MaxMessengerNotificationSender`, `MaxLoadTest*`, `MaxAiAccess`, `MaxUserDeliveryAddress`, `MaxUiStandRecipientResolver`, notifiers UI Stand / bot-test, `MaxUserRepository`, `MaxWebAppInitDataValidator`, `MaxWebhookUpdateRouter`, `MaxOrderNotificationConfigProvider`). Shared: `Contracts/Shared/{TransactionManager,Clock,JobDispatcher,FileStorage,CacheStore,HttpClient,LocalFileWriter,ApplicationConfig,ApplicationEnvironment,RequestTimingRecorder}Interface` → `Infrastructure/Laravel/*`; `Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface` → `EnvMaxBotTokenProvider`. Eloquent — `app/Repositories/Food/{поддомен}/`, `app/Repositories/Max/`, `app/Repositories/Auth/`. Модели — `app/Models/Food/*`, `app/Models/Max/MaxUser` (`User` без изменений). Привязки DI — `AppServiceProvider`. Ошибки домена — `FoodDomainException` → JSON `{ message }` с HTTP 4xx.
 
 ### Связки PHP ↔ JavaScript
 
@@ -688,7 +690,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | `app/Support/Food/Composition/OrderSnapshotComboResolver.php` | `resources/js/max-app/utils/orderSnapshotCombo.js` | `isComboSnapshotItem`, `getComboPartnerName`; в PHP дополнительно `formatComboLabel` |
 | `app/Services/Food/Cart/CartDtoFactory.php` (поля `combo_ref`, tier-hint) | `resources/js/max-app/utils/cartGroups.js`, `components/cart/*` | Группировка позиций; бейдж `countCartGroupsQuantity`; подсказка порога доставки |
 | `app/Services/Food/Composition/OrderCompositionSnapshotBuilder.php` | `resources/js/max-app/utils/orderSnapshotGroups.js`, `useCompositionEdit` | Группировка `items_snapshot` для UI правки состава; пересчёт draft-суммы на фронте |
-| `app/Services/Max/Food/FoodOrderMaxMessageBuilder.php` | — | Сборка текста MAX-уведомлений о заказе; DI `OrderSnapshotComboResolver` |
+| Facade: `FoodOrderCustomerMaxMessageBuilder` (+ `FoodOrderChatMaxMessageBuilder`); Formatting: `Support/Max/Food/Formatting/*` (`FoodOrderMaxItemsExtractor`, `FoodOrderMaxBulletItemsFormatter`, `FoodOrderMaxManualItemsFormatter`, `FoodOrderMaxBoundedItemsMessageAssembler`, money/weight/date/client/text assemblers) | — | Сборка текста MAX-уведомлений о заказе; `OrderSnapshotComboResolver` — из items/manual formatters |
 | — | `resources/js/max-app/components/OrderSnapshotItemRow.vue` | Строка состава заказа в клиентском и админском UI |
 | — | `resources/js/max-app/api/cart.js` (`addComboToCart`), `api/admin/review.js` (`updateOrderComposition`); barrel — `api/index.js` | Два `POST /cart/items` с общим `combo_ref`; `PUT .../composition` для админа |
 | — | `resources/js/max-app/components/menu/MenuComboBuilderSheet.vue` | UI сборки комбо из двух категорий (`is_combo_available`); также в правке состава |
@@ -749,7 +751,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 |---|---|
 | Получатели | `MaxUiStandRecipientResolver` (`MAX_UI_STAND_*` + кэш webhook) |
 | Лимит текста | `config/max.php` → `order_notifications.max_text_length` |
-| Сборка текста | `app/Services/Max/Food/FoodOrderMaxMessageBuilder.php` |
+| Сборка текста | `app/Services/Max/Food/FoodOrderCustomerMaxMessageBuilder.php` (+ `Support/Max/Food/Formatting/*`) |
 | Отправка | `app/Infrastructure/Laravel/LaravelFoodOrderMaxNotifier.php` |
 | Job после submit | `app/Jobs/Food/NotifyFoodOrderAfterSubmitJob.php` (+ enum `FoodOrderAfterSubmitNotifyKind`) |
 | Интеграция | `CustomerOrderSubmissionService` / `ManualOrderSubmissionService` (`dispatch` после commit транзакции) |
@@ -771,7 +773,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 | Отклонение | Любой этап → `rejected` (только клиентские заказы в очереди) | `OrderReviewStepHandler::reject` → `notifyRejected` (scope из `OrderReviewStep::rejectionScope`) |
 | Состав изменён | После успешного `PUT .../composition` | `OrderCompositionUpdateService` → `notifyCompositionChanged` (+ кнопка «Открыть заказ №N») |
 
-Сборка текста — `FoodOrderMaxMessageBuilder` (`buildCustomerSubmitted`, `buildCustomerConfirmed`, `buildManualOrderCreatorConfirmed`, `buildCustomerRejected`, `buildCustomerCompositionChanged`). Сбой MAX **не откатывает** заказ / решение / правку состава; ошибка логируется в `max_log`.
+Сборка текста — `FoodOrderCustomerMaxMessageBuilder` (`buildCustomerSubmitted`, `buildCustomerConfirmed`, `buildManualOrderCreatorConfirmed`, `buildCustomerRejected`, `buildCustomerCompositionChanged`). Сбой MAX **не откатывает** заказ / решение / правку состава; ошибка логируется в `max_log`.
 
 Пример доп. уведомления оформившему ручной заказ после confirm:
 
@@ -814,7 +816,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 |---|---|
 | Вызов после сохранения | `OrderChatService::sendMessage` |
 | Отправка | `LaravelOrderChatNotifier` |
-| Сборка текста | `FoodOrderMaxMessageBuilder::buildOrderChatCustomerNotification`, `buildOrderChatUiStandNotification` |
+| Сборка текста | `FoodOrderChatMaxMessageBuilder::buildOrderChatCustomerNotification`, `buildOrderChatUiStandNotification` |
 | Получатели UI Stand | `MaxUiStandRecipientResolver` |
 
 ## UI Stand и тестовые кнопки бота
@@ -966,7 +968,8 @@ service-c/
 │   │   │                           # PhotoTextOrder, PhotoTextSchedule
 │   │   ├── Mappers/                # MaxUserIdentityMapper (Eloquent → domain на HTTP-границе)
 │   │   ├── Resolvers/              # AuthenticatedMaxUserResolver (identity / record из Request)
-│   │   ├── Support/                # UploadedFileDtoFactory
+│   │   ├── Support/                # UploadedFileDtoFactory, QueryParamParser,
+│   │   │                           # MaxAppRequestContext, MaxLocalDevInitData
 │   │   ├── Middleware/             # AuthenticateMaxMiniApp, EnsureFoodOrderAdmin,
 │   │   │                           # TrustGatewayAuth, VerifyMaxWebhookSecret,
 │   │   │                           # VerifyPhotoTextAgentToken, EnsurePhotoTextAiAccess
@@ -986,6 +989,8 @@ service-c/
 │   │                               # LaravelLocalFileWriter, LaravelApplicationConfig/Environment,
 │   │                               # LaravelRequestTimingRecorder, LaravelGatewayAuthSession,
 │   │                               # RequestGatewayUserContext, LaravelMaxMiniAppTokenIssuer,
+│   │                               # LaravelMaxMiniAppAccessLogger, LaravelMaxUiStandRecipient*,
+│   │                               # MaxOpenAppTargetResolver, MaxOpenAppButtonFactory,
 │   │                               # LaravelFoodOrder*Notifier, LaravelOrderChatNotifier,
 │   │                               # LaravelMaxAdminBotTestSender
 │   ├── Jobs/Food/                  # NotifyFoodOrderAfterSubmitJob (UI Stand + клиент/менеджеры после submit)
@@ -1000,14 +1005,14 @@ service-c/
 │   │   └── User.php
 │   ├── Repositories/
 │   │   ├── Food/                   # Cart/, Order/, Chat/, Menu/, Delivery/, Shared/
-│   │   │                           # (EloquentCart, EloquentDish, EloquentFoodOrder,
-│   │   │                           # *Mapper.php — Eloquent ↔ *Record/*Command)
+│   │   │                           # (EloquentCart, EloquentDish, EloquentFoodOrderWrite /
+│   │   │                           # CustomerRead / AdminRead, *Mapper.php — Eloquent ↔ *Record/*Command)
 │   │   ├── Max/                    # EloquentMaxUser, EloquentMaxLoadTestData, MaxUserMapper
 │   │   └── Auth/                   # EloquentGatewayUserResolver
-│   ├── Providers/                  # AppServiceProvider (DI-привязки, URL/HTTPS для туннеля)
+│   ├── Providers/                  # SharedInfrastructureProvider, FoodServiceProvider,
+│   │                               # MaxServiceProvider (DI); AppServiceProvider (URL/HTTPS туннель)
 │   ├── Rules/                      # MinImageDimensions, ValidDishPhotoMime
 │   ├── Services/
-│   │   ├── Auth/                   # @deprecated aliases → Repositories/Auth + Infrastructure/Laravel
 │   │   ├── Food/                   # поддомены (оркестраторы домена, без транспорта MAX):
 │   │   │   ├── Cart/               # CartService, CartDeliveryAddress*, CartTotals*, CartDtoFactory
 │   │   │   ├── Order/              # OrderSubmission*, OrderItemsSnapshotBuilder,
@@ -1036,10 +1041,8 @@ service-c/
 │   │       │                       # EnvMaxBotTokenProvider,
 │   │       │                       # ConfigMaxMessengerRetryConfigFactory,
 │   │       │                       # ConfigMaxOrderNotificationConfigProvider,
-│   │       │                       # MaxLoadTestService;
-│   │       │                       # LaravelMaxAdminBotTestSender — @deprecated → Infrastructure
-│   │       ├── Food/               # FoodOrderMaxMessageBuilder; LaravelFoodOrder*Notifier /
-│   │       │                       # LaravelOrderChatNotifier — @deprecated → Infrastructure
+│   │       │                       # MaxLoadTestService
+│   │       ├── Food/               # FoodOrderCustomerMaxMessageBuilder, FoodOrderChatMaxMessageBuilder
 │   │       ├── Menu/               # MaxManagerDailyMenuMessageBuilder
 │   │       └── UiStand/            # MaxCallbackHandler, MaxWebhookUpdateRouter,
 │   │                               # MaxUiStandGreetingSender, MaxMenuAvailabilityNotifier,
@@ -1047,15 +1050,10 @@ service-c/
 │   └── Support/
 │       ├── Food/
 │       │   ├── Composition/        # OrderSnapshotComboResolver
-│       │   └── Menu/               # DishPhotoAllowedExtensions
-│       ├── Http/                   # QueryParamParser
+│       │   └── Menu/               # DishPhotoAllowedExtensions (path-based; без UploadedFile)
 │       ├── Profiling/              # OrderSubmitTiming (Server-Timing на submit)
-│       └── Max/                    # MaxAppRequestContext (туннель / localhost / service-c;
-│                                   #   X-Forwarded-Host), MaxLocalDevInitData,
-│                                   # MaxOpenAppTargetResolver, MaxOpenAppButtonFactory,
-│                                   # MaxMiniAppAccessLogger, MaxWebAppInitDataSigner,
-│                                   # MaxUiStandRecipientResolver, MaxUiStandRecipientRegistry,
-│                                   # MaxLoadTestUserIds
+│       └── Max/                    # MaxPublicAppUrl, MaxWebAppInitDataSigner, MaxLoadTestUserIds;
+│                                   # Food/Formatting/ — Max message formatters
 ├── config/max.php                  # webhook, miniapp, local_dev_*, ui_stand, order_notifications (MAX_REPORT_*)
 ├── config/food.php                 # FOOD_CATALOG_CACHE_TTL / FOOD_CATALOG_CACHE_ENABLED
 ├── config/phototext.php               # PHOTOTEXT_AGENT_TOKEN, PHOTOTEXT_MANAGER_MAX_USER_ID
@@ -1121,15 +1119,15 @@ service-c/
 │   ├── css/max-app.css             # Tailwind CSS + токены (max-primary, max-surface, …)
 │   └── views/max-app.blade.php     # inline boot WebApp.ready + localDevInitData
 ├── routes/api.php, web.php
-├── scripts/                        # check-food-layer-isolation.sh, check-core-layer-isolation.sh,
-│                                   # architecture-leak-inventory.sh;
+├── scripts/                        # check-food-layer-isolation.sh, check-support-layer-isolation.sh,
+│                                   # check-core-layer-isolation.sh, architecture-leak-inventory.sh;
 │                                   # menu-qa-*.mjs (mount-QA меню: Vue Test Utils + happy-dom),
 │                                   # gen-dish-fixtures.php (XLS-фикстуры для импорта)
 ├── docker-entrypoint.sh            # `rm -f public/hot`; auto `npm run build` при отсутствии
 │                                   # max-build/manifest.json; фоновый `php artisan schedule:work`
 │                                   # (queue:work для NotifyFoodOrderAfterSubmitJob — отдельно при QUEUE_CONNECTION≠sync)
 └── tests/                          # Feature + Unit (БД: sail_db_testing)
-    ├── Architecture/               # CoreLayerIsolationTest (+ baselines/)
+    ├── Architecture/               # CoreLayerIsolationTest, SupportLayerIsolationTest (+ baselines/)
     └── Support/                    # FoodTestDataBuilder, MaxInitDataFixtureBuilder, ResolvesDishImageUrl,
                                     # DishSpreadsheetTestFileFactory, DishImportSpreadsheetFactory,
                                     # AuthenticatesMaxMiniAppUser, ResetsFoodDomainTables,
@@ -1269,7 +1267,7 @@ docker compose exec service-c npm run dev     # только локальная 
 | `MAX_LOCAL_DEV_USER_ID` | Демо-пользователь: `1001` (Стандарт), `1002` (VIP), `1003` (админ адреса), `1004` (админ состава) — профили в `config/max.php` → `local_dev_demo_users`. Fallback в `config/max.php` без env — **`1003`**; в `.env.example` — `1002`. Для `menu_manager` (**1005**) и `max_manager` (**1006**) после `db:seed` — MAX WebView или добавьте профиль в `local_dev_demo_users` |
 | `MAX_BOT_ACCESS_TOKEN` | Обязателен для подписи заглушки |
 
-Реализация: `app/Support/Max/MaxLocalDevInitData.php`, `MaxWebAppInitDataSigner.php`; значение передаётся в Blade (`localDevInitData`) и подставляется фронтом при отсутствии `window.WebApp.initData`.
+Реализация: `app/Http/Support/MaxLocalDevInitData.php`, `app/Support/Max/MaxWebAppInitDataSigner.php`; значение передаётся в Blade (`localDevInitData`) и подставляется фронтом при отсутствии `window.WebApp.initData`.
 
 > Для `menu_manager` (демо **1005**) и `max_manager` (демо **1006**) в `local_dev_demo_users` профилей нет — используйте MAX WebView, назначьте роль своему `max_user_id` после входа через туннель или добавьте запись в `config/max.php`. Админы **1003** / **1004** уже есть в `local_dev_demo_users` и доступны в браузере.
 
@@ -1720,7 +1718,7 @@ docker compose exec -T service-c php artisan max:load-test:cleanup 10           
    - оба сообщения заканчиваются правилами приёма заказов (ПН–ЧТ до 10:00 MSK и т.д.); второе дополнительно — «Стоимость доставки 100 руб., при заказе на 1 тысячу рублей и больше – доставка бесплатно.»
    - сборка: `DailyMenuLineCollector` + `MaxManagerDailyMenuMessageBuilder`
 
-Админский `resolve()` с lookback до 7 дней для подписи в списке блюд **не менялся** (через DI отдаётся `CachingMenuAvailabilityDateResolver`: успешный результат кэшируется на календарный день MSK). То же правило «есть offsets на текущий weekday» применяется при ручном сохранении графика в `DishAvailabilityScheduleService` (после save вызывается `syncForCurrentWeekdayCategoryOffsets`).
+Админский `resolve()` с lookback до 7 дней для подписи в списке блюд **не менялся** (через DI отдаётся `CachingMenuAvailabilityDateResolver`: успешный результат кэшируется на календарный день MSK). То же правило «есть offsets на текущий weekday» применяется при ручном сохранении графика в `DishAvailabilityScheduleWriter` (после save вызывается `syncForCurrentWeekdayCategoryOffsets`).
 
 Сбой отправки в MAX не откатывает синхронизацию `is_available`; ошибки логируются в `max_log`.
 
@@ -1773,7 +1771,7 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 
 Роли возвращаются в ответе `POST /api/max/auth` в поле `user.admin_roles` — фронт mini-app переключается в админ-режим без отдельного запроса.
 
-Лог MAX: `storage/logs/max_log-YYYY-MM-DD.log` (канал `max_log`, daily, хранение 30 дней, без токена бота в записи). Дополнительно логируются запросы к `/max-app` и `/api/max/auth` (`MaxMiniAppAccessLogger`).
+Лог MAX: `storage/logs/max_log-YYYY-MM-DD.log` (канал `max_log`, daily, хранение 30 дней, без токена бота в записи). Дополнительно логируются запросы к `/max-app` и `/api/max/auth` (`LaravelMaxMiniAppAccessLogger` через `MaxMiniAppAccessLoggerInterface`).
 
 ## Чеклист Manual QA (кабинет MAX)
 
@@ -1850,12 +1848,12 @@ docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).
 | Admin menu categories | `tests/Feature/AdminMenuCategoryApiTest.php` (CRUD + `availability_offsets`, полная замена на PUT) |
 | Order chat (API) | `tests/Feature/OrderChatApiTest.php` (`unread_count` после сообщений) |
 | Food domain (unit) | `tests/Unit/CartServiceTest.php`, `CartTotalsCalculatorTest.php`, `DeliveryCostResolverTest.php`, `OrderStatusResolverTest.php`, `OrderItemsSnapshotBuilderTest.php` |
-| MAX-уведомления (заказ → UI Stand) | `tests/Unit/FoodOrderMaxMessageBuilderTest.php` (в т.ч. «Дата доставки», «Заказ на …» из `delivery_date`), `LaravelFoodOrderMaxNotifierTest.php` |
+| MAX-уведомления (заказ → UI Stand) | `tests/Unit/FoodOrderCustomerMaxMessageBuilderTest.php` (в т.ч. «Дата доставки», «Заказ на …» из `delivery_date`), `LaravelFoodOrderMaxNotifierTest.php` |
 | MAX-уведомления (клиент / статус) | `tests/Unit/FoodOrderCustomerNotifierTest.php` (`notifySubmitted`, confirmed/rejected, `notifyCompositionChanged`, manual confirm / `notifyManualOrderCreatorConfirmed` / `buildManualOrderCreatorConfirmed`) |
 | MAX-уведомления (чат заказа) | `tests/Unit/OrderChatNotifierTest.php` |
 | Уведомление о доступности меню | `tests/Unit/MaxMenuAvailabilityNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuMessageBuilderTest.php`, `tests/Unit/DailyMenuLineCollectorTest.php`, `tests/Feature/SyncDishAvailabilityCommandTest.php` (дата «Блюда на»; skip без offsets на weekday) |
 | Дата «Блюда на» / offsets | `tests/Unit/MenuAvailabilityDateResolverTest.php` (`resolve` с lookback; `resolveForCurrentWeekday` без lookback), `tests/Unit/CachingMenuAvailabilityDateResolverTest.php` |
-| Изоляция слоёв (core) | `tests/Architecture/CoreLayerIsolationTest.php` (+ `scripts/check-core-layer-isolation.sh`, `scripts/check-food-layer-isolation.sh`) |
+| Изоляция слоёв (core / food / support) | `tests/Architecture/CoreLayerIsolationTest.php` (baseline пуст), `SupportLayerIsolationTest.php`; + `scripts/check-core-layer-isolation.sh`, `check-food-layer-isolation.sh`, `check-support-layer-isolation.sh` |
 | Sync `is_available` (unit) | `tests/Unit/EloquentDishAvailabilitySyncTest.php`, `tests/Unit/DishAvailabilitySyncServiceTest.php` |
 | Food order admin repository | `tests/Unit/EloquentFoodOrderAdminRepositoryTest.php`, `tests/Unit/MaxFoodAdminAssignCommandTest.php` |
 | MAX user repository | `tests/Unit/EloquentMaxUserRepositoryTest.php` (в т.ч. `ai_access_until`) |

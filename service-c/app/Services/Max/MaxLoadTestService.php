@@ -8,8 +8,8 @@ use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Max\MaxLoadTestDataRepositoryInterface;
 use App\Contracts\Max\MaxLoadTestServiceInterface;
+use App\Contracts\Max\MaxLoadTestUserRepositoryInterface;
 use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Contracts\Shared\ApplicationEnvironmentInterface;
 use App\Contracts\Shared\ClockInterface;
@@ -36,7 +36,7 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
         private readonly ApplicationConfigInterface $config,
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
         private readonly MenuCatalogCacheInvalidatorInterface $catalogCacheInvalidator,
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxLoadTestUserRepositoryInterface $maxUserRepository,
         private readonly MaxLoadTestDataRepositoryInterface $loadTestDataRepository,
         private readonly MaxMiniAppTokenIssuerInterface $tokenIssuer,
         private readonly ClockInterface $clock,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Max\MaxAdminBotTestSenderInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\DTO\Max\MaxAdminBotTestSendResultDto;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +17,7 @@ class AdminMaxBotTestController extends Controller
 {
     public function __construct(
         private readonly MaxAdminBotTestSenderInterface $maxAdminBotTestSender,
+        private readonly ApplicationConfigInterface $config,
     ) {}
 
     /**
@@ -48,7 +50,7 @@ class AdminMaxBotTestController extends Controller
         return response()->json([
             'message' => 'Тестовое сообщение отправлено.',
             'sent_count' => $result->sentCount,
-            'bot_username' => (string) config('max.bot_username', ''),
+            'bot_username' => (string) $this->config->get('max.bot_username', ''),
         ]);
     }
 }

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\DishImageDeliveryInterface;
+use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Food\ShowDishImageRequest;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -22,8 +25,18 @@ class DishImageController extends Controller
      *
      * Удалённые блюда (soft delete) остаются доступны для истории заказов.
      */
-    public function show(int $dish): Response
+    public function show(ShowDishImageRequest $request): Response
     {
-        return $this->dishImageDelivery->deliverById($dish);
+        try {
+            $file = $this->dishImageDelivery->resolveById($request->dishId());
+        } catch (FoodDomainException $exception) {
+            abort($exception->statusCode());
+        }
+
+        return new BinaryFileResponse(
+            $file->absolutePath,
+            200,
+            $file->headers,
+        );
     }
 }

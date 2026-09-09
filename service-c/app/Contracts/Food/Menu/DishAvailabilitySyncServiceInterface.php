@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 
 /**
  * Синхронизация флага is_available у блюд по графику доступности.
@@ -23,7 +23,7 @@ interface DishAvailabilitySyncServiceInterface
      *
      * @return int Количество обновлённых записей max_dishes
      */
-    public function syncForCurrentWeekdayCategoryOffsets(?CarbonImmutable $now = null): int;
+    public function syncForCurrentWeekdayCategoryOffsets(?DateTimeInterface $now = null): int;
 
     /**
      * Выставляет is_available по графику на сегодняшнюю дату (MSK).

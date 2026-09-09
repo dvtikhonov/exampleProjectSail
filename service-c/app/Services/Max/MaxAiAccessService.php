@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Max;
 
 use App\Contracts\Max\MaxAiAccessServiceInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserAiAccessRepositoryInterface;
 use App\DTO\Max\AiAccessStatusDto;
 use App\DTO\Max\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
@@ -20,7 +20,7 @@ class MaxAiAccessService implements MaxAiAccessServiceInterface
     private const int AI_ACCESS_TTL_MINUTES = 30;
 
     public function __construct(
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserAiAccessRepositoryInterface $maxUserRepository,
     ) {}
 
     /**

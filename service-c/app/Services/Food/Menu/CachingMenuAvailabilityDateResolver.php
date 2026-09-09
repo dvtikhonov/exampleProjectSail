@@ -6,8 +6,11 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Shared\CacheStoreInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeInterface;
+use DateTimeZone;
 
 /**
  * Кэш успешного resolve() на календарный день (MSK) и в рамках экземпляра.
@@ -29,16 +32,15 @@ class CachingMenuAvailabilityDateResolver implements MenuAvailabilityDateResolve
     public function __construct(
         private readonly MenuAvailabilityDateResolverInterface $resolver,
         private readonly CacheStoreInterface $cache,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function resolve(?CarbonImmutable $now = null): MenuAvailabilityDateResultDto
+    public function resolve(?DateTimeInterface $now = null): MenuAvailabilityDateResultDto
     {
-        $day = ($now ?? CarbonImmutable::now(self::TIMEZONE))
-            ->timezone(self::TIMEZONE)
-            ->startOfDay();
+        $day = $this->toMoscowStartOfDay($now);
         $key = self::CACHE_KEY_PREFIX.$day->format('Y-m-d');
 
         if (isset($this->requestMemo[$key])) {
@@ -58,7 +60,8 @@ class CachingMenuAvailabilityDateResolver implements MenuAvailabilityDateResolve
             // Не кэшируем «нет данных»: offsets могут появиться в течение дня
             // (админка / тесты / mid-day updates), иначе stale null залипает до конца суток.
             if ($computed->date !== null && $computed->error === null) {
-                $ttlSeconds = max(1, $day->endOfDay()->getTimestamp() - time());
+                $endOfDay = $day->setTime(23, 59, 59);
+                $ttlSeconds = max(1, $endOfDay->getTimestamp() - time());
                 $this->cache->put(
                     $key,
                     [
@@ -80,9 +83,21 @@ class CachingMenuAvailabilityDateResolver implements MenuAvailabilityDateResolve
     /**
      * {@inheritDoc}
      */
-    public function resolveForCurrentWeekday(?CarbonImmutable $now = null): MenuAvailabilityDateResultDto
+    public function resolveForCurrentWeekday(?DateTimeInterface $now = null): MenuAvailabilityDateResultDto
     {
         return $this->resolver->resolveForCurrentWeekday($now);
+    }
+
+    /**
+     * Нормализует «сейчас» к началу календарного дня Europe/Moscow.
+     */
+    private function toMoscowStartOfDay(?DateTimeInterface $now): DateTimeImmutable
+    {
+        $instant = DateTimeImmutable::createFromInterface($now ?? $this->clock->now());
+
+        return $instant
+            ->setTimezone(new DateTimeZone(self::TIMEZONE))
+            ->setTime(0, 0, 0);
     }
 
     /**

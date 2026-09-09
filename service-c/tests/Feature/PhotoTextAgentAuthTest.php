@@ -10,16 +10,18 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
+use Tests\Support\ConfiguresPhotoTextAgent;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 class PhotoTextAgentAuthTest extends TestCase
 {
     use AuthenticatesMaxMiniAppUser;
+    use ConfiguresPhotoTextAgent;
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
-    private const TOKEN = 'test-phototext-agent-token';
+    private const string AGENT_TOKEN = 'test-phototext-agent-token';
 
     /** Подготовка окружения перед тестом. */
     protected function setUp(): void
@@ -27,7 +29,7 @@ class PhotoTextAgentAuthTest extends TestCase
         parent::setUp();
 
         $this->resetFoodDomainTables();
-        config(['phototext.agent_token' => self::TOKEN]);
+        config(['phototext.agent_token' => self::AGENT_TOKEN]);
     }
 
     /** Без заголовка X-PhotoText-Token возвращает 401. */
@@ -48,9 +50,7 @@ class PhotoTextAgentAuthTest extends TestCase
     /** Без активного AI-доступа max_manager возвращает 403. */
     public function test_returns_forbidden_without_active_ai_access(): void
     {
-        $this->getJson('/api/food/phototext/restaurants', [
-            'X-PhotoText-Token' => self::TOKEN,
-        ])
+        $this->getJson('/api/food/phototext/restaurants', $this->photoTextHeaders())
             ->assertForbidden()
             ->assertJsonPath('message', 'Доступ AI к базе не разрешён.');
     }
@@ -66,9 +66,7 @@ class PhotoTextAgentAuthTest extends TestCase
             until: $now->copy()->subMinute(),
         );
 
-        $this->getJson('/api/food/phototext/restaurants', [
-            'X-PhotoText-Token' => self::TOKEN,
-        ])
+        $this->getJson('/api/food/phototext/restaurants', $this->photoTextHeaders())
             ->assertForbidden()
             ->assertJsonPath('message', 'Доступ AI к базе не разрешён.');
     }
@@ -84,9 +82,7 @@ class PhotoTextAgentAuthTest extends TestCase
             until: $now->copy()->addMinutes(30),
         );
 
-        $response = $this->getJson('/api/food/phototext/restaurants', [
-            'X-PhotoText-Token' => self::TOKEN,
-        ]);
+        $response = $this->getJson('/api/food/phototext/restaurants', $this->photoTextHeaders());
 
         $this->assertNotSame(Response::HTTP_UNAUTHORIZED, $response->status());
         $this->assertNotSame(Response::HTTP_FORBIDDEN, $response->status());

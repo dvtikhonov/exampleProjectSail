@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
+use App\Enums\Food\Order\AdminOrderListScope;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -36,7 +37,7 @@ class ShowAdminOrderReviewRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'scope' => ['required', 'string', Rule::in(['address', 'composition'])],
+            'scope' => ['required', 'string', Rule::enum(AdminOrderListScope::class)],
         ];
     }
 
@@ -49,7 +50,7 @@ class ShowAdminOrderReviewRequest extends FormRequest
     {
         return [
             'scope.required' => 'Параметр запроса scope обязателен.',
-            'scope.in' => 'Некорректный scope. Используйте address или composition.',
+            'scope.Illuminate\Validation\Rules\Enum' => 'Некорректный scope. Используйте address или composition.',
         ];
     }
 
@@ -68,8 +69,8 @@ class ShowAdminOrderReviewRequest extends FormRequest
     /**
      * Scope проверки: address или composition.
      */
-    public function scope(): string
+    public function scope(): AdminOrderListScope
     {
-        return (string) $this->validated('scope');
+        return AdminOrderListScope::from((string) $this->validated('scope'));
     }
 }

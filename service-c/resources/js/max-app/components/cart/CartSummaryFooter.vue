@@ -62,7 +62,7 @@ const showDeliveryDateRow = computed(() => {
     <div class="max-app-shell-bottom fixed z-20 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom">
         <div class="mb-2 space-y-1.5 text-sm">
             <template v-if="deliveryApplicable">
-                <p class="mb-1 text-base font-medium text-gray-900">Детали</p>
+                <p class="mb-1 text-base font-medium text-gray-900">Детали предзаказа</p>
                 <div
                     v-if="showDeliveryDateRow"
                     class="flex items-center justify-between gap-3"
@@ -164,7 +164,7 @@ const showDeliveryDateRow = computed(() => {
             :disabled="!canSubmit"
             @click="$emit('submit')"
         >
-            Оформить заявку на {{ cart.total }} ₽
+            Оформить предзаказ на {{ cart.total }} ₽
         </button>
     </div>
 </template>

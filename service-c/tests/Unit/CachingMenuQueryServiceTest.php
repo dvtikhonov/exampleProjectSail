@@ -11,6 +11,7 @@ use App\DTO\Food\Menu\MenuCategoryDto;
 use App\DTO\Food\Menu\MenuDto;
 use App\DTO\Food\Shared\RestaurantSummaryDto;
 use App\Services\Food\Menu\CachingMenuQueryService;
+use App\Services\Food\Menu\MenuCachePayloadHydrator;
 use App\Services\Food\Menu\MenuCatalogCacheInvalidator;
 use Illuminate\Support\Facades\Cache;
 use Psr\Log\LoggerInterface;
@@ -171,6 +172,7 @@ class CachingMenuQueryServiceTest extends TestCase
         return new CachingMenuQueryService(
             inner: $inner,
             cache: $this->app->make(CacheStoreInterface::class),
+            hydrator: new MenuCachePayloadHydrator,
             ttlSeconds: 600,
             enabled: $enabled,
         );

@@ -9,7 +9,9 @@ use App\Enums\Food\Order\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
- * Конфигурация этапа проверки заказа: поля БД, роль администратора и область отклонения.
+ * Конфигурация этапа проверки заказа: роль администратора, область отклонения и проверка pending.
+ *
+ * Имена колонок БД живут только в persistence (FoodOrderMapper / admin-read repository).
  */
 enum OrderReviewStep: string
 {
@@ -37,54 +39,6 @@ enum OrderReviewStep: string
             self::Address => OrderRejectionScope::Address,
             self::Composition => OrderRejectionScope::Composition,
             self::Payment => OrderRejectionScope::Payment,
-        };
-    }
-
-    /**
-     * Имя колонки статуса этапа в `max_food_orders`.
-     */
-    public function statusField(): string
-    {
-        return match ($this) {
-            self::Address => 'address_review_status',
-            self::Composition => 'composition_review_status',
-            self::Payment => 'payment_review_status',
-        };
-    }
-
-    /**
-     * Имя колонки «кто проверил» для этапа.
-     */
-    public function reviewedByField(): string
-    {
-        return match ($this) {
-            self::Address => 'address_reviewed_by',
-            self::Composition => 'composition_reviewed_by',
-            self::Payment => 'payment_reviewed_by',
-        };
-    }
-
-    /**
-     * Имя колонки времени проверки этапа.
-     */
-    public function reviewedAtField(): string
-    {
-        return match ($this) {
-            self::Address => 'address_reviewed_at',
-            self::Composition => 'composition_reviewed_at',
-            self::Payment => 'payment_reviewed_at',
-        };
-    }
-
-    /**
-     * Имя колонки комментария отклонения этапа.
-     */
-    public function rejectionCommentField(): string
-    {
-        return match ($this) {
-            self::Address => 'address_rejection_comment',
-            self::Composition => 'composition_rejection_comment',
-            self::Payment => 'payment_rejection_comment',
         };
     }
 

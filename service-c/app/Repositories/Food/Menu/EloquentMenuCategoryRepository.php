@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Repositories\Food\Menu;
 
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\DTO\Food\Menu\CreateMenuCategoryDto;
 use App\DTO\Food\Menu\MenuCategoryRecord;
+use App\DTO\Food\Menu\UpdateMenuCategoryDto;
 use App\Models\Food\Dish;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\MenuCategoryAvailabilityOffset;
@@ -59,8 +61,12 @@ class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function create(array $attributes): MenuCategoryRecord
+    public function create(CreateMenuCategoryDto $dto): MenuCategoryRecord
     {
+        $attributes = $this->dishMapper->toCreateCategoryAttributes(
+            $dto,
+            $this->nextSortOrderForRestaurant($dto->restaurantId),
+        );
         $category = MenuCategory::query()->create($attributes);
 
         return $this->dishMapper->toCategoryRecord(
@@ -71,10 +77,10 @@ class EloquentMenuCategoryRepository implements MenuCategoryRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function update(int $categoryId, array $attributes): MenuCategoryRecord
+    public function update(int $categoryId, UpdateMenuCategoryDto $dto): MenuCategoryRecord
     {
         $category = MenuCategory::query()->findOrFail($categoryId);
-        $category->update($attributes);
+        $category->update($this->dishMapper->toUpdateCategoryAttributes($dto));
 
         $fresh = $category->fresh(['restaurant', 'availabilityOffsets']) ?? $category->load(['restaurant', 'availabilityOffsets']);
 

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\Enums\Food\Menu\DishVatRate;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Exceptions\Food\FoodDomainException;
 use App\Services\Food\Menu\DishSpreadsheetRowParser;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 use Tests\TestCase;
 
 class DishSpreadsheetRowParserTest extends TestCase
@@ -20,7 +20,9 @@ class DishSpreadsheetRowParserTest extends TestCase
     {
         parent::setUp();
 
-        $this->parser = new DishSpreadsheetRowParser(new FoodMoneyFormatter);
+        $this->parser = new DishSpreadsheetRowParser(
+            $this->app->make(FoodMoneyFormatterInterface::class),
+        );
     }
 
     /** Парсит имя, вес и цену из валидной строки. */

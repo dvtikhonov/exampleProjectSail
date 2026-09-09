@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
-use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Food\Dish;
 use App\Models\Food\DishAvailabilityDate;
 use App\Models\Food\MenuCategory;
-use App\Models\Max\MaxUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
+use Tests\Support\ConfiguresPhotoTextAgent;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
@@ -21,6 +19,7 @@ use Tests\TestCase;
 class PhotoTextScheduleApiTest extends TestCase
 {
     use AuthenticatesMaxMiniAppUser;
+    use ConfiguresPhotoTextAgent;
     use RefreshDatabase;
     use ResetsFoodDomainTables;
 
@@ -68,7 +67,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_match_without_category_id_resolves_dishes_in_restaurant(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Schedule Cafe', 'Борщ', 150);
@@ -118,7 +117,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_match_with_category_filter_excludes_other_categories(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Filter Cafe', 'Салат Цезарь', 200);
@@ -160,7 +159,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_match_marks_ambiguous_dish_across_categories(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Ambiguous Cafe', 'Оливье', 180);
@@ -195,7 +194,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_apply_writes_availability_dates_and_groups_by_category(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Apply Cafe', 'Борщ', 150);
@@ -252,7 +251,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_apply_clears_previous_schedule_for_dishes_not_in_entries(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Replace Cafe', 'Борщ', 150);
@@ -322,7 +321,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_apply_with_category_ids_clears_only_those_categories(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Multi Scope Cafe', 'Борщ', 150);
@@ -408,7 +407,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_apply_with_category_id_clears_only_that_category(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Scoped Cafe', 'Борщ', 150);
@@ -471,7 +470,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_apply_returns_unprocessable_when_matched_empty(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Empty Apply Cafe', 'Борщ', 150);
@@ -497,7 +496,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_apply_rejects_past_dates(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Past Cafe', 'Борщ', 150);
@@ -522,7 +521,7 @@ class PhotoTextScheduleApiTest extends TestCase
     public function test_rejects_when_date_range_is_not_exactly_seven_days(): void
     {
         $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
-        $manager = $this->phototextManager();
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
         $this->configurePhotoTextAgent($manager['user']->max_user_id);
 
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Span Cafe', 'Борщ', 150);
@@ -537,44 +536,6 @@ class PhotoTextScheduleApiTest extends TestCase
         ], $this->photoTextHeaders())
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['date_to']);
-    }
-
-    /**
-     * @return array{user: MaxUser, headers: array<string, string>}
-     */
-    private function phototextManager(): array
-    {
-        return $this->asFoodOrderAdmin(
-            $this->authenticateMaxUser(MaxUser::query()->create([
-                'max_user_id' => 10_026,
-                'first_name' => 'PhotoTextScheduleManager',
-            ])),
-            FoodOrderAdminRole::MaxManager,
-        );
-    }
-
-    private function configurePhotoTextAgent(int $managerMaxUserId): void
-    {
-        config([
-            'phototext.agent_token' => self::AGENT_TOKEN,
-            'phototext.manager_max_user_id' => $managerMaxUserId,
-        ]);
-
-        MaxUser::query()
-            ->where('max_user_id', $managerMaxUserId)
-            ->update([
-                'ai_access_until' => Carbon::now()->addMinutes(30),
-            ]);
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function photoTextHeaders(): array
-    {
-        return [
-            'X-PhotoText-Token' => self::AGENT_TOKEN,
-        ];
     }
 
     /**

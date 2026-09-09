@@ -5,35 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food\PhotoText;
 
 use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
-use App\Http\Requests\Food\PhotoText\Concerns\ValidatesActiveRestaurant;
 use Carbon\CarbonImmutable;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 /**
  * Валидация тела match/apply графика производства PhotoText (ровно 7 дней).
  */
-class PhotoTextScheduleSyncRequest extends FormRequest
+class PhotoTextScheduleSyncRequest extends PhotoTextAgentFormRequest
 {
-    use ValidatesActiveRestaurant;
-
-    /**
-     * Разрешает любой запрос.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Всегда ожидает JSON-ответ.
-     */
-    public function wantsJson(): bool
-    {
-        return true;
-    }
-
     /**
      * Правила: активный ресторан, опциональный scope категорий, окно 7 дней, entries с датами внутри окна.
      *

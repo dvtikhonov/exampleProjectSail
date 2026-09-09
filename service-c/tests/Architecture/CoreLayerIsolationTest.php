@@ -12,7 +12,9 @@ use SplFileInfo;
 
 /**
  * Architecture guard: app/Services and app/Contracts must not import Illuminate\*
- * or App\Models\* (beyond the checked-in baseline inventory).
+ * or App\Models\*, and must not call Laravel helpers/facades
+ * (config('…'), event(…), DB::, Log::, Storage::, Cache::)
+ * beyond the checked-in baseline inventory.
  *
  * End-state: empty baseline — 0 leaks in core layers.
  */
@@ -29,6 +31,21 @@ final class CoreLayerIsolationTest extends TestCase
     private const FORBIDDEN_NEEDLES = [
         'Illuminate\\',
         'App\\Models\\',
+    ];
+
+    /**
+     * Regex patterns aligned with scripts/architecture-leak-inventory.sh helpers/facades.
+     * config('…') uses a string-key form to avoid method names like ->config().
+     *
+     * @var list<string>
+     */
+    private const FORBIDDEN_HELPER_PATTERNS = [
+        '/config\s*\(\s*[\'"]/',
+        '/\bevent\s*\(/',
+        '/\bDB::/',
+        '/\bLog::/',
+        '/\bStorage::/',
+        '/\bCache::/',
     ];
 
     #[Test]
@@ -51,7 +68,7 @@ final class CoreLayerIsolationTest extends TestCase
         $messages = [];
 
         if ($newLeaks !== []) {
-            $messages[] = "New Illuminate\\ / App\\Models\\ leaks in Services/Contracts (not in baseline):\n  "
+            $messages[] = "New Illuminate\\ / App\\Models\\ / helper+facade leaks in Services/Contracts (not in baseline):\n  "
                 .implode("\n  ", $newLeaks)
                 ."\nFix via ports/adapters; do not extend the baseline.";
         }
@@ -139,6 +156,12 @@ final class CoreLayerIsolationTest extends TestCase
     {
         foreach (self::FORBIDDEN_NEEDLES as $needle) {
             if (str_contains($contents, $needle)) {
+                return true;
+            }
+        }
+
+        foreach (self::FORBIDDEN_HELPER_PATTERNS as $pattern) {
+            if (preg_match($pattern, $contents) === 1) {
                 return true;
             }
         }

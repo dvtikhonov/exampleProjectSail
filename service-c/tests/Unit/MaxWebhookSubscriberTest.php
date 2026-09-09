@@ -2,7 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Services\Max\UiStand\MaxWebhookSubscriber;
+use App\Contracts\Max\MaxWebhookSubscriberInterface;
+use App\Enums\Max\MaxWebhookUpdateType;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
@@ -40,7 +41,7 @@ class MaxWebhookSubscriberTest extends TestCase
             'platform-api.max.ru/*' => Http::response(['success' => true], 200),
         ]);
 
-        $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+        $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
 
         Http::assertSentCount(1);
         Http::assertSent(function ($request): bool {
@@ -48,7 +49,7 @@ class MaxWebhookSubscriberTest extends TestCase
                 && $request->hasHeader('Authorization', self::TOKEN)
                 && $request['url'] === 'https://example.ngrok.io/api/webhooks/max'
                 && $request['secret'] === 'stand-secret'
-                && $request['update_types'] === ['message_callback', 'bot_started'];
+                && $request['update_types'] === MaxWebhookUpdateType::values();
         });
     }
 
@@ -60,7 +61,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('MAX_WEBHOOK_URL не задан в конфигурации.');
 
-        $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+        $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
     }
 
     /** Subscribe падает, если секрет webhook слишком короткий. */
@@ -71,7 +72,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('MAX_WEBHOOK_SECRET должен содержать минимум 5 символов.');
 
-        $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+        $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
     }
 
     /** Subscribe падает, если webhook URL не HTTPS. */
@@ -82,7 +83,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('MAX_WEBHOOK_URL должен начинаться с https://');
 
-        $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+        $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
     }
 
     /** Subscribe падает, если секрет содержит недопустимые символы. */
@@ -93,7 +94,7 @@ class MaxWebhookSubscriberTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('MAX_WEBHOOK_SECRET может содержать только');
 
-        $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+        $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
     }
 
     /** Subscribe выбрасывает auth-исключение на 401. */
@@ -105,7 +106,7 @@ class MaxWebhookSubscriberTest extends TestCase
 
         $this->expectException(MaxMessengerAuthException::class);
 
-        $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+        $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
     }
 
     /** Subscribe выбрасывает request-исключение на 400. */
@@ -116,7 +117,7 @@ class MaxWebhookSubscriberTest extends TestCase
         ]);
 
         try {
-            $this->app->make(MaxWebhookSubscriber::class)->subscribe();
+            $this->app->make(MaxWebhookSubscriberInterface::class)->subscribe();
             $this->fail('Expected MaxMessengerRequestException was not thrown.');
         } catch (MaxMessengerRequestException $exception) {
             $this->assertStringContainsString('MAX_WEBHOOK_URL', $exception->getMessage());
@@ -150,7 +151,7 @@ class MaxWebhookSubscriberTest extends TestCase
             return Http::response([], 404);
         });
 
-        $result = $this->app->make(MaxWebhookSubscriber::class)
+        $result = $this->app->make(MaxWebhookSubscriberInterface::class)
             ->unsubscribeStaleDevTunnels($configuredUrl);
 
         $this->assertSame([$staleTunnelUrl], $result['removed']);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
+use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderAdminRole;
@@ -13,7 +14,7 @@ use App\Exceptions\Food\FoodDomainException;
 /**
  * Проверка прав администратора и допустимости перехода статуса проверки заказа.
  */
-class OrderReviewAuthorizationService
+class OrderReviewAuthorizationService implements OrderReviewAuthorizationServiceInterface
 {
     /**
      * Проверяет право администратора одобрить шаг.

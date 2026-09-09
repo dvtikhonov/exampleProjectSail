@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Menu;
 
-use App\Contracts\Food\Menu\DishAdminServiceInterface;
+use App\Contracts\Food\Menu\DishBulkImportWriterInterface;
 use App\Contracts\Food\Menu\DishSpreadsheetImportServiceInterface;
-use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
+use App\Contracts\Food\Menu\MenuCategoryReadRepositoryInterface;
 use App\DTO\Food\Menu\DishImportResultDto;
 use App\DTO\Food\Menu\ImportDishRowDto;
 use App\DTO\Shared\UploadedFileDto;
@@ -19,9 +19,9 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterface
 {
     public function __construct(
-        private readonly DishAdminServiceInterface $dishAdminService,
+        private readonly DishBulkImportWriterInterface $bulkImportWriter,
         private readonly DishSpreadsheetRowParser $rowParser,
-        private readonly MenuCategoryRepositoryInterface $menuCategoryRepository,
+        private readonly MenuCategoryReadRepositoryInterface $menuCategoryRepository,
     ) {}
 
     /**
@@ -77,7 +77,7 @@ class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterf
         $importedCount = 0;
 
         if ($validRows !== []) {
-            $importedCount = $this->dishAdminService->importSpreadsheetRows($validRows, $menuCategoryId);
+            $importedCount = $this->bulkImportWriter->importSpreadsheetRows($validRows, $menuCategoryId);
         }
 
         return new DishImportResultDto($importedCount, $errors);

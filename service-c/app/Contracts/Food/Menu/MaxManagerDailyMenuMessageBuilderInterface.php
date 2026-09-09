@@ -6,7 +6,7 @@ namespace App\Contracts\Food\Menu;
 
 use App\DTO\Food\Menu\DailyMenuLineDto;
 use App\DTO\Max\MaxManagerDailyMenuMessagesDto;
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 
 /**
  * Формирование текстов ежедневного меню для max_manager.
@@ -18,5 +18,5 @@ interface MaxManagerDailyMenuMessageBuilderInterface
      *
      * @param  list<DailyMenuLineDto>  $lines
      */
-    public function build(CarbonImmutable $menuDate, array $lines): MaxManagerDailyMenuMessagesDto;
+    public function build(DateTimeInterface $menuDate, array $lines): MaxManagerDailyMenuMessagesDto;
 }

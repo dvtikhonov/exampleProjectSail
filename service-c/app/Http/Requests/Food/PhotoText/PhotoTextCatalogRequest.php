@@ -4,32 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\PhotoText;
 
-use App\Http\Requests\Food\PhotoText\Concerns\ValidatesActiveRestaurant;
-use Illuminate\Foundation\Http\FormRequest;
-
 /**
  * Валидация query restaurant_id для каталога PhotoText.
  */
-class PhotoTextCatalogRequest extends FormRequest
+class PhotoTextCatalogRequest extends PhotoTextAgentFormRequest
 {
-    use ValidatesActiveRestaurant;
-
-    /**
-     * Разрешает выполнение запроса.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Всегда ожидает JSON-ответ.
-     */
-    public function wantsJson(): bool
-    {
-        return true;
-    }
-
     /**
      * Правила: активный ресторан обязателен.
      *
@@ -39,6 +18,18 @@ class PhotoTextCatalogRequest extends FormRequest
     {
         return [
             'restaurant_id' => $this->activeRestaurantIdRules(),
+        ];
+    }
+
+    /**
+     * Сообщения об ошибках валидации.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            ...$this->activeRestaurantIdMessages(),
         ];
     }
 }

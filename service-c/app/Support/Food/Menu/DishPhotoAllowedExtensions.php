@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Support\Food\Menu;
 
-use Illuminate\Http\UploadedFile;
-
 /**
  * Единый whitelist расширений и MIME для фото блюд (PNG/JPEG).
  */
@@ -112,22 +110,6 @@ final class DishPhotoAllowedExtensions
         }
 
         return is_string($mime) && $mime !== '' ? strtolower($mime) : null;
-    }
-
-    /**
-     * Читает ширину и высоту загруженного изображения.
-     *
-     * @return array{width: int, height: int}|null
-     */
-    public static function readDimensions(UploadedFile $file): ?array
-    {
-        $path = $file->getRealPath();
-
-        if ($path === false) {
-            return null;
-        }
-
-        return self::readDimensionsFromPath($path);
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Contracts\Food\Menu\MenuCategoryAdminServiceInterface;
 use App\DTO\Food\Menu\AdminMenuCategoryDto;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ListAdminMenuCategoriesRequest;
+use App\Http\Requests\Food\Admin\ShowAdminMenuCategoryRequest;
 use App\Http\Requests\Food\Admin\StoreMenuCategoryRequest;
 use App\Http\Requests\Food\Admin\UpdateMenuCategoryRequest;
 use Illuminate\Http\JsonResponse;
@@ -40,10 +41,12 @@ class AdminMenuCategoryController extends Controller
     /**
      * Карточка категории для формы редактирования.
      */
-    public function show(int $menuCategory): JsonResponse
+    public function show(ShowAdminMenuCategoryRequest $request): JsonResponse
     {
-        return $this->respondCategory(function () use ($menuCategory) {
-            return $this->menuCategoryAdminService->show($menuCategory);
+        $menuCategoryId = $request->menuCategoryId();
+
+        return $this->respondCategory(function () use ($menuCategoryId) {
+            return $this->menuCategoryAdminService->show($menuCategoryId);
         });
     }
 
@@ -75,9 +78,9 @@ class AdminMenuCategoryController extends Controller
     /**
      * Удаление категории меню.
      */
-    public function destroy(int $menuCategory): Response
+    public function destroy(ShowAdminMenuCategoryRequest $request): Response
     {
-        $this->menuCategoryAdminService->delete($menuCategory);
+        $this->menuCategoryAdminService->delete($request->menuCategoryId());
 
         return response()->noContent();
     }

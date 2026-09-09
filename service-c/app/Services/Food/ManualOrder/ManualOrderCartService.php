@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Food\ManualOrder;
 
-use App\Contracts\Food\Cart\CartRepositoryInterface;
+use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Cart\CartDto;
-use App\DTO\Food\Cart\CartItemRecord;
-use App\DTO\Food\Cart\CartRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
-use App\Enums\Food\Cart\CartStatus;
-use App\Exceptions\Food\FoodDomainException;
 use App\Services\Food\Cart\CartAddItemPolicy;
+use App\Services\Food\Cart\CartDraftContext;
 use App\Services\Food\Cart\CartDtoFactory;
 use App\Services\Food\Cart\CartItemMutationCoordinator;
 
@@ -27,7 +24,7 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
         private readonly CartDtoFactory $cartDtoFactory,
         private readonly CartItemMutationCoordinator $cartItemMutationCoordinator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
-        private readonly CartRepositoryInterface $cartRepository,
+        private readonly CartLifecycleRepositoryInterface $cartLifecycleRepository,
         private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
@@ -36,7 +33,9 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
      */
     public function getDraftCart(MaxUserIdentity $customer, MaxUserIdentity $manager): ?CartDto
     {
-        $cart = $this->findManualDraft($customer, $manager);
+        $cart = $this->cartItemMutationCoordinator->resolveDraft(
+            CartDraftContext::manual($customer, $manager),
+        );
 
         if ($cart === null) {
             return null;
@@ -55,16 +54,18 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
     ): ?CartDto {
         $this->maxUserDeliveryAddressService->persistForMaxUserId($customer->maxUserId, $deliveryAddress);
 
-        $cart = $this->findManualDraft($customer, $manager);
+        $cart = $this->cartItemMutationCoordinator->resolveDraft(
+            CartDraftContext::manual($customer, $manager),
+        );
 
         if ($cart === null) {
             return null;
         }
 
-        $this->cartRepository->updateDeliveryAddress($cart->id, $deliveryAddress);
+        $this->cartLifecycleRepository->updateDeliveryAddress($cart->id, $deliveryAddress);
 
         return $this->cartDtoFactory->fromRecord(
-            $this->cartRepository->refreshForDto($cart->id),
+            $this->cartLifecycleRepository->refreshForDto($cart->id),
             $customer->maxUserId,
         );
     }
@@ -88,9 +89,10 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
             $comboRef,
             $comboPartnerDishId,
         ): CartDto {
+            $context = CartDraftContext::manual($customer, $manager);
             $cart = $this->cartItemMutationCoordinator->performAddItem(
                 CartAddItemPolicy::manualOrderCart(),
-                $this->findManualDraft($customer, $manager),
+                $this->cartItemMutationCoordinator->resolveDraft($context),
                 $dishId,
                 $quantity,
                 $comboRef,
@@ -113,14 +115,13 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
         int $quantity,
     ): CartDto {
         return $this->transactionManager->run(function () use ($customer, $manager, $cartItemId, $quantity): CartDto {
-            $cartItem = $this->findOwnedManualCartItem($customer, $manager, $cartItemId);
-
-            $this->cartRepository->updateItemQuantity($cartItem->id, $quantity);
-
-            return $this->cartDtoFactory->fromRecord(
-                $this->cartRepository->refreshForDto($cartItem->cartId),
-                $customer->maxUserId,
+            $cart = $this->cartItemMutationCoordinator->performUpdateQuantity(
+                CartDraftContext::manual($customer, $manager),
+                $cartItemId,
+                $quantity,
             );
+
+            return $this->cartDtoFactory->fromRecord($cart, $customer->maxUserId);
         });
     }
 
@@ -133,15 +134,12 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
         int $cartItemId,
     ): ?CartDto {
         return $this->transactionManager->run(function () use ($customer, $manager, $cartItemId): ?CartDto {
-            $cartItem = $this->findOwnedManualCartItem($customer, $manager, $cartItemId);
-            $cartId = $cartItem->cartId;
-            $this->cartRepository->deleteItem($cartItem->id);
+            $cart = $this->cartItemMutationCoordinator->performRemoveItem(
+                CartDraftContext::manual($customer, $manager),
+                $cartItemId,
+            );
 
-            $cart = $this->cartRepository->refreshForDto($cartId);
-
-            if ($cart->isEmpty()) {
-                $this->cartRepository->delete($cart->id);
-
+            if ($cart === null) {
                 return null;
             }
 
@@ -155,52 +153,9 @@ class ManualOrderCartService implements ManualOrderCartServiceInterface
     public function clear(MaxUserIdentity $customer, MaxUserIdentity $manager): void
     {
         $this->transactionManager->run(function () use ($customer, $manager): void {
-            $cart = $this->findManualDraft($customer, $manager);
-
-            if ($cart === null) {
-                return;
-            }
-
-            $this->cartRepository->delete($cart->id);
+            $this->cartItemMutationCoordinator->performClear(
+                CartDraftContext::manual($customer, $manager),
+            );
         });
-    }
-
-    /**
-     * Находит ручной черновик корзины клиента, созданный менеджером.
-     */
-    private function findManualDraft(MaxUserIdentity $customer, MaxUserIdentity $manager): ?CartRecord
-    {
-        return $this->cartRepository->findManualDraft(
-            $customer->maxUserId,
-            $manager->maxUserId,
-        );
-    }
-
-    /**
-     * Находит позицию ручного черновика корзины менеджера для клиента.
-     */
-    private function findOwnedManualCartItem(
-        MaxUserIdentity $customer,
-        MaxUserIdentity $manager,
-        int $cartItemId,
-    ): CartItemRecord {
-        $cartItem = $this->cartRepository->findItemById($cartItemId);
-
-        if ($cartItem === null) {
-            throw new FoodDomainException('Позиция корзины не найдена.', 404);
-        }
-
-        if (
-            $cartItem->cartMaxUserId !== $customer->maxUserId
-            || $cartItem->cartCreatedByMaxUserId !== $manager->maxUserId
-        ) {
-            throw new FoodDomainException('Позиция корзины не найдена.', 404);
-        }
-
-        if ($cartItem->cartStatus !== CartStatus::Draft) {
-            throw new FoodDomainException('Корзина больше недоступна для редактирования.');
-        }
-
-        return $cartItem;
     }
 }

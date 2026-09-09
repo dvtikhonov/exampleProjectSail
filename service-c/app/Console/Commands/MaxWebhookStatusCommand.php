@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\Max\UiStand\MaxWebhookSubscriber;
+use App\Contracts\Max\MaxWebhookSubscriptionClientInterface;
+use App\Contracts\Max\MaxWebhookUrlProbeInterface;
 use Illuminate\Console\Command;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
@@ -21,14 +22,16 @@ class MaxWebhookStatusCommand extends Command
     /**
      * Выводит подписки MAX и результат пробы webhook URL.
      */
-    public function handle(MaxWebhookSubscriber $subscriber): int
-    {
+    public function handle(
+        MaxWebhookSubscriptionClientInterface $subscriptionClient,
+        MaxWebhookUrlProbeInterface $urlProbe,
+    ): int {
         $configuredUrl = trim((string) config('max.webhook.url', ''));
 
         $this->line('Конфиг MAX_WEBHOOK_URL: '.($configuredUrl !== '' ? $configuredUrl : '(не задан)'));
 
         try {
-            $subscriptions = $subscriber->listSubscriptions();
+            $subscriptions = $subscriptionClient->listSubscriptions();
 
             if ($subscriptions === []) {
                 $this->warn('У бота нет активных webhook-подписок в MAX.');
@@ -58,7 +61,7 @@ class MaxWebhookStatusCommand extends Command
             return self::FAILURE;
         }
 
-        $probe = $subscriber->probeWebhookUrl();
+        $probe = $urlProbe->probeWebhookUrl();
 
         if ($probe['reachable']) {
             $this->info('Проба MAX_WEBHOOK_URL: OK (HTTP '.$probe['http_status'].')');

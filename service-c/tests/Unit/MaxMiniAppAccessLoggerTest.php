@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\Max\MaxMiniAppAccessLogger;
+use App\Contracts\Max\MaxMiniAppAccessLoggerInterface;
+use App\Http\Mappers\MaxMiniAppAccessContextMapper;
 use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Log;
@@ -31,7 +32,8 @@ class MaxMiniAppAccessLoggerTest extends TestCase
             'HTTP_USER_AGENT' => 'MAX-Desktop/1.0',
         ]);
 
-        $this->app->make(MaxMiniAppAccessLogger::class)->logPageRequest($request);
+        $context = $this->app->make(MaxMiniAppAccessContextMapper::class)->fromPageRequest($request);
+        $this->app->make(MaxMiniAppAccessLoggerInterface::class)->logPageRequest($context);
 
         $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX mini-app page requested');
         $this->assertSame('info', $log->level);
@@ -58,7 +60,8 @@ class MaxMiniAppAccessLoggerTest extends TestCase
             'HTTP_HOST' => '127.0.0.1:8083',
         ]);
 
-        $this->app->make(MaxMiniAppAccessLogger::class)->logAuthRequest($request, 200, 123);
+        $context = $this->app->make(MaxMiniAppAccessContextMapper::class)->fromAuthRequest($request);
+        $this->app->make(MaxMiniAppAccessLoggerInterface::class)->logAuthRequest($context, 200, 123);
 
         $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX mini-app auth requested');
         $this->assertSame(strlen($initData), $log->context['init_data_length']);

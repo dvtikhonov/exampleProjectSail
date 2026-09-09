@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Laravel;
 
+use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
-use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
-use App\Support\Max\MaxOpenAppButtonFactory;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 
 /**
  * Отправка уведомлений о новом заказе еды в чаты и пользователей MAX
@@ -23,9 +22,10 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
     public function __construct(
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
-        private readonly FoodOrderMaxMessageBuilder $messageBuilder,
+        private readonly FoodOrderCustomerMaxMessageBuilderInterface $messageBuilder,
         private readonly MaxOpenAppButtonFactory $openAppButtonFactory,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -37,7 +37,7 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('max_log')->warning(
+            $this->logger->warning(
                 'MAX order notification skipped: UI Stand recipients are not configured',
                 [
                     'order_id' => $order->id,

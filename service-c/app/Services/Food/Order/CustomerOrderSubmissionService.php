@@ -6,8 +6,8 @@ namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
 use App\Contracts\Food\Order\CustomerOrderSubmissionServiceInterface;
+use App\Contracts\Food\Order\FoodOrderAfterSubmitNotifierInterface;
 use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
-use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\RequestTimingRecorderInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -15,7 +15,6 @@ use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
 use App\Exceptions\Food\FoodDomainException;
-use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
 use App\Support\Profiling\OrderSubmitTiming;
 use Psr\Log\LoggerInterface;
 
@@ -29,7 +28,7 @@ class CustomerOrderSubmissionService implements CustomerOrderSubmissionServiceIn
         private readonly CartDraftRepositoryInterface $cartDraftRepository,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly LoggerInterface $logger,
-        private readonly JobDispatcherInterface $jobDispatcher,
+        private readonly FoodOrderAfterSubmitNotifierInterface $afterSubmitNotifier,
         private readonly RequestTimingRecorderInterface $requestTimingRecorder,
     ) {}
 
@@ -59,13 +58,13 @@ class CustomerOrderSubmissionService implements CustomerOrderSubmissionServiceIn
         $tTxMs = $this->elapsedMs($txStartedAt);
 
         $notifyStartedAt = hrtime(true);
-        $this->dispatchAfterSubmitNotify(
+        $this->afterSubmitNotifier->notify(
             order: $result['order'],
             dto: $result['dto'],
             maxUserId: $user->maxUserId,
             kind: FoodOrderAfterSubmitNotifyKind::Submitted,
         );
-        // tNotifyMs — постановка NotifyFoodOrderAfterSubmitJob в очередь (после commit, без ожидания MAX API).
+        // tNotifyMs — постановка after-submit notify в очередь (после commit, без ожидания MAX API).
         $tNotifyMs = $this->elapsedMs($notifyStartedAt);
         // tSubmitMs — полное время submit(): транзакция + dispatch уведомления.
         $tSubmitMs = $this->elapsedMs($submitStartedAt);
@@ -76,27 +75,10 @@ class CustomerOrderSubmissionService implements CustomerOrderSubmissionServiceIn
     }
 
     /**
-     * Ставит в очередь MAX-уведомления после commit транзакции оформления.
-     */
-    private function dispatchAfterSubmitNotify(
-        FoodOrderRecord $order,
-        OrderDto $dto,
-        int $maxUserId,
-        FoodOrderAfterSubmitNotifyKind $kind,
-    ): void {
-        $this->jobDispatcher->dispatch(new NotifyFoodOrderAfterSubmitJob(
-            orderDto: $dto,
-            orderId: $order->id,
-            maxUserId: $maxUserId,
-            kind: $kind,
-        ));
-    }
-
-    /**
      * Пишет профилирование submit в лог и (при HTTP) в атрибут запроса для Server-Timing.
      *
      * @param  float  $tTxMs  мс транзакции (корзина → заказ)
-     * @param  float  $tNotifyMs  мс dispatch NotifyFoodOrderAfterSubmitJob (не время доставки в MAX)
+     * @param  float  $tNotifyMs  мс dispatch after-submit notify (не время доставки в MAX)
      * @param  float  $tSubmitMs  мс всего submit() = tx + notify
      */
     private function recordSubmitTiming(float $tTxMs, float $tNotifyMs, float $tSubmitMs): void
