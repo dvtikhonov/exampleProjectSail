@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
+use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;

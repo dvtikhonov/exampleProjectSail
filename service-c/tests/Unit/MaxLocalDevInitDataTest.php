@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Services\Max\MaxWebAppInitDataValidator;
 use App\Http\Support\MaxLocalDevInitData;
+use App\Services\Max\MaxWebAppInitDataValidator;
 use App\Support\Max\MaxWebAppInitDataSigner;
 use Illuminate\Http\Request;
 use Tests\TestCase;

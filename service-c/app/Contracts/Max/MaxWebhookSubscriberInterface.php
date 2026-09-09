@@ -12,9 +12,4 @@ namespace App\Contracts\Max;
  * {@see MaxWebhookUrlProbeInterface},
  * {@see MaxWebhookStaleDevTunnelCleanerInterface}.
  */
-interface MaxWebhookSubscriberInterface extends
-    MaxWebhookSubscriptionClientInterface,
-    MaxWebhookUrlProbeInterface,
-    MaxWebhookStaleDevTunnelCleanerInterface
-{
-}
+interface MaxWebhookSubscriberInterface extends MaxWebhookStaleDevTunnelCleanerInterface, MaxWebhookSubscriptionClientInterface, MaxWebhookUrlProbeInterface {}

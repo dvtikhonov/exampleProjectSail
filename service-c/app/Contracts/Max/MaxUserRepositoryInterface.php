@@ -9,11 +9,4 @@ namespace App\Contracts\Max;
  *
  * Composition ISP: объединяет identity / delivery / AI / manual-order / load-test порты.
  */
-interface MaxUserRepositoryInterface extends
-    MaxUserIdentityRepositoryInterface,
-    MaxUserDeliveryRepositoryInterface,
-    MaxUserAiAccessRepositoryInterface,
-    MaxUserManualOrderQueryRepositoryInterface,
-    MaxLoadTestUserRepositoryInterface
-{
-}
+interface MaxUserRepositoryInterface extends MaxLoadTestUserRepositoryInterface, MaxUserAiAccessRepositoryInterface, MaxUserDeliveryRepositoryInterface, MaxUserIdentityRepositoryInterface, MaxUserManualOrderQueryRepositoryInterface {}

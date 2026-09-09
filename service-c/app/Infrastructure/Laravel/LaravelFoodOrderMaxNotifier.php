@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Laravel;
 
+use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
-use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use Psr\Log\LoggerInterface;
 
 /**

@@ -9,8 +9,4 @@ namespace App\Contracts\Food\Menu;
  *
  * Composition ISP: объединяет чтение сетки и запись графика.
  */
-interface DishAvailabilityScheduleServiceInterface extends
-    DishAvailabilityGridServiceInterface,
-    DishAvailabilityScheduleWriterInterface
-{
-}
+interface DishAvailabilityScheduleServiceInterface extends DishAvailabilityGridServiceInterface, DishAvailabilityScheduleWriterInterface {}

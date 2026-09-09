@@ -10,7 +10,6 @@ use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
-use App\Exceptions\Food\FoodDomainException;
 use App\Services\Food\Cart\CartAddItemPolicy;
 use App\Services\Food\Cart\CartDraftContext;
 use App\Services\Food\Cart\CartDtoFactory;

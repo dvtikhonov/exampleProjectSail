@@ -9,8 +9,4 @@ namespace App\Contracts\Food\Menu;
  *
  * Composition ISP: объединяет read / write порты.
  */
-interface MenuCategoryRepositoryInterface extends
-    MenuCategoryReadRepositoryInterface,
-    MenuCategoryWriteRepositoryInterface
-{
-}
+interface MenuCategoryRepositoryInterface extends MenuCategoryReadRepositoryInterface, MenuCategoryWriteRepositoryInterface {}

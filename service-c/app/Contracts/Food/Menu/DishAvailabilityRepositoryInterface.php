@@ -9,6 +9,4 @@ namespace App\Contracts\Food\Menu;
  *
  * Composition ISP: объединяет schedule / flag-sync порты.
  */
-interface DishAvailabilityRepositoryInterface extends
-    DishAvailabilityScheduleRepositoryInterface,
-    DishAvailabilityFlagSyncRepositoryInterface {}
+interface DishAvailabilityRepositoryInterface extends DishAvailabilityFlagSyncRepositoryInterface, DishAvailabilityScheduleRepositoryInterface {}

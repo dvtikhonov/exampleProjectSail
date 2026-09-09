@@ -9,8 +9,4 @@ namespace App\Contracts\Food\Order;
  *
  * Composition ISP: объединяет review / manual порты.
  */
-interface FoodOrderAdminReadRepositoryInterface extends
-    FoodOrderAdminReviewReadRepositoryInterface,
-    FoodOrderManualAdminReadRepositoryInterface
-{
-}
+interface FoodOrderAdminReadRepositoryInterface extends FoodOrderAdminReviewReadRepositoryInterface, FoodOrderManualAdminReadRepositoryInterface {}

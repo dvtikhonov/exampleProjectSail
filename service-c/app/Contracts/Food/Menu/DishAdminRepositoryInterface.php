@@ -9,9 +9,4 @@ namespace App\Contracts\Food\Menu;
  *
  * Composition ISP: объединяет read / write / bulk порты.
  */
-interface DishAdminRepositoryInterface extends
-    DishAdminReadRepositoryInterface,
-    DishAdminWriteRepositoryInterface,
-    DishAdminBulkRepositoryInterface
-{
-}
+interface DishAdminRepositoryInterface extends DishAdminBulkRepositoryInterface, DishAdminReadRepositoryInterface, DishAdminWriteRepositoryInterface {}
