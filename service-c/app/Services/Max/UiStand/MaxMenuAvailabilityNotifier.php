@@ -7,9 +7,10 @@ namespace App\Services\Max\UiStand;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -23,7 +24,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
 
     public function __construct(
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserDeliveryRepositoryInterface $maxUserRepository,
         private readonly ApplicationConfigInterface $config,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
         private readonly LoggerInterface $logger,
@@ -32,7 +33,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     /**
      * {@inheritDoc}
      */
-    public function notify(CarbonImmutable $menuDate): int
+    public function notify(DateTimeInterface $menuDate): int
     {
         if (! $this->isBotConfigured()) {
             $this->logger->warning('MAX menu availability notification skipped: bot is not configured');
@@ -99,11 +100,11 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     /**
      * Формирует текст уведомления для указанной даты (MSK).
      */
-    public static function messageTextForDate(CarbonImmutable $date): string
+    public static function messageTextForDate(DateTimeInterface $date): string
     {
         return sprintf(
             'Доступно для заказов меню на %s',
-            $date->timezone(self::TIMEZONE)->format('d.m.Y'),
+            CarbonImmutable::instance($date)->timezone(self::TIMEZONE)->format('d.m.Y'),
         );
     }
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
@@ -29,12 +29,12 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
             'max.rate_limit_retry_delay_ms' => 0,
         ]);
 
-        $maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $maxUserRepository = $this->createMock(MaxUserDeliveryRepositoryInterface::class);
         $maxUserRepository
             ->method('listMaxUserIdsWithDeliveryAddress')
             ->willReturn([]);
 
-        $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
+        $this->app->instance(MaxUserDeliveryRepositoryInterface::class, $maxUserRepository);
     }
 
     /** Notify шлёт получателям уведомлений о заказах с датой из аргумента. */
@@ -72,11 +72,11 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
             'max.order_notifications.user_ids' => [],
         ]);
 
-        $maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $maxUserRepository = $this->createMock(MaxUserDeliveryRepositoryInterface::class);
         $maxUserRepository
             ->method('listMaxUserIdsWithDeliveryAddress')
             ->willReturn([333]);
-        $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
+        $this->app->instance(MaxUserDeliveryRepositoryInterface::class, $maxUserRepository);
 
         Http::fake([
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
@@ -100,11 +100,11 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
             'max.order_notifications.user_ids' => [222],
         ]);
 
-        $maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $maxUserRepository = $this->createMock(MaxUserDeliveryRepositoryInterface::class);
         $maxUserRepository
             ->method('listMaxUserIdsWithDeliveryAddress')
             ->willReturn([222, 333]);
-        $this->app->instance(MaxUserRepositoryInterface::class, $maxUserRepository);
+        $this->app->instance(MaxUserDeliveryRepositoryInterface::class, $maxUserRepository);
 
         Http::fake([
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),

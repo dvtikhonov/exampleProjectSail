@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\Max\MaxUiStandRecipientRegistry;
+use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -21,7 +21,7 @@ class MaxUiStandRecipientRegistryTest extends TestCase
     /** Запоминает chat_id и user_id. */
     public function test_remembers_chat_and_user_ids(): void
     {
-        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $registry = $this->app->make(LaravelMaxUiStandRecipientRegistry::class);
 
         $registry->rememberChatId(-100500);
         $registry->rememberUserId(777);
@@ -33,7 +33,7 @@ class MaxUiStandRecipientRegistryTest extends TestCase
     /** Перемещает недавнего получателя вперёд без дублей. */
     public function test_moves_recent_recipient_to_front_without_duplicates(): void
     {
-        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $registry = $this->app->make(LaravelMaxUiStandRecipientRegistry::class);
 
         $registry->rememberChatId(100);
         $registry->rememberChatId(200);

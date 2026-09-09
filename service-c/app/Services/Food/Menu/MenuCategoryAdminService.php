@@ -57,13 +57,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
     {
         $this->assertRestaurantExists($dto->restaurantId);
 
-        $category = $this->menuCategoryRepository->create([
-            'restaurant_id' => $dto->restaurantId,
-            'name' => $dto->name,
-            'sort_order' => $this->menuCategoryRepository->nextSortOrderForRestaurant($dto->restaurantId),
-            'is_combo_available' => $dto->isComboAvailable,
-        ]);
-
+        $category = $this->menuCategoryRepository->create($dto);
         $this->menuCategoryRepository->syncAvailabilityOffsets($category->id, $dto->availabilityOffsets);
 
         $result = $this->mapToAdminDto($this->findCategoryOrFail($category->id));
@@ -91,12 +85,7 @@ class MenuCategoryAdminService implements MenuCategoryAdminServiceInterface
             );
         }
 
-        $this->menuCategoryRepository->update($categoryId, [
-            'restaurant_id' => $dto->restaurantId,
-            'name' => $dto->name,
-            'sort_order' => $dto->sortOrder,
-            'is_combo_available' => $dto->isComboAvailable,
-        ]);
+        $this->menuCategoryRepository->update($categoryId, $dto);
 
         if ($dto->availabilityOffsets !== null) {
             $this->menuCategoryRepository->syncAvailabilityOffsets($categoryId, $dto->availabilityOffsets);

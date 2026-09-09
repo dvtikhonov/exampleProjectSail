@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
-use App\Support\Max\MaxUiStandRecipientRegistry;
+use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -61,7 +61,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
         $this->assertCount(1, $webhookLogs);
         $this->assertSame('bot_started', $webhookLogs[0]->context['update_type'] ?? null);
 
-        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $registry = $this->app->make(LaravelMaxUiStandRecipientRegistry::class);
         $this->assertSame([777], $registry->userIds());
     }
 
@@ -87,7 +87,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
             ],
         ]);
 
-        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $registry = $this->app->make(LaravelMaxUiStandRecipientRegistry::class);
         $this->assertSame([-100500], $registry->chatIds());
         $this->assertSame([], $registry->userIds());
     }

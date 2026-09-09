@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
+use App\Enums\Food\Order\AdminOrderListScope;
+use App\Enums\Food\Order\AdminOrderListStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -40,8 +42,8 @@ class ListAdminOrdersRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'scope' => ['required', 'string', Rule::in(['address', 'composition'])],
-            'status' => ['nullable', 'string', Rule::in(['pending', 'all'])],
+            'scope' => ['required', 'string', Rule::enum(AdminOrderListScope::class)],
+            'status' => ['nullable', 'string', Rule::enum(AdminOrderListStatus::class)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
         ];
     }
@@ -55,8 +57,8 @@ class ListAdminOrdersRequest extends FormRequest
     {
         return [
             'scope.required' => 'Параметр запроса scope обязателен.',
-            'scope.in' => 'Некорректный scope. Используйте address или composition.',
-            'status.in' => 'Некорректный status. Используйте pending или all.',
+            'scope.Illuminate\Validation\Rules\Enum' => 'Некорректный scope. Используйте address или composition.',
+            'status.Illuminate\Validation\Rules\Enum' => 'Некорректный status. Используйте pending или all.',
         ];
     }
 
@@ -77,19 +79,23 @@ class ListAdminOrdersRequest extends FormRequest
     /**
      * Scope проверки: address или composition.
      */
-    public function scope(): string
+    public function scope(): AdminOrderListScope
     {
-        return (string) $this->validated('scope');
+        return AdminOrderListScope::from((string) $this->validated('scope'));
     }
 
     /**
      * Статус фильтра списка (по умолчанию pending).
      */
-    public function listStatus(): string
+    public function listStatus(): AdminOrderListStatus
     {
         $value = $this->validated('status');
 
-        return is_string($value) && $value !== '' ? $value : 'pending';
+        if (! is_string($value) || $value === '') {
+            return AdminOrderListStatus::Pending;
+        }
+
+        return AdminOrderListStatus::from($value);
     }
 
     /**

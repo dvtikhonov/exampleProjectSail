@@ -8,7 +8,7 @@ use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\DTO\Max\MaxWebAppInitDataDto;
@@ -28,7 +28,7 @@ class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
         private readonly ApplicationConfigInterface $config,
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserIdentityRepositoryInterface $maxUserRepository,
         private readonly MaxMiniAppTokenIssuerInterface $tokenIssuer,
         private readonly ClockInterface $clock,
     ) {}

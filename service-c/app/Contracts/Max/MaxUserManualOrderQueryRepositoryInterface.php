@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Contracts\Max;
+
+use App\DTO\Max\MaxUserRecord;
+use App\DTO\Shared\PaginatedResultDto;
+
+/**
+ * Поиск пользователей MAX для ручных заказов.
+ */
+interface MaxUserManualOrderQueryRepositoryInterface
+{
+    /**
+     * Постраничный поиск пользователей для ручных заказов.
+     *
+     * @return PaginatedResultDto<MaxUserRecord>
+     */
+    public function paginateForManualOrders(?string $query, int $perPage): PaginatedResultDto;
+
+    /**
+     * Поиск пользователей по подстроке в first_name / last_name / username (без delivery_address).
+     *
+     * @return list<MaxUserRecord>
+     */
+    public function findByNameFieldsSubstring(string $query): array;
+}

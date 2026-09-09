@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Max;
 
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 
 /**
  * Рассылка ежедневного меню пользователям с ролью max_manager.
@@ -18,5 +18,5 @@ interface MaxManagerDailyMenuNotifierInterface
      *
      * @return int Количество успешно отправленных сообщений
      */
-    public function notify(CarbonImmutable $menuDate): int;
+    public function notify(DateTimeInterface $menuDate): int;
 }

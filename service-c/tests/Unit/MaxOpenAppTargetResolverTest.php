@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\Max\MaxOpenAppTargetResolver;
+use App\Infrastructure\Laravel\MaxOpenAppTargetResolver;
 use Tests\TestCase;
 
 class MaxOpenAppTargetResolverTest extends TestCase

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Menu;
 
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Menu\ImportDishRowDto;
 use App\Enums\Food\Menu\DishVatRate;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Парсер строки импорта блюд: колонка A — «Название. {вес}г», колонка B — цена.
@@ -16,7 +16,7 @@ use App\Services\Food\Shared\FoodMoneyFormatter;
 class DishSpreadsheetRowParser
 {
     public function __construct(
-        private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly FoodMoneyFormatterInterface $moneyFormatter,
     ) {}
 
     /**

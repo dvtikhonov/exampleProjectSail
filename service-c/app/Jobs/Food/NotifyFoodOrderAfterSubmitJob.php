@@ -7,7 +7,7 @@ namespace App\Jobs\Food;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
 use App\Mappers\Max\MaxUserDisplayMapper;
@@ -44,7 +44,7 @@ class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
         FoodOrderMaxNotifierInterface $maxNotifier,
         FoodOrderCustomerNotifierInterface $customerNotifier,
         FoodOrderCustomerReadRepositoryInterface $foodOrderCustomerReadRepository,
-        MaxUserRepositoryInterface $maxUserRepository,
+        MaxUserIdentityRepositoryInterface $maxUserRepository,
         MaxUserDisplayMapper $maxUserDisplayMapper,
         LoggerInterface $logger,
     ): void {

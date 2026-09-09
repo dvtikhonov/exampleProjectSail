@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
@@ -11,10 +12,8 @@ use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
 use App\DTO\Max\MaxOrderNotificationConfig;
 use App\Infrastructure\Laravel\LaravelFoodOrderMaxNotifier;
-use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Max\MaxMessengerNotificationSender;
-use App\Support\Food\Composition\OrderSnapshotComboResolver;
-use App\Support\Max\MaxOpenAppButtonFactory;
+use App\Infrastructure\Laravel\MaxOpenAppButtonFactory;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -224,9 +223,10 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         return new LaravelFoodOrderMaxNotifier(
             configProvider: $this->makeConfigProvider($config),
             uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolverInterface::class),
-            messageBuilder: new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver),
+            messageBuilder: $this->app->make(FoodOrderCustomerMaxMessageBuilderInterface::class),
             openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
             notificationSender: $this->makeNotificationSender($client),
+            logger: Log::channel('max_log'),
         );
     }
 

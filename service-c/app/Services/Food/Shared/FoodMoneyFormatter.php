@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Shared;
 
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
+
 /**
  * Форматирование денежных сумм для API заказа еды.
  */
-class FoodMoneyFormatter
+class FoodMoneyFormatter implements FoodMoneyFormatterInterface
 {
     /**
      * Форматирует сумму с двумя знаками после запятой.

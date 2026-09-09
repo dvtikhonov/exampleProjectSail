@@ -3,10 +3,14 @@
 use App\Http\Controllers\Api\Food\AdminAiAccessController;
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
-use App\Http\Controllers\Api\Food\AdminManualOrderController;
+use App\Http\Controllers\Api\Food\AdminDraftAfterScanningOrderController;
+use App\Http\Controllers\Api\Food\AdminManualOrderCartController;
+use App\Http\Controllers\Api\Food\AdminManualOrderQueryController;
 use App\Http\Controllers\Api\Food\AdminMaxBotTestController;
 use App\Http\Controllers\Api\Food\AdminMenuCategoryController;
-use App\Http\Controllers\Api\Food\AdminOrderReviewController;
+use App\Http\Controllers\Api\Food\AdminOrderCompositionController;
+use App\Http\Controllers\Api\Food\AdminOrderReviewQueryController;
+use App\Http\Controllers\Api\Food\AdminOrderReviewStepController;
 use App\Http\Controllers\Api\Food\CartController;
 use App\Http\Controllers\Api\Food\DishImageController;
 use App\Http\Controllers\Api\Food\OrderChatController;
@@ -65,9 +69,9 @@ Route::middleware('max.miniapp.auth')->group(function () {
             ->whereNumber('order');
 
         Route::prefix('admin')->group(function () {
-            Route::get('/me', [AdminOrderReviewController::class, 'me']);
-            Route::get('/orders', [AdminOrderReviewController::class, 'index']);
-            Route::get('/orders/{order}', [AdminOrderReviewController::class, 'show'])
+            Route::get('/me', [AdminOrderReviewQueryController::class, 'me']);
+            Route::get('/orders', [AdminOrderReviewQueryController::class, 'index']);
+            Route::get('/orders/{order}', [AdminOrderReviewQueryController::class, 'show'])
                 ->whereNumber('order');
 
             Route::middleware('food.order.admin:max_manager')->group(function () {
@@ -75,25 +79,25 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 Route::post('/ai-access/toggle', [AdminAiAccessController::class, 'toggle']);
             });
 
-            Route::post('/orders/{order}/address/approve', [AdminOrderReviewController::class, 'approveAddress'])
+            Route::post('/orders/{order}/address/approve', [AdminOrderReviewStepController::class, 'approveAddress'])
                 ->middleware('food.order.admin:address_reviewer')
                 ->whereNumber('order');
-            Route::post('/orders/{order}/address/reject', [AdminOrderReviewController::class, 'rejectAddress'])
+            Route::post('/orders/{order}/address/reject', [AdminOrderReviewStepController::class, 'rejectAddress'])
                 ->middleware('food.order.admin:address_reviewer')
                 ->whereNumber('order');
-            Route::post('/orders/{order}/payment/approve', [AdminOrderReviewController::class, 'approvePayment'])
+            Route::post('/orders/{order}/payment/approve', [AdminOrderReviewStepController::class, 'approvePayment'])
                 ->middleware('food.order.admin:address_reviewer')
                 ->whereNumber('order');
-            Route::post('/orders/{order}/payment/reject', [AdminOrderReviewController::class, 'rejectPayment'])
+            Route::post('/orders/{order}/payment/reject', [AdminOrderReviewStepController::class, 'rejectPayment'])
                 ->middleware('food.order.admin:address_reviewer')
                 ->whereNumber('order');
-            Route::post('/orders/{order}/composition/approve', [AdminOrderReviewController::class, 'approveComposition'])
+            Route::post('/orders/{order}/composition/approve', [AdminOrderReviewStepController::class, 'approveComposition'])
                 ->middleware('food.order.admin:composition_reviewer')
                 ->whereNumber('order');
-            Route::post('/orders/{order}/composition/reject', [AdminOrderReviewController::class, 'rejectComposition'])
+            Route::post('/orders/{order}/composition/reject', [AdminOrderReviewStepController::class, 'rejectComposition'])
                 ->middleware('food.order.admin:composition_reviewer')
                 ->whereNumber('order');
-            Route::put('/orders/{order}/composition', [AdminOrderReviewController::class, 'updateComposition'])
+            Route::put('/orders/{order}/composition', [AdminOrderCompositionController::class, 'updateComposition'])
                 ->middleware('food.order.admin:composition_reviewer')
                 ->whereNumber('order');
 
@@ -126,24 +130,24 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::prefix('manual-orders')
                 ->middleware('food.order.admin:max_manager')
                 ->group(function () {
-                    Route::get('/', [AdminManualOrderController::class, 'index']);
-                    Route::get('/users', [AdminManualOrderController::class, 'users']);
-                    Route::get('/cart', [AdminManualOrderController::class, 'showCart']);
-                    Route::patch('/cart', [AdminManualOrderController::class, 'updateDeliveryAddress']);
-                    Route::delete('/cart', [AdminManualOrderController::class, 'clearCart']);
-                    Route::post('/cart/items', [AdminManualOrderController::class, 'storeItem']);
-                    Route::patch('/cart/items/{item}', [AdminManualOrderController::class, 'updateItem'])
+                    Route::get('/', [AdminManualOrderQueryController::class, 'index']);
+                    Route::get('/users', [AdminManualOrderQueryController::class, 'users']);
+                    Route::get('/cart', [AdminManualOrderCartController::class, 'showCart']);
+                    Route::patch('/cart', [AdminManualOrderCartController::class, 'updateDeliveryAddress']);
+                    Route::delete('/cart', [AdminManualOrderCartController::class, 'clearCart']);
+                    Route::post('/cart/items', [AdminManualOrderCartController::class, 'storeItem']);
+                    Route::patch('/cart/items/{item}', [AdminManualOrderCartController::class, 'updateItem'])
                         ->whereNumber('item');
-                    Route::delete('/cart/items/{item}', [AdminManualOrderController::class, 'destroyItem'])
+                    Route::delete('/cart/items/{item}', [AdminManualOrderCartController::class, 'destroyItem'])
                         ->whereNumber('item');
-                    Route::post('/submit', [AdminManualOrderController::class, 'submit']);
-                    Route::post('/{order}/complete', [AdminManualOrderController::class, 'complete'])
+                    Route::post('/submit', [AdminManualOrderCartController::class, 'submit']);
+                    Route::post('/{order}/complete', [AdminDraftAfterScanningOrderController::class, 'complete'])
                         ->whereNumber('order');
-                    Route::post('/{order}/move-to-cart', [AdminManualOrderController::class, 'moveToCart'])
+                    Route::post('/{order}/move-to-cart', [AdminDraftAfterScanningOrderController::class, 'moveToCart'])
                         ->whereNumber('order');
-                    Route::delete('/{order}', [AdminManualOrderController::class, 'destroy'])
+                    Route::delete('/{order}', [AdminDraftAfterScanningOrderController::class, 'destroy'])
                         ->whereNumber('order');
-                    Route::get('/{order}', [AdminManualOrderController::class, 'show'])
+                    Route::get('/{order}', [AdminManualOrderQueryController::class, 'show'])
                         ->whereNumber('order');
                 });
         });

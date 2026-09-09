@@ -10,7 +10,8 @@ use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\DTO\Food\PhotoText\PhotoTextMatchedLineDto;
 use App\DTO\Food\PhotoText\PhotoTextPlacementResultDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
@@ -27,8 +28,9 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
         private readonly PhotoTextDishLineResolverInterface $dishLineResolver,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
         private readonly ManualOrderSubmissionServiceInterface $orderSubmissionService,
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserIdentityRepositoryInterface $maxUserRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly ApplicationConfigInterface $config,
     ) {}
 
     /**
@@ -88,7 +90,7 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
      */
     private function resolveManager(): MaxUserIdentity
     {
-        $managerId = (int) config('phototext.manager_max_user_id');
+        $managerId = (int) $this->config->get('phototext.manager_max_user_id');
 
         if ($managerId < 1) {
             throw new FoodDomainException('PhotoText-менеджер не настроен.', 500);

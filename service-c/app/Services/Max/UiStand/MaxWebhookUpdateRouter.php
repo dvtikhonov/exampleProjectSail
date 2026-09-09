@@ -4,22 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services\Max\UiStand;
 
-use App\Contracts\Max\MaxCallbackHandlerInterface;
-use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
-use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
+use App\Contracts\Max\MaxWebhookUpdateHandlerInterface;
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
-use App\DTO\Max\MaxCallbackUpdateDto;
 use Psr\Log\LoggerInterface;
 
 /**
- * Маршрутизация webhook-обновлений MAX по типу события.
+ * Маршрутизация webhook-обновлений MAX по типу события через реестр handlers.
  */
 final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
 {
+    /**
+     * @param  array<string, MaxWebhookUpdateHandlerInterface>  $handlers
+     */
     public function __construct(
-        private readonly MaxCallbackHandlerInterface $callbackHandler,
-        private readonly MaxUiStandGreetingSenderInterface $greetingSender,
-        private readonly MaxUiStandRecipientRegistryInterface $recipientRegistry,
+        private readonly array $handlers,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -36,85 +34,12 @@ final class MaxWebhookUpdateRouter implements MaxWebhookUpdateRouterInterface
             'update_type' => $updateType !== '' ? $updateType : 'unknown',
         ]);
 
-        match ($updateType) {
-            'message_callback' => $this->handleMessageCallback($payload),
-            'bot_started' => $this->handleBotStarted($payload),
-            default => null,
-        };
-    }
+        $handler = $this->handlers[$updateType] ?? null;
 
-    /**
-     * Обрабатывает callback нажатия кнопки в сообщении.
-     *
-     * @param  array<string, mixed>  $payload
-     */
-    private function handleMessageCallback(array $payload): void
-    {
-        $callback = $payload['callback'] ?? [];
-
-        if (! is_array($callback)) {
+        if ($handler === null) {
             return;
         }
 
-        $callbackId = (string) ($callback['callback_id'] ?? '');
-        $buttonPayload = (string) ($callback['payload'] ?? '');
-
-        if ($callbackId === '') {
-            return;
-        }
-
-        $userId = isset($callback['user']['user_id']) ? (int) $callback['user']['user_id'] : null;
-        $message = $payload['message'] ?? [];
-        $recipient = is_array($message) ? ($message['recipient'] ?? []) : [];
-        $chatId = is_array($recipient) && isset($recipient['chat_id'])
-            ? (int) $recipient['chat_id']
-            : null;
-
-        if ($chatId !== null && $chatId !== 0) {
-            $this->recipientRegistry->rememberChatId($chatId);
-        } elseif ($userId !== null && $userId > 0) {
-            $this->recipientRegistry->rememberUserId($userId);
-        }
-
-        if ($userId !== null) {
-            $this->callbackHandler->handle(new MaxCallbackUpdateDto(
-                callbackId: $callbackId,
-                payload: $buttonPayload,
-                userId: $userId,
-            ));
-
-            return;
-        }
-
-        if ($chatId !== null) {
-            $this->callbackHandler->handle(new MaxCallbackUpdateDto(
-                callbackId: $callbackId,
-                payload: $buttonPayload,
-                chatId: $chatId,
-            ));
-        }
-    }
-
-    /**
-     * Обрабатывает событие запуска бота пользователем.
-     *
-     * @param  array<string, mixed>  $payload
-     */
-    private function handleBotStarted(array $payload): void
-    {
-        $userId = 0;
-
-        if (isset($payload['user']['user_id'])) {
-            $userId = (int) $payload['user']['user_id'];
-        } elseif (isset($payload['user_id'])) {
-            $userId = (int) $payload['user_id'];
-        }
-
-        $this->logger->info('bot_started', ['user_id' => $userId]);
-
-        if ($userId > 0) {
-            $this->recipientRegistry->rememberUserId($userId);
-            $this->greetingSender->sendToUser($userId);
-        }
+        $handler->handle($payload);
     }
 }

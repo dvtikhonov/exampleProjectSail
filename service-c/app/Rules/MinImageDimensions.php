@@ -30,7 +30,10 @@ class MinImageDimensions implements ValidationRule
             return;
         }
 
-        $dimensions = DishPhotoAllowedExtensions::readDimensions($value);
+        $path = $value->getRealPath();
+        $dimensions = $path === false
+            ? null
+            : DishPhotoAllowedExtensions::readDimensionsFromPath($path);
 
         if ($dimensions === null) {
             $fail('Не удалось прочитать размеры изображения.');

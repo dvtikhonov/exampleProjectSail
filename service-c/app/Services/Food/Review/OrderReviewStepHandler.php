@@ -6,6 +6,8 @@ namespace App\Services\Food\Review;
 
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
+use App\Contracts\Food\Review\OrderReviewCompletionServiceInterface;
 use App\Contracts\Food\Review\OrderReviewStepHandlerInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -20,9 +22,9 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
 {
     public function __construct(
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
-        private readonly OrderReviewAuthorizationService $orderReviewAuthorizationService,
+        private readonly OrderReviewAuthorizationServiceInterface $orderReviewAuthorizationService,
         private readonly OrderReviewUpdateFactory $orderReviewUpdateFactory,
-        private readonly OrderReviewCompletionService $orderReviewCompletionService,
+        private readonly OrderReviewCompletionServiceInterface $orderReviewCompletionService,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly TransactionManagerInterface $transactionManager,
     ) {}

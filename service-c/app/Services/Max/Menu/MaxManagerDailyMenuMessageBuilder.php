@@ -10,6 +10,7 @@ use App\DTO\Food\Menu\DailyMenuLineDto;
 use App\DTO\Max\MaxManagerDailyMenuMessagesDto;
 use App\Enums\Food\Menu\DailyMenuLineType;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 
 /**
  * Тексты ежедневного меню для пересылки менеджерами MAX.
@@ -25,7 +26,7 @@ class MaxManagerDailyMenuMessageBuilder implements MaxManagerDailyMenuMessageBui
     /**
      * {@inheritDoc}
      */
-    public function build(CarbonImmutable $menuDate, array $lines): MaxManagerDailyMenuMessagesDto
+    public function build(DateTimeInterface $menuDate, array $lines): MaxManagerDailyMenuMessagesDto
     {
         $body = $this->buildBody($menuDate, $lines);
 
@@ -38,9 +39,11 @@ class MaxManagerDailyMenuMessageBuilder implements MaxManagerDailyMenuMessageBui
     /**
      * @param  list<DailyMenuLineDto>  $lines
      */
-    private function buildBody(CarbonImmutable $menuDate, array $lines): string
+    private function buildBody(DateTimeInterface $menuDate, array $lines): string
     {
-        $dateLabel = $menuDate->timezone(self::TIMEZONE)->format('d.m.y');
+        $dateLabel = CarbonImmutable::instance($menuDate)
+            ->timezone(self::TIMEZONE)
+            ->format('d.m.y');
         $parts = [
             'Добрый день!',
             sprintf('Меню на %s:', $dateLabel),

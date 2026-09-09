@@ -12,10 +12,11 @@ use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\ListAdminDishesRequest;
+use App\Http\Requests\Food\Admin\ShowAdminDishRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
 use App\Http\Requests\Food\Admin\UpdateDishRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -28,6 +29,7 @@ class AdminDishController extends Controller
         private readonly DishAdminServiceInterface $dishAdminService,
         private readonly DishSpreadsheetImportServiceInterface $dishSpreadsheetImportService,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -57,10 +59,12 @@ class AdminDishController extends Controller
     /**
      * Карточка блюда для формы редактирования.
      */
-    public function show(int $dish): JsonResponse
+    public function show(ShowAdminDishRequest $request): JsonResponse
     {
-        return $this->respondDish(function () use ($dish) {
-            return $this->dishAdminService->show($dish);
+        $dishId = $request->dishId();
+
+        return $this->respondDish(function () use ($dishId) {
+            return $this->dishAdminService->show($dishId);
         });
     }
 
@@ -116,9 +120,9 @@ class AdminDishController extends Controller
     /**
      * Удаление блюда.
      */
-    public function destroy(int $dish): Response
+    public function destroy(ShowAdminDishRequest $request): Response
     {
-        $this->dishAdminService->delete($dish);
+        $this->dishAdminService->delete($request->dishId());
 
         return response()->noContent();
     }
@@ -135,7 +139,7 @@ class AdminDishController extends Controller
                 throw $exception;
             }
 
-            Log::error('Admin dish action failed.', [
+            $this->logger->error('Admin dish action failed.', [
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);

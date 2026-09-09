@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Laravel;
 
+use App\Contracts\Food\Chat\FoodOrderChatMaxMessageBuilderInterface;
+use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\OrderRejectionScope;
-use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
-use App\Support\Max\MaxOpenAppButtonFactory;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 
 /**
@@ -21,11 +21,13 @@ use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInterface
 {
     public function __construct(
-        private readonly FoodOrderMaxMessageBuilder $messageBuilder,
+        private readonly FoodOrderCustomerMaxMessageBuilderInterface $messageBuilder,
+        private readonly FoodOrderChatMaxMessageBuilderInterface $chatMessageBuilder,
         private readonly MaxOpenAppButtonFactory $openAppButtonFactory,
         private readonly OrderCustomerNotifyRecipientResolverInterface $recipientResolver,
         private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -87,7 +89,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('max_log')->warning(
+            $this->logger->warning(
                 'MAX manual order creator notification fallback skipped: UI Stand recipients are not configured',
                 ['order_id' => $order->id],
             );
@@ -134,7 +136,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
     {
         return $this->openAppButtonFactory->buildOrderChatButtonRows(
             $orderId,
-            $this->messageBuilder->buildOrderChatStartParam($orderId),
+            $this->chatMessageBuilder->buildOrderChatStartParam($orderId),
         );
     }
 

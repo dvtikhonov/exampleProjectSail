@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Max;
 
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 
 /**
  * Уведомление в MAX о доступности меню на дату «Блюда на» после cron-синхронизации.
@@ -17,5 +17,5 @@ interface MaxMenuAvailabilityNotifierInterface
      *
      * @return int Количество успешно отправленных сообщений
      */
-    public function notify(CarbonImmutable $menuDate): int;
+    public function notify(DateTimeInterface $menuDate): int;
 }

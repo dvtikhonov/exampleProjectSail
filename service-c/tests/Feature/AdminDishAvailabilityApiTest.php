@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Shared\ClockInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Food\DishAvailabilityDate;
 use App\Models\Max\MaxUser;
@@ -265,7 +266,9 @@ class AdminDishAvailabilityApiTest extends TestCase
      */
     private function scheduleDates(): array
     {
-        $today = CarbonImmutable::now(self::TIMEZONE)->startOfDay();
+        $today = CarbonImmutable::instance($this->app->make(ClockInterface::class)->now())
+            ->timezone(self::TIMEZONE)
+            ->startOfDay();
         $editableFrom = $today;
 
         return [

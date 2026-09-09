@@ -8,7 +8,7 @@ use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCatalogCacheInvalidatorInterface;
 use App\Contracts\Max\MaxLoadTestDataRepositoryInterface;
 use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxLoadTestUserRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Contracts\Shared\ApplicationEnvironmentInterface;
 use App\Contracts\Shared\ClockInterface;
@@ -33,7 +33,7 @@ class MaxLoadTestServiceTest extends TestCase
 
     private MenuCatalogCacheInvalidatorInterface&MockObject $catalogCacheInvalidator;
 
-    private MaxUserRepositoryInterface&MockObject $maxUserRepository;
+    private MaxLoadTestUserRepositoryInterface&MockObject $maxUserRepository;
 
     private MaxLoadTestDataRepositoryInterface&MockObject $loadTestDataRepository;
 
@@ -54,7 +54,7 @@ class MaxLoadTestServiceTest extends TestCase
         $this->config = $this->createMock(ApplicationConfigInterface::class);
         $this->customerCategoryRepository = $this->createMock(CustomerCategoryRepositoryInterface::class);
         $this->catalogCacheInvalidator = $this->createMock(MenuCatalogCacheInvalidatorInterface::class);
-        $this->maxUserRepository = $this->createMock(MaxUserRepositoryInterface::class);
+        $this->maxUserRepository = $this->createMock(MaxLoadTestUserRepositoryInterface::class);
         $this->loadTestDataRepository = $this->createMock(MaxLoadTestDataRepositoryInterface::class);
         $this->tokenIssuer = $this->createMock(MaxMiniAppTokenIssuerInterface::class);
         $this->clock = $this->createMock(ClockInterface::class);

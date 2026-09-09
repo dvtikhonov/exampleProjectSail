@@ -7,12 +7,12 @@ namespace App\Services\Food\Order;
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
 use App\Contracts\Food\Order\CustomerOrderQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Order\OrderListItemDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Выборка заказов клиента для API MAX mini-app.
@@ -22,7 +22,7 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
     public function __construct(
         private readonly FoodOrderCustomerReadRepositoryInterface $foodOrderReadRepository,
         private readonly OrderMessageRepositoryInterface $orderMessageRepository,
-        private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly FoodMoneyFormatterInterface $moneyFormatter,
     ) {}
 
     /**

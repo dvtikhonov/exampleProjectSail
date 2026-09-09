@@ -5,32 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food\PhotoText;
 
 use App\DTO\Food\PhotoText\PhotoTextAgentItemDto;
-use App\Http\Requests\Food\PhotoText\Concerns\ValidatesActiveRestaurant;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Валидация тела match/place агента PhotoText (без цен, без серверного split комбо).
  */
-class PhotoTextAgentOrderRequest extends FormRequest
+class PhotoTextAgentOrderRequest extends PhotoTextAgentFormRequest
 {
-    use ValidatesActiveRestaurant;
-
-    /**
-     * Разрешает выполнение запроса.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Всегда ожидает JSON-ответ.
-     */
-    public function wantsJson(): bool
-    {
-        return true;
-    }
-
     /**
      * Правила: клиент, дата Y-m-d, активный ресторан, позиции с каноническим именем.
      *
@@ -46,6 +26,18 @@ class PhotoTextAgentOrderRequest extends FormRequest
             'items.*.name' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'items.*.combo_ref' => ['nullable', 'uuid'],
+        ];
+    }
+
+    /**
+     * Сообщения об ошибках валидации.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            ...$this->activeRestaurantIdMessages(),
         ];
     }
 

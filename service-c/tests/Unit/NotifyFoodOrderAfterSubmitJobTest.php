@@ -7,7 +7,7 @@ namespace Tests\Unit;
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
@@ -110,7 +110,7 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
             $maxNotifier,
             $customerNotifier,
             app(FoodOrderCustomerReadRepositoryInterface::class),
-            app(MaxUserRepositoryInterface::class),
+            app(MaxUserIdentityRepositoryInterface::class),
             app(MaxUserDisplayMapper::class),
             app(LoggerInterface::class),
         );

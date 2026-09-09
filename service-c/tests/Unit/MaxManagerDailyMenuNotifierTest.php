@@ -59,7 +59,7 @@ class MaxManagerDailyMenuNotifierTest extends TestCase
             ->method('build')
             ->with(
                 $this->callback(
-                    fn (CarbonImmutable $date): bool => $date->equalTo($menuDate),
+                    fn (\DateTimeInterface $date): bool => $date->format('Y-m-d') === $menuDate->format('Y-m-d'),
                 ),
                 [],
             )

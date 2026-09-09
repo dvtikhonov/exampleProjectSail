@@ -8,6 +8,7 @@ use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Cart\CartRecord;
@@ -19,7 +20,6 @@ use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Services\Food\Cart\CartTotalsCalculator;
 use App\Services\Food\Review\OrderStatusResolver;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 use DateTimeInterface;
 
 /**
@@ -28,7 +28,7 @@ use DateTimeInterface;
 class OrderFromCartCreator implements OrderFromCartCreatorInterface
 {
     public function __construct(
-        private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly FoodMoneyFormatterInterface $moneyFormatter,
         private readonly OrderItemsSnapshotBuilder $orderItemsSnapshotBuilder,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,

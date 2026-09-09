@@ -6,6 +6,7 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\Contracts\Food\Shared\MenuReadRepositoryInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\DTO\Food\Menu\DishDto;
@@ -15,7 +16,6 @@ use App\DTO\Food\Menu\MenuDto;
 use App\DTO\Food\Menu\RestaurantSummaryRecord;
 use App\DTO\Food\Shared\RestaurantSummaryDto;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Запросы меню и списка активных ресторанов (без кэша).
@@ -25,7 +25,7 @@ class MenuQueryService implements MenuQueryServiceInterface
     public function __construct(
         private readonly RestaurantRepositoryInterface $restaurantRepository,
         private readonly MenuReadRepositoryInterface $menuReadRepository,
-        private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly FoodMoneyFormatterInterface $moneyFormatter,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
     ) {}
 

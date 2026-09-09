@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
+use App\Contracts\Food\Order\FoodOrderAfterSubmitNotifierInterface;
 use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
-use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
-use App\Jobs\Food\NotifyFoodOrderAfterSubmitJob;
 
 /**
  * Ручное оформление заказа менеджером из черновика корзины.
@@ -24,7 +23,7 @@ class ManualOrderSubmissionService implements ManualOrderSubmissionServiceInterf
         private readonly OrderFromCartCreatorInterface $orderFromCartCreator,
         private readonly CartDraftRepositoryInterface $cartDraftRepository,
         private readonly TransactionManagerInterface $transactionManager,
-        private readonly JobDispatcherInterface $jobDispatcher,
+        private readonly FoodOrderAfterSubmitNotifierInterface $afterSubmitNotifier,
     ) {}
 
     /**
@@ -56,7 +55,7 @@ class ManualOrderSubmissionService implements ManualOrderSubmissionServiceInterf
             );
         });
 
-        $this->dispatchAfterSubmitNotify(
+        $this->afterSubmitNotifier->notify(
             order: $result['order'],
             dto: $result['dto'],
             maxUserId: $customer->maxUserId,
@@ -96,23 +95,6 @@ class ManualOrderSubmissionService implements ManualOrderSubmissionServiceInterf
         });
 
         return $result['dto'];
-    }
-
-    /**
-     * Ставит в очередь MAX-уведомления после commit транзакции оформления.
-     */
-    private function dispatchAfterSubmitNotify(
-        FoodOrderRecord $order,
-        OrderDto $dto,
-        int $maxUserId,
-        FoodOrderAfterSubmitNotifyKind $kind,
-    ): void {
-        $this->jobDispatcher->dispatch(new NotifyFoodOrderAfterSubmitJob(
-            orderDto: $dto,
-            orderId: $order->id,
-            maxUserId: $maxUserId,
-            kind: $kind,
-        ));
     }
 
     /**

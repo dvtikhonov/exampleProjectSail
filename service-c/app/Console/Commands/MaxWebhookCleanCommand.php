@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\Max\UiStand\MaxWebhookSubscriber;
+use App\Contracts\Max\MaxWebhookStaleDevTunnelCleanerInterface;
 use Illuminate\Console\Command;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Throwable;
@@ -21,7 +21,7 @@ class MaxWebhookCleanCommand extends Command
     /**
      * Удаляет устаревшие webhook-подписки dev-туннелей.
      */
-    public function handle(MaxWebhookSubscriber $subscriber): int
+    public function handle(MaxWebhookStaleDevTunnelCleanerInterface $staleDevTunnelCleaner): int
     {
         $configuredUrl = trim((string) config('max.webhook.url', ''));
 
@@ -32,7 +32,7 @@ class MaxWebhookCleanCommand extends Command
         }
 
         try {
-            $result = $subscriber->unsubscribeStaleDevTunnels($configuredUrl);
+            $result = $staleDevTunnelCleaner->unsubscribeStaleDevTunnels($configuredUrl);
         } catch (MaxMessengerException $exception) {
             $this->error($exception->userMessage());
 

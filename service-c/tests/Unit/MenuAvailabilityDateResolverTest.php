@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Menu\MenuCategoryAvailabilityOffsetRepositoryInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
 use App\Services\Food\Menu\MenuAvailabilityDateResolver;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeZone;
 use Tests\TestCase;
 
 /**
@@ -104,9 +106,9 @@ class MenuAvailabilityDateResolverTest extends TestCase
         $repository->expects($this->once())->method('hasAnyOffsets')->willReturn(false);
         $repository->expects($this->never())->method('listOffsetDaysForWeekday');
 
-        $resolver = new MenuAvailabilityDateResolver($repository);
+        $resolver = new MenuAvailabilityDateResolver($repository, $this->clockStub());
         $result = $resolver->resolve(
-            CarbonImmutable::parse('2026-07-31', 'Europe/Moscow'),
+            new DateTimeImmutable('2026-07-31', new DateTimeZone('Europe/Moscow')),
         );
 
         $this->assertNull($result->date);
@@ -124,6 +126,27 @@ class MenuAvailabilityDateResolverTest extends TestCase
 
         $this->assertNull($result->date);
         $this->assertSame('нет данных', $result->error);
+    }
+
+    /** Без явного $now берёт момент из ClockInterface. */
+    public function test_resolve_without_now_uses_clock(): void
+    {
+        $repository = $this->createStub(MenuCategoryAvailabilityOffsetRepositoryInterface::class);
+        $repository->method('hasAnyOffsets')->willReturn(true);
+        $repository->method('listOffsetDaysForWeekday')->willReturnCallback(
+            static fn (int $weekday): array => $weekday === 5 ? [1, 2] : [],
+        );
+
+        $clock = $this->createMock(ClockInterface::class);
+        $clock->expects($this->once())
+            ->method('now')
+            ->willReturn(new DateTimeImmutable('2026-07-31T12:00:00+03:00'));
+
+        $resolver = new MenuAvailabilityDateResolver($repository, $clock);
+        $result = $resolver->resolve();
+
+        $this->assertNull($result->error);
+        $this->assertSame('2026-08-02', $result->date);
     }
 
     /** resolveForCurrentWeekday: Пт [1,2] → 2026-08-02 без lookback. */
@@ -149,9 +172,9 @@ class MenuAvailabilityDateResolverTest extends TestCase
             ->with(5)
             ->willReturn([]);
 
-        $resolver = new MenuAvailabilityDateResolver($repository);
+        $resolver = new MenuAvailabilityDateResolver($repository, $this->clockStub());
         $result = $resolver->resolveForCurrentWeekday(
-            CarbonImmutable::parse('2026-07-31', 'Europe/Moscow'),
+            new DateTimeImmutable('2026-07-31', new DateTimeZone('Europe/Moscow')),
         );
 
         $this->assertNull($result->date);
@@ -169,10 +192,10 @@ class MenuAvailabilityDateResolverTest extends TestCase
             static fn (int $weekday): array => $byWeekday[$weekday] ?? [],
         );
 
-        $resolver = new MenuAvailabilityDateResolver($repository);
+        $resolver = new MenuAvailabilityDateResolver($repository, $this->clockStub());
 
         return $resolver->resolve(
-            CarbonImmutable::parse($now, 'Europe/Moscow'),
+            new DateTimeImmutable($now, new DateTimeZone('Europe/Moscow')),
         );
     }
 
@@ -186,10 +209,18 @@ class MenuAvailabilityDateResolverTest extends TestCase
             static fn (int $weekday): array => $byWeekday[$weekday] ?? [],
         );
 
-        $resolver = new MenuAvailabilityDateResolver($repository);
+        $resolver = new MenuAvailabilityDateResolver($repository, $this->clockStub());
 
         return $resolver->resolveForCurrentWeekday(
-            CarbonImmutable::parse($now, 'Europe/Moscow'),
+            new DateTimeImmutable($now, new DateTimeZone('Europe/Moscow')),
         );
+    }
+
+    private function clockStub(): ClockInterface
+    {
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn(new DateTimeImmutable('2026-01-01T00:00:00+03:00'));
+
+        return $clock;
     }
 }

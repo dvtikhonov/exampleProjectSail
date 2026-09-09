@@ -8,10 +8,10 @@ use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
 use App\Contracts\Food\Menu\MaxManagerDailyMenuMessageBuilderInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Support\Max\MaxUiStandRecipientResolver;
-use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
@@ -31,7 +31,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
         private readonly DailyMenuLineCollectorInterface $lineCollector,
         private readonly MaxManagerDailyMenuMessageBuilderInterface $messageBuilder,
-        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
+        private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
         private readonly ApplicationConfigInterface $config,
         private readonly LoggerInterface $logger,
     ) {}
@@ -39,7 +39,7 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
     /**
      * {@inheritDoc}
      */
-    public function notify(CarbonImmutable $menuDate): int
+    public function notify(DateTimeInterface $menuDate): int
     {
         if (! $this->isBotConfigured()) {
             $this->logger->warning('MAX manager daily menu notification skipped: bot is not configured');

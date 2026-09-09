@@ -4,27 +4,13 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
-use App\DTO\Food\Menu\DishAvailabilityGridDto;
-use App\DTO\Food\Menu\DishAvailabilityUpdateDto;
-use App\Exceptions\Food\FoodDomainException;
-
 /**
  * Сервис графика доступности блюд по датам.
+ *
+ * Composition ISP: объединяет чтение сетки и запись графика.
  */
-interface DishAvailabilityScheduleServiceInterface
+interface DishAvailabilityScheduleServiceInterface extends
+    DishAvailabilityGridServiceInterface,
+    DishAvailabilityScheduleWriterInterface
 {
-    /**
-     * @throws FoodDomainException
-     */
-    public function getGrid(
-        int $restaurantId,
-        int $categoryId,
-        ?string $dateFrom = null,
-        ?string $dateTo = null,
-    ): DishAvailabilityGridDto;
-
-    /**
-     * @throws FoodDomainException
-     */
-    public function syncSchedule(DishAvailabilityUpdateDto $dto): void;
 }

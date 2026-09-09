@@ -10,7 +10,7 @@ use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Max\MaxAdminBotTestSendResultDto;
 use App\Exceptions\Food\FoodDomainException;
 use Illuminate\Contracts\Config\Repository;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerAuthException;
@@ -31,6 +31,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly Repository $config,
         private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -155,7 +156,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         } catch (MaxMessengerException $exception) {
             $errorMessage = $this->formatRecipientError($exception->userMessage(), $chatId, $userId);
 
-            Log::channel('max_log')->warning('MAX admin bot test message send failed', [
+            $this->logger->warning('MAX admin bot test message send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $errorMessage,
@@ -165,7 +166,7 @@ class LaravelMaxAdminBotTestSender implements MaxAdminBotTestSenderInterface
         } catch (Throwable $exception) {
             $errorMessage = $this->formatRecipientError($exception->getMessage(), $chatId, $userId);
 
-            Log::channel('max_log')->warning('MAX admin bot test message send failed', [
+            $this->logger->warning('MAX admin bot test message send failed', [
                 'chat_id' => $chatId,
                 'user_id' => $userId,
                 'error' => $errorMessage,

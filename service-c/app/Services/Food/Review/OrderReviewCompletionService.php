@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Food\Review;
 
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\OrderReviewCompletionServiceInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 
 /**
  * Завершение проверки заказа: уведомление клиента после полного подтверждения.
  */
-class OrderReviewCompletionService
+class OrderReviewCompletionService implements OrderReviewCompletionServiceInterface
 {
     public function __construct(
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Support\Max\MaxUiStandRecipientRegistry;
-use App\Support\Max\MaxUiStandRecipientResolver;
+use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
+use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientResolver;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -27,7 +27,7 @@ class MaxUiStandRecipientResolverTest extends TestCase
             'max.ui_stand.recipient_user_ids' => [333],
         ]);
 
-        $resolver = $this->app->make(MaxUiStandRecipientResolver::class);
+        $resolver = $this->app->make(LaravelMaxUiStandRecipientResolver::class);
 
         $this->assertSame([111, 222], $resolver->configuredChatIds());
         $this->assertSame([333], $resolver->configuredUserIds());
@@ -43,11 +43,11 @@ class MaxUiStandRecipientResolverTest extends TestCase
             'max.ui_stand.recipient_user_ids' => [],
         ]);
 
-        $registry = $this->app->make(MaxUiStandRecipientRegistry::class);
+        $registry = $this->app->make(LaravelMaxUiStandRecipientRegistry::class);
         $registry->rememberChatId(-100500);
         $registry->rememberUserId(777);
 
-        $resolver = $this->app->make(MaxUiStandRecipientResolver::class);
+        $resolver = $this->app->make(LaravelMaxUiStandRecipientResolver::class);
 
         $this->assertSame([111, -100500], $resolver->chatIds());
         $this->assertSame([777], $resolver->userIds());

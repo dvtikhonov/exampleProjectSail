@@ -6,9 +6,11 @@ namespace Tests\Unit;
 
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Shared\CacheStoreInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
 use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -32,6 +34,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
         $resolver = new CachingMenuAvailabilityDateResolver(
             $inner,
             $this->app->make(CacheStoreInterface::class),
+            $this->clockStub(),
         );
 
         $now = CarbonImmutable::parse('2026-07-31', 'Europe/Moscow');
@@ -56,6 +59,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
         $resolver = new CachingMenuAvailabilityDateResolver(
             $inner,
             $this->app->make(CacheStoreInterface::class),
+            $this->clockStub(),
         );
 
         $now = CarbonImmutable::parse('2026-07-31', 'Europe/Moscow');
@@ -68,7 +72,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
     {
         Cache::flush();
 
-        $now = CarbonImmutable::now('Europe/Moscow')->startOfDay();
+        $now = CarbonImmutable::parse('2026-07-31', 'Europe/Moscow')->startOfDay();
         $key = 'food.menu_availability_date.resolve.'.$now->format('Y-m-d');
 
         $inner = $this->createMock(MenuAvailabilityDateResolverInterface::class);
@@ -81,7 +85,8 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
             );
 
         $cache = $this->app->make(CacheStoreInterface::class);
-        $resolver = new CachingMenuAvailabilityDateResolver($inner, $cache);
+        $clock = $this->clockFixed($now->toDateTimeImmutable());
+        $resolver = new CachingMenuAvailabilityDateResolver($inner, $cache, $clock);
 
         $first = $resolver->resolve($now);
         $this->assertNull($first->date);
@@ -89,7 +94,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
         $this->assertNull($cache->get($key));
 
         // Новый экземпляр — без requestMemo, как при следующем HTTP-запросе.
-        $resolver2 = new CachingMenuAvailabilityDateResolver($inner, $cache);
+        $resolver2 = new CachingMenuAvailabilityDateResolver($inner, $cache, $clock);
         $second = $resolver2->resolve($now);
         $this->assertSame('2026-08-01', $second->date);
         $this->assertNull($second->error);
@@ -104,7 +109,7 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
     {
         Cache::flush();
 
-        $now = CarbonImmutable::now('Europe/Moscow')->startOfDay();
+        $now = CarbonImmutable::parse('2026-07-31', 'Europe/Moscow')->startOfDay();
         $key = 'food.menu_availability_date.resolve.'.$now->format('Y-m-d');
         $cache = $this->app->make(CacheStoreInterface::class);
         $ttlSeconds = max(1, $now->endOfDay()->getTimestamp() - time());
@@ -116,7 +121,11 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
             ->method('resolve')
             ->willReturn(new MenuAvailabilityDateResultDto(date: '2026-08-01', error: null));
 
-        $resolver = new CachingMenuAvailabilityDateResolver($inner, $cache);
+        $resolver = new CachingMenuAvailabilityDateResolver(
+            $inner,
+            $cache,
+            $this->clockFixed($now->toDateTimeImmutable()),
+        );
         $result = $resolver->resolve($now);
 
         $this->assertSame('2026-08-01', $result->date);
@@ -124,5 +133,46 @@ class CachingMenuAvailabilityDateResolverTest extends TestCase
             ['date' => '2026-08-01', 'error' => null],
             $cache->get($key),
         );
+    }
+
+    /** Без явного $now ключ кэша берётся из ClockInterface. */
+    public function test_resolve_without_now_uses_clock_for_cache_day(): void
+    {
+        Cache::flush();
+
+        $now = new DateTimeImmutable('2026-07-31T15:30:00+03:00');
+        $key = 'food.menu_availability_date.resolve.2026-07-31';
+
+        $inner = $this->createMock(MenuAvailabilityDateResolverInterface::class);
+        $inner
+            ->expects($this->once())
+            ->method('resolve')
+            ->willReturn(new MenuAvailabilityDateResultDto(date: '2026-08-02', error: null));
+
+        $clock = $this->createMock(ClockInterface::class);
+        $clock->expects($this->once())->method('now')->willReturn($now);
+
+        $cache = $this->app->make(CacheStoreInterface::class);
+        $resolver = new CachingMenuAvailabilityDateResolver($inner, $cache, $clock);
+        $result = $resolver->resolve();
+
+        $this->assertSame('2026-08-02', $result->date);
+        $this->assertSame(
+            ['date' => '2026-08-02', 'error' => null],
+            $cache->get($key),
+        );
+    }
+
+    private function clockStub(): ClockInterface
+    {
+        return $this->clockFixed(new DateTimeImmutable('2026-01-01T00:00:00+03:00'));
+    }
+
+    private function clockFixed(DateTimeImmutable $now): ClockInterface
+    {
+        $clock = $this->createStub(ClockInterface::class);
+        $clock->method('now')->willReturn($now);
+
+        return $clock;
     }
 }

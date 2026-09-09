@@ -8,12 +8,12 @@ use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\FoodOrderUpdateCommand;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Review\OrderReviewAuthorizationService;
 
 /**
  * Обновление состава заказа проверяющим composition_reviewer.
@@ -22,7 +22,7 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
 {
     public function __construct(
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
-        private readonly OrderReviewAuthorizationService $orderReviewAuthorizationService,
+        private readonly OrderReviewAuthorizationServiceInterface $orderReviewAuthorizationService,
         private readonly OrderCompositionSnapshotBuilderInterface $orderCompositionSnapshotBuilder,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly TransactionManagerInterface $transactionManager,

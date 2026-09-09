@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Exceptions\Food\FoodDomainException;
 use App\Infrastructure\Laravel\LaravelMaxAdminBotTestSender;
-use App\Support\Max\MaxUiStandRecipientRegistry;
+use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -125,7 +125,7 @@ class LaravelMaxAdminBotTestSenderTest extends TestCase
             'max.ui_stand.recipient_user_ids' => [],
         ]);
 
-        $this->app->make(MaxUiStandRecipientRegistry::class)->rememberChatId(-100500);
+        $this->app->make(LaravelMaxUiStandRecipientRegistry::class)->rememberChatId(-100500);
 
         Http::fake([
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),

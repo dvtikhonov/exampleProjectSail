@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
-use Symfony\Component\HttpFoundation\Response;
+use App\DTO\Food\Menu\DishImageFileDto;
+use App\Exceptions\Food\FoodDomainException;
 
 /**
- * Доставка изображения блюда клиенту mini-app.
+ * Разрешение локального файла изображения блюда для mini-app.
  */
 interface DishImageDeliveryInterface
 {
     /**
-     * Отдаёт изображение блюда по id, включая soft-deleted записи.
+     * Возвращает путь к изображению блюда по id, включая soft-deleted записи.
+     *
+     * @throws FoodDomainException если блюдо или файл недоступны (404)
      */
-    public function deliverById(int $dishId): Response;
+    public function resolveById(int $dishId): DishImageFileDto;
 }

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Max;
 
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\DTO\Max\MaxUserRecord;
 
 /**
@@ -14,7 +15,8 @@ use App\DTO\Max\MaxUserRecord;
 class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
 {
     public function __construct(
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserIdentityRepositoryInterface $identityRepository,
+        private readonly MaxUserDeliveryRepositoryInterface $deliveryRepository,
     ) {}
 
     /**
@@ -38,7 +40,7 @@ class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
      */
     public function defaultForMaxUserId(int $maxUserId): ?string
     {
-        $maxUser = $this->maxUserRepository->findByMaxUserId($maxUserId);
+        $maxUser = $this->identityRepository->findByMaxUserId($maxUserId);
 
         if ($maxUser === null) {
             return null;
@@ -62,7 +64,7 @@ class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
             return;
         }
 
-        $this->maxUserRepository->updateDeliveryAddress($maxUser->maxUserId, $trimmed);
+        $this->deliveryRepository->updateDeliveryAddress($maxUser->maxUserId, $trimmed);
     }
 
     /**
@@ -70,7 +72,7 @@ class MaxUserDeliveryAddressService implements MaxUserDeliveryAddressInterface
      */
     public function persistForMaxUserId(int $maxUserId, string $deliveryAddress): void
     {
-        $maxUser = $this->maxUserRepository->findByMaxUserId($maxUserId);
+        $maxUser = $this->identityRepository->findByMaxUserId($maxUserId);
 
         if ($maxUser === null) {
             return;

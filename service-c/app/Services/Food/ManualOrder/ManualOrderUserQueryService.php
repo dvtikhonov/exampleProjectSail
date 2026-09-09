@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Food\ManualOrder;
 
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
-use App\Contracts\Max\MaxUserRepositoryInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
+use App\Contracts\Max\MaxUserManualOrderQueryRepositoryInterface;
 use App\DTO\Food\ManualOrder\ManualOrderUserDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\DTO\Max\MaxUserRecord;
@@ -17,7 +18,8 @@ use App\Exceptions\Food\FoodDomainException;
 class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterface
 {
     public function __construct(
-        private readonly MaxUserRepositoryInterface $maxUserRepository,
+        private readonly MaxUserManualOrderQueryRepositoryInterface $manualOrderQueryRepository,
+        private readonly MaxUserIdentityRepositoryInterface $identityRepository,
     ) {}
 
     /**
@@ -25,7 +27,7 @@ class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterfac
      */
     public function list(?string $query, int $perPage): array
     {
-        $paginator = $this->maxUserRepository->paginateForManualOrders($query, $perPage);
+        $paginator = $this->manualOrderQueryRepository->paginateForManualOrders($query, $perPage);
 
         return [
             'users' => array_map(
@@ -52,7 +54,7 @@ class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterfac
      */
     public function findCustomerOrFail(int $maxUserId): MaxUserIdentity
     {
-        $customer = $this->maxUserRepository->findByMaxUserId($maxUserId);
+        $customer = $this->identityRepository->findByMaxUserId($maxUserId);
 
         if ($customer === null) {
             throw new FoodDomainException('Пользователь не найден.', 404);

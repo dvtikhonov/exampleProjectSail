@@ -6,12 +6,12 @@ namespace App\Services\Food\Cart;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Cart\CartItemDto;
 use App\DTO\Food\Cart\CartRecord;
 use App\Enums\Food\Menu\DishWeightUnit;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Сборка CartDto из доменной проекции корзины с расчётом сумм.
@@ -19,7 +19,7 @@ use App\Services\Food\Shared\FoodMoneyFormatter;
 class CartDtoFactory
 {
     public function __construct(
-        private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly FoodMoneyFormatterInterface $moneyFormatter,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
         private readonly CartTotalsCalculator $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,

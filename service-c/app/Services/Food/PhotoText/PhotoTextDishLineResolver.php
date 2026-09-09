@@ -26,6 +26,7 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
         private readonly PhotoTextDishNameMatcherInterface $dishNameMatcher,
         private readonly ComboPairValidator $comboPairValidator,
         private readonly PhotoTextComboRefGrouperInterface $comboRefGrouper,
+        private readonly PhotoTextMatchIssueFactory $matchIssueFactory,
     ) {}
 
     /**
@@ -85,22 +86,17 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
         $searchName = trim($item->name);
 
         if ($searchName === '') {
-            return new PhotoTextIssueDto(
-                code: PhotoTextMatchIssueCode::DishNotFound,
-                message: 'Пустое название блюда после нормализации.',
-                rawTitle: $item->name,
-                quantity: $item->quantity,
-            );
+            return $this->matchIssueFactory->emptyNameOrderIssue($item->name, $item->quantity);
         }
 
         $matchResult = $this->dishNameMatcher->match($searchName, $restaurantId);
 
         if (! $matchResult->isSuccess()) {
-            return new PhotoTextIssueDto(
-                code: $matchResult->code ?? PhotoTextMatchIssueCode::DishNotFound,
-                message: $matchResult->message ?? 'Блюдо не найдено: '.$searchName,
-                rawTitle: $item->name,
-                quantity: $item->quantity,
+            return $this->matchIssueFactory->orderIssueFromMatchFailure(
+                $matchResult,
+                $item->name,
+                $searchName,
+                $item->quantity,
             );
         }
 

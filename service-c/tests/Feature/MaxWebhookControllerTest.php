@@ -52,6 +52,13 @@ class MaxWebhookControllerTest extends TestCase
         $response->assertOk();
         $this->assertSame('', $response->getContent());
 
+        $requestLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook request received.',
+        ));
+        $this->assertCount(1, $requestLogs);
+        $this->assertSame('message_callback', $requestLogs[0]->context['update_type'] ?? null);
+
         $webhookLogs = array_values(array_filter(
             $captured,
             static fn (MessageLogged $event): bool => $event->message === 'MAX webhook received',
@@ -90,6 +97,96 @@ class MaxWebhookControllerTest extends TestCase
         ]);
 
         $response->assertUnauthorized();
+        Http::assertNothingSent();
+    }
+
+    /** Мусорный body без update_type → HTTP 200, роутер не вызывается. */
+    public function test_garbage_body_returns_ok_and_does_not_invoke_router(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        Http::fake();
+
+        $response = $this->call(
+            'POST',
+            '/api/webhooks/max',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X_Max_Bot_Api_Secret' => self::SECRET,
+            ],
+            'not-json-at-all{{{',
+        );
+
+        $response->assertOk();
+        $this->assertSame('', $response->getContent());
+        Http::assertNothingSent();
+
+        $ignoredLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook payload ignored (invalid or missing update_type).',
+        ));
+        $this->assertNotEmpty($ignoredLogs);
+
+        $receivedLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook request received.',
+        ));
+        $this->assertCount(0, $receivedLogs);
+    }
+
+    /** Payload без update_type → HTTP 200, роутер не вызывается. */
+    public function test_missing_update_type_returns_ok_and_does_not_invoke_router(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        Http::fake();
+
+        $response = $this->postJson('/api/webhooks/max', [
+            'timestamp' => 1739184000000,
+            'callback' => ['callback_id' => 'cb-no-type'],
+        ], [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('', $response->getContent());
+        Http::assertNothingSent();
+
+        $ignoredLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook payload ignored (invalid or missing update_type).',
+        ));
+        $this->assertNotEmpty($ignoredLogs);
+
+        $webhookLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook received',
+        ));
+        $this->assertCount(0, $webhookLogs);
+    }
+
+    /** Нестроковый update_type → HTTP 200 без обработки. */
+    public function test_non_string_update_type_returns_ok_without_routing(): void
+    {
+        Http::fake();
+
+        $response = $this->postJson('/api/webhooks/max', [
+            'update_type' => 42,
+            'timestamp' => 1,
+        ], [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ]);
+
+        $response->assertOk();
         Http::assertNothingSent();
     }
 

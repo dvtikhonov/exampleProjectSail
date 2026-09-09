@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Services\Max\UiStand\MaxWebhookSubscriber;
+use App\Contracts\Max\MaxWebhookStaleDevTunnelCleanerInterface;
+use App\Contracts\Max\MaxWebhookSubscriptionClientInterface;
+use App\Contracts\Max\MaxWebhookUrlProbeInterface;
 use Illuminate\Console\Command;
 use RuntimeException;
 use Shared\MaxMessenger\Exceptions\MaxMessengerException;
@@ -22,23 +24,26 @@ class MaxWebhookSubscribeCommand extends Command
     /**
      * Очищает устаревшие туннели и регистрирует webhook-подписку.
      */
-    public function handle(MaxWebhookSubscriber $subscriber): int
-    {
+    public function handle(
+        MaxWebhookSubscriptionClientInterface $subscriptionClient,
+        MaxWebhookUrlProbeInterface $urlProbe,
+        MaxWebhookStaleDevTunnelCleanerInterface $staleDevTunnelCleaner,
+    ): int {
         try {
             $configuredUrl = trim((string) config('max.webhook.url', ''));
 
             if ($configuredUrl !== '') {
-                $cleanup = $subscriber->unsubscribeStaleDevTunnels($configuredUrl);
+                $cleanup = $staleDevTunnelCleaner->unsubscribeStaleDevTunnels($configuredUrl);
 
                 if ($cleanup['removed'] !== []) {
                     $this->warn('Удалены устаревшие dev-туннели: '.count($cleanup['removed']));
                 }
             }
 
-            $subscriber->subscribe();
+            $subscriptionClient->subscribe();
             $this->info('Подписка MAX webhook зарегистрирована.');
 
-            $probe = $subscriber->probeWebhookUrl();
+            $probe = $urlProbe->probeWebhookUrl();
 
             if ($probe['reachable']) {
                 $this->info('Проба MAX_WEBHOOK_URL: OK (HTTP '.$probe['http_status'].')');

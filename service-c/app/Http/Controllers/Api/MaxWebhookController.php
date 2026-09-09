@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
+use App\DTO\Max\MaxWebhookUpdateDto;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -18,6 +19,7 @@ class MaxWebhookController extends Controller
 {
     public function __construct(
         private readonly MaxWebhookUpdateRouterInterface $router,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -25,18 +27,24 @@ class MaxWebhookController extends Controller
      */
     public function __invoke(Request $request): Response
     {
-        /** @var array<string, mixed> $payload */
-        $payload = $request->json()->all();
-        $updateType = (string) ($payload['update_type'] ?? 'unknown');
+        /** @var mixed $raw */
+        $raw = $request->json()->all();
+        $dto = MaxWebhookUpdateDto::tryFrom($raw);
 
-        Log::info('MAX webhook request received.', [
-            'update_type' => $updateType,
+        if ($dto === null) {
+            $this->logger->info('MAX webhook payload ignored (invalid or missing update_type).');
+
+            return response('', Response::HTTP_OK);
+        }
+
+        $this->logger->info('MAX webhook request received.', [
+            'update_type' => $dto->updateType,
         ]);
 
         try {
-            $this->router->handle($payload);
+            $this->router->handle($dto->payload);
         } catch (Throwable $exception) {
-            Log::channel('max_log')->error('MAX webhook handling failed', [
+            $this->logger->error('MAX webhook handling failed', [
                 'error' => $exception->getMessage(),
             ]);
         }

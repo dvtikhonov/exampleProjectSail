@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Chat\FoodOrderChatMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
@@ -12,11 +13,9 @@ use App\Enums\Food\Chat\OrderMessageAuthorType;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Infrastructure\Laravel\LaravelOrderChatNotifier;
-use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
 use App\Services\Max\MaxMessengerNotificationSender;
-use App\Support\Food\Composition\OrderSnapshotComboResolver;
-use App\Support\Max\MaxOpenAppButtonFactory;
-use App\Support\Max\MaxUiStandRecipientResolver;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
+use App\Infrastructure\Laravel\MaxOpenAppButtonFactory;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -30,7 +29,7 @@ use Tests\TestCase;
 
 class OrderChatNotifierTest extends TestCase
 {
-    private FoodOrderMaxMessageBuilder $messageBuilder;
+    private FoodOrderChatMaxMessageBuilderInterface $messageBuilder;
 
     /** Подготовка окружения перед тестом. */
     protected function setUp(): void
@@ -41,7 +40,7 @@ class OrderChatNotifierTest extends TestCase
         Config::set('max.ui_stand.recipient_chat_ids', []);
         Config::set('max.ui_stand.recipient_user_ids', []);
 
-        $this->messageBuilder = new FoodOrderMaxMessageBuilder(new OrderSnapshotComboResolver);
+        $this->messageBuilder = $this->app->make(FoodOrderChatMaxMessageBuilderInterface::class);
     }
 
     /** Короткое уведомление клиенту без текста сообщения. */
@@ -331,11 +330,12 @@ TEXT,
     ): LaravelOrderChatNotifier {
         return new LaravelOrderChatNotifier(
             messageBuilder: $this->messageBuilder,
-            uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolver::class),
+            uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolverInterface::class),
             openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
             customerRecipientResolver: $customerRecipientResolver
                 ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
             notificationSender: $this->makeNotificationSender($client),
+            logger: Log::channel('max_log'),
         );
     }
 
@@ -344,7 +344,7 @@ TEXT,
     {
         return new MaxMessengerNotificationSender(
             $client,
-            $this->app->make(MaxUiStandRecipientResolver::class),
+            $this->app->make(MaxUiStandRecipientResolverInterface::class),
             Log::channel('max_log'),
         );
     }

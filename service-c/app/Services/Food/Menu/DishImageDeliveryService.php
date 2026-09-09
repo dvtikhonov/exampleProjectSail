@@ -7,16 +7,19 @@ namespace App\Services\Food\Menu;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Food\Menu\DishImageDeliveryInterface;
 use App\Contracts\Shared\FileStorageInterface;
+use App\DTO\Food\Menu\DishImageFileDto;
 use App\DTO\Food\Menu\DishRecord;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\Exceptions\Food\FoodDomainException;
 
 /**
- * Отдача изображения блюда из локального public disk.
+ * Разрешение изображения блюда из локального public disk.
  */
 class DishImageDeliveryService implements DishImageDeliveryInterface
 {
+    private const CACHE_HEADERS = [
+        'Cache-Control' => 'public, max-age=86400, immutable',
+    ];
+
     public function __construct(
         private readonly DishCatalogRepositoryInterface $dishRepository,
         private readonly FileStorageInterface $fileStorage,
@@ -25,40 +28,41 @@ class DishImageDeliveryService implements DishImageDeliveryInterface
     /**
      * {@inheritDoc}
      */
-    public function deliverById(int $dishId): Response
+    public function resolveById(int $dishId): DishImageFileDto
     {
         $dish = $this->dishRepository->findByIdWithTrashed($dishId);
 
         if ($dish === null) {
-            throw new NotFoundHttpException;
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
         }
 
-        return $this->deliver($dish);
+        return $this->resolve($dish);
     }
 
     /**
-     * Отдаёт изображение блюда клиенту из локального public disk.
+     * Разрешает локальный файл изображения блюда.
+     *
+     * @throws FoodDomainException
      */
-    private function deliver(DishRecord $dish): Response
+    private function resolve(DishRecord $dish): DishImageFileDto
     {
         $source = $dish->imageUrl;
 
         if ($source === null || $source === '') {
-            throw new NotFoundHttpException;
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
         }
 
         if (str_starts_with($source, 'http://') || str_starts_with($source, 'https://')) {
-            throw new NotFoundHttpException;
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
         }
 
         if (! $this->fileStorage->exists($source)) {
-            throw new NotFoundHttpException;
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
         }
 
-        return new BinaryFileResponse(
-            $this->fileStorage->path($source),
-            200,
-            ['Cache-Control' => 'public, max-age=86400, immutable'],
+        return new DishImageFileDto(
+            absolutePath: $this->fileStorage->path($source),
+            headers: self::CACHE_HEADERS,
         );
     }
 }

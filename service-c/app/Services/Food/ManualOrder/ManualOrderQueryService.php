@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Food\ManualOrder;
 
 use App\Contracts\Food\ManualOrder\ManualOrderQueryServiceInterface;
-use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
+use App\Contracts\Food\Order\FoodOrderManualAdminReadRepositoryInterface;
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\ManualOrder\ManualOrderDetailDto;
 use App\DTO\Food\ManualOrder\ManualOrderListItemDto;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Shared\FoodMoneyFormatter;
 
 /**
  * Выборка ручных заказов для роли max_manager.
@@ -19,8 +19,8 @@ use App\Services\Food\Shared\FoodMoneyFormatter;
 class ManualOrderQueryService implements ManualOrderQueryServiceInterface
 {
     public function __construct(
-        private readonly FoodOrderAdminReadRepositoryInterface $foodOrderReadRepository,
-        private readonly FoodMoneyFormatter $moneyFormatter,
+        private readonly FoodOrderManualAdminReadRepositoryInterface $foodOrderReadRepository,
+        private readonly FoodMoneyFormatterInterface $moneyFormatter,
     ) {}
 
     /**

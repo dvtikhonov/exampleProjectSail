@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Chat;
 
+use App\Contracts\Food\Chat\OrderChatAuthorizationServiceInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
@@ -12,7 +13,7 @@ use App\Exceptions\Food\FoodDomainException;
 /**
  * Проверка прав доступа к чату заказа для клиента и администратора.
  */
-class OrderChatAuthorizationService
+class OrderChatAuthorizationService implements OrderChatAuthorizationServiceInterface
 {
     /**
      * Запрещает доступ к чату, если пользователь не владелец и не активный админ.

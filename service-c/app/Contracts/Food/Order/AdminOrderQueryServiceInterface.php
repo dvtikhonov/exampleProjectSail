@@ -8,6 +8,8 @@ use App\DTO\Food\Order\AdminOrderDetailDto;
 use App\DTO\Food\Order\AdminOrderListItemDto;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
+use App\Enums\Food\Order\AdminOrderListScope;
+use App\Enums\Food\Order\AdminOrderListStatus;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
@@ -32,14 +34,23 @@ interface AdminOrderQueryServiceInterface
      *
      * @throws FoodDomainException
      */
-    public function list(MaxUserIdentity $admin, string $scope, string $status, int $perPage): array;
+    public function list(
+        MaxUserIdentity $admin,
+        AdminOrderListScope $scope,
+        AdminOrderListStatus $status,
+        int $perPage,
+    ): array;
 
     /**
      * Возвращает детальные данные заказа для админского API.
      *
      * @throws FoodDomainException
      */
-    public function detail(MaxUserIdentity $admin, int $orderId, string $scope): AdminOrderDetailDto;
+    public function detail(
+        MaxUserIdentity $admin,
+        int $orderId,
+        AdminOrderListScope $scope,
+    ): AdminOrderDetailDto;
 
     /**
      * Строит детальный DTO заказа по проекции (с перезагрузкой).

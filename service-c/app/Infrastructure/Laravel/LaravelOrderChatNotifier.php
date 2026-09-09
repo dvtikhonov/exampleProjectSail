@@ -10,10 +10,9 @@ use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
-use App\Services\Max\Food\FoodOrderMaxMessageBuilder;
-use App\Support\Max\MaxOpenAppButtonFactory;
-use App\Support\Max\MaxUiStandRecipientResolver;
-use Illuminate\Support\Facades\Log;
+use App\Contracts\Food\Chat\FoodOrderChatMaxMessageBuilderInterface;
+use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
+use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 
 /**
@@ -25,11 +24,12 @@ use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 class LaravelOrderChatNotifier implements OrderChatNotifierInterface
 {
     public function __construct(
-        private readonly FoodOrderMaxMessageBuilder $messageBuilder,
-        private readonly MaxUiStandRecipientResolver $uiStandRecipientResolver,
+        private readonly FoodOrderChatMaxMessageBuilderInterface $messageBuilder,
+        private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
         private readonly MaxOpenAppButtonFactory $openAppButtonFactory,
         private readonly OrderCustomerNotifyRecipientResolverInterface $customerRecipientResolver,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -78,7 +78,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
         $userIds = $this->uiStandRecipientResolver->userIds();
 
         if ($chatIds === [] && $userIds === []) {
-            Log::channel('max_log')->warning('MAX order chat notification skipped: UI Stand recipients are not configured', [
+            $this->logger->warning('MAX order chat notification skipped: UI Stand recipients are not configured', [
                 'order_id' => $order->id,
                 'message_id' => $message->id,
                 'author_type' => $message->authorType->value,
