@@ -20,6 +20,8 @@ use App\Http\Controllers\Api\Food\PhotoTextScheduleController;
 use App\Http\Controllers\Api\Food\RestaurantController;
 use App\Http\Controllers\Api\MaxAuthController;
 use App\Http\Controllers\Api\MaxWebhookController;
+use App\Modules\FoodReport\Http\Controllers\AdminFoodReportExportController;
+use App\Modules\FoodReport\Http\Controllers\AdminFoodReportQueryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -126,6 +128,14 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 Route::get('/dish-availability-schedule', [AdminDishAvailabilityController::class, 'show']);
                 Route::put('/dish-availability-schedule', [AdminDishAvailabilityController::class, 'sync']);
             });
+
+            Route::prefix('reports')
+                ->middleware('food.order.admin:max_manager')
+                ->group(function () {
+                    Route::get('/revenue', [AdminFoodReportQueryController::class, 'revenue']);
+                    Route::get('/top-dishes', [AdminFoodReportQueryController::class, 'topDishes']);
+                    Route::get('/export', [AdminFoodReportExportController::class, 'export']);
+                });
 
             Route::prefix('manual-orders')
                 ->middleware('food.order.admin:max_manager')

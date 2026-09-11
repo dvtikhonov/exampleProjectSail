@@ -7,6 +7,7 @@ namespace App\Models\Food;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Models\Max\MaxUser;
+use App\Modules\FoodReport\Models\FoodOrderItem;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -152,6 +153,16 @@ class FoodOrder extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(FoodOrderMessage::class, 'food_order_id');
+    }
+
+    /**
+     * Нормализованные позиции для отчётов (max_food_order_items, вариант B).
+     *
+     * @return HasMany<FoodOrderItem, $this>
+     */
+    public function reportItems(): HasMany
+    {
+        return $this->hasMany(FoodOrderItem::class, 'order_id');
     }
 
     /**

@@ -14,6 +14,7 @@ use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\FoodOrderUpdateCommand;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
+use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 
 /**
  * Обновление состава заказа проверяющим composition_reviewer.
@@ -26,6 +27,7 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
         private readonly OrderCompositionSnapshotBuilderInterface $orderCompositionSnapshotBuilder,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly TransactionManagerInterface $transactionManager,
+        private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
     ) {}
 
     /**
@@ -58,6 +60,8 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
         });
 
         $this->foodOrderCustomerNotifier->notifyCompositionChanged($order);
+        // Variant B: sync если confirmed, иначе delete items.
+        $this->foodOrderItemSyncService->syncIfConfirmed($order);
 
         return $order;
     }

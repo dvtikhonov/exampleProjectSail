@@ -16,13 +16,18 @@ use App\Models\Food\MenuCategoryAvailabilityOffset;
 use App\Models\Food\Restaurant;
 use App\Models\Food\RestaurantCategoryDeliveryTier;
 use App\Models\Max\MaxUser;
+use App\Modules\FoodReport\Models\FoodOrderItem;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 trait ResetsFoodDomainTables
 {
     /** Очищает таблицы домена еды перед тестом. */
     protected function resetFoodDomainTables(): void
     {
+        if (Schema::hasTable('max_food_order_items')) {
+            FoodOrderItem::query()->delete();
+        }
         FoodOrder::query()->delete();
         FoodOrderAdmin::query()->delete();
         CartItem::query()->delete();

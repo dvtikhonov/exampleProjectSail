@@ -18,6 +18,7 @@ use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
+use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use App\Services\Food\Cart\CartTotalsCalculator;
 use App\Services\Food\Review\OrderStatusResolver;
 use DateTimeInterface;
@@ -37,6 +38,7 @@ class OrderFromCartCreator implements OrderFromCartCreatorInterface
         private readonly OrderStatusResolver $orderStatusResolver,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
         private readonly ClockInterface $clock,
+        private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
     ) {}
 
     /**
@@ -113,6 +115,9 @@ class OrderFromCartCreator implements OrderFromCartCreatorInterface
         ));
 
         $this->cartLifecycleRepository->markAsSubmitted($cart->id);
+
+        // Variant B: строки items только для confirmed (ручной submit); иначе delete.
+        $this->foodOrderItemSyncService->syncIfConfirmed($order);
 
         return [
             'order' => $order,

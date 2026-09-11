@@ -9,6 +9,9 @@
  *   и уходит в API как query `scope` при загрузке админ-заказов.
  *   См. {@link ADMIN_SCOPES}.
  *
+ * - **ordersPanel** — вкладка внутри раздела «Заказы»: `review` | `reports`
+ *   (проверка очереди vs выгрузка отчётов). См. {@link ADMIN_ORDERS_PANELS}.
+ *
  * - **adminSection** — верхний раздел AdminAppShell: заказы / ручные заказы / меню
  *   (`orders` | `manualOrders` | `menu`). Переключается в AdminSectionNav.
  *   См. {@link ADMIN_SECTIONS}.
@@ -31,11 +34,20 @@ export const ROLE_MAX_MANAGER = 'max_manager';
 
 /**
  * Вкладки очереди проверки (adminScope).
- * Не путать с {@link ADMIN_SECTIONS} (adminSection).
+ * Не путать с {@link ADMIN_SECTIONS} (adminSection) и {@link ADMIN_ORDERS_PANELS}.
  */
 export const ADMIN_SCOPES = {
     address: 'address',
     composition: 'composition',
+};
+
+/**
+ * Вкладки внутри раздела «Заказы» (ordersPanel): проверка очереди или отчёты.
+ * Не путать с {@link ADMIN_SCOPES} (Адреса/Состав) и {@link ADMIN_SECTIONS}.
+ */
+export const ADMIN_ORDERS_PANELS = {
+    review: 'review',
+    reports: 'reports',
 };
 
 /**

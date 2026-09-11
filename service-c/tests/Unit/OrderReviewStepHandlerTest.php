@@ -19,6 +19,7 @@ use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
+use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use App\Services\Food\Review\OrderReviewAuthorizationService;
 use App\Services\Food\Review\OrderReviewCompletionService;
 use App\Services\Food\Review\OrderReviewStepHandler;
@@ -42,6 +43,9 @@ class OrderReviewStepHandlerTest extends TestCase
     /** @var MockObject&TransactionManagerInterface */
     private TransactionManagerInterface $transactionManager;
 
+    /** @var MockObject&FoodOrderItemSyncServiceInterface */
+    private FoodOrderItemSyncServiceInterface $syncService;
+
     private OrderReviewStepHandler $handler;
 
     /** Подготовка окружения перед тестом. */
@@ -55,6 +59,7 @@ class OrderReviewStepHandlerTest extends TestCase
         $this->transactionManager
             ->method('run')
             ->willReturnCallback(static fn (callable $callback): mixed => $callback());
+        $this->syncService = $this->createMock(FoodOrderItemSyncServiceInterface::class);
 
         $clock = $this->createMock(ClockInterface::class);
         $clock->method('now')->willReturn(new DateTimeImmutable('2026-08-31T12:00:00+00:00'));
@@ -71,6 +76,7 @@ class OrderReviewStepHandlerTest extends TestCase
             $completionService,
             $this->customerNotifier,
             $this->transactionManager,
+            $this->syncService,
         );
     }
 
@@ -118,6 +124,10 @@ class OrderReviewStepHandlerTest extends TestCase
             ->method('notifyConfirmed')
             ->with($confirmed);
         $this->customerNotifier->expects($this->never())->method('notifyRejected');
+        $this->syncService
+            ->expects($this->once())
+            ->method('syncIfConfirmed')
+            ->with($confirmed);
 
         $result = $this->handler->approve(OrderReviewStep::Composition, 42, $admin);
 
@@ -199,6 +209,10 @@ class OrderReviewStepHandlerTest extends TestCase
             ->method('notifyRejected')
             ->with($rejected, OrderRejectionScope::Address);
         $this->customerNotifier->expects($this->never())->method('notifyConfirmed');
+        $this->syncService
+            ->expects($this->once())
+            ->method('syncIfConfirmed')
+            ->with($rejected);
 
         $result = $this->handler->reject(OrderReviewStep::Address, 44, $admin, 'Неверный адрес');
 

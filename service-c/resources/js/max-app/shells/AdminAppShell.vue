@@ -75,7 +75,7 @@ onMounted(() => {
             />
 
             <OrdersAdminRoot
-                v-else-if="hasOrderReviewRoles"
+                v-else-if="adminSection === ADMIN_SECTIONS.orders && (hasOrderReviewRoles || hasMaxManagerRole)"
                 :deep-link-order-id="deepLinkOrderId"
             />
         </div>

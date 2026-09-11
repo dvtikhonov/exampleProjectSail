@@ -68,6 +68,11 @@ jobs:
         working-directory: service-c
         run: bash scripts/check-food-layer-isolation.sh
 
+      - name: Check FoodReport module isolation
+        if: matrix.service == 'service-c'
+        working-directory: service-c
+        run: bash scripts/check-food-report-module-isolation.sh
+
       - name: Check Support layer isolation
         if: matrix.service == 'service-c'
         working-directory: service-c

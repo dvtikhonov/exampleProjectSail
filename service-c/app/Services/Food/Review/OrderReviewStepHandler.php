@@ -14,6 +14,7 @@ use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
+use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 
 /**
  * Единый обработчик approve/reject для всех этапов проверки заказа.
@@ -27,6 +28,7 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
         private readonly OrderReviewCompletionServiceInterface $orderReviewCompletionService,
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly TransactionManagerInterface $transactionManager,
+        private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
     ) {}
 
     /**
@@ -51,6 +53,8 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
         });
 
         $this->orderReviewCompletionService->notifyIfFullyApproved($statusBefore, $order);
+        // Variant B: при переходе в confirmed — sync; иначе delete по order_id.
+        $this->foodOrderItemSyncService->syncIfConfirmed($order);
 
         return $order;
     }
@@ -74,6 +78,8 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
         });
 
         $this->foodOrderCustomerNotifier->notifyRejected($order, $step->rejectionScope());
+        // Variant B: rejected не должен иметь строк в max_food_order_items.
+        $this->foodOrderItemSyncService->syncIfConfirmed($order);
 
         return $order;
     }

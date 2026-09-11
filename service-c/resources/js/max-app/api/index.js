@@ -99,3 +99,8 @@ export {
     fetchDishAvailabilitySchedule,
     updateDishAvailabilitySchedule,
 } from './admin/schedule';
+
+export {
+    exportFoodReport,
+    triggerBlobDownload,
+} from './admin/reports';
