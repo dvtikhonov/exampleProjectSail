@@ -12,6 +12,7 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | [Frontend mini-app](#frontend-mini-app-vue-3) | Shells, composables, модульный `api/`, навигация без vue-router |
 | [Бизнес-логика](#бизнес-логика) | Правила домена Food, статусы, сервисный слой |
 | [Ручные заказы (max_manager)](#ручные-заказы-max_manager) | Выбор клиента, изолированная корзина, submit → confirmed; просмотр; черновик после сканирования |
+| [Отчёты Food (FoodReport)](#отчёты-food-foodreport) | Выручка / топ блюд (только `confirmed`), `.xlsx`, вариант B |
 | [PhotoText (агент Cursor)](#phototext-агент-cursor) | Фото бланка → заказ; фото графика → schedule (`/api/food/phototext/*`, AI-доступ) |
 | [Уведомления о заказах в MAX](#уведомления-о-заказах-в-max) | Новый заказ → `MAX_UI_STAND_*` |
 | [Уведомления клиенту о результате проверки](#уведомления-клиенту-о-результате-проверки) | Submitted / confirmed / rejected / состав изменён / ручной заказ |
@@ -120,6 +121,7 @@ flowchart TB
 |---|---|---|---|
 | HTTP / Jobs | `Http/`, `Jobs/` | `$request->user()`, Eloquent для загрузки сущности на входе; сразу маппинг в domain-типы | Бизнес-правила без сервисов |
 | Application | `Services/Food/`, `Contracts/Food/` | `*Record`, `*Dto`, `*Command`, Enum, порты (`*Interface`), `Psr\Log\LoggerInterface` | `App\Models\*`, `DB::`, Laravel Facades |
+| Feature-модуль | `app/Modules/FoodReport/` | Contracts/Services модуля — те же запреты, что у Food Application; Eloquent только в `Repositories/` (+ `Models/`) | `App\Models\*` / Facades / `Illuminate\*` в Contracts/Services — CI: `scripts/check-food-report-module-isolation.sh`, `tests/Architecture/FoodReportModuleIsolationTest` |
 | Core | `Services/**`, `Contracts/**` (+ цель: `DTO/`, `Enums/`, `Exceptions/`) | порты, DTO, Enum, PSR-3 | `Illuminate\*`, `App\Models\*`, Facades, helpers (`config`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-core-layer-isolation.sh`, `tests/Architecture/CoreLayerIsolationTest`; **baseline пуст** (end-state для Services/Contracts достигнут) |
 | Support | `app/Support/` | чистые helpers (formatters, combo resolver, initData signer, `MaxPublicAppUrl`, …) | `Illuminate\*`, Facades, helpers (`config`/`request`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-support-layer-isolation.sh`, `tests/Architecture/SupportLayerIsolationTest` |
 | Infrastructure | `Repositories/{Food,Max,Auth}/`, `Infrastructure/Laravel/`, `Services/Max/` (builders, UI Stand; notifiers — в `Infrastructure/Laravel`) | Eloquent, `DB::transaction`, Storage, Cache, MAX HTTP | Доменные правила без портов |
@@ -515,6 +517,33 @@ flowchart TD
 Сценарий во фронте: выбор потребителя → «Оформить» → ресторан/меню/корзина (те же UX-правила, что у клиента) → модалка подтверждения → `submitManualOrder` → экран подтверждения → «Назад к списку». Или после выбора потребителя → «Просмотр» → период/статус → список (с суммой) → клик → детальная карточка (для `draft_after_scanning` — «Выполнить» / «В корзину» / «Удалить»).
 
 API — [Food Admin API — ручные заказы](#food-admin-api--ручные-заказы-max_manager).
+
+### Отчёты Food (`FoodReport`)
+
+Модуль `app/Modules/FoodReport/` (вариант **B**): нормализованные строки в `max_food_order_items` + query/export. В отчёты попадают **только выполненные** заказы (`OrderStatus::Confirmed`). Черновики, `pending_review` / review, `rejected` — исключены и на записи (sync), и на чтении.
+
+| Правило | Поведение |
+|---|---|
+| Состав | Только `status = confirmed` (manual и клиентские); не только `is_manual` |
+| Выручка / средний чек | `SUM(items_total)` / `COUNT(*)` по confirmed; **без** доставки (`total`) |
+| Ось даты | По умолчанию `delivery_date` («Блюда на»), fallback `DATE(created_at)`; query-param `date_axis` = `delivery_date` \| `created_at` |
+| Топ блюд | Агрегация `max_food_order_items` (строки только для confirmed) + защита join/where на `status = confirmed`; `limit` на день (default 20, max 100) |
+| Период | `date_from` / `date_to` (`Y-m-d`), max span **93** дня; `restaurant_id` обязателен |
+| Sync (write) | `FoodOrderItemSyncService::syncIfConfirmed`: confirmed → replace rows из `items_snapshot`; иначе `deleteByOrderId` |
+| Хуки | `OrderFromCartCreator` (после create); `OrderReviewStepHandler` (approve/reject); `OrderCompositionUpdateService` (после правки состава) |
+| Экспорт | `.xlsx` (PhpSpreadsheet), один лист по `report_type`: `revenue` \| `top_dishes`; имя `report_{restaurantId}_{from}_{to}.xlsx` |
+| UI | Форма в разделе «Заказы» (`FoodReportForm` в `AdminHomePage` / `OrdersAdminRoot`), только при `hasMaxManagerRole`: период + ресторан + тип → только «Скачать»; JSON `/revenue` и `/top-dishes` UI не вызывает |
+| Не путать | `MAX_REPORT_*` — чаты уведомлений меню / «тест бот», **не** аналитика FoodReport |
+
+**Миграция и backfill (согласие):**
+
+- Файл миграции в репо: `database/migrations/2026_09_10_000001_create_max_food_order_items_table.php`.
+- `php artisan migrate` / деплой `run_migrations` на shared/prod — **только после отдельного согласия**.
+- PHPUnit (`RefreshDatabase` → `sail_db_testing`) применяет схему в тестах — это нормально и не считается миграцией на прод.
+- Backfill только confirmed: `php artisan food-report:backfill-order-items` (`--chunk=100`); на рабочих данных — тоже только по согласию (после migrate).
+
+План и чеклисты: [docs/FOOD_REPORT_MODULE_PLAN.md](docs/FOOD_REPORT_MODULE_PLAN.md).  
+API — [Food Admin API — отчёты](#food-admin-api--отчёты-foodreport).
 
 ### PhotoText (агент Cursor)
 
@@ -1583,6 +1612,24 @@ location /api/c/ {
 
 Подробности домена — [Ручные заказы](#ручные-заказы-max_manager).
 
+### Food Admin API — отчёты (`FoodReport`)
+
+Префикс: `/api/food/admin/reports`. Middleware: `max.miniapp.auth` + `food.order.admin:max_manager`.
+
+Общие query: `date_from`, `date_to` (`Y-m-d`, `to >= from`, max **93** дня), `restaurant_id` (required, `exists:max_restaurants,id`), опц. `date_axis` (`delivery_date` \| `created_at`, default `delivery_date`).
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/food/admin/reports/revenue` | JSON выручки по дням (только confirmed): `{ days: [{ date, orders_count, average_check, amount }], meta: { orders_count, average_check, amount } }` |
+| `GET` | `/api/food/admin/reports/top-dishes` | JSON топа по дням: `?limit=` (1–100, default 20) → `{ days: [{ date, items: [{ dish_id, dish_name, quantity, amount }] }] }` |
+| `GET` | `/api/food/admin/reports/export` | Binary `.xlsx`; обязателен `report_type` = `revenue` \| `top_dishes`; для топа — опц. `limit`; `Content-Disposition: attachment`; имя `report_{restaurantId}_{from}_{to}.xlsx` |
+
+Листы Excel: «Выручка» (Дата asc \| Кол-во \| Средний чек \| Сумма + Итого) или «Топ позиций» (перекрёстная: Наименование блюд × даты asc, на дату Кол-во \| Сумма).
+
+UI менеджера вызывает только `/export` (`api/admin/reports.js`, `useFoodReport.js`). JSON-эндпоинты — для тестов и будущего UI.
+
+Домен — [Отчёты Food](#отчёты-food-foodreport).
+
 ### Food Admin API — меню (`menu_manager`)
 
 Префикс: `/api/food/admin`. Middleware: `max.miniapp.auth` + `food.order.admin:menu_manager`.
@@ -1695,6 +1742,7 @@ docker compose exec -T service-c php artisan max:food-admin:assign 1004 composit
 docker compose exec -T service-c php artisan max:food-admin:assign 1005 menu_manager       # назначить админа меню
 docker compose exec -T service-c php artisan max:food-admin:assign 1006 max_manager        # назначить MAX-менеджера (ручные заказы)
 docker compose exec -T service-c php artisan food:sync-dish-availability                 # синхронизация is_available + уведомление о доступности меню (MSK)
+docker compose exec -T service-c php artisan food-report:backfill-order-items             # sync max_food_order_items только для confirmed (после migrate; на prod — по согласию)
 docker compose exec -T service-c php artisan max:load-test:tokens 10                     # Sanctum-токены VU (только local/testing)
 docker compose exec -T service-c php artisan max:load-test:prepare-menu                  # включить блюда активных ресторанов + сброс кэша меню
 docker compose exec -T service-c php artisan max:load-test:cleanup 10                    # удалить заказы/корзины load-test пользователей

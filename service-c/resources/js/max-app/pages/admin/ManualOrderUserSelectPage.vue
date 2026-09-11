@@ -421,7 +421,7 @@ watch(
             aria-label="Ручные заказы"
         >
             <template v-if="!hasConsumer">
-                <p class="py-12 text-center text-sm text-max-muted">
+                <p class="py-8 text-center text-sm text-max-muted">
                     Выберите потребителя, чтобы оформить заказ или посмотреть его ручные заказы
                 </p>
             </template>

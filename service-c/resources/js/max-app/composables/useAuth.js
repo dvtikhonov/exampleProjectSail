@@ -41,7 +41,8 @@ const hasAdminRoles = computed(() =>
 const availableAdminSections = computed(() => {
     const sections = [];
 
-    if (hasOrderReviewRoles.value) {
+    // «Заказы»: очередь review и/или форма отчётов (max_manager)
+    if (hasOrderReviewRoles.value || hasMaxManagerRole.value) {
         sections.push(ADMIN_SECTIONS.orders);
     }
 
@@ -83,7 +84,9 @@ function resolveDefaultAdminScope(roles) {
  * @returns {string}
  */
 function resolveDefaultAdminSection(roles) {
-    const hasOrders = roles.includes(ROLE_ADDRESS) || roles.includes(ROLE_COMPOSITION);
+    const hasOrders = roles.includes(ROLE_ADDRESS)
+        || roles.includes(ROLE_COMPOSITION)
+        || roles.includes(ROLE_MAX_MANAGER);
     const hasManual = roles.includes(ROLE_MAX_MANAGER);
     const hasMenu = roles.includes(ROLE_MENU);
 

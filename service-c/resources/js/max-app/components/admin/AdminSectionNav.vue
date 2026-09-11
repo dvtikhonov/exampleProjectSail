@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Переключатель разделов админки: заказы / ручные заказы / меню.
+ * Переключатель разделов админки: заказы (review + отчёты) / ручные заказы / меню.
  */
 import { computed, watch } from 'vue';
 import { useAiAccess } from '../../composables/useAiAccess';
@@ -70,7 +70,7 @@ watch(
         <div class="flex flex-col gap-2 px-2 py-2 sm:flex-row sm:items-end sm:justify-between sm:px-0 sm:py-0">
             <nav class="flex flex-1" aria-label="Разделы админки">
                 <button
-                    v-if="hasOrderReviewRoles"
+                    v-if="hasOrderReviewRoles || hasMaxManagerRole"
                     type="button"
                     class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
                     :class="

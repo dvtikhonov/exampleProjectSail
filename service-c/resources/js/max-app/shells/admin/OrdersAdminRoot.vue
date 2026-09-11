@@ -1,14 +1,14 @@
 <script setup>
 /**
- * Раздел проверки заказов: очередь address/composition + деталь заказа.
+ * Раздел «Заказы»: вкладки проверки (address/composition) и отчётов (max_manager).
  */
-import { onMounted, onUnmounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { getStartParam } from '../../bridge/maxBridge';
 import { useAdminChrome } from '../../composables/useAdminChrome';
 import { useAdminFlow } from '../../composables/useAdminFlow';
 import { useAuth } from '../../composables/useAuth';
 import { createChatMessagesReadHandler, useMaxBackButton } from '../../composables/useMaxBackButton';
-import { ADMIN_SECTIONS, ADMIN_VIEWS } from '../../constants/views';
+import { ADMIN_ORDERS_PANELS, ADMIN_SECTIONS, ADMIN_VIEWS } from '../../constants/views';
 import AdminHomePage from '../../pages/admin/AdminHomePage.vue';
 import AdminOrderDetailPage from '../../pages/admin/AdminOrderDetailPage.vue';
 import { resolveOrderChatDeepLinkOrderId } from '../../utils/orderChatDeepLink';
@@ -27,6 +27,8 @@ const {
     adminSection,
     hasAdminRoles,
     hasMenuManagerRole,
+    hasMaxManagerRole,
+    hasOrderReviewRoles,
 } = useAuth();
 
 const { sectionNavVisible } = useAdminChrome();
@@ -60,6 +62,48 @@ const {
     handleAdminCompositionSaved,
 } = admin;
 
+/**
+ * Стартовая вкладка: проверка при review-ролях, иначе отчёты.
+ *
+ * @returns {'review'|'reports'}
+ */
+function resolveDefaultOrdersPanel() {
+    if (hasOrderReviewRoles.value) {
+        return ADMIN_ORDERS_PANELS.review;
+    }
+
+    if (hasMaxManagerRole.value) {
+        return ADMIN_ORDERS_PANELS.reports;
+    }
+
+    return ADMIN_ORDERS_PANELS.review;
+}
+
+/** @type {import('vue').Ref<'review'|'reports'>} */
+const ordersPanel = ref(resolveDefaultOrdersPanel());
+
+const showOrderDetail = computed(() => (
+    hasOrderReviewRoles.value
+    && ordersPanel.value === ADMIN_ORDERS_PANELS.review
+    && adminView.value === ADMIN_VIEWS.detail
+    && Boolean(selectedAdminOrder.value)
+));
+
+/**
+ * @param {'review'|'reports'} panel
+ */
+function handleOrdersPanelChange(panel) {
+    if (ordersPanel.value === panel) {
+        return;
+    }
+
+    ordersPanel.value = panel;
+
+    if (panel === ADMIN_ORDERS_PANELS.reports) {
+        closeAdminOrderDetail();
+    }
+}
+
 const back = useMaxBackButton({
     hasAdminRoles,
     adminSection,
@@ -81,12 +125,15 @@ watch(
 );
 
 onMounted(async () => {
-    initAdminSession();
+    if (hasOrderReviewRoles.value) {
+        initAdminSession();
 
-    const orderId = props.deepLinkOrderId ?? resolveOrderChatDeepLinkOrderId({ getStartParam });
+        const orderId = props.deepLinkOrderId ?? resolveOrderChatDeepLinkOrderId({ getStartParam });
 
-    if (orderId !== null && adminSection.value === ADMIN_SECTIONS.orders) {
-        await openAdminOrderById(orderId);
+        if (orderId !== null && adminSection.value === ADMIN_SECTIONS.orders) {
+            ordersPanel.value = ADMIN_ORDERS_PANELS.review;
+            await openAdminOrderById(orderId);
+        }
     }
 
     back.setupBackButton();
@@ -99,7 +146,7 @@ onUnmounted(() => {
 
 <template>
     <AdminOrderDetailPage
-        v-if="adminView === ADMIN_VIEWS.detail && selectedAdminOrder"
+        v-if="showOrderDetail"
         class="min-h-0 flex-1"
         :order="adminOrderDetail ?? selectedAdminOrder"
         :scope="adminScope"
@@ -123,11 +170,15 @@ onUnmounted(() => {
         v-else
         :admin-roles="adminRoles"
         :active-scope="adminScope"
+        :active-panel="ordersPanel"
         :orders="adminOrders"
         :loading="adminOrdersLoading"
         :error="adminOrdersError"
         :refreshing="adminOrdersRefreshing"
+        :show-reports="hasMaxManagerRole"
+        :show-order-queue="hasOrderReviewRoles"
         @change-scope="handleAdminScopeChange"
+        @change-panel="handleOrdersPanelChange"
         @select-order="openAdminOrder"
         @refresh="loadAdminOrders({ refreshing: true })"
     />
