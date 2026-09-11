@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Modules\FoodReport\Repositories;
 
-use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Models\Food\FoodOrder;
 use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;

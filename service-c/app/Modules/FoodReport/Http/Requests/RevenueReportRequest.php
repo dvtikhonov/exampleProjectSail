@@ -9,6 +9,4 @@ namespace App\Modules\FoodReport\Http\Requests;
  *
  * Поля: date_from, date_to, restaurant_id, опц. date_axis.
  */
-class RevenueReportRequest extends FoodReportFilterRequest
-{
-}
+class RevenueReportRequest extends FoodReportFilterRequest {}

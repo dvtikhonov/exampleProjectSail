@@ -18,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
@@ -314,7 +315,7 @@ class AdminFoodReportExportApiTest extends TestCase
         );
     }
 
-    private function loadFirstSheet(string $binary): \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet
+    private function loadFirstSheet(string $binary): Worksheet
     {
         $path = tempnam(sys_get_temp_dir(), 'food-report-export-test-');
         $this->assertNotFalse($path);
