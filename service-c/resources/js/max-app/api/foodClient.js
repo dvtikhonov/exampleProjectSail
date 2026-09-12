@@ -55,7 +55,6 @@ export {
     submitManualOrder,
     submitOrder,
     toggleAiAccess,
-    triggerBlobDownload,
     updateCartDeliveryAddress,
     updateCartItem,
     updateDish,

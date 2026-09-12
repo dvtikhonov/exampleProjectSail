@@ -19,12 +19,15 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
+use Shared\MaxMessenger\DTO\MaxMessageDto;
+use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 /**
- * Feature: GET /api/food/admin/reports/export — .xlsx по report_type.
+ * Feature: POST /api/food/admin/reports/export — .xlsx в чат MAX по report_type.
  */
 class AdminFoodReportExportApiTest extends TestCase
 {
@@ -55,7 +58,7 @@ class AdminFoodReportExportApiTest extends TestCase
     /** Export требует аутентификацию. */
     public function test_export_requires_authentication(): void
     {
-        $this->get('/api/food/admin/reports/export?'.$this->queryString([
+        $this->postJson('/api/food/admin/reports/export', $this->payload([
             'report_type' => 'revenue',
         ]))->assertUnauthorized();
     }
@@ -66,7 +69,7 @@ class AdminFoodReportExportApiTest extends TestCase
         $auth = $this->authenticateMaxUser();
         $restaurant = Restaurant::factory()->create();
 
-        $this->get('/api/food/admin/reports/export?'.$this->queryString([
+        $this->postJson('/api/food/admin/reports/export', $this->payload([
             'restaurant_id' => $restaurant->id,
             'report_type' => 'revenue',
         ]), $auth['headers'])
@@ -79,13 +82,13 @@ class AdminFoodReportExportApiTest extends TestCase
         $manager = $this->maxManagerAuth();
         $restaurant = Restaurant::factory()->create();
 
-        $this->getJson('/api/food/admin/reports/export?'.$this->queryString([
+        $this->postJson('/api/food/admin/reports/export', $this->payload([
             'restaurant_id' => $restaurant->id,
         ]), $manager['headers'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['report_type']);
 
-        $this->getJson('/api/food/admin/reports/export?'.$this->queryString([
+        $this->postJson('/api/food/admin/reports/export', $this->payload([
             'restaurant_id' => $restaurant->id,
             'report_type' => 'combined',
         ]), $manager['headers'])
@@ -93,13 +96,13 @@ class AdminFoodReportExportApiTest extends TestCase
             ->assertJsonValidationErrors(['report_type']);
     }
 
-    /** Revenue .xlsx: лист «Выручка», даты по возрастанию, Итого. */
-    public function test_export_revenue_xlsx_sheet_headers_and_totals(): void
+    /** Revenue .xlsx: отправка в MAX, лист «Выручка», даты по возрастанию, Итого. */
+    public function test_export_revenue_xlsx_sent_to_max_user(): void
     {
         $manager = $this->maxManagerAuth();
         $restaurant = Restaurant::factory()->create(['name' => 'Export Cafe']);
+        $capture = $this->bindCapturingMaxClient($manager['user']->max_user_id);
 
-        // Создаём дни в обратном порядке — в файле должны идти по возрастанию.
         $this->createOrder($restaurant, OrderStatus::Confirmed, [
             'delivery_date' => '2026-09-03',
             'items_total' => '400.00',
@@ -131,28 +134,28 @@ class AdminFoodReportExportApiTest extends TestCase
 
         $filename = sprintf('report_%d_2026-09-01_2026-09-03.xlsx', $restaurant->id);
 
-        $response = $this->get('/api/food/admin/reports/export?'.$this->queryString([
+        $response = $this->postJson('/api/food/admin/reports/export', $this->payload([
             'date_from' => '2026-09-01',
             'date_to' => '2026-09-03',
             'restaurant_id' => $restaurant->id,
             'report_type' => 'revenue',
         ]), $manager['headers']);
 
-        $response->assertOk();
-        $this->assertStringContainsString(
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            (string) $response->headers->get('Content-Type'),
-        );
-        $this->assertStringContainsString(
-            'attachment',
-            (string) $response->headers->get('Content-Disposition'),
-        );
-        $this->assertStringContainsString(
-            $filename,
-            (string) $response->headers->get('Content-Disposition'),
-        );
+        $response->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'filename' => $filename,
+                'message' => 'Отчёт отправлен в чат MAX.',
+            ]);
 
-        $sheet = $this->loadFirstSheet($response->streamedContent());
+        $this->assertSame($filename, $capture->fileName);
+        $this->assertNotSame('', $capture->binary);
+        $this->assertInstanceOf(MaxMessageDto::class, $capture->message);
+        $this->assertSame($manager['user']->max_user_id, $capture->message->userId);
+        $this->assertSame('file-token-test', $capture->message->fileAttachmentToken);
+        $this->assertStringContainsString('Выручка за период', $capture->message->text);
+
+        $sheet = $this->loadFirstSheet($capture->binary);
         $this->assertSame('Выручка', $sheet->getTitle());
         $this->assertSame('Дата', $sheet->getCell('A1')->getValue());
         $this->assertSame('Кол-во', $sheet->getCell('B1')->getValue());
@@ -176,11 +179,12 @@ class AdminFoodReportExportApiTest extends TestCase
         $this->assertSame('2100.00', (string) $sheet->getCell('D5')->getValue());
     }
 
-    /** Top dishes .xlsx: перекрёстная таблица (блюда × даты с Кол-во/Сумма). */
-    public function test_export_top_dishes_xlsx_sheet_headers_and_rows(): void
+    /** Top dishes .xlsx: перекрёстная таблица, отправка в MAX. */
+    public function test_export_top_dishes_xlsx_sent_to_max_user(): void
     {
         $manager = $this->maxManagerAuth();
         $restaurant = Restaurant::factory()->create(['name' => 'Top Export Cafe']);
+        $capture = $this->bindCapturingMaxClient($manager['user']->max_user_id);
         $sync = app(FoodOrderItemSyncServiceInterface::class);
         $mapper = app(FoodOrderMapper::class);
 
@@ -223,20 +227,21 @@ class AdminFoodReportExportApiTest extends TestCase
 
         $filename = sprintf('report_%d_2026-09-01_2026-09-02.xlsx', $restaurant->id);
 
-        $response = $this->get('/api/food/admin/reports/export?'.$this->queryString([
+        $response = $this->postJson('/api/food/admin/reports/export', $this->payload([
             'date_from' => '2026-09-01',
             'date_to' => '2026-09-02',
             'restaurant_id' => $restaurant->id,
             'report_type' => 'top_dishes',
         ]), $manager['headers']);
 
-        $response->assertOk();
-        $this->assertStringContainsString(
-            $filename,
-            (string) $response->headers->get('Content-Disposition'),
-        );
+        $response->assertOk()
+            ->assertJsonPath('filename', $filename)
+            ->assertJsonPath('ok', true);
 
-        $sheet = $this->loadFirstSheet($response->streamedContent());
+        $this->assertSame($filename, $capture->fileName);
+        $this->assertStringContainsString('Топ позиций', $capture->message->text);
+
+        $sheet = $this->loadFirstSheet($capture->binary);
         $this->assertSame('Топ позиций', $sheet->getTitle());
         $this->assertSame('Наименование блюд', $sheet->getCell('A1')->getValue());
         $this->assertSame('2026-09-01', $sheet->getCell('B1')->getValue());
@@ -254,6 +259,29 @@ class AdminFoodReportExportApiTest extends TestCase
         $this->assertSame('', (string) ($sheet->getCell('B4')->getValue() ?? ''));
         $this->assertSame(1, (int) $sheet->getCell('D4')->getValue());
         $this->assertSame('150.00', (string) $sheet->getCell('E4')->getValue());
+    }
+
+    /** Ошибка MAX Bot API → 502 с безопасным сообщением. */
+    public function test_export_returns_502_when_max_delivery_fails(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $restaurant = Restaurant::factory()->create();
+
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client->expects($this->once())
+            ->method('uploadFile')
+            ->willThrowException(new MaxMessengerRequestException('Не удалось загрузить файл в MAX.'));
+        $client->expects($this->never())->method('sendMessage');
+        $this->app->instance(MaxMessengerClientInterface::class, $client);
+
+        $this->postJson('/api/food/admin/reports/export', $this->payload([
+            'restaurant_id' => $restaurant->id,
+            'report_type' => 'revenue',
+        ]), $manager['headers'])
+            ->assertStatus(502)
+            ->assertJson([
+                'message' => 'Не удалось загрузить файл в MAX.',
+            ]);
     }
 
     /**
@@ -291,14 +319,15 @@ class AdminFoodReportExportApiTest extends TestCase
 
     /**
      * @param  array<string, scalar|null>  $params
+     * @return array<string, scalar|null>
      */
-    private function queryString(array $params = []): string
+    private function payload(array $params = []): array
     {
-        return http_build_query(array_merge([
+        return array_merge([
             'date_from' => '2026-09-01',
             'date_to' => '2026-09-10',
             'restaurant_id' => 1,
-        ], $params));
+        ], $params);
     }
 
     /**
@@ -313,6 +342,40 @@ class AdminFoodReportExportApiTest extends TestCase
             ])),
             FoodOrderAdminRole::MaxManager,
         );
+    }
+
+    /**
+     * Мок клиента MAX: сохраняет binary/имя файла и DTO исходящего сообщения.
+     *
+     * @return object{binary: string, fileName: string, message: ?MaxMessageDto}
+     */
+    private function bindCapturingMaxClient(int $expectedUserId): object
+    {
+        $capture = (object) [
+            'binary' => '',
+            'fileName' => '',
+            'message' => null,
+        ];
+
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client->expects($this->once())
+            ->method('uploadFile')
+            ->willReturnCallback(static function (string $contents, string $fileName) use ($capture): string {
+                $capture->binary = $contents;
+                $capture->fileName = $fileName;
+
+                return 'file-token-test';
+            });
+        $client->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(static function (MaxMessageDto $message) use ($capture, $expectedUserId): void {
+                $capture->message = $message;
+                self::assertSame($expectedUserId, $message->userId);
+            });
+
+        $this->app->instance(MaxMessengerClientInterface::class, $client);
+
+        return $capture;
     }
 
     private function loadFirstSheet(string $binary): Worksheet

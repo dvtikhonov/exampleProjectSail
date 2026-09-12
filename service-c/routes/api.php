@@ -134,7 +134,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 ->group(function () {
                     Route::get('/revenue', [AdminFoodReportQueryController::class, 'revenue']);
                     Route::get('/top-dishes', [AdminFoodReportQueryController::class, 'topDishes']);
-                    Route::get('/export', [AdminFoodReportExportController::class, 'export']);
+                    Route::post('/export', [AdminFoodReportExportController::class, 'export']);
                 });
 
             Route::prefix('manual-orders')

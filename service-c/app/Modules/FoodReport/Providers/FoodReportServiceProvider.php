@@ -9,12 +9,14 @@ use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderItemWriteRepositoryInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderReportRepositoryInterface;
+use App\Modules\FoodReport\Contracts\FoodReportMaxDeliveryInterface;
 use App\Modules\FoodReport\Contracts\FoodReportQueryServiceInterface;
 use App\Modules\FoodReport\Contracts\FoodReportSpreadsheetExporterInterface;
 use App\Modules\FoodReport\Repositories\EloquentFoodOrderConfirmedBackfillSource;
 use App\Modules\FoodReport\Repositories\EloquentFoodOrderItemWriteRepository;
 use App\Modules\FoodReport\Repositories\EloquentFoodOrderReportRepository;
 use App\Modules\FoodReport\Services\FoodOrderItemSyncService;
+use App\Modules\FoodReport\Services\FoodReportMaxDeliveryService;
 use App\Modules\FoodReport\Services\FoodReportQueryService;
 use App\Modules\FoodReport\Services\PhpSpreadsheetFoodReportExporter;
 use Illuminate\Support\ServiceProvider;
@@ -53,6 +55,10 @@ class FoodReportServiceProvider extends ServiceProvider
         $this->app->bind(
             FoodReportSpreadsheetExporterInterface::class,
             PhpSpreadsheetFoodReportExporter::class,
+        );
+        $this->app->bind(
+            FoodReportMaxDeliveryInterface::class,
+            FoodReportMaxDeliveryService::class,
         );
     }
 

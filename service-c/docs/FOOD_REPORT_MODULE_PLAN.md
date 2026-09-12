@@ -14,7 +14,7 @@
 | 3 | База выручки и среднего чека | **`items_total`** (без доставки) |
 | 4 | Формат файла | **`.xlsx`** |
 | 5 | Состав заказов в отчёте | **только выполненные** = `OrderStatus::Confirmed` |
-| 6 | UI | только скачивание файла, без превью на экране |
+| 6 | UI | отправка `.xlsx` в чат MAX менеджеру (без превью на экране) |
 | 7 | Выбор отчёта | `revenue` \| `top_dishes` (без combined) |
 | 8 | Архитектура данных | **Вариант B** (таблица строк + sync) |
 | 9 | Запись в `max_food_order_items` | **только** при статусе «Выполнен» (`confirmed`) |
@@ -28,7 +28,7 @@
 1. **Выручка за период** — по дням: дата, кол-во заказов, средний чек, сумма (`items_total`).
 2. **Топ позиций** — по дням: наименование, количество, сумма (`line_total` из `max_food_order_items`).
 3. **Вариант B** — строки items только для выполненных заказов; sync при create/`confirmed`/composition.
-4. **Выгрузка в `.xlsx`** (PhpSpreadsheet), сразу скачивание из UI.
+4. Выгрузка в `.xlsx` (PhpSpreadsheet) и **отправка файла в чат MAX** менеджеру.
 5. **Форма в разделе «Заказы»** (роль `max_manager`) — период + ресторан + выбор отчёта.
 
 Модульность: feature-модуль внутри монолита `service-c`.  
@@ -74,11 +74,13 @@ service-c/app/Modules/FoodReport/
 │   ├── FoodReportQueryServiceInterface.php
 │   ├── FoodOrderItemWriteRepositoryInterface.php
 │   ├── FoodOrderReportRepositoryInterface.php
-│   └── FoodReportSpreadsheetExporterInterface.php
+│   ├── FoodReportSpreadsheetExporterInterface.php
+│   └── FoodReportMaxDeliveryInterface.php
 ├── Services/
 │   ├── FoodReportQueryService.php
 │   ├── FoodOrderItemSyncService.php
-│   └── PhpSpreadsheetFoodReportExporter.php
+│   ├── PhpSpreadsheetFoodReportExporter.php
+│   └── FoodReportMaxDeliveryService.php
 ├── Repositories/
 │   ├── EloquentFoodOrderItemWriteRepository.php
 │   └── EloquentFoodOrderReportRepository.php
@@ -235,7 +237,7 @@ Middleware: `max.miniapp.auth` + `food.order.admin:max_manager`
 |--------|------|------------|
 | `GET` | `/revenue` | JSON: дни + meta итогов |
 | `GET` | `/top-dishes` | JSON: по дням позиции (опц. `limit`) |
-| `GET` | `/export` | binary download Excel |
+| `GET` | `/export` | ~~binary download~~ → `POST /export` — .xlsx в чат MAX |
 
 ### Query / FormRequest
 
@@ -254,7 +256,8 @@ Middleware: `max.miniapp.auth` + `food.order.admin:max_manager`
 - Лист «Топ позиций»: перекрёстная таблица — «Наименование блюд» + даты (asc), на каждую дату подколонки Кол-во \| Сумма
 - Имя файла: `report_{restaurantId}_{from}_{to}.xlsx`
 - Writer: PhpSpreadsheet Xlsx
-- `Content-Disposition: attachment`
+- Доставка: `FoodReportMaxDeliveryInterface` → Bot API `POST /uploads?type=file` + `POST /messages?user_id=…` с `attachments.type=file`
+- Ответ API: JSON `{ ok, filename, message }` (не browser download)
 - Контракт `FoodReportSpreadsheetExporterInterface`; реализация без протекания в query-service деталей Writer
 
 Пример JSON выручки:
@@ -298,7 +301,7 @@ Middleware: `max.miniapp.auth` + `food.order.admin:max_manager`
 3. **Выбор отчёта** (`report_type`, обязательный select):
    - «Выручка за период» → `revenue`
    - «Топ позиций» → `top_dishes`
-4. Действие: **только «Скачать»** → сразу `.xlsx` через `/export` (без превью таблиц на экране).
+4. Действие: **«Отправить в MAX»** → `.xlsx` через `POST /export` в диалог менеджера (без превью таблиц на экране).
 
 JSON `/revenue` и `/top-dishes` — для тестов и возможного будущего UI; форма менеджера их не вызывает.
 

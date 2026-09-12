@@ -102,5 +102,4 @@ export {
 
 export {
     exportFoodReport,
-    triggerBlobDownload,
 } from './admin/reports';
