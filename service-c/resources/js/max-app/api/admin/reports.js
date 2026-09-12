@@ -1,9 +1,8 @@
 /**
- * Админ: выгрузка отчётов Food (max_manager) в .xlsx.
+ * Админ: выгрузка отчётов Food (max_manager) — .xlsx в чат MAX.
  *
  * JSON `/revenue` и `/top-dishes` UI не вызывает — только `/export`.
  */
-import axios from 'axios';
 import { client, extractErrorMessage } from '../http';
 
 /**
@@ -21,10 +20,18 @@ import { client, extractErrorMessage } from '../http';
  */
 
 /**
- * Скачивание .xlsx: GET /api/food/admin/reports/export.
+ * @typedef {object} FoodReportExportResult
+ * @property {boolean} ok
+ * @property {string} filename
+ * @property {string} message
+ */
+
+/**
+ * Генерация .xlsx и отправка в чат MAX текущего менеджера:
+ * POST /api/food/admin/reports/export.
  *
  * @param {FoodReportExportParams} params
- * @returns {Promise<{ blob: Blob, filename: string }>}
+ * @returns {Promise<FoodReportExportResult>}
  */
 export async function exportFoodReport({
     dateFrom,
@@ -34,7 +41,7 @@ export async function exportFoodReport({
     dateAxis = undefined,
     limit = undefined,
 }) {
-    const query = {
+    const payload = {
         date_from: dateFrom,
         date_to: dateTo,
         restaurant_id: restaurantId,
@@ -42,109 +49,33 @@ export async function exportFoodReport({
     };
 
     if (typeof dateAxis === 'string' && dateAxis !== '') {
-        query.date_axis = dateAxis;
+        payload.date_axis = dateAxis;
     }
 
     if (typeof limit === 'number' && Number.isFinite(limit)) {
-        query.limit = limit;
+        payload.limit = limit;
     }
 
     try {
-        const response = await client.get('/food/admin/reports/export', {
-            params: query,
-            responseType: 'blob',
-        });
+        const response = await client.post('/food/admin/reports/export', payload);
+        const data = response.data;
 
-        const fallbackName = `report_${restaurantId}_${dateFrom}_${dateTo}.xlsx`;
+        if (!data || typeof data !== 'object' || data.ok !== true) {
+            throw new Error(
+                typeof data?.message === 'string' && data.message.trim() !== ''
+                    ? data.message.trim()
+                    : 'Не удалось отправить отчёт в MAX.',
+            );
+        }
 
         return {
-            blob: response.data,
-            filename: parseContentDispositionFilename(response.headers?.['content-disposition'])
-                || fallbackName,
+            ok: true,
+            filename: typeof data.filename === 'string' ? data.filename : '',
+            message: typeof data.message === 'string' && data.message.trim() !== ''
+                ? data.message.trim()
+                : 'Отчёт отправлен в чат MAX.',
         };
     } catch (error) {
-        throw await normalizeExportError(error);
+        throw new Error(extractErrorMessage(error));
     }
-}
-
-/**
- * Запускает скачивание Blob в браузере.
- *
- * @param {Blob} blob
- * @param {string} filename
- */
-export function triggerBlobDownload(blob, filename) {
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-
-    link.href = objectUrl;
-    link.download = filename;
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(objectUrl);
-}
-
-/**
- * @param {string|undefined} header
- * @returns {string|null}
- */
-function parseContentDispositionFilename(header) {
-    if (typeof header !== 'string' || header.trim() === '') {
-        return null;
-    }
-
-    const utfMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
-
-    if (utfMatch?.[1]) {
-        try {
-            return decodeURIComponent(utfMatch[1].trim().replace(/^["']|["']$/g, ''));
-        } catch {
-            return utfMatch[1].trim().replace(/^["']|["']$/g, '');
-        }
-    }
-
-    const plainMatch = /filename="?([^";]+)"?/i.exec(header);
-
-    if (plainMatch?.[1]) {
-        return plainMatch[1].trim();
-    }
-
-    return null;
-}
-
-/**
- * При responseType: blob тело ошибки тоже Blob — разбираем JSON message.
- *
- * @param {unknown} error
- * @returns {Promise<Error>}
- */
-async function normalizeExportError(error) {
-    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
-        try {
-            const text = await error.response.data.text();
-            const payload = JSON.parse(text);
-
-            if (payload && typeof payload === 'object') {
-                const validation = payload.errors;
-
-                if (validation && typeof validation === 'object') {
-                    for (const messages of Object.values(validation)) {
-                        if (Array.isArray(messages) && typeof messages[0] === 'string' && messages[0] !== '') {
-                            return new Error(messages[0]);
-                        }
-                    }
-                }
-
-                if (typeof payload.message === 'string' && payload.message.trim() !== '') {
-                    return new Error(payload.message.trim());
-                }
-            }
-        } catch {
-            // fallback ниже
-        }
-    }
-
-    return new Error(extractErrorMessage(error));
 }

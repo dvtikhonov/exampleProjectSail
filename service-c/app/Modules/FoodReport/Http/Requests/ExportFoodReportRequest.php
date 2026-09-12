@@ -8,7 +8,7 @@ use App\Modules\FoodReport\Enums\ReportType;
 use Illuminate\Validation\Rule;
 
 /**
- * Валидация GET /api/food/admin/reports/export.
+ * Валидация POST /api/food/admin/reports/export.
  *
  * Поля: date_from, date_to, restaurant_id, report_type (обязателен), опц. date_axis, limit.
  */

@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Форма выгрузки отчётов Food: период, ресторан, тип → только скачивание .xlsx.
+ * Форма выгрузки отчётов Food: период, ресторан, тип → .xlsx в чат MAX.
  */
 import { onMounted, toRef } from 'vue';
 import AppSelect from '../AppSelect.vue';
@@ -28,15 +28,16 @@ const {
     restaurantLocked,
     restaurantSelectOptions,
     reportTypeOptions,
-    downloading,
-    downloadError,
-    canDownload,
+    sending,
+    sendError,
+    sendSuccess,
+    canSend,
     loadRestaurants,
     setDateFrom,
     setDateTo,
     setRestaurantId,
     setReportType,
-    download,
+    send,
 } = useFoodReport({ preselectedRestaurantId });
 
 onMounted(() => {
@@ -71,7 +72,7 @@ function onDateToChange(event) {
                 Отчёты
             </h2>
             <p class="mt-0.5 text-xs text-max-muted">
-                Только выполненные заказы. Скачивание .xlsx без превью.
+                Только выполненные заказы. Файл .xlsx придёт в чат MAX.
             </p>
         </div>
 
@@ -90,10 +91,17 @@ function onDateToChange(event) {
         </div>
 
         <div
-            v-if="downloadError"
+            v-if="sendError"
             class="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
         >
-            {{ downloadError }}
+            {{ sendError }}
+        </div>
+
+        <div
+            v-if="sendSuccess"
+            class="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+        >
+            {{ sendSuccess }}
         </div>
 
         <div class="space-y-3">
@@ -110,7 +118,7 @@ function onDateToChange(event) {
                         type="date"
                         class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-max-primary focus:ring-2 focus:ring-max-primary/20"
                         :value="dateFrom"
-                        :disabled="downloading"
+                        :disabled="sending"
                         @change="onDateFromChange"
                     >
                 </div>
@@ -126,7 +134,7 @@ function onDateToChange(event) {
                         type="date"
                         class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-max-primary focus:ring-2 focus:ring-max-primary/20"
                         :value="dateTo"
-                        :disabled="downloading"
+                        :disabled="sending"
                         @change="onDateToChange"
                     >
                 </div>
@@ -143,7 +151,7 @@ function onDateToChange(event) {
                     id="food-report-restaurant"
                     :model-value="restaurantId"
                     :options="restaurantSelectOptions"
-                    :disabled="restaurantLocked || restaurantsLoading || downloading"
+                    :disabled="restaurantLocked || restaurantsLoading || sending"
                     placeholder="Выберите ресторан"
                     @update:model-value="setRestaurantId"
                 />
@@ -166,7 +174,7 @@ function onDateToChange(event) {
                     id="food-report-type"
                     :model-value="reportType"
                     :options="reportTypeOptions"
-                    :disabled="downloading"
+                    :disabled="sending"
                     placeholder="Выберите отчёт"
                     @update:model-value="setReportType"
                 />
@@ -175,20 +183,20 @@ function onDateToChange(event) {
             <button
                 type="button"
                 class="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition"
-                :disabled="!canDownload || downloading"
-                :class="canDownload && !downloading
+                :disabled="!canSend || sending"
+                :class="canSend && !sending
                     ? 'bg-max-primary text-white active:scale-[0.99]'
-                    : downloading
+                    : sending
                         ? 'bg-max-primary text-white opacity-90'
                         : 'cursor-not-allowed bg-gray-100 text-gray-400'"
-                @click="download"
+                @click="send"
             >
                 <span
-                    v-if="downloading"
+                    v-if="sending"
                     class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
                     aria-hidden="true"
                 />
-                {{ downloading ? 'Скачивание…' : 'Скачать' }}
+                {{ sending ? 'Отправка…' : 'Отправить в MAX' }}
             </button>
         </div>
     </section>

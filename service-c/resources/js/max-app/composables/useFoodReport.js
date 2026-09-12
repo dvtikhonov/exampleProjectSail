@@ -1,8 +1,8 @@
 /**
- * Форма выгрузки отчётов Food (max_manager): период, ресторан, тип → только .xlsx.
+ * Форма выгрузки отчётов Food (max_manager): период, ресторан, тип → .xlsx в чат MAX.
  */
 import { computed, ref, watch } from 'vue';
-import { exportFoodReport, triggerBlobDownload } from '../api/admin/reports';
+import { exportFoodReport } from '../api/admin/reports';
 import { extractErrorMessage, fetchRestaurants } from '../api';
 
 /** Типы отчёта (значения API report_type) */
@@ -59,8 +59,9 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
     const restaurantsLoading = ref(false);
     const restaurantsError = ref('');
 
-    const downloading = ref(false);
-    const downloadError = ref('');
+    const sending = ref(false);
+    const sendError = ref('');
+    const sendSuccess = ref('');
 
     const restaurantLocked = computed(() => {
         const raw = preselectedRestaurantId?.value;
@@ -78,7 +79,7 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
 
     const reportTypeOptions = FOOD_REPORT_TYPE_OPTIONS;
 
-    const canDownload = computed(() => (
+    const canSend = computed(() => (
         dateFrom.value !== ''
         && dateTo.value !== ''
         && restaurantId.value !== ''
@@ -126,7 +127,8 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
      */
     function setDateFrom(value) {
         dateFrom.value = typeof value === 'string' ? value : '';
-        downloadError.value = '';
+        sendError.value = '';
+        sendSuccess.value = '';
     }
 
     /**
@@ -134,7 +136,8 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
      */
     function setDateTo(value) {
         dateTo.value = typeof value === 'string' ? value : '';
-        downloadError.value = '';
+        sendError.value = '';
+        sendSuccess.value = '';
     }
 
     /**
@@ -146,7 +149,8 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
         }
 
         restaurantId.value = typeof value === 'string' ? value : '';
-        downloadError.value = '';
+        sendError.value = '';
+        sendSuccess.value = '';
     }
 
     /**
@@ -154,32 +158,34 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
      */
     function setReportType(value) {
         reportType.value = typeof value === 'string' ? value : FOOD_REPORT_TYPES.revenue;
-        downloadError.value = '';
+        sendError.value = '';
+        sendSuccess.value = '';
     }
 
-    async function download() {
-        if (!canDownload.value || downloading.value) {
+    async function send() {
+        if (!canSend.value || sending.value) {
             return;
         }
 
-        downloading.value = true;
-        downloadError.value = '';
+        sending.value = true;
+        sendError.value = '';
+        sendSuccess.value = '';
 
         try {
-            const { blob, filename } = await exportFoodReport({
+            const result = await exportFoodReport({
                 dateFrom: dateFrom.value,
                 dateTo: dateTo.value,
                 restaurantId: Number(restaurantId.value),
                 reportType: /** @type {'revenue'|'top_dishes'} */ (reportType.value),
             });
 
-            triggerBlobDownload(blob, filename);
+            sendSuccess.value = result.message;
         } catch (error) {
-            downloadError.value = error instanceof Error
+            sendError.value = error instanceof Error
                 ? error.message
                 : extractErrorMessage(error);
         } finally {
-            downloading.value = false;
+            sending.value = false;
         }
     }
 
@@ -194,14 +200,15 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
         restaurantLocked,
         restaurantSelectOptions,
         reportTypeOptions,
-        downloading,
-        downloadError,
-        canDownload,
+        sending,
+        sendError,
+        sendSuccess,
+        canSend,
         loadRestaurants,
         setDateFrom,
         setDateTo,
         setRestaurantId,
         setReportType,
-        download,
+        send,
     };
 }

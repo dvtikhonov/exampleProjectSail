@@ -532,7 +532,7 @@ API — [Food Admin API — ручные заказы](#food-admin-api--ручн
 | Sync (write) | `FoodOrderItemSyncService::syncIfConfirmed`: confirmed → replace rows из `items_snapshot`; иначе `deleteByOrderId` |
 | Хуки | `OrderFromCartCreator` (после create); `OrderReviewStepHandler` (approve/reject); `OrderCompositionUpdateService` (после правки состава) |
 | Экспорт | `.xlsx` (PhpSpreadsheet), один лист по `report_type`: `revenue` \| `top_dishes`; имя `report_{restaurantId}_{from}_{to}.xlsx` |
-| UI | Форма в разделе «Заказы» (`FoodReportForm` в `AdminHomePage` / `OrdersAdminRoot`), только при `hasMaxManagerRole`: период + ресторан + тип → только «Скачать»; JSON `/revenue` и `/top-dishes` UI не вызывает |
+| UI | Форма в разделе «Заказы» (`FoodReportForm` в `AdminHomePage` / `OrdersAdminRoot`), только при `hasMaxManagerRole`: период + ресторан + тип → «Отправить в MAX» (.xlsx в чат); JSON `/revenue` и `/top-dishes` UI не вызывает |
 | Не путать | `MAX_REPORT_*` — чаты уведомлений меню / «тест бот», **не** аналитика FoodReport |
 
 **Миграция и backfill (согласие):**
@@ -1622,7 +1622,7 @@ location /api/c/ {
 |---|---|---|
 | `GET` | `/api/food/admin/reports/revenue` | JSON выручки по дням (только confirmed): `{ days: [{ date, orders_count, average_check, amount }], meta: { orders_count, average_check, amount } }` |
 | `GET` | `/api/food/admin/reports/top-dishes` | JSON топа по дням: `?limit=` (1–100, default 20) → `{ days: [{ date, items: [{ dish_id, dish_name, quantity, amount }] }] }` |
-| `GET` | `/api/food/admin/reports/export` | Binary `.xlsx`; обязателен `report_type` = `revenue` \| `top_dishes`; для топа — опц. `limit`; `Content-Disposition: attachment`; имя `report_{restaurantId}_{from}_{to}.xlsx` |
+| `POST` | `/api/food/admin/reports/export` | Генерация `.xlsx` + отправка в диалог текущего `max_manager` (Bot API `uploads` + `messages`); обязателен `report_type` = `revenue` \| `top_dishes`; для топа — опц. `limit`; JSON `{ ok, filename, message }`; имя `report_{restaurantId}_{from}_{to}.xlsx` |
 
 Листы Excel: «Выручка» (Дата asc \| Кол-во \| Средний чек \| Сумма + Итого) или «Топ позиций» (перекрёстная: Наименование блюд × даты asc, на дату Кол-во \| Сумма).
 
