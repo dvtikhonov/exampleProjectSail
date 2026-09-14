@@ -4,7 +4,7 @@
  */
 import { computed } from 'vue';
 import CartDeliveryHint from './CartDeliveryHint.vue';
-import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
+import { formatDeliveryWindowCaption, formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
 const props = defineProps({
     cart: {
@@ -45,9 +45,13 @@ const props = defineProps({
 
 defineEmits(['submit', 'update:deliveryDate']);
 
-const deliveryDateLabel = computed(() => formatIsoDateRu(
-    props.editableDeliveryDate ? props.deliveryDate : props.cart?.delivery_date,
+const resolvedDeliveryDate = computed(() => (
+    props.editableDeliveryDate ? props.deliveryDate : props.cart?.delivery_date
 ));
+
+const deliveryDateLabel = computed(() => formatIsoDateRu(resolvedDeliveryDate.value));
+
+const deliveryWindowCaption = computed(() => formatDeliveryWindowCaption(resolvedDeliveryDate.value));
 
 const showDeliveryDateRow = computed(() => {
     if (props.editableDeliveryDate) {
@@ -160,11 +164,17 @@ const showDeliveryDateRow = computed(() => {
         </p>
         <button
             type="button"
-            class="flex w-full items-center justify-center rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+            class="flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="!canSubmit"
             @click="$emit('submit')"
         >
-            Оформить предзаказ на {{ cart.total }} ₽
+            <span>Оформить предзаказ на {{ cart.total }} ₽</span>
+            <span
+                v-if="deliveryWindowCaption"
+                class="text-xs font-normal text-red-500"
+            >
+                {{ deliveryWindowCaption }}
+            </span>
         </button>
     </div>
 </template>
