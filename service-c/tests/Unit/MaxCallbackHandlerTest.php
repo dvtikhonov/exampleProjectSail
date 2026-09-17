@@ -7,6 +7,7 @@ use App\Services\Max\UiStand\MaxCallbackHandler;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Tests\TestCase;
 
 class MaxCallbackHandlerTest extends TestCase
@@ -103,7 +104,7 @@ class MaxCallbackHandlerTest extends TestCase
             'platform-api.max.ru/*' => Http::response(['error' => 'boom'], 500),
         ]);
 
-        $this->expectException(\Shared\MaxMessenger\Exceptions\MaxMessengerException::class);
+        $this->expectException(MaxMessengerException::class);
 
         $this->app->make(MaxCallbackHandler::class)->handle(new MaxCallbackUpdateDto(
             callbackId: 'cb-fail-1',

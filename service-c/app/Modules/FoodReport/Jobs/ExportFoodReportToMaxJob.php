@@ -17,7 +17,7 @@ use Illuminate\Foundation\Queue\Queueable;
  *
  * Уникальность по параметрам выгрузки — защита от двойного клика (два файла).
  */
-class ExportFoodReportToMaxJob implements ShouldQueue, ShouldBeUnique
+class ExportFoodReportToMaxJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 

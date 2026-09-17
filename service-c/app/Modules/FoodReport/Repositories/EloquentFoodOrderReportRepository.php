@@ -9,6 +9,7 @@ use App\Models\Food\FoodOrder;
 use App\Modules\FoodReport\Contracts\FoodOrderReportRepositoryInterface;
 use App\Modules\FoodReport\DTO\ReportFilterDto;
 use App\Modules\FoodReport\Enums\ReportDateAxis;
+use App\Modules\FoodReport\Http\Requests\FoodReportFilterRequest;
 use App\Modules\FoodReport\Models\FoodOrderItem;
 use DateInterval;
 use DateTimeImmutable;
@@ -56,7 +57,7 @@ final class EloquentFoodOrderReportRepository implements FoodOrderReportReposito
      * Top-N по дням: отдельный SQL на каждый день периода с
      * `ORDER BY … LIMIT $limitPerDay` (MySQL 5.7 без window functions).
      * Период ограничен
-     * ≤ {@see \App\Modules\FoodReport\Http\Requests\FoodReportFilterRequest::MAX_SPAN_DAYS} дней.
+     * ≤ {@see FoodReportFilterRequest::MAX_SPAN_DAYS} дней.
      */
     public function aggregateTopDishesByDay(ReportFilterDto $filter, int $limitPerDay): array
     {
