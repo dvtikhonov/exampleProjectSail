@@ -25,7 +25,7 @@ class MaxWebhookUpdateRouterTest extends TestCase
             'max.bot_access_token' => self::TOKEN,
             'max.rate_limit_retry_max' => 0,
             'max.rate_limit_retry_delay_ms' => 0,
-            'max.ui_stand.greeting_text' => 'Привет! Выберите ответ:',
+            'max.ui_stand.greeting_text' => 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
             'max.ui_stand.button_yes_payload' => 'yes',
             'max.ui_stand.button_no_payload' => 'no',
             'logging.channels.stack.channels' => ['single'],

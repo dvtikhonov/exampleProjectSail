@@ -110,7 +110,7 @@ return [
     'ui_stand' => [
         'mini_app_url' => env('MAX_MINI_APP_URL', ''),
         'mini_app_button_text' => env('MAX_UI_STAND_MINI_APP_BUTTON_TEXT', 'Заказ еды'),
-        'greeting_text' => env('MAX_UI_STAND_GREETING', 'Привет! Выберите ответ:'),
+        'greeting_text' => 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
         'button_yes_payload' => 'yes',
         'button_no_payload' => 'no',
         'recipient_chat_ids' => array_values(array_filter(array_map(

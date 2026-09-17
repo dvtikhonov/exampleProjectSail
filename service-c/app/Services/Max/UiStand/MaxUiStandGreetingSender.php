@@ -13,7 +13,7 @@ use RuntimeException;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 
 /**
- * Отправка приветственного сообщения стенда MAX с inline-клавиатурой.
+ * Отправка приветственного сообщения стенда MAX с кнопкой mini-app.
  */
 class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
 {
@@ -58,7 +58,10 @@ class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
     private function sendToRecipients(array $chatIds, array $userIds): void
     {
         $buttonRows = $this->buildButtonRows();
-        $text = (string) $this->config->get('max.ui_stand.greeting_text', 'Привет! Выберите ответ:');
+        $text = (string) $this->config->get(
+            'max.ui_stand.greeting_text',
+            'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
+        );
 
         $successCount = 0;
         $failureCount = 0;
@@ -103,25 +106,12 @@ class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
     }
 
     /**
-     * Строит ряды кнопок приветственного сообщения.
+     * Строит ряды кнопок приветственного сообщения (только mini-app).
      *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */
     private function buildButtonRows(): array
     {
-        $rows = $this->openAppButtonFactory->buildGenericMiniAppButtonRows();
-
-        $rows[] = [
-            new MaxInlineKeyboardButtonDto(
-                text: 'да',
-                payload: (string) $this->config->get('max.ui_stand.button_yes_payload', 'yes'),
-            ),
-            new MaxInlineKeyboardButtonDto(
-                text: 'нет',
-                payload: (string) $this->config->get('max.ui_stand.button_no_payload', 'no'),
-            ),
-        ];
-
-        return $rows;
+        return $this->openAppButtonFactory->buildGenericMiniAppButtonRows();
     }
 }
