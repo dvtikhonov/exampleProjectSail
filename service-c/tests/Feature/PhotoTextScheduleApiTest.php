@@ -25,6 +25,8 @@ class PhotoTextScheduleApiTest extends TestCase
 
     private const string AGENT_TOKEN = 'phototext-schedule-test-token';
 
+    private const string WRITE_TOKEN = 'phototext-schedule-write-token';
+
     private const string TIMEZONE = 'Europe/Moscow';
 
     /** Подготовка окружения перед тестом. */
@@ -94,7 +96,7 @@ class PhotoTextScheduleApiTest extends TestCase
                 ['name' => 'Гречка', 'dates' => [$dates['day_2']]],
                 ['name' => 'Несуществующее', 'dates' => [$dates['date_from']]],
             ],
-        ], $this->photoTextHeaders());
+        ], $this->photoTextWriteHeaders());
 
         $response
             ->assertOk()
@@ -220,7 +222,7 @@ class PhotoTextScheduleApiTest extends TestCase
                 ['name' => 'Гречка', 'dates' => [$dates['day_3']]],
                 ['name' => 'Нет в меню', 'dates' => [$dates['date_from']]],
             ],
-        ], $this->photoTextHeaders());
+        ], $this->photoTextWriteHeaders());
 
         $categoryIds = [$fixture['category']->id, $sideCategory->id];
         sort($categoryIds);
@@ -293,7 +295,7 @@ class PhotoTextScheduleApiTest extends TestCase
             'entries' => [
                 ['name' => 'Борщ', 'dates' => [$dates['date_from']]],
             ],
-        ], $this->photoTextHeaders())
+        ], $this->photoTextWriteHeaders())
             ->assertOk()
             ->assertJsonPath('applied', true)
             ->assertJsonPath('matched_count', 1);
@@ -378,7 +380,7 @@ class PhotoTextScheduleApiTest extends TestCase
                 ['name' => 'Борщ', 'dates' => [$dates['date_from']]],
                 ['name' => 'Гречка', 'dates' => [$dates['day_2']]],
             ],
-        ], $this->photoTextHeaders())
+        ], $this->photoTextWriteHeaders())
             ->assertOk()
             ->assertJsonPath('applied', true)
             ->assertJsonPath('matched_count', 2)
@@ -446,7 +448,7 @@ class PhotoTextScheduleApiTest extends TestCase
             'entries' => [
                 ['name' => 'Борщ', 'dates' => [$dates['date_from']]],
             ],
-        ], $this->photoTextHeaders())
+        ], $this->photoTextWriteHeaders())
             ->assertOk()
             ->assertJsonPath('applied', true)
             ->assertJsonPath('categories_applied', [$fixture['category']->id]);
@@ -483,7 +485,7 @@ class PhotoTextScheduleApiTest extends TestCase
             'entries' => [
                 ['name' => 'Несуществующее', 'dates' => [$dates['date_from']]],
             ],
-        ], $this->photoTextHeaders())
+        ], $this->photoTextWriteHeaders())
             ->assertUnprocessable()
             ->assertJsonPath('matched_count', 0)
             ->assertJsonPath('applied', false)
@@ -510,7 +512,7 @@ class PhotoTextScheduleApiTest extends TestCase
             'entries' => [
                 ['name' => 'Борщ', 'dates' => [$dates['date_from']]],
             ],
-        ], $this->photoTextHeaders())
+        ], $this->photoTextWriteHeaders())
             ->assertUnprocessable()
             ->assertJsonPath('message', 'Нельзя изменять доступность на прошедшие даты.');
 
@@ -536,6 +538,62 @@ class PhotoTextScheduleApiTest extends TestCase
         ], $this->photoTextHeaders())
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['date_to']);
+    }
+
+    /** Больше 500 entries отклоняется с 422. */
+    public function test_rejects_more_than_500_entries(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
+        $this->configurePhotoTextAgent($manager['user']->max_user_id);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Entries Limit Cafe', 'Борщ', 150);
+        $dates = $this->weekWindowFrom('2026-08-20');
+
+        $entries = array_map(
+            static fn (int $i): array => [
+                'name' => "Блюдо {$i}",
+                'dates' => [$dates['date_from']],
+            ],
+            range(1, 501),
+        );
+
+        $this->postJson('/api/food/phototext/schedule/match', [
+            'restaurant_id' => $fixture['restaurant']->id,
+            'date_from' => $dates['date_from'],
+            'date_to' => $dates['date_to'],
+            'entries' => $entries,
+        ], $this->photoTextHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['entries']);
+    }
+
+    /** Больше 7 дат у одной entry отклоняется с 422. */
+    public function test_rejects_more_than_7_dates_per_entry(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-08-20 12:00:00', self::TIMEZONE));
+        $manager = $this->phototextManager(10_026, 'PhotoTextScheduleManager');
+        $this->configurePhotoTextAgent($manager['user']->max_user_id);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Dates Limit Cafe', 'Борщ', 150);
+        $dates = $this->weekWindowFrom('2026-08-20');
+        $from = CarbonImmutable::createFromFormat('Y-m-d', $dates['date_from'])->startOfDay();
+
+        $tooManyDates = [];
+        for ($i = 0; $i < 8; $i++) {
+            $tooManyDates[] = $from->addDays($i)->toDateString();
+        }
+
+        $this->postJson('/api/food/phototext/schedule/match', [
+            'restaurant_id' => $fixture['restaurant']->id,
+            'date_from' => $dates['date_from'],
+            'date_to' => $dates['date_to'],
+            'entries' => [
+                ['name' => 'Борщ', 'dates' => $tooManyDates],
+            ],
+        ], $this->photoTextHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['entries.0.dates']);
     }
 
     /**

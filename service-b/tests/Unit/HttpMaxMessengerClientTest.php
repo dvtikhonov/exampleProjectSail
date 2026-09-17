@@ -2,8 +2,11 @@
 
 namespace Tests\Unit;
 
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use ReflectionMethod;
+use ReflectionProperty;
 use Shared\MaxMessenger\Client\HttpMaxMessengerClient;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardMessageDto;
@@ -47,6 +50,38 @@ class HttpMaxMessengerClientTest extends TestCase
                 && ! array_key_exists('format', $request->data())
                 && $request['notify'] === true;
         });
+    }
+
+    public function test_http_client_sets_request_and_connect_timeouts(): void
+    {
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+
+        $httpClient = new ReflectionMethod(HttpMaxMessengerClient::class, 'httpClient');
+        $pending = $httpClient->invoke($client, self::TOKEN);
+
+        $this->assertInstanceOf(PendingRequest::class, $pending);
+
+        $optionsProperty = new ReflectionProperty(PendingRequest::class, 'options');
+        $options = $optionsProperty->getValue($pending);
+
+        $this->assertSame(15, $options['timeout']);
+        $this->assertSame(5, $options['connect_timeout']);
+    }
+
+    public function test_upload_http_client_sets_extended_timeout(): void
+    {
+        $client = $this->app->make(HttpMaxMessengerClient::class);
+
+        $uploadHttpClient = new ReflectionMethod(HttpMaxMessengerClient::class, 'uploadHttpClient');
+        $pending = $uploadHttpClient->invoke($client);
+
+        $this->assertInstanceOf(PendingRequest::class, $pending);
+
+        $optionsProperty = new ReflectionProperty(PendingRequest::class, 'options');
+        $options = $optionsProperty->getValue($pending);
+
+        $this->assertSame(30, $options['timeout']);
+        $this->assertSame(5, $options['connect_timeout']);
     }
 
     public function test_revoked_token_throws_auth_exception_without_token_in_message(): void

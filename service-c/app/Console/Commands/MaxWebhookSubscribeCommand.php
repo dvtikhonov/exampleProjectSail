@@ -54,11 +54,13 @@ class MaxWebhookSubscribeCommand extends Command
 
             return self::SUCCESS;
         } catch (RuntimeException|MaxMessengerException $exception) {
+            report($exception);
             $this->error($exception->getMessage());
 
             return self::FAILURE;
         } catch (Throwable $exception) {
-            $this->error('Не удалось зарегистрировать подписку MAX webhook.');
+            report($exception);
+            $this->error('Не удалось зарегистрировать подписку MAX webhook: '.$exception->getMessage());
 
             return self::FAILURE;
         }

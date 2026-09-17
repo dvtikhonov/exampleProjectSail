@@ -26,21 +26,30 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/webhooks/max', MaxWebhookController::class)
-    ->middleware('max.webhook.secret');
+    ->middleware(['throttle:60,1', 'max.webhook.secret']);
 
-Route::post('/max/auth', [MaxAuthController::class, 'store']);
+Route::post('/max/auth', [MaxAuthController::class, 'store'])
+    ->middleware('throttle:20,1');
 
 // Публичный same-origin URL для <img> (без Bearer — WebView MAX не шлёт Authorization на картинки).
-Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show']);
+Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show'])
+    ->middleware('throttle:60,1');
 
 // Агент Cursor: токен X-PhotoText-Token + активный AI-доступ max_manager (ai_access_until > now).
 Route::middleware(['phototext.agent.token', 'phototext.ai.access'])->prefix('food/phototext')->group(function () {
-    Route::get('/restaurants', [PhotoTextOrderController::class, 'restaurants']);
-    Route::get('/catalog', [PhotoTextOrderController::class, 'catalog']);
-    Route::post('/match', [PhotoTextOrderController::class, 'match']);
-    Route::post('/orders', [PhotoTextOrderController::class, 'store']);
-    Route::post('/schedule/match', [PhotoTextScheduleController::class, 'match']);
-    Route::post('/schedule/apply', [PhotoTextScheduleController::class, 'apply']);
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::get('/restaurants', [PhotoTextOrderController::class, 'restaurants']);
+        Route::get('/catalog', [PhotoTextOrderController::class, 'catalog']);
+    });
+
+    Route::middleware('throttle:30,1')->group(function () {
+        Route::post('/match', [PhotoTextOrderController::class, 'match']);
+        Route::post('/schedule/match', [PhotoTextScheduleController::class, 'match']);
+        Route::post('/orders', [PhotoTextOrderController::class, 'store'])
+            ->middleware('phototext.write.token');
+        Route::post('/schedule/apply', [PhotoTextScheduleController::class, 'apply'])
+            ->middleware('phototext.write.token');
+    });
 });
 
 Route::middleware('max.miniapp.auth')->group(function () {
@@ -72,8 +81,10 @@ Route::middleware('max.miniapp.auth')->group(function () {
 
         Route::prefix('admin')->group(function () {
             Route::get('/me', [AdminOrderReviewQueryController::class, 'me']);
-            Route::get('/orders', [AdminOrderReviewQueryController::class, 'index']);
+            Route::get('/orders', [AdminOrderReviewQueryController::class, 'index'])
+                ->middleware('food.order.admin:address_reviewer,composition_reviewer,menu_manager,max_manager');
             Route::get('/orders/{order}', [AdminOrderReviewQueryController::class, 'show'])
+                ->middleware('food.order.admin:address_reviewer,composition_reviewer,menu_manager,max_manager')
                 ->whereNumber('order');
 
             Route::middleware('food.order.admin:max_manager')->group(function () {
@@ -114,8 +125,12 @@ Route::middleware('max.miniapp.auth')->group(function () {
                     ->whereNumber('menuCategory');
 
                 Route::get('/dishes', [AdminDishController::class, 'index']);
-                Route::post('/dishes/test-bot', [AdminMaxBotTestController::class, 'sendTestBot']);
-                Route::post('/dishes/test-bot-2', [AdminMaxBotTestController::class, 'sendTestBot2']);
+                if (! app()->environment('production')) {
+                    Route::post('/dishes/test-bot', [AdminMaxBotTestController::class, 'sendTestBot'])
+                        ->middleware('forbid.production');
+                    Route::post('/dishes/test-bot-2', [AdminMaxBotTestController::class, 'sendTestBot2'])
+                        ->middleware('forbid.production');
+                }
                 Route::get('/dishes/{dish}', [AdminDishController::class, 'show'])
                     ->whereNumber('dish');
                 Route::post('/dishes/import', [AdminDishController::class, 'import']);

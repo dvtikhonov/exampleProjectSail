@@ -1,5 +1,5 @@
 /**
- * Форма выгрузки отчётов Food (max_manager): период, ресторан, тип → .xlsx в чат MAX.
+ * Форма выгрузки отчётов Food (max_manager): период, ресторан, тип → очередь → .xlsx в чат MAX.
  */
 import { computed, ref, watch } from 'vue';
 import { exportFoodReport } from '../api/admin/reports';
@@ -179,7 +179,9 @@ export function useFoodReport({ preselectedRestaurantId = null } = {}) {
                 reportType: /** @type {'revenue'|'top_dishes'} */ (reportType.value),
             });
 
-            sendSuccess.value = result.message;
+            sendSuccess.value = result.queued
+                ? 'Отчёт будет отправлен в чат MAX.'
+                : result.message;
         } catch (error) {
             sendError.value = error instanceof Error
                 ? error.message

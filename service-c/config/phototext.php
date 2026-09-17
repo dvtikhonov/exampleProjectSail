@@ -12,6 +12,12 @@ return [
     'agent_token' => (string) env('PHOTOTEXT_AGENT_TOKEN', ''),
 
     /**
+     * Токен заголовка X-PhotoText-Write-Token для мутаций (place/apply).
+     * Сравнение через hash_equals; пустой или неверный — 401.
+     */
+    'write_token' => (string) env('PHOTOTEXT_WRITE_TOKEN', ''),
+
+    /**
      * max_user_id менеджера заказа (created_by) с ролью max_manager.
      * Ресторан в env не фиксируется — агент передаёт restaurant_id.
      */

@@ -25,9 +25,17 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    loadingMore: {
+        type: Boolean,
+        default: false,
+    },
+    hasMore: {
+        type: Boolean,
+        default: false,
+    },
 });
 
-const emit = defineEmits(['select-order', 'refresh', 'back']);
+const emit = defineEmits(['select-order', 'refresh', 'load-more', 'back']);
 
 /**
  * @param {string} iso
@@ -88,7 +96,7 @@ function formatOrderDate(order) {
             </div>
 
             <div
-                v-else-if="error"
+                v-else-if="error && orders.length === 0"
                 class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
             >
                 {{ error }}
@@ -109,45 +117,65 @@ function formatOrderDate(order) {
                 <p class="mt-1 text-sm text-max-muted">Оформите заказ в ресторане — он появится здесь</p>
             </div>
 
-            <ul v-else class="space-y-3">
-                <li v-for="order in orders" :key="order.id">
+            <template v-else>
+                <div
+                    v-if="error"
+                    class="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                >
+                    {{ error }}
+                </div>
+
+                <ul class="space-y-3">
+                    <li v-for="order in orders" :key="order.id">
+                        <button
+                            type="button"
+                            class="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.98] hover:border-max-primary/30"
+                            @click="emit('select-order', order)"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="font-semibold text-gray-900">№{{ order.id }}</span>
+                                        <OrderStatusBadge :order="order" />
+                                        <span
+                                            v-if="order.unread_count > 0"
+                                            class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white"
+                                            :aria-label="`${order.unread_count} новых сообщений`"
+                                        >
+                                            {{ order.unread_count }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-1 truncate text-sm text-gray-700">{{ order.restaurant_name }}</p>
+                                    <p class="mt-0.5 text-xs text-max-muted">{{ formatOrderDate(order) }}</p>
+                                </div>
+                                <div class="shrink-0 text-right">
+                                    <p class="font-semibold text-gray-900">{{ order.total }} ₽</p>
+                                    <svg
+                                        class="ml-auto mt-2 h-5 w-5 text-gray-300"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </button>
+                    </li>
+                </ul>
+
+                <div v-if="hasMore" class="mt-4 flex justify-center">
                     <button
                         type="button"
-                        class="w-full rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition active:scale-[0.98] hover:border-max-primary/30"
-                        @click="emit('select-order', order)"
+                        class="rounded-full px-4 py-2 text-sm font-medium text-max-primary transition hover:bg-max-primary/10 disabled:opacity-50"
+                        :disabled="loadingMore || refreshing || loading"
+                        @click="emit('load-more')"
                     >
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="font-semibold text-gray-900">№{{ order.id }}</span>
-                                    <OrderStatusBadge :order="order" />
-                                    <span
-                                        v-if="order.unread_count > 0"
-                                        class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white"
-                                        :aria-label="`${order.unread_count} новых сообщений`"
-                                    >
-                                        {{ order.unread_count }}
-                                    </span>
-                                </div>
-                                <p class="mt-1 truncate text-sm text-gray-700">{{ order.restaurant_name }}</p>
-                                <p class="mt-0.5 text-xs text-max-muted">{{ formatOrderDate(order) }}</p>
-                            </div>
-                            <div class="shrink-0 text-right">
-                                <p class="font-semibold text-gray-900">{{ order.total }} ₽</p>
-                                <svg
-                                    class="ml-auto mt-2 h-5 w-5 text-gray-300"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </div>
-                        </div>
+                        {{ loadingMore ? 'Загрузка…' : 'Показать ещё' }}
                     </button>
-                </li>
-            </ul>
+                </div>
+            </template>
         </main>
     </div>
 </template>

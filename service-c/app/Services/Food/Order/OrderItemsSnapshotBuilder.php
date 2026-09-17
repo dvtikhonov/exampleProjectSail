@@ -59,14 +59,15 @@ class OrderItemsSnapshotBuilder
     public function buildFromDishes(array $lines): OrderItemsSnapshotDto
     {
         $itemsSnapshot = [];
-        $itemsTotal = 0.0;
+        $itemsTotalCents = 0;
 
         foreach ($lines as $line) {
             $dish = $line['dish'];
             $quantity = (int) $line['quantity'];
-            $unitPrice = (float) $dish->price;
-            $lineTotal = $unitPrice * $quantity;
-            $itemsTotal += $lineTotal;
+            // Сумма в копейках (как FoodOrderItemSyncService), без float-накопления строк.
+            $unitPriceCents = $this->moneyFormatter->toCents($dish->price);
+            $lineTotalCents = $unitPriceCents * $quantity;
+            $itemsTotalCents += $lineTotalCents;
 
             $weightUnit = $dish->weightUnit ?? DishWeightUnit::Gram;
 
@@ -76,9 +77,9 @@ class OrderItemsSnapshotBuilder
                 'description' => $this->normalizeDescription($dish->description),
                 'weight' => $this->formatWeight($dish->weight),
                 'weight_unit' => $weightUnit->value,
-                'unit_price' => $this->moneyFormatter->format($unitPrice),
+                'unit_price' => $this->moneyFormatter->formatCents($unitPriceCents),
                 'quantity' => $quantity,
-                'line_total' => $this->moneyFormatter->format($lineTotal),
+                'line_total' => $this->moneyFormatter->formatCents($lineTotalCents),
                 'image_url' => $this->imageUrlResolver->resolvePublicUrl($dish->id, $dish->imageUrl),
             ];
 
@@ -97,7 +98,7 @@ class OrderItemsSnapshotBuilder
 
         return new OrderItemsSnapshotDto(
             itemsSnapshot: $itemsSnapshot,
-            itemsTotal: $itemsTotal,
+            itemsTotal: (float) $this->moneyFormatter->formatCents($itemsTotalCents),
         );
     }
 

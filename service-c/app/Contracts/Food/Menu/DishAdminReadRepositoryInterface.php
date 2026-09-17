@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Contracts\Food\Menu;
 
+use App\DTO\Food\Menu\DishAdminListResultDto;
 use App\DTO\Food\Menu\DishRecord;
 
 /**
@@ -31,16 +32,14 @@ interface DishAdminReadRepositoryInterface
 
     /**
      * Список блюд для админки с опциональными фильтрами.
-     * Без ресторана и категории — не более 10 записей; при выбранном ресторане — без лимита.
-     *
-     * @return list<DishRecord>
+     * Результат обрезается жёстким лимитом; total отражает полное число совпадений.
      */
     public function listForAdmin(
         ?int $restaurantId,
         ?int $categoryId,
         ?string $nameSearch = null,
         ?bool $isAvailable = null,
-    ): array;
+    ): DishAdminListResultDto;
 
     /**
      * Проверяет, есть ли блюдо в черновых корзинах пользователей.

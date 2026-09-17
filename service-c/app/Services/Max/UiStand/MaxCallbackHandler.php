@@ -85,6 +85,8 @@ class MaxCallbackHandler implements MaxCallbackHandlerInterface
                             ? $finalException->userMessage()
                             : $finalException->getMessage(),
                     ]);
+
+                    throw $finalException;
                 }
             }
         }

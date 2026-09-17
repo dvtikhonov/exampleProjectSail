@@ -26,13 +26,24 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
     ) {}
 
     /**
-     * Возвращает список заказов клиента.
+     * Возвращает постраничный список заказов клиента.
      *
-     * @return list<OrderListItemDto>
+     * @return array{
+     *     orders: list<OrderListItemDto>,
+     *     meta: array{current_page: int, per_page: int, total: int, last_page: int}
+     * }
      */
-    public function list(MaxUserIdentity $customer): array
+    public function list(MaxUserIdentity $customer, int $perPage, int $page): array
     {
-        $orders = $this->foodOrderReadRepository->findByMaxUserId($customer->maxUserId);
+        $paginator = $this->foodOrderReadRepository->paginateByMaxUserId(
+            $customer->maxUserId,
+            $perPage,
+            $page,
+        );
+
+        /** @var list<FoodOrderRecord> $orders */
+        $orders = $paginator->items;
+
         $orderIds = array_map(
             static fn (FoodOrderRecord $order): int => $order->id,
             $orders,
@@ -42,26 +53,34 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
             $customer->maxUserId,
         );
 
-        return array_map(
-            function (FoodOrderRecord $order) use ($chatStats): OrderListItemDto {
-                $stats = $chatStats[$order->id] ?? [
-                    'last_message_at' => null,
-                    'unread_count' => 0,
-                ];
+        return [
+            'orders' => array_map(
+                function (FoodOrderRecord $order) use ($chatStats): OrderListItemDto {
+                    $stats = $chatStats[$order->id] ?? [
+                        'last_message_at' => null,
+                        'unread_count' => 0,
+                    ];
 
-                return new OrderListItemDto(
-                    id: $order->id,
-                    status: $order->status->value,
-                    restaurantId: $order->restaurantId,
-                    restaurantName: (string) ($order->restaurantName ?? ''),
-                    total: $this->formatMoney($order->total),
-                    lastMessageAt: $stats['last_message_at'],
-                    unreadCount: $stats['unread_count'],
-                    createdAt: $order->createdAt,
-                );
-            },
-            $orders,
-        );
+                    return new OrderListItemDto(
+                        id: $order->id,
+                        status: $order->status->value,
+                        restaurantId: $order->restaurantId,
+                        restaurantName: (string) ($order->restaurantName ?? ''),
+                        total: $this->formatMoney($order->total),
+                        lastMessageAt: $stats['last_message_at'],
+                        unreadCount: $stats['unread_count'],
+                        createdAt: $order->createdAt,
+                    );
+                },
+                $orders,
+            ),
+            'meta' => [
+                'current_page' => $paginator->currentPage,
+                'per_page' => $paginator->perPage,
+                'total' => $paginator->total,
+                'last_page' => $paginator->lastPage,
+            ],
+        ];
     }
 
     /**

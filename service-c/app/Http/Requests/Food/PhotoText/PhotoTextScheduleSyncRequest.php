@@ -51,9 +51,9 @@ class PhotoTextScheduleSyncRequest extends PhotoTextAgentFormRequest
             ],
             'date_from' => ['required', 'date_format:Y-m-d'],
             'date_to' => ['required', 'date_format:Y-m-d'],
-            'entries' => ['required', 'array', 'min:1'],
+            'entries' => ['required', 'array', 'min:1', 'max:500'],
             'entries.*.name' => ['required', 'string', 'max:255'],
-            'entries.*.dates' => ['required', 'array', 'min:1'],
+            'entries.*.dates' => ['required', 'array', 'min:1', 'max:7'],
             'entries.*.dates.*' => ['required', 'date_format:Y-m-d'],
         ];
     }

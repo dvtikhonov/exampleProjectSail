@@ -6,9 +6,11 @@ namespace Tests\Unit;
 
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\DTO\Max\AiAccessStatusDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Http\Middleware\EnsurePhotoTextAiAccess;
+use DateTimeImmutable;
 use Illuminate\Http\Request;
 use Mockery;
 use Symfony\Component\HttpFoundation\Response;
@@ -85,9 +87,17 @@ class EnsurePhotoTextAiAccessTest extends TestCase
         AiAccessStatusDto $status,
         bool $hasMaxManagerRole,
     ): EnsurePhotoTextAiAccess {
+        $now = new DateTimeImmutable('2026-08-20T12:00:00+00:00');
+
+        $clock = Mockery::mock(ClockInterface::class);
+        $clock->shouldReceive('now')
+            ->once()
+            ->andReturn($now);
+
         $aiAccess = Mockery::mock(MaxAiAccessServiceInterface::class);
         $aiAccess->shouldReceive('getStatus')
             ->once()
+            ->with($now)
             ->andReturn($status);
 
         $admins = Mockery::mock(FoodOrderAdminRepositoryInterface::class);
@@ -101,6 +111,6 @@ class EnsurePhotoTextAiAccessTest extends TestCase
             $admins->shouldReceive('hasActiveRole')->never();
         }
 
-        return new EnsurePhotoTextAiAccess($aiAccess, $admins);
+        return new EnsurePhotoTextAiAccess($aiAccess, $admins, $clock);
     }
 }

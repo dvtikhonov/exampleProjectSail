@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\PhotoText\PhotoTextAgentItemDto;
+use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
+use App\Models\Food\Cart;
 use App\Models\Food\CartItem;
 use App\Models\Food\Dish;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\MenuCategory;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -232,6 +236,77 @@ class PhotoTextManualOrderPlacementServiceTest extends TestCase
             [
                 new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
             ],
+        );
+    }
+
+    /** Сбой submit mid-place откатывает clear/addItem — корзина не остаётся грязной. */
+    public function test_place_rolls_back_cart_when_submit_fails_mid_place(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Целевой',
+            'Салат "Фасолька"',
+            200,
+        );
+        $customer = $this->createCustomer('Сибирь-Финанс', $fixture['customer_category']->id, 'ул. Клиента, 1');
+        $manager = $this->seedManager(77_001);
+
+        $existingCart = Cart::query()->create([
+            'max_user_id' => $customer->max_user_id,
+            'created_by_max_user_id' => $manager->max_user_id,
+            'restaurant_id' => $fixture['restaurant']->id,
+            'status' => CartStatus::Draft,
+        ]);
+        $existingItem = CartItem::query()->create([
+            'cart_id' => $existingCart->id,
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 3,
+        ]);
+
+        $submission = $this->createMock(ManualOrderSubmissionServiceInterface::class);
+        $submission->expects($this->once())
+            ->method('submitDraftAfterScanning')
+            ->willThrowException(new RuntimeException('Forced submit failure'));
+        $this->app->instance(ManualOrderSubmissionServiceInterface::class, $submission);
+
+        try {
+            $this->placementService()->place(
+                'Сибирь-Финанс',
+                '2026-08-17',
+                (int) $fixture['restaurant']->id,
+                [
+                    new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
+                ],
+            );
+            $this->fail('Ожидался RuntimeException от submit');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Forced submit failure', $exception->getMessage());
+        }
+
+        $this->assertSame(0, FoodOrder::query()->count());
+        $this->assertTrue(
+            Cart::query()->whereKey($existingCart->id)->exists(),
+            'Исходный черновик корзины должен восстановиться после rollback',
+        );
+        $this->assertDatabaseHas('max_carts', [
+            'id' => $existingCart->id,
+            'max_user_id' => $customer->max_user_id,
+            'created_by_max_user_id' => $manager->max_user_id,
+            'status' => CartStatus::Draft->value,
+        ]);
+        $this->assertDatabaseHas('max_cart_items', [
+            'id' => $existingItem->id,
+            'cart_id' => $existingCart->id,
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 3,
+        ]);
+        $this->assertSame(1, CartItem::query()->where('cart_id', $existingCart->id)->count());
+        $this->assertSame(
+            1,
+            Cart::query()
+                ->where('max_user_id', $customer->max_user_id)
+                ->where('created_by_max_user_id', $manager->max_user_id)
+                ->where('status', CartStatus::Draft)
+                ->count(),
         );
     }
 

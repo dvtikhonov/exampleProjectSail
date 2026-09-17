@@ -6,8 +6,10 @@ namespace Tests\Unit\Modules\FoodReport;
 
 use App\Modules\FoodReport\Services\FoodReportMaxDeliveryService;
 use PHPUnit\Framework\TestCase;
+use Shared\MaxMessenger\Client\NullMaxMessengerClient;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
+use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
 
 /**
  * Unit: FoodReportMaxDeliveryService — upload + sendMessage с file attachment.
@@ -39,5 +41,26 @@ final class FoodReportMaxDeliveryServiceTest extends TestCase
             'report_1_2026-09-01_2026-09-10.xlsx',
             'Отчёт: Выручка за период',
         );
+    }
+
+    /** NullMaxMessengerClient → MaxMessengerException до upload (не silent ok). */
+    public function test_deliver_rejects_null_messenger_client(): void
+    {
+        $service = new FoodReportMaxDeliveryService(new NullMaxMessengerClient);
+
+        try {
+            $service->deliver(
+                20_020,
+                "PK\x03\x04binary",
+                'report_1_2026-09-01_2026-09-10.xlsx',
+                'Отчёт: Выручка за период',
+            );
+            $this->fail('Expected MaxMessengerRequestException');
+        } catch (MaxMessengerRequestException $exception) {
+            $this->assertSame(
+                'Доставка в MAX недоступна (messenger driver = null)',
+                $exception->userMessage(),
+            );
+        }
     }
 }

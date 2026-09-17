@@ -8,12 +8,30 @@
 import { client } from './http';
 
 /**
- * @returns {Promise<OrderListItemDto[]>}
+ * @typedef {{ current_page: number, per_page: number, total: number, last_page: number }} OrdersMeta
  */
-export async function fetchMyOrders() {
-    const { data } = await client.get('/food/orders');
 
-    return data.orders;
+/**
+ * @param {{ page?: number, perPage?: number }} [options]
+ * @returns {Promise<{ orders: OrderListItemDto[], meta: OrdersMeta }>}
+ */
+export async function fetchMyOrders({ page = 1, perPage = 20 } = {}) {
+    const { data } = await client.get('/food/orders', {
+        params: {
+            page,
+            per_page: perPage,
+        },
+    });
+
+    return {
+        orders: data.orders,
+        meta: {
+            current_page: data.meta?.current_page ?? page,
+            per_page: data.meta?.per_page ?? perPage,
+            total: data.meta?.total ?? (Array.isArray(data.orders) ? data.orders.length : 0),
+            last_page: data.meta?.last_page ?? 1,
+        },
+    };
 }
 
 /**

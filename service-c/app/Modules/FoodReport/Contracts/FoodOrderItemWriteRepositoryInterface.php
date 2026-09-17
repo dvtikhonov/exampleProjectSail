@@ -10,8 +10,8 @@ namespace App\Modules\FoodReport\Contracts;
 interface FoodOrderItemWriteRepositoryInterface
 {
     /**
-     * Upsert строк позиций по order_id (уникальность order_id + dish_id).
-     * Строки заказа, которых нет во входном наборе, удаляются.
+     * Атомарно заменяет все строки позиций заказа (lock + delete + insert).
+     * Пустой `$rows` удаляет все items заказа.
      *
      * @param  list<array{
      *     restaurant_id: int,

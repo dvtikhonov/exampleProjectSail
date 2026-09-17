@@ -6,6 +6,7 @@ namespace App\Services\Food\PhotoText;
 
 use App\Contracts\Food\Menu\DishAvailabilityScheduleRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleWriterInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Menu\DishAvailabilityChangeDto;
 use App\DTO\Food\Menu\DishAvailabilityUpdateDto;
 use App\DTO\Food\Menu\DishRecord;
@@ -24,11 +25,13 @@ class PhotoTextScheduleApplier
         private readonly PhotoTextScheduleCategoryScope $categoryScope,
         private readonly DishAvailabilityScheduleRepositoryInterface $availabilityRepository,
         private readonly DishAvailabilityScheduleWriterInterface $scheduleWriter,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
      * Match + полная замена графика в окне.
      * Scope: указанные category_ids или все категории ресторана; блюда вне entries очищаются.
+     * Замена по всем категориям scope — в одной транзакции (вложенные TX writer — savepoints).
      *
      * @param  list<int>|null  $categoryIds
      * @param  list<PhotoTextScheduleEntryDto>  $entries
@@ -51,29 +54,43 @@ class PhotoTextScheduleApplier
             $restaurantId,
             $this->categoryScope->normalizeCategoryIds($categoryIds),
         );
-        $categoriesApplied = [];
 
-        foreach ($categoryIdsToReplace as $replaceCategoryId) {
-            $changes = $this->buildFullCategoryChanges(
+        /** @var list<int> $categoriesApplied */
+        $categoriesApplied = $this->transactionManager->run(
+            function () use (
                 $restaurantId,
-                $replaceCategoryId,
+                $categoryIdsToReplace,
                 $datesByDishId,
-            );
+                $dateFrom,
+                $dateTo,
+            ): array {
+                $applied = [];
 
-            if ($changes === []) {
-                continue;
-            }
+                foreach ($categoryIdsToReplace as $replaceCategoryId) {
+                    $changes = $this->buildFullCategoryChanges(
+                        $restaurantId,
+                        $replaceCategoryId,
+                        $datesByDishId,
+                    );
 
-            $this->scheduleWriter->syncSchedule(new DishAvailabilityUpdateDto(
-                restaurantId: $restaurantId,
-                categoryId: $replaceCategoryId,
-                changes: $changes,
-                dateFrom: $dateFrom,
-                dateTo: $dateTo,
-            ));
+                    if ($changes === []) {
+                        continue;
+                    }
 
-            $categoriesApplied[] = $replaceCategoryId;
-        }
+                    $this->scheduleWriter->syncSchedule(new DishAvailabilityUpdateDto(
+                        restaurantId: $restaurantId,
+                        categoryId: $replaceCategoryId,
+                        changes: $changes,
+                        dateFrom: $dateFrom,
+                        dateTo: $dateTo,
+                    ));
+
+                    $applied[] = $replaceCategoryId;
+                }
+
+                return $applied;
+            },
+        );
 
         sort($categoriesApplied);
 

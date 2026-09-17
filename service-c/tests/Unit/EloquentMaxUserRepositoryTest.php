@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
+use App\Contracts\Max\MaxUserManualOrderQueryRepositoryInterface;
 use App\Models\Max\MaxUser;
 use Tests\TestCase;
 
@@ -32,5 +33,30 @@ class EloquentMaxUserRepositoryTest extends TestCase
         $this->assertContains(55_501, $userIds);
         $this->assertNotContains(55_502, $userIds);
         $this->assertNotContains(55_503, $userIds);
+    }
+
+    /** Поиск по имени для PhotoText ограничивает выдачу тремя записями. */
+    public function test_find_by_name_fields_substring_limits_to_three(): void
+    {
+        foreach ([55_601, 55_602, 55_603, 55_604] as $maxUserId) {
+            MaxUser::query()->updateOrCreate(
+                ['max_user_id' => $maxUserId],
+                [
+                    'first_name' => 'PhotoTextClient',
+                    'last_name' => 'Match'.$maxUserId,
+                    'username' => 'pt_user_'.$maxUserId,
+                ],
+            );
+        }
+
+        $users = $this->app
+            ->make(MaxUserManualOrderQueryRepositoryInterface::class)
+            ->findByNameFieldsSubstring('PhotoTextClient');
+
+        $this->assertCount(3, $users);
+        $this->assertSame(
+            [55_601, 55_602, 55_603],
+            array_map(static fn ($user): int => $user->maxUserId, $users),
+        );
     }
 }

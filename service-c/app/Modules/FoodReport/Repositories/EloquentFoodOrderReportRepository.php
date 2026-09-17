@@ -10,6 +10,8 @@ use App\Modules\FoodReport\Contracts\FoodOrderReportRepositoryInterface;
 use App\Modules\FoodReport\DTO\ReportFilterDto;
 use App\Modules\FoodReport\Enums\ReportDateAxis;
 use App\Modules\FoodReport\Models\FoodOrderItem;
+use DateInterval;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -50,52 +52,55 @@ final class EloquentFoodOrderReportRepository implements FoodOrderReportReposito
 
     /**
      * {@inheritDoc}
+     *
+     * Top-N по дням: отдельный SQL на каждый день периода с
+     * `ORDER BY … LIMIT $limitPerDay` (MySQL 5.7 без window functions).
+     * Период ограничен
+     * ≤ {@see \App\Modules\FoodReport\Http\Requests\FoodReportFilterRequest::MAX_SPAN_DAYS} дней.
      */
     public function aggregateTopDishesByDay(ReportFilterDto $filter, int $limitPerDay): array
     {
         $dateExpression = $this->itemsDateExpression($filter->dateAxis);
-
-        $aggregated = FoodOrderItem::query()
-            ->from('max_food_order_items as items')
-            ->join('max_food_orders as orders', 'orders.id', '=', 'items.order_id')
-            ->where('orders.status', OrderStatus::Confirmed)
-            ->where('items.restaurant_id', $filter->restaurantId)
-            ->whereRaw($dateExpression.' BETWEEN ? AND ?', [$filter->dateFrom, $filter->dateTo])
-            ->selectRaw($dateExpression.' as report_day')
-            ->selectRaw('items.dish_id as dish_id')
-            ->selectRaw('items.dish_name as dish_name')
-            ->selectRaw('SUM(items.quantity) as quantity')
-            ->selectRaw('COALESCE(SUM(items.line_total), 0) as amount')
-            ->groupBy(DB::raw($dateExpression), 'items.dish_id', 'items.dish_name')
-            ->orderBy('report_day', 'asc')
-            ->orderByDesc('quantity')
-            ->orderByDesc('amount')
-            ->orderBy('dish_name')
-            ->get();
-
-        /** @var array<string, int> $takenByDay */
-        $takenByDay = [];
         $result = [];
 
-        foreach ($aggregated as $row) {
-            $date = (string) $row->report_day;
-            $taken = $takenByDay[$date] ?? 0;
+        $day = new DateTimeImmutable($filter->dateFrom);
+        $end = new DateTimeImmutable($filter->dateTo);
+        $oneDay = new DateInterval('P1D');
 
-            if ($taken >= $limitPerDay) {
-                continue;
+        while ($day <= $end) {
+            $dayStr = $day->format('Y-m-d');
+
+            $rows = FoodOrderItem::query()
+                ->from('max_food_order_items as items')
+                ->join('max_food_orders as orders', 'orders.id', '=', 'items.order_id')
+                ->where('orders.status', OrderStatus::Confirmed)
+                ->where('items.restaurant_id', $filter->restaurantId)
+                ->whereRaw($dateExpression.' = ?', [$dayStr])
+                ->selectRaw($dateExpression.' as report_day')
+                ->selectRaw('items.dish_id as dish_id')
+                ->selectRaw('items.dish_name as dish_name')
+                ->selectRaw('SUM(items.quantity) as quantity')
+                ->selectRaw('COALESCE(SUM(items.line_total), 0) as amount')
+                ->groupBy(DB::raw($dateExpression), 'items.dish_id', 'items.dish_name')
+                ->orderByDesc('quantity')
+                ->orderByDesc('amount')
+                ->orderBy('dish_name')
+                ->limit($limitPerDay)
+                ->get();
+
+            foreach ($rows as $row) {
+                $dishId = $row->dish_id;
+
+                $result[] = [
+                    'date' => $dayStr,
+                    'dish_id' => $dishId !== null ? (int) $dishId : null,
+                    'dish_name' => (string) $row->dish_name,
+                    'quantity' => (int) $row->quantity,
+                    'amount' => (string) $row->amount,
+                ];
             }
 
-            $takenByDay[$date] = $taken + 1;
-
-            $dishId = $row->dish_id;
-
-            $result[] = [
-                'date' => $date,
-                'dish_id' => $dishId !== null ? (int) $dishId : null,
-                'dish_name' => (string) $row->dish_name,
-                'quantity' => (int) $row->quantity,
-                'amount' => (string) $row->amount,
-            ];
+            $day = $day->add($oneDay);
         }
 
         return $result;

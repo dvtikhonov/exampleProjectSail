@@ -13,7 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 use ValueError;
 
 /**
- * Проверяет, что аутентифицированный MaxUser имеет активную роль администратора заказов.
+ * Проверяет, что аутентифицированный MaxUser имеет хотя бы одну из требуемых
+ * активных ролей администратора заказов.
  */
 class EnsureFoodOrderAdmin
 {
@@ -26,14 +27,24 @@ class EnsureFoodOrderAdmin
      *
      * @param  Closure(Request): (Response)  $next
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        try {
-            $adminRole = FoodOrderAdminRole::from($role);
-        } catch (ValueError) {
+        if ($roles === []) {
             return response()->json([
                 'message' => 'Invalid admin role.',
             ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $adminRoles = [];
+
+        foreach ($roles as $role) {
+            try {
+                $adminRoles[] = FoodOrderAdminRole::from($role);
+            } catch (ValueError) {
+                return response()->json([
+                    'message' => 'Invalid admin role.',
+                ], Response::HTTP_BAD_REQUEST);
+            }
         }
 
         $maxUser = $request->user();
@@ -44,12 +55,14 @@ class EnsureFoodOrderAdmin
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        if (! $this->foodOrderAdminRepository->hasActiveRole($maxUser->max_user_id, $adminRole)) {
-            return response()->json([
-                'message' => 'Доступ запрещён.',
-            ], Response::HTTP_FORBIDDEN);
+        foreach ($adminRoles as $adminRole) {
+            if ($this->foodOrderAdminRepository->hasActiveRole($maxUser->max_user_id, $adminRole)) {
+                return $next($request);
+            }
         }
 
-        return $next($request);
+        return response()->json([
+            'message' => 'Доступ запрещён.',
+        ], Response::HTTP_FORBIDDEN);
     }
 }

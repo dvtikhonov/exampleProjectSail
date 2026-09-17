@@ -286,7 +286,8 @@ class OrderChatApiTest extends TestCase
         ]));
 
         $this->getJson("/api/food/orders/{$orderId}/messages", $auth['headers'])
-            ->assertForbidden();
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
     /** Создаёт отправленный заказ для теста. */

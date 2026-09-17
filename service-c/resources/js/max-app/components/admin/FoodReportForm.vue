@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Форма выгрузки отчётов Food: период, ресторан, тип → .xlsx в чат MAX.
+ * Форма выгрузки отчётов Food: период, ресторан, тип → очередь → .xlsx в чат MAX.
  */
 import { onMounted, toRef } from 'vue';
 import AppSelect from '../AppSelect.vue';

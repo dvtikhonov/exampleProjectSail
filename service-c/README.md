@@ -167,7 +167,7 @@ flowchart TB
 |---|---|
 | `.cursor/rules/*.mdc` (`alwaysApply: true`) | Автоматически подмешиваются в каждый чат: SOLID, DTO/Enum/Service/DI/PHPDoc, валидация Form Request, тесты на `sail_db_testing`, миграции только после согласия, WSL вместо PowerShell, Tailwind, `npm run dev` в контейнере |
 | `.cursor/commands/phototext-order.md` | Slash-команда **`/phototext-order`**: фото бланка → OCR → канонические имена → `POST /api/food/phototext/orders` (нужен активный AI-доступ менеджера). Код приложения **не меняет**, только HTTP |
-| `.cursor/commands/phototext-schedule.md` | Slash-команда **`/phototext-schedule`**: фото рукописного недельного графика → OCR → `POST /api/food/phototext/schedule/match` → `…/schedule/apply` (тот же токен и AI-доступ). Код приложения **не меняет**, только HTTP |
+| `.cursor/commands/phototext-schedule.md` | Slash-команда **`/phototext-schedule`**: фото рукописного недельного графика → OCR → `POST /api/food/phototext/schedule/match` → `…/schedule/apply` (agent token + AI-доступ; на apply ещё write token). Код приложения **не меняет**, только HTTP |
 | `.cursor/commands/phototext-dish-aliases.md` | Общий словарь OCR → канон каталога для `/phototext-order` и `/phototext-schedule` (читать **до** сопоставления имён) |
 | `@файл` в чате | Явная привязка контекста: `@service-c/README.md`, `@service-c/app/Services/Food/PhotoText/` |
 
@@ -189,7 +189,7 @@ flowchart TB
 | **Дата заказа** | Дата доставки из шапки чата (`ДД.ММ.ГГГГ` → `Y-m-d`). Дату в шапке бланка («Меню на …») агент **не** использует |
 | **Ресторан** | Числовой `id` или уникальное имя активного ресторана |
 
-Если шапка неполная или нет фото — агент **останавливается** и просит заполнить. Токен `PHOTOTEXT_AGENT_TOKEN` в чат **не печатать**.
+Если шапка неполная или нет фото — агент **останавливается** и просит заполнить. Токены `PHOTOTEXT_AGENT_TOKEN` / `PHOTOTEXT_WRITE_TOKEN` в чат **не печатать**.
 
 #### Пример 1. Минимальный запуск (продакшен VPS)
 
@@ -203,7 +203,7 @@ flowchart TB
 Ресторан: 1
 ```
 
-Агент: читает `PHOTOTEXT_AGENT_TOKEN` из `service-c/.env` (в ответ не выводит) → `GET /restaurants` → `GET /catalog?restaurant_id=1` → OCR фото → канонические имена только из этого каталога → `POST /match` → при `matched_count` > 0 `POST /orders` тем же JSON → заказ со статусом **`draft_after_scanning`** → кратко: `order_id`, позиции, `issues`.
+Агент: читает `PHOTOTEXT_AGENT_TOKEN` и `PHOTOTEXT_WRITE_TOKEN` из `service-c/.env` (в ответ не выводит) → `GET /restaurants` → `GET /catalog?restaurant_id=1` → OCR фото → канонические имена только из этого каталога → `POST /match` (только agent token) → при `matched_count` > 0 `POST /orders` тем же JSON с **обоими** заголовками → заказ со статусом **`draft_after_scanning`** → кратко: `order_id`, позиции, `issues`.
 
 Перед запросами менеджер в mini-app должен включить **«Вкл. доступ AI»** (TTL 30 мин, одновременно активен один). Без доступа — `403` «Доступ AI к базе не разрешён.»
 
@@ -231,7 +231,7 @@ flowchart TB
 Ресторан: 1
 ```
 
-HTTP — `curl` в WSL. Заголовок `X-PhotoText-Token`, тело `Content-Type: application/json`.
+HTTP — `curl` в WSL. Catalog/match: `X-PhotoText-Token`; place (`POST /orders`): + `X-PhotoText-Write-Token`. Тело `Content-Type: application/json`.
 
 #### Пример 4. Что агент должен сделать с бланком (логика OCR)
 
@@ -246,9 +246,9 @@ HTTP — `curl` в WSL. Заголовок `X-PhotoText-Token`, тело `Conten
 
 Неоднозначное блюдо (0 или >1 кандидат **в каталоге этого ресторана**) — строку не угадывать и не слать. Перед матчем — словарь `.cursor/commands/phototext-dish-aliases.md` (если канон есть в каталоге ресторана). Частичный матч (есть `matched` и `issues`) — `POST /orders` допустим: в заказ идут только matched.
 
-**STOP без `POST /orders`:** нет шапки/фото; ресторан 0/>1; клиент 0/>1 на сервере; `401` (токен); `403` (нет активного AI-доступа `max_manager`); после match `matched_count` = 0.
+**STOP без `POST /orders`:** нет шапки/фото; ресторан 0/>1; клиент 0/>1 на сервере; `401` (agent или write token); `403` (нет активного AI-доступа `max_manager`); после match `matched_count` = 0.
 
-Итог пользователю: ресторан (`id` + имя), дата `Y-m-d`, `order_id` или причина отказа, позиции, `issues`. Цены с бланка и токен не повторять.
+Итог пользователю: ресторан (`id` + имя), дата `Y-m-d`, `order_id` или причина отказа, позиции, `issues`. Цены с бланка и токены не повторять.
 
 ### Slash-команда `/phototext-schedule`
 
@@ -269,7 +269,7 @@ BASE_URL=http://localhost:8083
 | **Ресторан** | Числовой `id` или уникальное имя/подстрока активного ресторана |
 | **Категории** | Обязательно 1+: сужает OCR-матч и scope apply (`category_ids`); остальные категории ресторана **не** меняются |
 
-Агент: `GET /restaurants` → `GET /catalog` → OCR (блоки Пн…Вс → даты в окне) → канонические имена (словарь `phototext-dish-aliases.md` + правила вариаций) → `POST /schedule/match` с `category_ids` → при `matched_count` > 0 `POST /schedule/apply` тем же JSON. Токен в чат **не печатать**. Нужен активный AI-доступ «Вкл. доступ AI».
+Агент: `GET /restaurants` → `GET /catalog` → OCR (блоки Пн…Вс → даты в окне) → канонические имена (словарь `phototext-dish-aliases.md` + правила вариаций) → `POST /schedule/match` с `category_ids` (только agent token) → при `matched_count` > 0 `POST /schedule/apply` тем же JSON с **обоими** заголовками (`X-PhotoText-Token` + `X-PhotoText-Write-Token`). Токены в чат **не печатать**. Нужен активный AI-доступ «Вкл. доступ AI».
 
 Пример:
 
@@ -294,11 +294,11 @@ BASE_URL=http://localhost:8083
 | `http://localhost:8083/api/webhooks/max` | Webhook MAX | `X-Max-Bot-Api-Secret` |
 | `http://localhost:8083/api/max/auth` | Валидация `initData` → Bearer token | Публичный |
 | `http://localhost:8083/api/food/*` | Food API mini-app | Bearer (`max.miniapp.auth`) |
-| `http://localhost:8083/api/food/phototext/*` | API агента Cursor (PhotoText) | `X-PhotoText-Token` + активный AI-доступ `max_manager` (без mini-app Bearer) |
+| `http://localhost:8083/api/food/phototext/*` | API агента Cursor (PhotoText) | `X-PhotoText-Token` + активный AI-доступ `max_manager`; place/apply ещё `X-PhotoText-Write-Token` (без mini-app Bearer) |
 | `http://localhost:8080/api/c/...` | Через nginx-gateway (префикс `/api/c`) | Gateway auth (`X-User-Id`) |
 | `http://localhost:8080/api/c/webhooks/max` | Webhook через gateway | **Без** gateway auth |
 
-**Важно:** MAX на **том же домене**, что и `main-app` (`94-228-117-27.sslip.io`), идёт через `nginx-gateway` → `service-c` по путям **без** префикса `/api/c`: `/max-app`, `/max-build/`, `/api/webhooks/max`, `/api/max/`, `/api/food/`. Location `/api/food/` **без** Passport: им пользуются mini-app (свой Bearer) и агент PhotoText (`X-PhotoText-Token`). Ассеты mini-app в каталоге **`/max-build/`** (не `/build/`), чтобы не пересекаться с Vite `main-app`.
+**Важно:** MAX на **том же домене**, что и `main-app` (`94-228-117-27.sslip.io`), идёт через `nginx-gateway` → `service-c` по путям **без** префикса `/api/c`: `/max-app`, `/max-build/`, `/api/webhooks/max`, `/api/max/`, `/api/food/`. Location `/api/food/` **без** Passport: им пользуются mini-app (свой Bearer) и агент PhotoText (`X-PhotoText-Token`; на place/apply ещё `X-PhotoText-Write-Token`). Ассеты mini-app в каталоге **`/max-build/`** (не `/build/`), чтобы не пересекаться с Vite `main-app`.
 
 Префикс `/api/c/` остаётся для отладки gateway auth и единообразия с `service-a` / `service-b`.
 
@@ -549,13 +549,14 @@ API — [Food Admin API — отчёты](#food-admin-api--отчёты-foodrepo
 
 HTTP API для slash-команд `/phototext-order` (заказ) и `/phototext-schedule` (график производства): агент делает OCR и вариации имён, сервер принимает **только канонические** `LOWER(name)` выбранного ресторана. Для заказов оформляет **черновик после сканирования** (`draft_after_scanning`); для графика — `syncSchedule` по matched. Fuzzy-поиск и split строки по `/` на сервере **нет**. Как вызывать из чата — [AI Cursor](#ai-cursor).
 
-Реализация (заказы): middleware `VerifyPhotoTextAgentToken` (`phototext.agent.token`) + `EnsurePhotoTextAiAccess` (`phototext.ai.access`), `PhotoTextOrderController`, Form Request `PhotoTextCatalogRequest` / `PhotoTextAgentOrderRequest`, `PhotoTextManualOrderPlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher` (exact `LOWER(name)` ± `category_ids`), `PhotoTextComboRefGrouper`, `ManualOrderCustomerResolver`; конфиг `config/phototext.php`. Каталог — `MenuQueryService::getRestaurantMenu($id, includeUnavailable: true)` (в т.ч. скрытые блюда). Поиск блюд — `PhotoTextDishNameMatcher` → `DishCatalogRepositoryInterface::findByNameCaseInsensitive`. Оформление — ручная корзина менеджера + `ManualOrderSubmissionService::submitDraftAfterScanning(..., $orderDate)` (без MAX-уведомлений при создании).
+Реализация (заказы): middleware `VerifyPhotoTextAgentToken` (`phototext.agent.token`) + `EnsurePhotoTextAiAccess` (`phototext.ai.access`); на `POST /orders` ещё `VerifyPhotoTextWriteToken` (`phototext.write.token`), `PhotoTextOrderController`, Form Request `PhotoTextCatalogRequest` / `PhotoTextAgentOrderRequest`, `PhotoTextManualOrderPlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher` (exact `LOWER(name)` ± `category_ids`), `PhotoTextComboRefGrouper`, `ManualOrderCustomerResolver`; конфиг `config/phototext.php`. Каталог — `MenuQueryService::getRestaurantMenu($id, includeUnavailable: true)` (в т.ч. скрытые блюда). Поиск блюд — `PhotoTextDishNameMatcher` → `DishCatalogRepositoryInterface::findByNameCaseInsensitive`. Оформление — ручная корзина менеджера + `ManualOrderSubmissionService::submitDraftAfterScanning(..., $orderDate)` (без MAX-уведомлений при создании).
 
-Реализация (график): `PhotoTextScheduleController` (`match` / `apply`), Form Request `PhotoTextScheduleSyncRequest` (окно ровно 7 дней), `PhotoTextSchedulePlacementService` → полная замена графика в окне (фото — источник истины; scope: `category_ids` / `category_id` или все категории ресторана) через `DishAvailabilityScheduleWriterInterface::syncSchedule`. Playbook — `.cursor/commands/phototext-schedule.md`; словарь имён — `.cursor/commands/phototext-dish-aliases.md`. DTO: `PhotoTextScheduleEntryDto`, `PhotoTextScheduleMatchedDto`, `PhotoTextScheduleIssueDto`, `PhotoTextScheduleResultDto`.
+Реализация (график): `PhotoTextScheduleController` (`match` / `apply`), Form Request `PhotoTextScheduleSyncRequest` (окно ровно 7 дней), `PhotoTextSchedulePlacementService` → полная замена графика в окне (фото — источник истины; scope: `category_ids` / `category_id` или все категории ресторана) через `DishAvailabilityScheduleWriterInterface::syncSchedule`. На `POST /schedule/apply` — тот же `phototext.write.token`. Playbook — `.cursor/commands/phototext-schedule.md`; словарь имён — `.cursor/commands/phototext-dish-aliases.md`. DTO: `PhotoTextScheduleEntryDto`, `PhotoTextScheduleMatchedDto`, `PhotoTextScheduleIssueDto`, `PhotoTextScheduleResultDto`.
 
 | Правило | Поведение |
 |---|---|
-| Кто | Заголовок `X-PhotoText-Token` = `PHOTOTEXT_AGENT_TOKEN` (`hash_equals`); пустой/неверный токен → `401`. Mini-app Bearer **не** нужен |
+| Кто | Заголовок `X-PhotoText-Token` = `PHOTOTEXT_AGENT_TOKEN` (`hash_equals`); пустой/неверный → `401`. Mini-app Bearer **не** нужен |
+| Write | На `POST /orders` и `POST /schedule/apply` дополнительно `X-PhotoText-Write-Token` = `PHOTOTEXT_WRITE_TOKEN`; пустой/неверный → `401` (пустое тело). Catalog/match — только agent token |
 | AI-доступ | Активный `max_users.ai_access_until` > now у пользователя с ролью `max_manager` (включается кнопкой **«Вкл. доступ AI»** в админке, TTL 30 мин). Иначе `403` «Доступ AI к базе не разрешён.» Агент доступ **не** включает |
 | Менеджер заказа | `PHOTOTEXT_MANAGER_MAX_USER_ID` должен существовать в `max_users` и иметь активную роль `max_manager`; иначе `500` |
 | Клиент | `customer_query` — подстрока `first_name` / `last_name` / `username`; ровно один `MaxUser`. 0 или >1 → `422` STOP (заказ не создаётся) |
@@ -563,7 +564,7 @@ HTTP API для slash-команд `/phototext-order` (заказ) и `/phototex
 | Имена | В `items[].name` — каноническое имя из каталога. Строка со слэшем без `combo_ref` — одно имя, сервер не режет |
 | Комбо | Агент шлёт **две** позиции с общим UUID `combo_ref` и одинаковым `quantity`. Иначе обе строки → `combo_unresolved`, в заказ не идут. Пары проверяет `ComboPairValidator` (`requirePartnerAvailable: false`) |
 | Match | `POST /match` не создаёт заказ (`order_id: null`). Ответ: `matched_count`, `matched[]`, `issues[]` |
-| Place | `POST /orders` тем же JSON: matched кладутся в изолированную ручную корзину и `submitDraftAfterScanning`. Пустой matched → `422`, заказа нет. Частичный матч → `201`, в заказе только matched, `issues` остаются. Адрес доставки **не** обязателен |
+| Place | `POST /orders` тем же JSON (+ write token): matched кладутся в изолированную ручную корзину и `submitDraftAfterScanning`. Пустой matched → `422`, заказа нет. Частичный матч → `201`, в заказе только matched, `issues` остаются. Адрес доставки **не** обязателен |
 | Заказ | `is_manual=true`, `status=draft_after_scanning`, этапы review `pending`, `created_by_max_user_id` = менеджер из env, **`delivery_date`** = `order_date` из тела (`Y-m-d` из шапки промпта). Дальше менеджер в mini-app: complete / move-to-cart / delete |
 
 Коды `issues[].code`: `dish_not_found` \| `dish_ambiguous` \| `combo_unresolved`.
@@ -1085,7 +1086,7 @@ service-c/
 │                                   # Food/Formatting/ — Max message formatters
 ├── config/max.php                  # webhook, miniapp, local_dev_*, ui_stand, order_notifications (MAX_REPORT_*)
 ├── config/food.php                 # FOOD_CATALOG_CACHE_TTL / FOOD_CATALOG_CACHE_ENABLED
-├── config/phototext.php               # PHOTOTEXT_AGENT_TOKEN, PHOTOTEXT_MANAGER_MAX_USER_ID
+├── config/phototext.php               # PHOTOTEXT_AGENT_TOKEN, PHOTOTEXT_WRITE_TOKEN, PHOTOTEXT_MANAGER_MAX_USER_ID
 ├── database/
 │   ├── factories/                  # Restaurant, MenuCategory, Dish
 │   ├── migrations/                 # max_users, food domain, review/chat/payment, soft deletes,
@@ -1345,6 +1346,7 @@ docker compose exec -T service-c php artisan test
 | Переменная | Назначение |
 |---|---|
 | `PHOTOTEXT_AGENT_TOKEN` | Секрет заголовка `X-PhotoText-Token` (`hash_equals`). Пустой → все `/api/food/phototext/*` отвечают `401`. В чат и логи не печатать |
+| `PHOTOTEXT_WRITE_TOKEN` | Секрет заголовка `X-PhotoText-Write-Token` для мутаций (`POST /orders`, `POST /schedule/apply`). Пустой/неверный → `401` только на place/apply; catalog/match работают с одним agent token |
 | `PHOTOTEXT_MANAGER_MAX_USER_ID` | `max_user_id` оформителя (`created_by`) с активной ролью `max_manager`. Ресторан в env **не** фиксируется — агент передаёт `restaurant_id`. Доступ AI к API — отдельно через `max_users.ai_access_until` (кнопка в mini-app), не через env |
 
 ### Прочие
@@ -1497,7 +1499,7 @@ location /api/c/ {
 }
 ```
 
-Для prod/dev с туннелем на `:8083` webhook и mini-app идут напрямую в service-c; gateway locations нужны для единого домена с `main-app` и локальной проверки через `:8080`. Агент PhotoText на VPS бьёт в `https://<хост>/api/food/phototext/…` — тот же `location ^~ /api/food/` (заголовок `X-PhotoText-Token` + активный AI-доступ `max_manager`, не gateway Bearer).
+Для prod/dev с туннелем на `:8083` webhook и mini-app идут напрямую в service-c; gateway locations нужны для единого домена с `main-app` и локальной проверки через `:8080`. Агент PhotoText на VPS бьёт в `https://<хост>/api/food/phototext/…` — тот же `location ^~ /api/food/` (`X-PhotoText-Token` + активный AI-доступ `max_manager`; place/apply ещё `X-PhotoText-Write-Token`, не gateway Bearer).
 
 ## API (кратко)
 
@@ -1511,16 +1513,16 @@ location /api/c/ {
 
 ### PhotoText API (агент Cursor)
 
-Префикс: `/api/food/phototext`. Middleware: `phototext.agent.token` (`X-PhotoText-Token`) + `phototext.ai.access` (активный `ai_access_until` у `max_manager`). **Без** `max.miniapp.auth`. На общем домене VPS идёт через nginx-gateway `location ^~ /api/food/` (без Passport). Как вызывать из Cursor — [AI Cursor](#ai-cursor); домен — [PhotoText](#phototext-агент-cursor).
+Префикс: `/api/food/phototext`. Middleware: `phototext.agent.token` (`X-PhotoText-Token`) + `phototext.ai.access` (активный `ai_access_until` у `max_manager`); на `POST /orders` и `POST /schedule/apply` ещё `phototext.write.token` (`X-PhotoText-Write-Token`). **Без** `max.miniapp.auth`. На общем домене VPS идёт через nginx-gateway `location ^~ /api/food/` (без Passport). Как вызывать из Cursor — [AI Cursor](#ai-cursor); домен — [PhotoText](#phototext-агент-cursor).
 
 | Метод | Путь | Описание |
 |---|---|---|
 | `GET` | `/api/food/phototext/restaurants` | Активные рестораны: `{ restaurants: [{ id, name }] }` |
 | `GET` | `/api/food/phototext/catalog?restaurant_id=` | Меню **только** этого ресторана, включая недоступные блюда → `{ catalog }` (`restaurant_id`, `restaurant_name`, `categories[]` с `is_combo_available` и `dishes[].name`). Без `restaurant_id` или неактивный id → `422` |
-| `POST` | `/api/food/phototext/match` | Сверка канонических имён; заказ **не** создаётся (`order_id: null`) |
-| `POST` | `/api/food/phototext/orders` | Сверка + оформление matched как `draft_after_scanning` → `201` и `order_id`; пустой matched → `422` |
-| `POST` | `/api/food/phototext/schedule/match` | Exact match имён для графика (±`category_ids` / `category_id`); график **не** пишется (`applied: false`) |
-| `POST` | `/api/food/phototext/schedule/apply` | Match + замена графика в окне **только** в scope категорий → `200` и `applied: true`; пустой matched → `422` |
+| `POST` | `/api/food/phototext/match` | Сверка канонических имён; заказ **не** создаётся (`order_id: null`); только agent token |
+| `POST` | `/api/food/phototext/orders` | Сверка + оформление matched как `draft_after_scanning` → `201` и `order_id`; пустой matched → `422`; нужны agent + write token |
+| `POST` | `/api/food/phototext/schedule/match` | Exact match имён для графика (±`category_ids` / `category_id`); график **не** пишется (`applied: false`); только agent token |
+| `POST` | `/api/food/phototext/schedule/apply` | Match + замена графика в окне **только** в scope категорий → `200` и `applied: true`; пустой matched → `422`; нужны agent + write token |
 
 Тело `match` и `orders` одинаковое (`PhotoTextAgentOrderRequest`):
 
@@ -1539,9 +1541,9 @@ location /api/c/ {
 
 Валидация: `customer_query` required string max 255; `order_date` `Y-m-d`; `restaurant_id` exists активный; `items` min 1; `items.*.name` required; `quantity` 1–99; `combo_ref` optional UUID.
 
-Ответ: `{ matched_count, matched[], issues[], order_id }`. У `matched[]`: `raw_title`, `quantity`, `dish_id`, `dish_name`, `combo_ref`, `combo_partner_dish_id`, `is_combo`, …. У `issues[]`: `code` (`dish_not_found` \| `dish_ambiguous` \| `combo_unresolved`), `message`, `raw_title`, `quantity`. Клиент 0/>1 → `{ message }` и HTTP 422. Неверный/пустой токен → `401` с пустым телом. Нет активного AI-доступа → `403` `{ "message": "Доступ AI к базе не разрешён." }`.
+Ответ: `{ matched_count, matched[], issues[], order_id }`. У `matched[]`: `raw_title`, `quantity`, `dish_id`, `dish_name`, `combo_ref`, `combo_partner_dish_id`, `is_combo`, …. У `issues[]`: `code` (`dish_not_found` \| `dish_ambiguous` \| `combo_unresolved`), `message`, `raw_title`, `quantity`. Клиент 0/>1 → `{ message }` и HTTP 422. Неверный/пустой agent token → `401` с пустым телом; на `POST /orders` то же при пустом/неверном write token. Нет активного AI-доступа → `403` `{ "message": "Доступ AI к базе не разрешён." }`.
 
-Тело `schedule/match` и `schedule/apply` одинаковое (`PhotoTextScheduleSyncRequest`): `restaurant_id`, `category_ids` (массив) **или** одиночный `category_id` (не оба сразу; без scope — весь ресторан), `date_from`/`date_to` (`Y-m-d`, `date_to` = `date_from + 6`), `entries[]` с каноническим `name` и `dates[]` внутри окна. Apply меняет график **только** в указанных категориях. Ответ: `{ matched_count, matched[], issues[], date_from, date_to, applied, categories_applied }`. Коды issues: `dish_not_found` \| `dish_ambiguous`. Как вызывать — `/phototext-schedule` ([AI Cursor](#ai-cursor)).
+Тело `schedule/match` и `schedule/apply` одинаковое (`PhotoTextScheduleSyncRequest`): `restaurant_id`, `category_ids` (массив) **или** одиночный `category_id` (не оба сразу; без scope — весь ресторан), `date_from`/`date_to` (`Y-m-d`, `date_to` = `date_from + 6`), `entries[]` с каноническим `name` и `dates[]` внутри окна. Apply меняет график **только** в указанных категориях и требует write token. Ответ: `{ matched_count, matched[], issues[], date_from, date_to, applied, categories_applied }`. Коды issues: `dish_not_found` \| `dish_ambiguous`. Как вызывать — `/phototext-schedule` ([AI Cursor](#ai-cursor)).
 
 ### Food API (`Authorization: Bearer <token>`)
 
@@ -1840,8 +1842,8 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 | 8c | Войти как админ → approve/reject; как `composition_reviewer` — правка состава (qty / «Добавить блюдо» / удалить; комбо — через «собрать блюдо» в picker) → сохранить | Этапы address/payment/composition; клиент получает «принят на рассмотрение» при submit, «заказ изменен» при правке состава, личное сообщение о результате проверки |
 | 8d | Войти как `menu_manager` (1005) → «Меню» → категории (в т.ч. смещение доступности) / график / импорт XLS/XLSX (опционально) | Категории и блюда создаются/обновляются; `availability_offsets` сохраняются; комбо доступно в категориях с `is_combo_available` |
 | 8e | Войти как `max_manager` (1006) → «Ручные заказы» → выбрать клиента → «Оформить» (меню/корзина) **или** «Просмотр» (период + статус в т.ч. «Черновик после сканирования» → сумма → деталь → чат при `has_messages`; для draft — «Выполнить» / «В корзину» / «Удалить»). Кнопка **«Вкл. доступ AI»** | Оформить: заказ `confirmed` / `is_manual`; в `MAX_UI_STAND_*` — новая заявка; менеджерам — «принята к исполнению»; оформившему — детальный состав; клиенту confirm **не** уходит. Просмотр: фильтры, `meta.total_amount`, `ManualOrderDetailPage`. AI-доступ: TTL 30 мин, один активный |
-| 8f | Cursor Agent: `/phototext-order` + шапка (клиент / дата / ресторан) + фото бланка (токен в чат не писать; AI-доступ уже включён) | `GET /phototext/restaurants` и `/catalog` → `POST /match` → `POST /orders`; заказ `is_manual` / **`draft_after_scanning`**; `delivery_date` из шапки; в ответе `order_id` и `issues`; без AI → `403` |
-| 8g | Cursor Agent: `/phototext-schedule` + шапка (дата начала / ресторан / категории) + фото графика | `POST /schedule/match` → `POST /schedule/apply`; окно 7 дней; график только в указанных категориях; словарь `phototext-dish-aliases.md` |
+| 8f | Cursor Agent: `/phototext-order` + шапка (клиент / дата / ресторан) + фото бланка (токены в чат не писать; AI-доступ уже включён) | `GET /phototext/restaurants` и `/catalog` → `POST /match` → `POST /orders` (+ write token); заказ `is_manual` / **`draft_after_scanning`**; `delivery_date` из шапки; в ответе `order_id` и `issues`; без AI → `403`; без write на place → `401` |
+| 8g | Cursor Agent: `/phototext-schedule` + шапка (дата начала / ресторан / категории) + фото графика | `POST /schedule/match` → `POST /schedule/apply` (+ write token); окно 7 дней; график только в указанных категориях; словарь `phototext-dish-aliases.md` |
 | 9 | `docker compose exec -T service-c php artisan max:ui-stand:send` (опционально) | В MAX: приветствие + кнопки «да» / «нет» / «Заказ еды» (только `MAX_UI_STAND_*`) |
 | 10 | Нажать кнопку в MAX (UI Stand) | В `max_log-YYYY-MM-DD.log`: событие callback, ответ «да» или «нет»; `chat_id` группы |
 | 10a | Админ меню → **«тест бот 2»** (при `MAX_UI_STAND_CHAT_IDS`) | Сообщение `тест бот 2` в целевой чат; чаты из `MAX_REPORT_*` не затрагиваются |

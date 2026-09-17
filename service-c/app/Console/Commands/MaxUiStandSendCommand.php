@@ -47,11 +47,13 @@ class MaxUiStandSendCommand extends Command
 
             return self::SUCCESS;
         } catch (RuntimeException|MaxMessengerException $exception) {
+            report($exception);
             $this->error($exception->getMessage());
 
             return self::FAILURE;
         } catch (Throwable $exception) {
-            $this->error('Не удалось отправить приветствие стенда MAX.');
+            report($exception);
+            $this->error('Не удалось отправить приветствие стенда MAX: '.$exception->getMessage());
 
             return self::FAILURE;
         }

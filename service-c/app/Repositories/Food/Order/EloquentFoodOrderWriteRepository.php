@@ -45,7 +45,8 @@ class EloquentFoodOrderWriteRepository implements FoodOrderWriteRepositoryInterf
     public function update(FoodOrderRecord $order, FoodOrderUpdateCommand $command): FoodOrderRecord
     {
         $model = FoodOrder::query()->findOrFail($order->id);
-        $model->update($this->mapper->toUpdateAttributes($command));
+        // Reviewer/rejection-поля вне $fillable — пишем через forceFill.
+        $model->forceFill($this->mapper->toUpdateAttributes($command))->save();
 
         return $this->mapToRecord($model->refresh());
     }

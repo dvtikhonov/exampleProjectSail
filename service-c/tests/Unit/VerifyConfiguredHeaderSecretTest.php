@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
+use App\Http\Middleware\VerifyPhotoTextWriteToken;
 use Closure;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -18,8 +19,10 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
 
     private const PHOTOTEXT_TOKEN = 'phototext-test-token';
 
+    private const PHOTOTEXT_WRITE_TOKEN = 'phototext-write-test-token';
+
     /**
-     * Наборы middleware: MAX webhook и PhotoText agent token.
+     * Наборы middleware: MAX webhook, PhotoText agent и write token.
      *
      * @return array<string, array{
      *     middlewareClass: class-string,
@@ -48,6 +51,14 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
                 'headerName' => 'X-PhotoText-Token',
                 'requestUri' => '/api/food/phototext/restaurants',
                 'requestMethod' => 'GET',
+            ],
+            'phototext_write' => [
+                'middlewareClass' => VerifyPhotoTextWriteToken::class,
+                'configKey' => 'phototext.write_token',
+                'secret' => self::PHOTOTEXT_WRITE_TOKEN,
+                'headerName' => 'X-PhotoText-Write-Token',
+                'requestUri' => '/api/food/phototext/orders',
+                'requestMethod' => 'POST',
             ],
         ];
     }

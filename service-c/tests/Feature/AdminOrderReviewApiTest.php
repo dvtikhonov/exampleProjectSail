@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
-use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
+use App\Jobs\Food\NotifyFoodOrderReviewJob;
 use App\Models\Food\Dish;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -52,6 +53,16 @@ class AdminOrderReviewApiTest extends TestCase
         $this->getJson('/api/food/admin/me', $auth['headers'])
             ->assertOk()
             ->assertJsonPath('admin_roles', [FoodOrderAdminRole::AddressReviewer->value]);
+    }
+
+    /** Admin/me без админ-ролей доступен и возвращает пустой список. */
+    public function test_admin_me_returns_empty_roles_without_admin_role(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->getJson('/api/food/admin/me', $auth['headers'])
+            ->assertOk()
+            ->assertJsonPath('admin_roles', []);
     }
 
     /** Адресный админ может получить список ожидающих заказов. */
@@ -113,6 +124,17 @@ class AdminOrderReviewApiTest extends TestCase
         $auth = $this->authenticateMaxUser();
 
         $this->getJson('/api/food/admin/orders?scope=address&status=pending', $auth['headers'])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Доступ запрещён.');
+    }
+
+    /** Детали заказа возвращают 403 без роли. */
+    public function test_show_order_returns_forbidden_without_role(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $auth = $this->authenticateMaxUser();
+
+        $this->getJson("/api/food/admin/orders/{$orderId}?scope=address", $auth['headers'])
             ->assertForbidden()
             ->assertJsonPath('message', 'Доступ запрещён.');
     }
@@ -225,12 +247,7 @@ class AdminOrderReviewApiTest extends TestCase
             FoodOrderAdminRole::CompositionReviewer,
         );
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyConfirmed')
-            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId));
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/approve", [], $addressAdmin['headers'])
             ->assertOk()
@@ -241,10 +258,18 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.status', OrderStatus::PendingReview->value)
             ->assertJsonPath('order.payment_review_status', OrderReviewStatus::Approved->value);
 
+        Bus::assertNotDispatched(NotifyFoodOrderReviewJob::class);
+
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
             ->assertJsonPath('order.composition_review_status', OrderReviewStatus::Approved->value);
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $orderId
+                && $job->kind === FoodOrderReviewNotifyKind::Approved,
+        );
 
         $this->assertDatabaseHas('max_food_orders', [
             'id' => $orderId,
@@ -273,12 +298,7 @@ class AdminOrderReviewApiTest extends TestCase
             FoodOrderAdminRole::CompositionReviewer,
         );
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyConfirmed')
-            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId));
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $compositionAdmin['headers'])
             ->assertOk()
@@ -291,10 +311,18 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.status', OrderStatus::PendingReview->value)
             ->assertJsonPath('order.address_review_status', OrderReviewStatus::Approved->value);
 
+        Bus::assertNotDispatched(NotifyFoodOrderReviewJob::class);
+
         $this->postJson("/api/food/admin/orders/{$orderId}/payment/approve", [], $addressAdmin['headers'])
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
             ->assertJsonPath('order.payment_review_status', OrderReviewStatus::Approved->value);
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $orderId
+                && $job->kind === FoodOrderReviewNotifyKind::Approved,
+        );
     }
 
     /** Отклонение адреса требует комментарий. */
@@ -327,15 +355,7 @@ class AdminOrderReviewApiTest extends TestCase
         );
         $comment = 'Адрес вне зоны доставки';
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyRejected')
-            ->with(
-                $this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId),
-                OrderRejectionScope::Address,
-            );
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/address/reject", [
             'comment' => $comment,
@@ -343,6 +363,13 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Rejected->value)
             ->assertJsonPath('order.address_rejection_comment', $comment);
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $orderId
+                && $job->kind === FoodOrderReviewNotifyKind::Rejected
+                && $job->rejectionScope === OrderRejectionScope::Address,
+        );
 
         $this->assertDatabaseHas('max_food_orders', [
             'id' => $orderId,
@@ -425,15 +452,7 @@ class AdminOrderReviewApiTest extends TestCase
         );
         $comment = 'Блюдо временно недоступно';
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyRejected')
-            ->with(
-                $this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId),
-                OrderRejectionScope::Composition,
-            );
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/reject", [
             'comment' => $comment,
@@ -441,6 +460,13 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Rejected->value)
             ->assertJsonPath('order.composition_rejection_comment', $comment);
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $orderId
+                && $job->kind === FoodOrderReviewNotifyKind::Rejected
+                && $job->rejectionScope === OrderRejectionScope::Composition,
+        );
 
         $this->assertDatabaseHas('max_food_orders', [
             'id' => $orderId,
@@ -461,7 +487,7 @@ class AdminOrderReviewApiTest extends TestCase
             FoodOrderAdminRole::CompositionReviewer,
         );
 
-        $this->mock(FoodOrderCustomerNotifierInterface::class)->shouldIgnoreMissing();
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/composition/approve", [], $auth['headers'])
             ->assertOk();
@@ -594,6 +620,80 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('meta.current_page', 1);
     }
 
+    /** status=all ограничен scope: draft_after_scanning не попадает в историю проверки. */
+    public function test_status_all_excludes_draft_after_scanning_from_both_scopes(): void
+    {
+        $pendingOrderId = $this->createPendingReviewOrder(customerMaxUserId: 99_211);
+        $draftOrderId = $this->createDraftAfterScanningOrder(customerMaxUserId: 99_212);
+
+        $addressAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+        $compositionAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_004,
+                'first_name' => 'CompositionAdmin',
+            ])),
+            FoodOrderAdminRole::CompositionReviewer,
+        );
+
+        $addressAll = $this->getJson('/api/food/admin/orders?scope=address&status=all', $addressAdmin['headers'])
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.id', $pendingOrderId);
+
+        $this->assertNotContains(
+            $draftOrderId,
+            collect($addressAll->json('orders'))->pluck('id')->all(),
+        );
+
+        $compositionAll = $this->getJson(
+            '/api/food/admin/orders?scope=composition&status=all',
+            $compositionAdmin['headers'],
+        )
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('orders.0.id', $pendingOrderId);
+
+        $this->assertNotContains(
+            $draftOrderId,
+            collect($compositionAll->json('orders'))->pluck('id')->all(),
+        );
+    }
+
+    /** Detail по id вне истории scope возвращает 404 (не полный доступ ко всем заказам). */
+    public function test_show_order_outside_scope_history_returns_not_found(): void
+    {
+        $draftOrderId = $this->createDraftAfterScanningOrder(customerMaxUserId: 99_221);
+
+        $addressAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_003,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+        $compositionAdmin = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_004,
+                'first_name' => 'CompositionAdmin',
+            ])),
+            FoodOrderAdminRole::CompositionReviewer,
+        );
+
+        $this->getJson("/api/food/admin/orders/{$draftOrderId}?scope=address", $addressAdmin['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
+
+        $this->getJson("/api/food/admin/orders/{$draftOrderId}?scope=composition", $compositionAdmin['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
+    }
+
     /** Отклонение оплаты требует комментарий. */
     public function test_payment_reject_requires_comment(): void
     {
@@ -624,15 +724,7 @@ class AdminOrderReviewApiTest extends TestCase
         );
         $comment = 'Оплата не поступила';
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyRejected')
-            ->with(
-                $this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $orderId),
-                OrderRejectionScope::Payment,
-            );
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson("/api/food/admin/orders/{$orderId}/payment/reject", [
             'comment' => $comment,
@@ -640,6 +732,13 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('order.status', OrderStatus::Rejected->value)
             ->assertJsonPath('order.payment_rejection_comment', $comment);
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $orderId
+                && $job->kind === FoodOrderReviewNotifyKind::Rejected
+                && $job->rejectionScope === OrderRejectionScope::Payment,
+        );
     }
 
     /** Список ожидания адресного админа включает только заказы, ожидающие оплаты. */
@@ -710,6 +809,26 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonCount(1, 'orders')
             ->assertJsonPath('meta.current_page', 2)
             ->assertJsonPath('orders.0.id', $firstOrderId);
+    }
+
+    /** Некорректный page отклоняется валидацией. */
+    public function test_list_orders_rejects_invalid_page(): void
+    {
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_013,
+                'first_name' => 'AddressAdmin',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $this->getJson('/api/food/admin/orders?scope=address&page=0', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['page']);
+
+        $this->getJson('/api/food/admin/orders?scope=address&page=10001', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['page']);
     }
 
     /** Обновление состава меняет количество и пересчитывает суммы, включая доставку. */
@@ -842,21 +961,13 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.total', '1160.00');
     }
 
-    /** После успешного обновления состава вызывается notifyCompositionChanged. */
+    /** После успешного обновления состава ставится NotifyFoodOrderReviewJob CompositionChanged. */
     public function test_composition_update_notifies_customer(): void
     {
         $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_805);
         $auth = $this->compositionAdminAuth();
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyCompositionChanged')
-            ->with($this->callback(
-                static fn (FoodOrderRecord $order): bool => $order->id === $fixture['order_id']
-                    && (float) $order->itemsTotal === 600.0,
-            ));
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
             'items' => [
@@ -865,6 +976,13 @@ class AdminOrderReviewApiTest extends TestCase
         ], $auth['headers'])
             ->assertOk()
             ->assertJsonPath('order.items_total', '600.00');
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $fixture['order_id']
+                && $job->kind === FoodOrderReviewNotifyKind::CompositionChanged
+                && $job->idempotencySuffix !== null,
+        );
     }
 
     /** Обновление состава требует роль composition_reviewer. */
@@ -888,7 +1006,7 @@ class AdminOrderReviewApiTest extends TestCase
         $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_807);
         $auth = $this->compositionAdminAuth();
 
-        $this->mock(FoodOrderCustomerNotifierInterface::class)->shouldIgnoreMissing();
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->postJson(
             "/api/food/admin/orders/{$fixture['order_id']}/composition/approve",
@@ -1081,16 +1199,7 @@ class AdminOrderReviewApiTest extends TestCase
             FoodOrderAdminRole::AddressReviewer,
         );
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyCompositionChanged')
-            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $fixture['order_id']));
-        $customerNotifier
-            ->expects($this->once())
-            ->method('notifyConfirmed')
-            ->with($this->callback(static fn (FoodOrderRecord $order): bool => $order->id === $fixture['order_id']));
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        Bus::fake([NotifyFoodOrderReviewJob::class]);
 
         $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
             'items' => [
@@ -1099,6 +1208,12 @@ class AdminOrderReviewApiTest extends TestCase
         ], $compositionAdmin['headers'])
             ->assertOk()
             ->assertJsonPath('order.items_total', '600.00');
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $fixture['order_id']
+                && $job->kind === FoodOrderReviewNotifyKind::CompositionChanged,
+        );
 
         $this->postJson(
             "/api/food/admin/orders/{$fixture['order_id']}/address/approve",
@@ -1119,6 +1234,12 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonPath('order.status', OrderStatus::Confirmed->value)
             ->assertJsonPath('order.composition_review_status', OrderReviewStatus::Approved->value)
             ->assertJsonPath('order.items_total', '600.00');
+
+        Bus::assertDispatched(
+            NotifyFoodOrderReviewJob::class,
+            static fn (NotifyFoodOrderReviewJob $job): bool => $job->orderId === $fixture['order_id']
+                && $job->kind === FoodOrderReviewNotifyKind::Approved,
+        );
     }
 
     /** Создаёт заказ в статусе ожидания проверки. */

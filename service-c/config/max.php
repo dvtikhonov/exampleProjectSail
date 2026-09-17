@@ -11,6 +11,12 @@ return [
     'bot_username' => env('MAX_BOT_USERNAME', ''),
     'bot_user_id' => (int) env('MAX_BOT_USER_ID', 0),
 
+    // Порты service-c: internal — контейнер (docker :8000), host — публикация на хосте (SERVICE_C_PORT).
+    'ports' => [
+        'internal' => (int) env('SERVICE_C_INTERNAL_PORT', 8000),
+        'host' => (int) env('SERVICE_C_PORT', 8083),
+    ],
+
     'rate_limit_retry_max' => (int) env('MAX_RATE_LIMIT_RETRY_MAX', 2),
     'rate_limit_retry_delay_ms' => (int) env('MAX_RATE_LIMIT_RETRY_DELAY_MS', 500),
     'attachment_not_ready_retry_max' => (int) env('MAX_ATTACHMENT_NOT_READY_RETRY_MAX', 3),

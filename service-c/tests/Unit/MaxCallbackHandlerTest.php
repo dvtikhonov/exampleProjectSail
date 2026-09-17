@@ -96,6 +96,22 @@ class MaxCallbackHandlerTest extends TestCase
         });
     }
 
+    /** Финальный сбой answerCallback пробрасывается после логирования. */
+    public function test_final_callback_failure_is_rethrown(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['error' => 'boom'], 500),
+        ]);
+
+        $this->expectException(\Shared\MaxMessenger\Exceptions\MaxMessengerException::class);
+
+        $this->app->make(MaxCallbackHandler::class)->handle(new MaxCallbackUpdateDto(
+            callbackId: 'cb-fail-1',
+            payload: 'yes',
+            userId: 7,
+        ));
+    }
+
     /**
      * @param  list<MessageLogged>  $captured
      */

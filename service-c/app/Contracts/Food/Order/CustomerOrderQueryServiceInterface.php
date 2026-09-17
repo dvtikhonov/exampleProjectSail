@@ -15,9 +15,14 @@ use App\Exceptions\Food\FoodDomainException;
 interface CustomerOrderQueryServiceInterface
 {
     /**
-     * @return list<OrderListItemDto>
+     * Постраничный список заказов клиента.
+     *
+     * @return array{
+     *     orders: list<OrderListItemDto>,
+     *     meta: array{current_page: int, per_page: int, total: int, last_page: int}
+     * }
      */
-    public function list(MaxUserIdentity $customer): array;
+    public function list(MaxUserIdentity $customer, int $perPage, int $page): array;
 
     /**
      * @throws FoodDomainException

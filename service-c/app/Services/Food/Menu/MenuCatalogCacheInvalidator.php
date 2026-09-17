@@ -33,13 +33,9 @@ class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterfac
     public function invalidateAll(): void
     {
         try {
-            $current = (int) $this->cache->get(self::VERSION_CACHE_KEY, self::DEFAULT_VERSION);
-
-            if ($current < self::DEFAULT_VERSION) {
-                $current = self::DEFAULT_VERSION;
-            }
-
-            $this->cache->forever(self::VERSION_CACHE_KEY, $current + 1);
+            // Seed DEFAULT_VERSION if missing, then atomic INCR (bare INCR on miss would stay at 1 = default).
+            $this->cache->add(self::VERSION_CACHE_KEY, self::DEFAULT_VERSION);
+            $this->cache->increment(self::VERSION_CACHE_KEY);
         } catch (Throwable $exception) {
             $this->logger->warning('Menu catalog cache invalidation failed.', [
                 'exception' => $exception::class,

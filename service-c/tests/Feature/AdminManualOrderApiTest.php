@@ -299,6 +299,20 @@ class AdminManualOrderApiTest extends TestCase
             ->assertJsonValidationErrors(['date_to']);
     }
 
+    /** Некорректный page отклоняется валидацией. */
+    public function test_list_manual_orders_rejects_invalid_page(): void
+    {
+        $manager = $this->maxManagerAuth();
+
+        $this->getJson('/api/food/admin/manual-orders?page=0', $manager['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['page']);
+
+        $this->getJson('/api/food/admin/manual-orders/users?page=10001', $manager['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['page']);
+    }
+
     /** CRUD ручной корзины от имени клиента. */
     public function test_max_manager_can_manage_manual_cart_for_customer(): void
     {

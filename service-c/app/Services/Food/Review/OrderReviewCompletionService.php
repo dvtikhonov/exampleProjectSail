@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewCompletionServiceInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
+use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 
 /**
  * Завершение проверки заказа: уведомление клиента после полного подтверждения.
@@ -15,11 +16,11 @@ use App\Enums\Food\Order\OrderStatus;
 class OrderReviewCompletionService implements OrderReviewCompletionServiceInterface
 {
     public function __construct(
-        private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly FoodOrderReviewNotifierInterface $foodOrderReviewNotifier,
     ) {}
 
     /**
-     * Отправляет уведомление клиенту, если заказ впервые перешёл в статус «принят к исполнению».
+     * Ставит в очередь уведомление клиенту, если заказ впервые перешёл в статус «принят к исполнению».
      */
     public function notifyIfFullyApproved(OrderStatus $statusBefore, FoodOrderRecord $orderAfter): void
     {
@@ -28,7 +29,10 @@ class OrderReviewCompletionService implements OrderReviewCompletionServiceInterf
         }
 
         if ($orderAfter->status === OrderStatus::Confirmed) {
-            $this->foodOrderCustomerNotifier->notifyConfirmed($orderAfter);
+            $this->foodOrderReviewNotifier->notify(
+                orderId: $orderAfter->id,
+                kind: FoodOrderReviewNotifyKind::Approved,
+            );
         }
     }
 }

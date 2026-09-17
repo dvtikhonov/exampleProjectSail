@@ -4,21 +4,26 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\FoodReport;
 
+use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
+use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Modules\FoodReport\Contracts\FoodOrderItemWriteRepositoryInterface;
 use App\Modules\FoodReport\Models\FoodOrderItem;
+use App\Modules\FoodReport\Services\FoodOrderItemSyncService;
 use App\Repositories\Food\Order\FoodOrderMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
+use Psr\Log\LoggerInterface;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
@@ -103,6 +108,41 @@ class FoodOrderItemSyncServiceTest extends TestCase
         $this->assertSame('Салат', $items[1]->dish_name);
     }
 
+    /** Две строки snapshot с одним dish_id (regular + combo) → одна row, qty/line_total = сумма. */
+    public function test_confirmed_aggregates_snapshot_rows_by_dish_id(): void
+    {
+        $order = $this->createOrderModel(OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-15',
+            'items_snapshot' => [
+                [
+                    'dish_id' => 11,
+                    'dish_name' => 'Борщ',
+                    'unit_price' => '300.00',
+                    'quantity' => 2,
+                    'line_total' => '600.00',
+                ],
+                [
+                    'dish_id' => 11,
+                    'dish_name' => 'Борщ (комбо)',
+                    'unit_price' => '250.00',
+                    'quantity' => 1,
+                    'line_total' => '250.00',
+                    'combo_ref' => 'combo-1',
+                ],
+            ],
+        ]);
+
+        $this->syncService->syncIfConfirmed($this->toRecord($order));
+
+        $items = FoodOrderItem::query()->where('order_id', $order->id)->get();
+        $this->assertCount(1, $items);
+        $this->assertSame(11, $items[0]->dish_id);
+        $this->assertSame(3, $items[0]->quantity);
+        $this->assertSame('850.00', (string) $items[0]->line_total);
+        $this->assertSame('Борщ (комбо)', $items[0]->dish_name);
+        $this->assertSame('250.00', (string) $items[0]->unit_price);
+    }
+
     /** confirmed без delivery_date → report_date из DATE(created_at). */
     public function test_confirmed_uses_created_at_when_delivery_date_null(): void
     {
@@ -131,8 +171,66 @@ class FoodOrderItemSyncServiceTest extends TestCase
         $this->assertSame('2026-09-01', $item->report_date->format('Y-m-d'));
     }
 
-    /** Повторный sync с тем же dish_id делает upsert (id сохраняется, поля обновляются). */
-    public function test_confirmed_composition_update_upserts_same_dish(): void
+    /** confirmed с битым createdAt и пустым deliveryDate → исключение, строк нет. */
+    public function test_confirmed_with_invalid_created_at_and_empty_delivery_throws(): void
+    {
+        $order = $this->createOrderModel(OrderStatus::Confirmed, [
+            'delivery_date' => null,
+            'items_snapshot' => [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'unit_price' => '100.00',
+                    'quantity' => 1,
+                    'line_total' => '100.00',
+                ],
+            ],
+        ]);
+
+        $record = $this->toRecord($order);
+        $broken = new FoodOrderRecord(
+            id: $record->id,
+            cartId: $record->cartId,
+            maxUserId: $record->maxUserId,
+            isManual: $record->isManual,
+            createdByMaxUserId: $record->createdByMaxUserId,
+            restaurantId: $record->restaurantId,
+            status: $record->status,
+            addressReviewStatus: $record->addressReviewStatus,
+            compositionReviewStatus: $record->compositionReviewStatus,
+            paymentReviewStatus: $record->paymentReviewStatus,
+            addressReviewedBy: $record->addressReviewedBy,
+            addressReviewedAt: $record->addressReviewedAt,
+            compositionReviewedBy: $record->compositionReviewedBy,
+            compositionReviewedAt: $record->compositionReviewedAt,
+            addressRejectionComment: $record->addressRejectionComment,
+            compositionRejectionComment: $record->compositionRejectionComment,
+            paymentReviewedBy: $record->paymentReviewedBy,
+            paymentReviewedAt: $record->paymentReviewedAt,
+            paymentRejectionComment: $record->paymentRejectionComment,
+            total: $record->total,
+            deliveryAddress: $record->deliveryAddress,
+            deliveryDate: null,
+            deliveryCost: $record->deliveryCost,
+            itemsTotal: $record->itemsTotal,
+            itemsSnapshot: $record->itemsSnapshot,
+            createdAt: 'not-a-valid-date',
+            updatedAt: $record->updatedAt,
+        );
+
+        try {
+            $this->syncService->syncIfConfirmed($broken);
+            $this->fail('Ожидался FoodDomainException при невалидном createdAt.');
+        } catch (FoodDomainException $e) {
+            $this->assertStringContainsString('невалидный createdAt', $e->getMessage());
+            $this->assertStringContainsString((string) $order->id, $e->getMessage());
+        }
+
+        $this->assertSame(0, FoodOrderItem::query()->where('order_id', $order->id)->count());
+    }
+
+    /** Повторный sync с тем же dish_id атомарно заменяет строку (поля обновляются). */
+    public function test_confirmed_composition_update_replaces_same_dish(): void
     {
         $order = $this->createOrderModel(OrderStatus::Confirmed, [
             'delivery_date' => '2026-09-10',
@@ -149,7 +247,6 @@ class FoodOrderItemSyncServiceTest extends TestCase
 
         $this->syncService->syncIfConfirmed($this->toRecord($order));
         $this->assertSame(1, FoodOrderItem::query()->where('order_id', $order->id)->count());
-        $originalId = FoodOrderItem::query()->where('order_id', $order->id)->value('id');
 
         $order->items_snapshot = [
             [
@@ -166,11 +263,115 @@ class FoodOrderItemSyncServiceTest extends TestCase
 
         $items = FoodOrderItem::query()->where('order_id', $order->id)->get();
         $this->assertCount(1, $items);
-        $this->assertSame($originalId, $items[0]->id);
         $this->assertSame(1, $items[0]->dish_id);
         $this->assertSame('Обновлённое', $items[0]->dish_name);
         $this->assertSame(3, $items[0]->quantity);
         $this->assertSame('150.00', (string) $items[0]->line_total);
+    }
+
+    /** Строки с dish_id=null заменяются атомарно (без дублей по имени). */
+    public function test_confirmed_null_dish_id_replace_is_atomic(): void
+    {
+        $order = $this->createOrderModel(OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-10',
+            'items_snapshot' => [
+                [
+                    'dish_id' => null,
+                    'dish_name' => 'Кастом',
+                    'unit_price' => '10.00',
+                    'quantity' => 1,
+                    'line_total' => '10.00',
+                ],
+            ],
+        ]);
+
+        $this->syncService->syncIfConfirmed($this->toRecord($order));
+        $this->assertSame(1, FoodOrderItem::query()->where('order_id', $order->id)->whereNull('dish_id')->count());
+
+        $order->items_snapshot = [
+            [
+                'dish_id' => null,
+                'dish_name' => 'Кастом',
+                'unit_price' => '25.00',
+                'quantity' => 2,
+                'line_total' => '50.00',
+            ],
+            [
+                'dish_id' => null,
+                'dish_name' => 'Другое',
+                'unit_price' => '5.00',
+                'quantity' => 1,
+                'line_total' => '5.00',
+            ],
+        ];
+        $order->save();
+
+        $this->syncService->syncIfConfirmed($this->toRecord($order->refresh()));
+
+        $items = FoodOrderItem::query()
+            ->where('order_id', $order->id)
+            ->whereNull('dish_id')
+            ->orderBy('dish_name')
+            ->get();
+        $this->assertCount(2, $items);
+        $this->assertSame('Другое', $items[0]->dish_name);
+        $this->assertSame('5.00', (string) $items[0]->line_total);
+        $this->assertSame('Кастом', $items[1]->dish_name);
+        $this->assertSame(2, $items[1]->quantity);
+        $this->assertSame('50.00', (string) $items[1]->line_total);
+    }
+
+    /** Пустой dish_name / quantity<=0 пропускаются с warning и order_id. */
+    public function test_confirmed_skips_invalid_snapshot_rows_with_warning(): void
+    {
+        $order = $this->createOrderModel(OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-10',
+            'items_snapshot' => [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Ок',
+                    'unit_price' => '10.00',
+                    'quantity' => 1,
+                    'line_total' => '10.00',
+                ],
+                [
+                    'dish_id' => 2,
+                    'dish_name' => '   ',
+                    'unit_price' => '20.00',
+                    'quantity' => 1,
+                    'line_total' => '20.00',
+                ],
+                [
+                    'dish_id' => 3,
+                    'dish_name' => 'Ноль',
+                    'unit_price' => '30.00',
+                    'quantity' => 0,
+                    'line_total' => '0.00',
+                ],
+            ],
+        ]);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->exactly(2))
+            ->method('warning')
+            ->with(
+                $this->stringContains('Пропуск строки items_snapshot'),
+                $this->callback(static function (array $context) use ($order): bool {
+                    return ($context['order_id'] ?? null) === $order->id;
+                }),
+            );
+
+        $sync = new FoodOrderItemSyncService(
+            app(FoodOrderItemWriteRepositoryInterface::class),
+            app(FoodMoneyFormatterInterface::class),
+            $logger,
+        );
+
+        $sync->syncIfConfirmed($this->toRecord($order));
+
+        $items = FoodOrderItem::query()->where('order_id', $order->id)->get();
+        $this->assertCount(1, $items);
+        $this->assertSame('Ок', $items[0]->dish_name);
     }
 
     /** Смена dish_id удаляет orphan и upsert-ит новую строку. */
@@ -285,13 +486,11 @@ class FoodOrderItemSyncServiceTest extends TestCase
         $this->assertSame(1, FoodOrderItem::query()->where('order_id', $confirmed->id)->count());
         $this->assertSame('Confirmed', FoodOrderItem::query()->where('order_id', $confirmed->id)->value('dish_name'));
 
-        $itemId = FoodOrderItem::query()->where('order_id', $confirmed->id)->value('id');
-
         $exitCode = Artisan::call('food-report:backfill-order-items');
 
         $this->assertSame(0, $exitCode);
         $this->assertSame(1, FoodOrderItem::query()->where('order_id', $confirmed->id)->count());
-        $this->assertSame($itemId, FoodOrderItem::query()->where('order_id', $confirmed->id)->value('id'));
+        $this->assertSame('Confirmed', FoodOrderItem::query()->where('order_id', $confirmed->id)->value('dish_name'));
     }
 
     /** Источник backfill возвращает только confirmed. */

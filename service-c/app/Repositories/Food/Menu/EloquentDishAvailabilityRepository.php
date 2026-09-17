@@ -99,6 +99,9 @@ class EloquentDishAvailabilityRepository implements DishAvailabilityRepositoryIn
         }
 
         DB::transaction(function () use ($dishIds, $syncFrom, $rangeTo, $rows): void {
+            // Сериализуем concurrent sync по блюдам (admin + PhotoText apply).
+            Dish::query()->whereIn('id', $dishIds)->orderBy('id')->lockForUpdate()->get();
+
             DishAvailabilityDate::query()
                 ->whereIn('dish_id', $dishIds)
                 ->whereBetween('available_date', [$syncFrom, $rangeTo])

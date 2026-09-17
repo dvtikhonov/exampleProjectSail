@@ -32,12 +32,20 @@ BASE_URL=https://YOUR-VPS-HOST
 Для **локальной** работы в этом проекте по умолчанию использовать **прямой** `service-c`: `http://localhost:8083`.  
 `http://localhost:8080` использовать только если пользователь явно просит проверить именно gateway-роутинг или если уже подтверждено, что `/api/food/phototext/*` на gateway доступен.
 
-Токен: ключ `PHOTOTEXT_AGENT_TOKEN` из `service-c/.env`. Заголовок `X-PhotoText-Token`. Пустой токен — **STOP**. В логах и ответе пользователю токен не показывать.
+Токены из `service-c/.env` (в логах и ответе пользователю **не** показывать):
 
-Доступ к `/api/food/phototext/*` — **два** условия (middleware `phototext.agent.token` + `phototext.ai.access`):
+| Маршруты | Заголовки | Env |
+|---|---|---|
+| `GET /restaurants`, `GET /catalog`, `POST /match` | `X-PhotoText-Token` | `PHOTOTEXT_AGENT_TOKEN` |
+| `POST /orders` | `X-PhotoText-Token` **и** `X-PhotoText-Write-Token` | + `PHOTOTEXT_WRITE_TOKEN` |
+
+Пустой agent token — **STOP** (все PhotoText → `401`). Пустой/неверный write token на `POST /orders` → `401` (пустое тело).
+
+Доступ к catalog/match — **два** условия (`phototext.agent.token` + `phototext.ai.access`); к `POST /orders` — те же **плюс** `phototext.write.token`:
 
 1. Верный `X-PhotoText-Token`.
 2. Активный AI-доступ у пользователя с ролью `max_manager` (`max_users.ai_access_until` > now). Включается кнопкой **«Вкл. доступ AI»** в админке mini-app (TTL **30 минут**). Одновременно активен только один доступ. Агент **не** включает доступ сам — только HTTP к PhotoText API.
+3. Для `POST /orders` — верный `X-PhotoText-Write-Token` (read-only agent token недостаточен).
 
 Без активного AI-доступа (или если активный пользователь не `max_manager`) сервер отвечает `403` с `"message": "Доступ AI к базе не разрешён."` — **STOP**, попросить менеджера включить доступ AI и повторить команду.
 
@@ -58,7 +66,7 @@ HTTP выполнять **автоматически**, не переклады�
 1. Нет клиента, даты, ресторана или фото.
 2. `GET /restaurants`: 0 или больше одного совпадения с полем «Ресторан».
 3. Не удалось однозначно сопоставить блюдо (0 или >1 кандидат в каталоге этого ресторана).
-4. Сервер: клиент 0 или >1; `401` (токен); `403` (нет активного AI-доступа max_manager); пустой `matched` (`422`).
+4. Сервер: клиент 0 или >1; `401` (agent или write token); `403` (нет активного AI-доступа max_manager); пустой `matched` (`422`).
 5. После `POST /match` `matched_count` = 0.
 
 Частичный матч (есть `matched` и `issues`) — `POST /orders` **тем же JSON** допустим: в заказ идут только matched.
@@ -71,8 +79,8 @@ HTTP выполнять **автоматически**, не переклады�
    - если указан `http://localhost:8080`, помнить, что локально надёжнее прямой `service-c` на `http://localhost:8083`;
    - если первый HTTP-вызов сорвался на алиасе PowerShell или не дал понятный результат, автоматически переключиться на другой способ выполнения, а не останавливать сценарий сразу.
 3. `GET {BASE_URL}/api/food/phototext/restaurants`  
-   Заголовок `X-PhotoText-Token`.  
-   - `401` — токен; **STOP**.  
+   Заголовок `X-PhotoText-Token` (write **не** нужен).  
+   - `401` — agent token; **STOP**.  
    - `403` «Доступ AI к базе не разрешён.» — нет активного AI-доступа max_manager; **STOP**, попросить включить «Вкл. доступ AI» в админке и повторить.  
    Ответ при успехе: `{ "restaurants": [ { "id", "name" } ] }`.  
    Выбрать **ровно один** `restaurant_id`: числовое поле «Ресторан» = `id`; иначе уникальное имя (без учёта регистра, допускается уникальная подстрока). 0 или >1 — **STOP**.
@@ -80,8 +88,8 @@ HTTP выполнять **автоматически**, не переклады�
    Дальше только этот каталог: `catalog.categories[]` (`name`, `is_combo_available`, `dishes[].name`). Блюда из другого ресторана не использовать.
 5. OCR фото. В JSON — только позиции с **qty > 0**. Прочерки (`—`, `-`, пусто), состав, вес, цены, итог **не отправлять**.
 6. Сопоставить названия с каталогом (см. ниже). Комбо со слэшем разрезать на две канонические позиции.
-7. `POST {BASE_URL}/api/food/phototext/match` — сверка.
-8. Если есть matched — `POST {BASE_URL}/api/food/phototext/orders` **тем же телом**.
+7. `POST {BASE_URL}/api/food/phototext/match` — сверка (только `X-PhotoText-Token`).
+8. Если есть matched — `POST {BASE_URL}/api/food/phototext/orders` **тем же телом** с **обоими** заголовками `X-PhotoText-Token` и `X-PhotoText-Write-Token`.
 9. Итог пользователю: `order_id`, позиции, `issues`.
 
 ## Вариации имён (только каталог этого ресторана)
@@ -141,12 +149,12 @@ HTTP выполнять **автоматически**, не переклады�
 
 ## Ответы API
 
-- `401` — токен; **STOP**.
+- `401` — agent token (любой маршрут) или write token на `POST /orders`; **STOP**.
 - `403` — нет активного AI-доступа max_manager (`"Доступ AI к базе не разрешён."`); **STOP**, попросить включить доступ AI в админке.
 - `GET /restaurants` — список `id`, `name`.
 - `GET /catalog` — `{ "catalog": { "restaurant_id", "restaurant_name", "categories": [...] } }`.
 - `POST /match` и `POST /orders`: `matched_count`, `matched[]` (`dish_name`, `quantity`, `combo_ref`, …), `issues[]` (`code`: `dish_not_found` | `dish_ambiguous` | `combo_unresolved`), `order_id`.
-- `POST /orders` успех — `201` и `order_id`. Пустой matched — `422`, заказа нет.
+- `POST /orders` успех — `201` и `order_id`. Пустой matched — `422`, заказа нет. Без write token — `401`, заказ не создаётся.
 - Ошибка клиента 0/>1 — сообщение сервера; **STOP**.
 
 ## Итог пользователю
@@ -159,4 +167,4 @@ HTTP выполнять **автоматически**, не переклады�
 4. Позиции в заказе (канонические имена, qty, комбо-пары).
 5. `issues` и строки, которые агент не отправил (0/>1 кандидат).
 
-Не повторять цены и итог с бланка. Не выкладывать токен и сырой `.env`.
+Не повторять цены и итог с бланка. Не выкладывать токены и сырой `.env`.

@@ -163,6 +163,7 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
                     ->orWhere('username', 'like', $like);
             })
             ->orderBy('max_user_id')
+            ->limit(3)
             ->get()
             ->map(fn (MaxUser $model): MaxUserRecord => $this->mapper->toRecord($model))
             ->values()

@@ -6,6 +6,7 @@ namespace App\Repositories\Food\Menu;
 
 use App\Contracts\Food\Menu\DishAdminRepositoryInterface;
 use App\DTO\Food\Menu\CreateDishDto;
+use App\DTO\Food\Menu\DishAdminListResultDto;
 use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\Menu\UpdateDishDto;
 use App\Enums\Food\Cart\CartStatus;
@@ -18,9 +19,9 @@ use Illuminate\Support\Facades\DB;
 class EloquentDishAdminRepository implements DishAdminRepositoryInterface
 {
     /**
-     * Лимит списка при «Все рестораны» и «Все категории».
+     * Жёсткий лимит списка блюд для админ-API (защита от полной выгрузки).
      */
-    private const int UNFILTERED_ADMIN_LIST_LIMIT = 10;
+    private const int ADMIN_LIST_LIMIT = 500;
 
     public function __construct(
         private readonly DishMapper $dishMapper,
@@ -162,7 +163,7 @@ class EloquentDishAdminRepository implements DishAdminRepositoryInterface
         ?int $categoryId,
         ?string $nameSearch = null,
         ?bool $isAvailable = null,
-    ): array {
+    ): DishAdminListResultDto {
         $query = Dish::query()
             ->with(['menuCategory.restaurant'])
             ->orderBy('name');
@@ -186,15 +187,20 @@ class EloquentDishAdminRepository implements DishAdminRepositoryInterface
             $query->where('is_available', $isAvailable);
         }
 
-        if ($restaurantId === null && $categoryId === null) {
-            $query->limit(self::UNFILTERED_ADMIN_LIST_LIMIT);
-        }
+        $total = (clone $query)->count();
 
-        return $query
+        $items = $query
+            ->limit(self::ADMIN_LIST_LIMIT)
             ->get()
             ->map(fn (Dish $dish): DishRecord => $this->dishMapper->toRecord($dish))
             ->values()
             ->all();
+
+        return new DishAdminListResultDto(
+            items: $items,
+            total: $total,
+            truncated: $total > count($items),
+        );
     }
 
     /**

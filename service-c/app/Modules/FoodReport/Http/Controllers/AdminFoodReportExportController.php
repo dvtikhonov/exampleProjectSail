@@ -5,28 +5,26 @@ declare(strict_types=1);
 namespace App\Modules\FoodReport\Http\Controllers;
 
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
+use App\Contracts\Shared\JobDispatcherInterface;
 use App\Http\Controllers\Controller;
-use App\Modules\FoodReport\Contracts\FoodReportMaxDeliveryInterface;
-use App\Modules\FoodReport\Contracts\FoodReportSpreadsheetExporterInterface;
 use App\Modules\FoodReport\DTO\ReportFilterDto;
 use App\Modules\FoodReport\Enums\ReportType;
 use App\Modules\FoodReport\Http\Requests\ExportFoodReportRequest;
+use App\Modules\FoodReport\Jobs\ExportFoodReportToMaxJob;
 use Illuminate\Http\JsonResponse;
-use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 
 /**
- * Экспорт отчётов Food в .xlsx и отправка файла пользователю MAX (max_manager).
+ * Постановка экспорта Food Report в очередь (файл уйдёт в чат MAX асинхронно).
  */
 class AdminFoodReportExportController extends Controller
 {
     public function __construct(
-        private readonly FoodReportSpreadsheetExporterInterface $exporter,
-        private readonly FoodReportMaxDeliveryInterface $delivery,
+        private readonly JobDispatcherInterface $jobDispatcher,
         private readonly AuthenticatedMaxUserResolverInterface $maxUserResolver,
     ) {}
 
     /**
-     * Генерация .xlsx и доставка в диалог текущего менеджера MAX.
+     * Валидация → dispatch ExportFoodReportToMaxJob → 200 { queued: true }.
      *
      * Валидация: date_from, date_to, restaurant_id, report_type; опц. date_axis, limit.
      */
@@ -34,32 +32,23 @@ class AdminFoodReportExportController extends Controller
     {
         $filter = $request->toFilterDto();
         $reportType = $request->reportType();
-        $binary = $this->exporter->export(
-            $reportType,
-            $filter,
-            $request->limitPerDay(),
-        );
-
         $filename = $this->filename($filter);
         $maxUserId = $this->maxUserResolver->identity()->maxUserId;
 
-        try {
-            $this->delivery->deliver(
-                $maxUserId,
-                $binary,
-                $filename,
-                $this->messageText($reportType, $filter, $filename),
-            );
-        } catch (MaxMessengerException $exception) {
-            return response()->json([
-                'message' => $exception->userMessage(),
-            ], 502);
-        }
+        $this->jobDispatcher->dispatch(new ExportFoodReportToMaxJob(
+            maxUserId: $maxUserId,
+            reportType: $reportType,
+            filter: $filter,
+            limitPerDay: $request->limitPerDay(),
+            filename: $filename,
+            messageText: $this->messageText($reportType, $filter, $filename),
+        ));
 
         return response()->json([
             'ok' => true,
+            'queued' => true,
             'filename' => $filename,
-            'message' => 'Отчёт отправлен в чат MAX.',
+            'message' => 'Отчёт будет отправлен в чат MAX.',
         ]);
     }
 

@@ -178,8 +178,8 @@ class MaxMiniAppVerifyCommand extends Command
     private function resolveLocalMaxAppUrl(): string
     {
         $candidates = [
-            'http://127.0.0.1:'.(int) env('SERVICE_C_INTERNAL_PORT', 8000).'/max-app',
-            'http://127.0.0.1:'.(int) env('SERVICE_C_PORT', 8083).'/max-app',
+            'http://127.0.0.1:'.(int) config('max.ports.internal', 8000).'/max-app',
+            'http://127.0.0.1:'.(int) config('max.ports.host', 8083).'/max-app',
         ];
 
         foreach ($candidates as $url) {

@@ -4,21 +4,35 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food;
 
+use App\Http\Requests\Food\Concerns\AuthorizesCustomerResourceOwnership;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Валидация запроса деталей заказа клиента.
  *
- * Тело запроса не требуется; бизнес-ограничения — в сервисе.
+ * Тело запроса не требуется; ownership — в authorize(), сервис — defense-in-depth.
  */
 class ShowCustomerOrderRequest extends FormRequest
 {
+    use AuthorizesCustomerResourceOwnership;
+
     /**
-     * Разрешает запрос (доступ пользователя — middleware).
+     * Разрешает запрос только владельцу заказа (отсутствующий заказ — в сервис → 404).
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->authenticatedMaxUser();
+
+        if ($user === null) {
+            return false;
+        }
+
+        $owns = $this->ownershipGuard()->ownsOrder(
+            $user,
+            $this->routeResourceId('order'),
+        );
+
+        return $owns !== false;
     }
 
     /**

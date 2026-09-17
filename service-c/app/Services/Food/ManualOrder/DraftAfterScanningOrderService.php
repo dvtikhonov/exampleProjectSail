@@ -18,6 +18,7 @@ use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
+use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use DateTimeInterface;
 
 /**
@@ -31,6 +32,7 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
         private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly ClockInterface $clock,
+        private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
     ) {}
 
     /**
@@ -42,7 +44,7 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
             $order = $this->lockEligibleOrder($orderId);
             $reviewedAt = $this->clock->now()->format(DateTimeInterface::ATOM);
 
-            return $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
+            $order = $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
                 status: OrderStatus::Confirmed,
                 addressReviewStatus: OrderReviewStatus::Approved,
                 compositionReviewStatus: OrderReviewStatus::Approved,
@@ -54,6 +56,11 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
                 paymentReviewedBy: $manager->maxUserId,
                 paymentReviewedAt: $reviewedAt,
             ));
+
+            // Confirmed → sync items в той же TX; notify — после commit.
+            $this->foodOrderItemSyncService->syncIfConfirmed($order);
+
+            return $order;
         });
 
         $this->foodOrderCustomerNotifier->notifyManualOrderCreatorConfirmed($order);

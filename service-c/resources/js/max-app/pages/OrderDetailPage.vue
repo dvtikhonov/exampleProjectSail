@@ -94,7 +94,7 @@ const {
                         <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
                             <OrderSnapshotItemRow
                                 v-for="(item, index) in order.items_snapshot"
-                                :key="index"
+                                :key="`${item.dish_id ?? 'x'}-${item.combo_ref ?? ''}-${item.dish_name}-${index}`"
                                 :item="item"
                                 :items-snapshot="order.items_snapshot"
                             />

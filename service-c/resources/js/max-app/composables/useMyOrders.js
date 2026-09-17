@@ -5,14 +5,28 @@ import { computed, ref } from 'vue';
 import { extractErrorMessage, fetchMyOrders, fetchOrder } from '../api';
 import { VIEWS } from '../constants/views';
 
+const DEFAULT_PER_PAGE = 20;
+
+/** @returns {{ current_page: number, per_page: number, total: number, last_page: number }} */
+function emptyOrdersMeta() {
+    return {
+        current_page: 1,
+        per_page: DEFAULT_PER_PAGE,
+        total: 0,
+        last_page: 1,
+    };
+}
+
 /**
  * @param {object} deps
  * @param {import('vue').Ref<string>} deps.currentView — текущий экран клиента
  */
 export function useMyOrders({ currentView }) {
     const myOrders = ref([]);
+    const myOrdersMeta = ref(emptyOrdersMeta());
     const myOrdersLoading = ref(false);
     const myOrdersRefreshing = ref(false);
+    const myOrdersLoadingMore = ref(false);
     const myOrdersError = ref('');
 
     const selectedOrderId = ref(null);
@@ -22,6 +36,10 @@ export function useMyOrders({ currentView }) {
 
     const ordersUnreadCount = computed(() =>
         myOrders.value.reduce((sum, order) => sum + (order.unread_count ?? 0), 0),
+    );
+
+    const hasMoreOrders = computed(
+        () => myOrdersMeta.value.current_page < myOrdersMeta.value.last_page,
     );
 
     /**
@@ -37,7 +55,9 @@ export function useMyOrders({ currentView }) {
         myOrdersError.value = '';
 
         try {
-            myOrders.value = await fetchMyOrders();
+            const result = await fetchMyOrders({ page: 1, perPage: DEFAULT_PER_PAGE });
+            myOrders.value = result.orders;
+            myOrdersMeta.value = result.meta;
         } catch (error) {
             if (!silent) {
                 myOrdersError.value = extractErrorMessage(error);
@@ -45,6 +65,29 @@ export function useMyOrders({ currentView }) {
         } finally {
             myOrdersLoading.value = false;
             myOrdersRefreshing.value = false;
+        }
+    }
+
+    async function loadMoreMyOrders() {
+        if (!hasMoreOrders.value || myOrdersLoadingMore.value || myOrdersLoading.value) {
+            return;
+        }
+
+        myOrdersLoadingMore.value = true;
+        myOrdersError.value = '';
+
+        try {
+            const nextPage = myOrdersMeta.value.current_page + 1;
+            const result = await fetchMyOrders({
+                page: nextPage,
+                perPage: myOrdersMeta.value.per_page || DEFAULT_PER_PAGE,
+            });
+            myOrders.value = [...myOrders.value, ...result.orders];
+            myOrdersMeta.value = result.meta;
+        } catch (error) {
+            myOrdersError.value = extractErrorMessage(error);
+        } finally {
+            myOrdersLoadingMore.value = false;
         }
     }
 
@@ -105,15 +148,19 @@ export function useMyOrders({ currentView }) {
 
     return {
         myOrders,
+        myOrdersMeta,
         myOrdersLoading,
         myOrdersRefreshing,
+        myOrdersLoadingMore,
         myOrdersError,
+        hasMoreOrders,
         selectedOrderId,
         orderDetail,
         orderDetailLoading,
         orderDetailError,
         ordersUnreadCount,
         loadMyOrders,
+        loadMoreMyOrders,
         goToMyOrders,
         openOrderDetail,
         handleSelectOrder,

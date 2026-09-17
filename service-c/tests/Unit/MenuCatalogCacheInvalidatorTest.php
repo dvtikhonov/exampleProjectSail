@@ -15,17 +15,18 @@ use Tests\TestCase;
  */
 class MenuCatalogCacheInvalidatorTest extends TestCase
 {
-    /** При рабочем store версия увеличивается. */
+    /** При рабочем store версия атомарно увеличивается через add+increment. */
     public function test_invalidate_all_bumps_version(): void
     {
         $cache = $this->createMock(CacheStoreInterface::class);
         $cache->expects($this->once())
-            ->method('get')
+            ->method('add')
             ->with(MenuCatalogCacheInvalidator::VERSION_CACHE_KEY, 1)
-            ->willReturn(2);
+            ->willReturn(false);
         $cache->expects($this->once())
-            ->method('forever')
-            ->with(MenuCatalogCacheInvalidator::VERSION_CACHE_KEY, 3);
+            ->method('increment')
+            ->with(MenuCatalogCacheInvalidator::VERSION_CACHE_KEY)
+            ->willReturn(3);
 
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->never())->method('warning');
@@ -38,8 +39,8 @@ class MenuCatalogCacheInvalidatorTest extends TestCase
     public function test_invalidate_all_swallows_cache_write_failure(): void
     {
         $cache = $this->createMock(CacheStoreInterface::class);
-        $cache->method('get')->willReturn(1);
-        $cache->method('forever')->willThrowException(
+        $cache->method('add')->willReturn(true);
+        $cache->method('increment')->willThrowException(
             new RuntimeException('Failed to open stream: Permission denied'),
         );
 

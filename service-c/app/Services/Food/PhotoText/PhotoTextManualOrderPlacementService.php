@@ -12,6 +12,8 @@ use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
+use App\Contracts\Shared\TransactionManagerInterface;
+use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\PhotoText\PhotoTextMatchedLineDto;
 use App\DTO\Food\PhotoText\PhotoTextPlacementResultDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
@@ -31,6 +33,7 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
         private readonly MaxUserIdentityRepositoryInterface $maxUserRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
         private readonly ApplicationConfigInterface $config,
+        private readonly TransactionManagerInterface $transactionManager,
     ) {}
 
     /**
@@ -61,24 +64,33 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
 
         $manager = $this->resolveManager();
         $this->assertMatchedBelongToRestaurant($result->matched, $restaurantId);
-        $this->manualOrderCartService->clear($customer, $manager);
 
-        foreach ($result->matched as $line) {
-            $this->manualOrderCartService->addItem(
-                $customer,
-                $manager,
-                $line->dishId,
-                $line->quantity,
-                $line->comboRef,
-                $line->comboPartnerDishId,
-            );
-        }
-
-        $order = $this->orderSubmissionService->submitDraftAfterScanning(
+        /** @var OrderDto $order */
+        $order = $this->transactionManager->run(function () use (
             $customer,
             $manager,
+            $result,
             $orderDate,
-        );
+        ): OrderDto {
+            $this->manualOrderCartService->clear($customer, $manager);
+
+            foreach ($result->matched as $line) {
+                $this->manualOrderCartService->addItem(
+                    $customer,
+                    $manager,
+                    $line->dishId,
+                    $line->quantity,
+                    $line->comboRef,
+                    $line->comboPartnerDishId,
+                );
+            }
+
+            return $this->orderSubmissionService->submitDraftAfterScanning(
+                $customer,
+                $manager,
+                $orderDate,
+            );
+        });
 
         return $result->withOrderId($order->id);
     }

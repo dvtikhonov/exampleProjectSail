@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
 use App\Contracts\Food\Review\OrderReviewCompletionServiceInterface;
 use App\Contracts\Shared\ClockInterface;
@@ -15,6 +15,7 @@ use App\DTO\Food\Order\FoodOrderUpdateCommand;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Enums\Food\Review\OrderReviewStep;
@@ -37,8 +38,8 @@ class OrderReviewStepHandlerTest extends TestCase
     /** @var MockObject&FoodOrderWriteRepositoryInterface */
     private FoodOrderWriteRepositoryInterface $writeRepository;
 
-    /** @var MockObject&FoodOrderCustomerNotifierInterface */
-    private FoodOrderCustomerNotifierInterface $customerNotifier;
+    /** @var MockObject&FoodOrderReviewNotifierInterface */
+    private FoodOrderReviewNotifierInterface $reviewNotifier;
 
     /** @var MockObject&TransactionManagerInterface */
     private TransactionManagerInterface $transactionManager;
@@ -54,7 +55,7 @@ class OrderReviewStepHandlerTest extends TestCase
         parent::setUp();
 
         $this->writeRepository = $this->createMock(FoodOrderWriteRepositoryInterface::class);
-        $this->customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $this->reviewNotifier = $this->createMock(FoodOrderReviewNotifierInterface::class);
         $this->transactionManager = $this->createMock(TransactionManagerInterface::class);
         $this->transactionManager
             ->method('run')
@@ -67,20 +68,20 @@ class OrderReviewStepHandlerTest extends TestCase
         /** @var OrderReviewAuthorizationServiceInterface $authorizationService */
         $authorizationService = new OrderReviewAuthorizationService;
         /** @var OrderReviewCompletionServiceInterface $completionService */
-        $completionService = new OrderReviewCompletionService($this->customerNotifier);
+        $completionService = new OrderReviewCompletionService($this->reviewNotifier);
 
         $this->handler = new OrderReviewStepHandler(
             $this->writeRepository,
             $authorizationService,
             new OrderReviewUpdateFactory(new OrderStatusResolver, $clock),
             $completionService,
-            $this->customerNotifier,
+            $this->reviewNotifier,
             $this->transactionManager,
             $this->syncService,
         );
     }
 
-    /** approve обновляет заказ и уведомляет при полном подтверждении. */
+    /** approve обновляет заказ и ставит notify Approved при полном подтверждении. */
     public function test_approve_updates_order_and_notifies_when_fully_confirmed(): void
     {
         $pending = $this->makeOrder(
@@ -119,22 +120,29 @@ class OrderReviewStepHandlerTest extends TestCase
             )
             ->willReturn($confirmed);
 
-        $this->customerNotifier
-            ->expects($this->once())
-            ->method('notifyConfirmed')
-            ->with($confirmed);
-        $this->customerNotifier->expects($this->never())->method('notifyRejected');
+        $callOrder = [];
         $this->syncService
             ->expects($this->once())
             ->method('syncIfConfirmed')
-            ->with($confirmed);
+            ->with($confirmed)
+            ->willReturnCallback(static function () use (&$callOrder): void {
+                $callOrder[] = 'sync';
+            });
+        $this->reviewNotifier
+            ->expects($this->once())
+            ->method('notify')
+            ->with(42, FoodOrderReviewNotifyKind::Approved, null, null)
+            ->willReturnCallback(static function () use (&$callOrder): void {
+                $callOrder[] = 'notify';
+            });
 
         $result = $this->handler->approve(OrderReviewStep::Composition, 42, $admin);
 
         $this->assertSame($confirmed, $result);
+        $this->assertSame(['sync', 'notify'], $callOrder);
     }
 
-    /** approve без полного подтверждения не шлёт notifyConfirmed. */
+    /** approve без полного подтверждения не шлёт notify Approved. */
     public function test_approve_does_not_notify_when_order_still_pending_review(): void
     {
         $pending = $this->makeOrder(
@@ -157,15 +165,14 @@ class OrderReviewStepHandlerTest extends TestCase
         $this->writeRepository->method('findByIdForUpdate')->willReturn($pending);
         $this->writeRepository->method('update')->willReturn($afterAddress);
 
-        $this->customerNotifier->expects($this->never())->method('notifyConfirmed');
-        $this->customerNotifier->expects($this->never())->method('notifyRejected');
+        $this->reviewNotifier->expects($this->never())->method('notify');
 
         $result = $this->handler->approve(OrderReviewStep::Address, 43, $admin);
 
         $this->assertSame($afterAddress, $result);
     }
 
-    /** reject обновляет заказ и уведомляет клиента об отклонении. */
+    /** reject обновляет заказ и ставит notify Rejected. */
     public function test_reject_updates_order_and_notifies_customer(): void
     {
         $pending = $this->makeOrder(
@@ -204,19 +211,26 @@ class OrderReviewStepHandlerTest extends TestCase
             )
             ->willReturn($rejected);
 
-        $this->customerNotifier
-            ->expects($this->once())
-            ->method('notifyRejected')
-            ->with($rejected, OrderRejectionScope::Address);
-        $this->customerNotifier->expects($this->never())->method('notifyConfirmed');
+        $callOrder = [];
         $this->syncService
             ->expects($this->once())
             ->method('syncIfConfirmed')
-            ->with($rejected);
+            ->with($rejected)
+            ->willReturnCallback(static function () use (&$callOrder): void {
+                $callOrder[] = 'sync';
+            });
+        $this->reviewNotifier
+            ->expects($this->once())
+            ->method('notify')
+            ->with(44, FoodOrderReviewNotifyKind::Rejected, OrderRejectionScope::Address, null)
+            ->willReturnCallback(static function () use (&$callOrder): void {
+                $callOrder[] = 'notify';
+            });
 
         $result = $this->handler->reject(OrderReviewStep::Address, 44, $admin, 'Неверный адрес');
 
         $this->assertSame($rejected, $result);
+        $this->assertSame(['sync', 'notify'], $callOrder);
     }
 
     /** Отсутствующий заказ приводит к FoodDomainException 404. */
