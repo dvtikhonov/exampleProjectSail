@@ -19,10 +19,13 @@ class EloquentFoodOrderWriteRepository implements FoodOrderWriteRepositoryInterf
 
     /**
      * {@inheritDoc}
+     *
+     * Reviewer/rejection-поля вне $fillable — пишем через forceFill (как в update).
      */
     public function create(FoodOrderCreateCommand $command): FoodOrderRecord
     {
-        $model = FoodOrder::query()->create($this->mapper->toCreateAttributes($command));
+        $model = new FoodOrder;
+        $model->forceFill($this->mapper->toCreateAttributes($command))->save();
 
         return $this->mapToRecord($model);
     }
