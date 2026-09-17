@@ -7,14 +7,15 @@ namespace App\Http\Requests\Food\Admin;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Валидация запроса ролей текущего администратора проверки заказов.
+ * Валидация запроса ролей текущего пользователя mini-app.
  *
- * Тело запроса не требуется; доступ — middleware food.order.admin.
+ * Тело запроса не требуется; эндпоинт доступен любому max.miniapp.auth
+ * и отдаёт список активных ролей (возможно пустой).
  */
 class AdminReviewMeRequest extends FormRequest
 {
     /**
-     * Разрешает запрос (доступ роли — middleware food.order.admin).
+     * Разрешает запрос (роль не требуется — достаточно max.miniapp.auth).
      */
     public function authorize(): bool
     {

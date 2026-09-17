@@ -37,7 +37,7 @@ class AdminDishController extends Controller
      */
     public function index(ListAdminDishesRequest $request): JsonResponse
     {
-        $dishes = $this->dishAdminService->list(
+        $result = $this->dishAdminService->list(
             $request->restaurantId(),
             $request->categoryId(),
             $request->nameSearch(),
@@ -49,8 +49,10 @@ class AdminDishController extends Controller
         return response()->json([
             'dishes' => array_map(
                 static fn ($dish): array => $dish->toArray(),
-                $dishes,
+                $result['dishes'],
             ),
+            'total' => $result['total'],
+            'truncated' => $result['truncated'],
             'menu_availability_date' => $menuAvailability->date,
             'menu_availability_error' => $menuAvailability->error,
         ]);

@@ -11,7 +11,8 @@ use Illuminate\Support\Carbon;
 /**
  * Общие хелперы PhotoText agent Feature-тестов.
  *
- * Ожидает константу AGENT_TOKEN в использующем классе (для вызовов без явного $token)
+ * Ожидает константы AGENT_TOKEN и WRITE_TOKEN в использующем классе
+ * (для вызовов без явного $token / $writeToken)
  * и trait AuthenticatesMaxMiniAppUser (для phototextManager).
  */
 trait ConfiguresPhotoTextAgent
@@ -26,11 +27,28 @@ trait ConfiguresPhotoTextAgent
         ];
     }
 
-    /** Настраивает agent token, manager_max_user_id и активный ai_access_until. */
-    protected function configurePhotoTextAgent(int $managerMaxUserId, ?string $token = null): void
+    /**
+     * Read + write заголовки для мутаций (POST /orders, POST /schedule/apply).
+     *
+     * @return array<string, string>
+     */
+    protected function photoTextWriteHeaders(?string $token = null, ?string $writeToken = null): array
     {
+        return [
+            ...$this->photoTextHeaders($token),
+            'X-PhotoText-Write-Token' => $writeToken ?? static::WRITE_TOKEN,
+        ];
+    }
+
+    /** Настраивает agent/write token, manager_max_user_id и активный ai_access_until. */
+    protected function configurePhotoTextAgent(
+        int $managerMaxUserId,
+        ?string $token = null,
+        ?string $writeToken = null,
+    ): void {
         config([
             'phototext.agent_token' => $token ?? static::AGENT_TOKEN,
+            'phototext.write_token' => $writeToken ?? static::WRITE_TOKEN,
             'phototext.manager_max_user_id' => $managerMaxUserId,
         ]);
 

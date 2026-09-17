@@ -281,7 +281,7 @@ function handleConfirmSave() {
                     >
                         <OrderSnapshotItemRow
                             v-for="(item, index) in order.items_snapshot"
-                            :key="index"
+                            :key="`${item.dish_id ?? 'x'}-${item.combo_ref ?? ''}-${item.dish_name}-${index}`"
                             :item="item"
                             :items-snapshot="order.items_snapshot"
                         />

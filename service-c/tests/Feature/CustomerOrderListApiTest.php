@@ -49,7 +49,10 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonCount(1, 'orders')
             ->assertJsonPath('orders.0.id', $orderAId)
             ->assertJsonPath('orders.0.restaurant_name', 'Place A')
-            ->assertJsonPath('orders.0.status', OrderStatus::PendingReview->value);
+            ->assertJsonPath('orders.0.status', OrderStatus::PendingReview->value)
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.last_page', 1);
     }
 
     /** Список заказов клиента включает статистику чата. */
@@ -98,7 +101,8 @@ class CustomerOrderListApiTest extends TestCase
 
         $this->getJson('/api/food/orders', $auth['headers'])
             ->assertOk()
-            ->assertJsonPath('orders', []);
+            ->assertJsonPath('orders', [])
+            ->assertJsonPath('meta.total', 0);
     }
 
     /** Клиент может просмотреть детали своего заказа. */
@@ -157,7 +161,55 @@ class CustomerOrderListApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(2, 'orders')
             ->assertJsonPath('orders.0.id', $secondOrderId)
-            ->assertJsonPath('orders.1.id', $firstOrderId);
+            ->assertJsonPath('orders.1.id', $firstOrderId)
+            ->assertJsonPath('meta.total', 2);
+    }
+
+    /** Список заказов пагинируется и отдаёт meta. */
+    public function test_customer_order_list_paginates_with_meta(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery('Paged', 'Soup', 150);
+        $customer = FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category'], 66_601);
+
+        $orderIds = [];
+        for ($i = 0; $i < 3; $i++) {
+            $orderIds[] = $this->submitOrderForUser($customer, $fixture['dish']->id);
+        }
+
+        FoodOrder::query()->whereKey($orderIds[0])->update(['created_at' => now()->subMinutes(2)]);
+        FoodOrder::query()->whereKey($orderIds[1])->update(['created_at' => now()->subMinute()]);
+        FoodOrder::query()->whereKey($orderIds[2])->update(['created_at' => now()]);
+
+        $auth = $this->authenticateMaxUser($customer);
+
+        $this->getJson('/api/food/orders?per_page=2&page=1', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(2, 'orders')
+            ->assertJsonPath('orders.0.id', $orderIds[2])
+            ->assertJsonPath('orders.1.id', $orderIds[1])
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.per_page', 2)
+            ->assertJsonPath('meta.total', 3)
+            ->assertJsonPath('meta.last_page', 2);
+
+        $this->getJson('/api/food/orders?per_page=2&page=2', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(1, 'orders')
+            ->assertJsonPath('orders.0.id', $orderIds[0])
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonPath('meta.last_page', 2);
+    }
+
+    /** per_page вне диапазона 1..50 отклоняется. */
+    public function test_customer_order_list_rejects_invalid_per_page(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->getJson('/api/food/orders?per_page=0', $auth['headers'])
+            ->assertUnprocessable();
+
+        $this->getJson('/api/food/orders?per_page=51', $auth['headers'])
+            ->assertUnprocessable();
     }
 
     /** Отправляет заказ от имени пользователя. */

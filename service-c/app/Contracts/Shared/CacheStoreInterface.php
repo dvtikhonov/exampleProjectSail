@@ -28,4 +28,14 @@ interface CacheStoreInterface
      * Удаляет ключ из кэша.
      */
     public function forget(string $key): bool;
+
+    /**
+     * Сохраняет значение только если ключ ещё отсутствует (set-if-absent).
+     */
+    public function add(string $key, mixed $value): bool;
+
+    /**
+     * Атомарно увеличивает числовое значение по ключу.
+     */
+    public function increment(string $key, int $by = 1): int;
 }

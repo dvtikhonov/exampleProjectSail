@@ -47,6 +47,8 @@ class MaxWebhookController extends Controller
             $this->logger->error('MAX webhook handling failed', [
                 'error' => $exception->getMessage(),
             ]);
+
+            return response('', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         return response('', Response::HTTP_OK);

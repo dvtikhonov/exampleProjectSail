@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Contracts\Max\MaxWebhookUpdateRouterInterface;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+use RuntimeException;
 use Tests\TestCase;
 
 class MaxWebhookControllerTest extends TestCase
@@ -188,6 +191,87 @@ class MaxWebhookControllerTest extends TestCase
 
         $response->assertOk();
         Http::assertNothingSent();
+    }
+
+    /** Исключение роутера → HTTP 500 и запись в лог (платформа может ретраить). */
+    public function test_router_exception_returns_500_and_logs_error(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        $this->mock(MaxWebhookUpdateRouterInterface::class)
+            ->shouldReceive('handle')
+            ->once()
+            ->andThrow(new RuntimeException('router boom'));
+
+        $response = $this->postJson('/api/webhooks/max', [
+            'update_type' => 'bot_started',
+            'timestamp' => 1739184000000,
+            'user' => [
+                'user_id' => 1,
+            ],
+        ], [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ]);
+
+        $response->assertStatus(500);
+        $this->assertSame('', $response->getContent());
+
+        $errorLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook handling failed',
+        ));
+        $this->assertCount(1, $errorLogs);
+        $this->assertSame('error', $errorLogs[0]->level);
+        $this->assertSame('router boom', $errorLogs[0]->context['error'] ?? null);
+    }
+
+    /** Финальный сбой answerCallback на message_callback → HTTP 500. */
+    public function test_callback_answer_failure_returns_500(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['error' => 'unavailable'], 503),
+        ]);
+
+        $response = $this->postJson('/api/webhooks/max', $this->messageCallbackPayload(
+            callbackId: 'cb-fail-feature-1',
+            payload: 'yes',
+            userId: 777,
+        ), [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ]);
+
+        $response->assertStatus(500);
+        $this->assertSame('', $response->getContent());
+
+        $errorLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX webhook handling failed',
+        ));
+        $this->assertCount(1, $errorLogs);
+        $this->assertSame('error', $errorLogs[0]->level);
+    }
+
+    /** POST /api/webhooks/max защищён throttle:60,1. */
+    public function test_webhook_route_has_throttle_middleware(): void
+    {
+        $route = collect(Route::getRoutes())->first(
+            static function ($route): bool {
+                return $route->uri() === 'api/webhooks/max'
+                    && in_array('POST', $route->methods(), true);
+            },
+        );
+
+        $this->assertNotNull($route);
+        $this->assertContains('throttle:60,1', $route->gatherMiddleware());
+        $this->assertContains('max.webhook.secret', $route->gatherMiddleware());
     }
 
     /**

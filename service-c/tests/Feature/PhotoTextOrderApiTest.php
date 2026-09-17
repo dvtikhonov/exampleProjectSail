@@ -26,6 +26,8 @@ class PhotoTextOrderApiTest extends TestCase
 
     private const string AGENT_TOKEN = 'phototext-test-token';
 
+    private const string WRITE_TOKEN = 'phototext-write-test-token';
+
     /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
@@ -63,7 +65,7 @@ class PhotoTextOrderApiTest extends TestCase
             'items' => [
                 ['name' => 'Салат Оливье', 'quantity' => 2],
             ],
-        ], $this->photoTextHeaders());
+        ], $this->photoTextWriteHeaders());
 
         $response
             ->assertCreated()
@@ -112,7 +114,7 @@ class PhotoTextOrderApiTest extends TestCase
             'items' => [
                 ['name' => 'Бигус с курицей', 'quantity' => 1],
             ],
-        ], $this->photoTextHeaders());
+        ], $this->photoTextWriteHeaders());
 
         $response->assertCreated();
 
@@ -121,5 +123,37 @@ class PhotoTextOrderApiTest extends TestCase
             'status' => OrderStatus::DraftAfterScanning->value,
             'delivery_address' => '',
         ]);
+    }
+
+    /** Больше 100 позиций в items отклоняется с 422. */
+    public function test_place_rejects_more_than_100_items(): void
+    {
+        $manager = $this->phototextManager(10_016, 'PhotoTextManager');
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Обедов Лимит',
+            'Салат Оливье',
+            80,
+        );
+        FoodTestDataBuilder::createMaxUserWithCategory(
+            $fixture['customer_category'],
+            maxUserId: 55_203,
+            firstName: 'КлиентЛимитPhotoText',
+        );
+
+        $this->configurePhotoTextAgent($manager['user']->max_user_id);
+
+        $items = array_map(
+            static fn (int $i): array => ['name' => "Блюдо {$i}", 'quantity' => 1],
+            range(1, 101),
+        );
+
+        $this->postJson('/api/food/phototext/orders', [
+            'customer_query' => 'КлиентЛимитPhotoText',
+            'order_date' => '2026-08-14',
+            'restaurant_id' => $fixture['restaurant']->id,
+            'items' => $items,
+        ], $this->photoTextWriteHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items']);
     }
 }

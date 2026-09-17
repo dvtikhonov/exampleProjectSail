@@ -17,7 +17,11 @@ use App\Exceptions\Food\FoodDomainException;
 interface DishAdminServiceInterface
 {
     /**
-     * @return list<AdminDishDto>
+     * @return array{
+     *     dishes: list<AdminDishDto>,
+     *     total: int,
+     *     truncated: bool
+     * }
      */
     public function list(
         ?int $restaurantId = null,

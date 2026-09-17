@@ -39,6 +39,8 @@ const {
     dishesLoading,
     dishesRefreshing,
     dishesError,
+    dishesTotal,
+    dishesTruncated,
     menuAvailabilityDate,
     menuAvailabilityError,
     filterRestaurantId,
@@ -352,6 +354,8 @@ onUnmounted(() => {
                 :dishes="dishes"
                 :loading="dishesLoading"
                 :error="dishesError"
+                :total="dishesTotal"
+                :truncated="dishesTruncated"
                 :menu-availability-date="menuAvailabilityDate"
                 :menu-availability-error="menuAvailabilityError"
                 :refreshing="dishesRefreshing"

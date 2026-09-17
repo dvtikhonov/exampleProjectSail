@@ -33,12 +33,20 @@ BASE_URL=https://YOUR-VPS-HOST
 Для **локальной** работы в этом проекте по умолчанию использовать **прямой** `service-c`: `http://localhost:8083`.  
 `http://localhost:8080` использовать только если пользователь явно просит проверить именно gateway-роутинг или если уже подтверждено, что `/api/food/phototext/*` на gateway доступен.
 
-Токен: ключ `PHOTOTEXT_AGENT_TOKEN` из `service-c/.env`. Заголовок `X-PhotoText-Token`. Пустой токен — **STOP**. В логах и ответе пользователю токен не показывать.
+Токены из `service-c/.env` (в логах и ответе пользователю **не** показывать):
 
-Доступ к `/api/food/phototext/*` — **два** условия (middleware `phototext.agent.token` + `phototext.ai.access`):
+| Маршруты | Заголовки | Env |
+|---|---|---|
+| `GET /restaurants`, `GET /catalog`, `POST /schedule/match` | `X-PhotoText-Token` | `PHOTOTEXT_AGENT_TOKEN` |
+| `POST /schedule/apply` | `X-PhotoText-Token` **и** `X-PhotoText-Write-Token` | + `PHOTOTEXT_WRITE_TOKEN` |
+
+Пустой agent token — **STOP** (все PhotoText → `401`). Пустой/неверный write token на `POST /schedule/apply` → `401` (пустое тело).
+
+Доступ к catalog/match — **два** условия (`phototext.agent.token` + `phototext.ai.access`); к `POST /schedule/apply` — те же **плюс** `phototext.write.token`:
 
 1. Верный `X-PhotoText-Token`.
 2. Активный AI-доступ у пользователя с ролью `max_manager` (`max_users.ai_access_until` > now). Включается кнопкой **«Вкл. доступ AI»** в админке mini-app (TTL **30 минут**). Одновременно активен только один доступ. Агент **не** включает доступ сам — только HTTP к PhotoText API.
+3. Для `POST /schedule/apply` — верный `X-PhotoText-Write-Token` (read-only agent token недостаточен).
 
 Без активного AI-доступа (или если активный пользователь не `max_manager`) сервер отвечает `403` с `"message": "Доступ AI к базе не разрешён."` — **STOP**, попросить менеджера включить доступ AI и повторить команду.
 
@@ -61,7 +69,7 @@ HTTP выполнять **автоматически**, не переклады�
 3. Хотя бы одна из указанных «Категорий» дала 0 или >1 совпадение в каталоге ресторана.
 4. Не удалось однозначно сопоставить блюдо (0 или >1 кандидат в выбранном scope каталога по выбранным категориям).
 5. Весь диапазон `date_from`…`date_to` в прошлом относительно `editable_from` (сегодня MSK) — сервер отвергнет; **STOP** до apply.
-6. Сервер: `401` (токен); `403` (нет активного AI-доступа max_manager); пустой `matched` на apply (`422`); неверный span (`date_to ≠ date_from + 6`) → `422`.
+6. Сервер: `401` (agent или write token); `403` (нет активного AI-доступа max_manager); пустой `matched` на apply (`422`); неверный span (`date_to ≠ date_from + 6`) → `422`.
 7. После `POST /schedule/match` `matched_count` = 0.
 
 Частичный матч (есть `matched` и `issues`) — `POST /schedule/apply` **тем же JSON** допустим: в график идут только matched.
@@ -74,8 +82,8 @@ HTTP выполнять **автоматически**, не переклады�
    - если указан `http://localhost:8080`, помнить, что локально надёжнее прямой `service-c` на `http://localhost:8083`;
    - если первый HTTP-вызов сорвался на алиасе PowerShell или не дал понятный результат, автоматически переключиться на другой способ выполнения, а не останавливать сценарий сразу.
 3. `GET {BASE_URL}/api/food/phototext/restaurants`  
-   Заголовок `X-PhotoText-Token`.  
-   - `401` — токен; **STOP**.  
+   Заголовок `X-PhotoText-Token` (write **не** нужен).  
+   - `401` — agent token; **STOP**.  
    - `403` «Доступ AI к базе не разрешён.» — нет активного AI-доступа max_manager; **STOP**, попросить включить «Вкл. доступ AI» в админке и повторить.  
    Ответ при успехе: `{ "restaurants": [ { "id", "name" } ] }`.  
    Выбрать **ровно один** `restaurant_id`: числовое поле «Ресторан» = `id`; иначе уникальное имя (без учёта регистра, допускается уникальная подстрока). 0 или >1 — **STOP**.
@@ -90,8 +98,8 @@ HTTP выполнять **автоматически**, не переклады�
    - в каждый день — только имена блюд; зачёркнутое не брать;
    - агрегировать по блюду: одно имя в нескольких днях → `dates: [...]`.
 6. Сопоставить названия с каталогом (см. ниже). Использовать только `dishes[].name` из выбранных категорий; блюда вне этих категорий игнорировать и не отправлять.
-7. `POST {BASE_URL}/api/food/phototext/schedule/match` — сверка (график не пишется).
-8. Если есть matched — `POST {BASE_URL}/api/food/phototext/schedule/apply` **тем же телом**.
+7. `POST {BASE_URL}/api/food/phototext/schedule/match` — сверка (график не пишется; только `X-PhotoText-Token`).
+8. Если есть matched — `POST {BASE_URL}/api/food/phototext/schedule/apply` **тем же телом** с **обоими** заголовками `X-PhotoText-Token` и `X-PhotoText-Write-Token`.
 9. Итог пользователю: ресторан, список обрабатываемых категорий, диапазон 7 дней, `applied`, позиции по дням, `issues`.
 
 ## Вариации имён (только каталог этого ресторана)
@@ -141,7 +149,7 @@ HTTP выполнять **автоматически**, не переклады�
 
 ## Ответы API
 
-- `401` — токен; **STOP**.
+- `401` — agent token (любой маршрут) или write token на `POST /schedule/apply`; **STOP**.
 - `403` — нет активного AI-доступа max_manager (`"Доступ AI к базе не разрешён."`); **STOP**, попросить включить доступ AI в админке.
 - `GET /restaurants` — список `id`, `name`.
 - `GET /catalog` — `{ "catalog": { "restaurant_id", "restaurant_name", "categories": [...] } }`.
@@ -171,7 +179,7 @@ HTTP выполнять **автоматически**, не переклады�
 ```
 
 - `POST /schedule/match` → `applied: false`, `categories_applied: []`.
-- `POST /schedule/apply` успех — `200`, `applied: true`. Пустой matched — `422`, график не пишется.
+- `POST /schedule/apply` успех — `200`, `applied: true`. Пустой matched — `422`, график не пишется. Без write token — `401`, график не пишется.
 - Доменные ошибки дат/категории — `422` + `message`. Неверный span (`date_to ≠ date_from + 6`) → `422`.
 - Коды `issues[].code`: `dish_not_found` \| `dish_ambiguous`.
 
@@ -185,4 +193,4 @@ HTTP выполнять **автоматически**, не переклады�
 4. Позиции по дням (канонические имена + категория).
 5. `issues` (нет в БД / неоднозначно) и строки, которые агент не отправил (0/>1 кандидат).
 
-Не выкладывать токен и сырой `.env`.
+Не выкладывать токены и сырой `.env`.

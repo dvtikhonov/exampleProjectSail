@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -20,6 +21,7 @@ class DishImageApiTest extends TestCase
     {
         parent::setUp();
 
+        Cache::flush();
         $this->resetFoodDomainTables();
     }
 
@@ -56,6 +58,36 @@ class DishImageApiTest extends TestCase
             ->assertOk();
     }
 
+    /** Эндпоинт отклоняет path traversal через ../.env. */
+    public function test_dish_image_endpoint_rejects_parent_directory_traversal(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['image_url' => '../.env']);
+
+        $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
+            ->assertNotFound();
+    }
+
+    /** Эндпоинт отклоняет traversal внутри префикса dishes/. */
+    public function test_dish_image_endpoint_rejects_nested_directory_traversal(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['image_url' => 'dishes/../../.env']);
+
+        $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
+            ->assertNotFound();
+    }
+
+    /** Эндпоинт отклоняет абсолютный путь к файлу. */
+    public function test_dish_image_endpoint_rejects_absolute_path(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['image_url' => '/etc/passwd']);
+
+        $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
+            ->assertNotFound();
+    }
+
     /** Эндпоинт изображения блюда отдаёт файл для мягко удалённого блюда. */
     public function test_dish_image_endpoint_serves_image_for_soft_deleted_dish(): void
     {
@@ -68,5 +100,19 @@ class DishImageApiTest extends TestCase
 
         $this->get('/api/food/dishes/'.$fixture['dish']->id.'/image')
             ->assertOk();
+    }
+
+    /** Эндпоинт изображения блюда возвращает 429 при превышении rate limit (60/мин). */
+    public function test_dish_image_endpoint_returns_too_many_requests_when_rate_limited(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $fixture['dish']->update(['image_url' => null]);
+        $url = '/api/food/dishes/'.$fixture['dish']->id.'/image';
+
+        for ($i = 0; $i < 60; $i++) {
+            $this->get($url)->assertNotFound();
+        }
+
+        $this->get($url)->assertTooManyRequests();
     }
 }

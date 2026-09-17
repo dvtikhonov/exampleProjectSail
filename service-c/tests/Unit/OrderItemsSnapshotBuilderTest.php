@@ -127,4 +127,29 @@ class OrderItemsSnapshotBuilderTest extends TestCase
         $this->assertSame('800.00', $snapshot->itemsSnapshot[0]['line_total']);
         $this->assertSame('200.00', $snapshot->itemsSnapshot[1]['line_total']);
     }
+
+    /** Суммы считаются в копейках: несколько позиций не накапливают float-ошибку. */
+    public function test_build_from_dishes_sums_totals_in_integer_cents(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Bistro', 'A', 0.10);
+        $mapper = app(DishMapper::class);
+        $dishA = $mapper->toRecord($fixture['dish']);
+        $dishB = Dish::factory()->create([
+            'menu_category_id' => $fixture['dish']->menu_category_id,
+            'name' => 'B',
+            'price' => 0.20,
+        ]);
+
+        $snapshot = app(OrderItemsSnapshotBuilder::class)->buildFromDishes([
+            ['dish' => $dishA, 'quantity' => 1],
+            ['dish' => $mapper->toRecord($dishB), 'quantity' => 1],
+            ['dish' => $dishA, 'quantity' => 1],
+        ]);
+
+        $this->assertSame('0.10', $snapshot->itemsSnapshot[0]['unit_price']);
+        $this->assertSame('0.10', $snapshot->itemsSnapshot[0]['line_total']);
+        $this->assertSame('0.20', $snapshot->itemsSnapshot[1]['line_total']);
+        $this->assertSame('0.10', $snapshot->itemsSnapshot[2]['line_total']);
+        $this->assertSame(0.40, $snapshot->itemsTotal);
+    }
 }

@@ -7,6 +7,7 @@ use App\Services\Max\UiStand\MaxCallbackHandler;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Shared\MaxMessenger\Exceptions\MaxMessengerException;
 use Tests\TestCase;
 
 class MaxCallbackHandlerTest extends TestCase
@@ -94,6 +95,22 @@ class MaxCallbackHandlerTest extends TestCase
                 && ($request['message']['text'] ?? null) === 'Вы нажали кнопку: нет'
                 && ! isset($request['notification']);
         });
+    }
+
+    /** Финальный сбой answerCallback пробрасывается после логирования. */
+    public function test_final_callback_failure_is_rethrown(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['error' => 'boom'], 500),
+        ]);
+
+        $this->expectException(MaxMessengerException::class);
+
+        $this->app->make(MaxCallbackHandler::class)->handle(new MaxCallbackUpdateDto(
+            callbackId: 'cb-fail-1',
+            payload: 'yes',
+            userId: 7,
+        ));
     }
 
     /**

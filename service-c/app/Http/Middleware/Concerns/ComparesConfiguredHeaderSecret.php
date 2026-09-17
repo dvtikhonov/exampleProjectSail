@@ -51,6 +51,7 @@ trait ComparesConfiguredHeaderSecret
         return match ($configKey) {
             'max.webhook.secret' => 'MAX webhook rejected: MAX_WEBHOOK_SECRET is not configured.',
             'phototext.agent_token' => 'PhotoText agent rejected: PHOTOTEXT_AGENT_TOKEN is not configured.',
+            'phototext.write_token' => 'PhotoText write rejected: PHOTOTEXT_WRITE_TOKEN is not configured.',
             default => "{$logContext} rejected: secret is not configured.",
         };
     }
@@ -63,6 +64,7 @@ trait ComparesConfiguredHeaderSecret
         return match ($configKey) {
             'max.webhook.secret' => 'MAX webhook rejected: invalid X-Max-Bot-Api-Secret header.',
             'phototext.agent_token' => 'PhotoText agent rejected: invalid X-PhotoText-Token header.',
+            'phototext.write_token' => 'PhotoText write rejected: invalid X-PhotoText-Write-Token header.',
             default => "{$logContext} rejected: invalid {$headerName} header.",
         };
     }

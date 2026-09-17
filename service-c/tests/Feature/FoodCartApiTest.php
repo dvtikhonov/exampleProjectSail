@@ -333,10 +333,12 @@ class FoodCartApiTest extends TestCase
         $this->patchJson('/api/food/cart/items/'.$cartItem->id, [
             'quantity' => 2,
         ], $auth['headers'])
-            ->assertNotFound();
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Позиция корзины не найдена.');
 
         $this->deleteJson('/api/food/cart/items/'.$cartItem->id, [], $auth['headers'])
-            ->assertNotFound();
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Позиция корзины не найдена.');
     }
 
     /** Добавление позиции увеличивает количество существующего блюда. */

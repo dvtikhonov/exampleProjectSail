@@ -88,6 +88,28 @@ class SharedInfrastructurePortsTest extends TestCase
         $this->assertNull($cache->get($key));
     }
 
+    public function test_cache_store_add_is_set_if_absent(): void
+    {
+        $cache = $this->app->make(CacheStoreInterface::class);
+        $key = 'shared.ports.add.'.uniqid('', true);
+
+        $this->assertTrue($cache->add($key, 'first'));
+        $this->assertFalse($cache->add($key, 'second'));
+        $this->assertSame('first', $cache->get($key));
+        $this->assertTrue($cache->forget($key));
+    }
+
+    public function test_cache_store_increment(): void
+    {
+        $cache = $this->app->make(CacheStoreInterface::class);
+        $key = 'shared.ports.incr.'.uniqid('', true);
+
+        $this->assertSame(1, $cache->increment($key));
+        $this->assertSame(4, $cache->increment($key, 3));
+        $this->assertSame(4, $cache->get($key));
+        $this->assertTrue($cache->forget($key));
+    }
+
     public function test_http_client_returns_response_dto(): void
     {
         Http::fake([

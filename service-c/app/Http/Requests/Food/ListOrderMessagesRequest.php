@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food;
 
+use App\Http\Requests\Food\Concerns\AuthorizesCustomerResourceOwnership;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
@@ -11,12 +12,25 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class ListOrderMessagesRequest extends FormRequest
 {
+    use AuthorizesCustomerResourceOwnership;
+
     /**
-     * Разрешает выполнение запроса.
+     * Владелец заказа или активный админ; отсутствующий заказ — в сервис → 404.
      */
     public function authorize(): bool
     {
-        return true;
+        $user = $this->authenticatedMaxUser();
+
+        if ($user === null) {
+            return false;
+        }
+
+        $canAccess = $this->ownershipGuard()->canAccessOrderChat(
+            $user,
+            $this->routeResourceId('order'),
+        );
+
+        return $canAccess !== false;
     }
 
     /**

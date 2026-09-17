@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxAiAccessServiceInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use Closure;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ class EnsurePhotoTextAiAccess
     public function __construct(
         private readonly MaxAiAccessServiceInterface $maxAiAccessService,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly ClockInterface $clock,
     ) {}
 
     /**
@@ -31,7 +33,7 @@ class EnsurePhotoTextAiAccess
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $status = $this->maxAiAccessService->getStatus(now());
+        $status = $this->maxAiAccessService->getStatus($this->clock->now());
 
         if (! $status->enabled || $status->activeMaxUserId === null) {
             return response()->json([

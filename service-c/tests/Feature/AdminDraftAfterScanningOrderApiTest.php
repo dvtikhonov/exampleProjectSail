@@ -18,6 +18,8 @@ use App\Models\Food\FoodOrderMessage;
 use App\Models\Food\MenuCategory;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -35,6 +37,18 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (! Schema::hasTable('max_food_order_items')) {
+            Artisan::call('migrate', [
+                '--force' => true,
+                '--path' => 'database/migrations/2026_09_10_000001_create_max_food_order_items_table.php',
+            ]);
+        }
+
+        Artisan::call('migrate', [
+            '--force' => true,
+            '--path' => 'database/migrations/2026_09_11_000001_add_unique_order_dish_to_max_food_order_items_table.php',
+        ]);
 
         $this->resetFoodDomainTables();
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
@@ -93,7 +107,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
-    /** complete переводит заказ в «Выполнен», approves проверки и уведомляет оформившего. */
+    /** complete → confirmed, reviews approved, notify creator, sync строк в max_food_order_items. */
     public function test_complete_confirms_order_approves_reviews_and_notifies_creator(): void
     {
         $manager = $this->maxManagerAuth();
@@ -113,6 +127,7 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             customerMaxUserId: $customer->max_user_id,
             managerMaxUserId: $creator->max_user_id,
             dish: $fixture['dish'],
+            deliveryDate: '2026-09-14',
         );
 
         $capturedOrder = null;
@@ -145,6 +160,17 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             'address_reviewed_by' => $manager['user']->max_user_id,
             'composition_reviewed_by' => $manager['user']->max_user_id,
             'payment_reviewed_by' => $manager['user']->max_user_id,
+        ]);
+
+        $this->assertDatabaseHas('max_food_order_items', [
+            'order_id' => $order->id,
+            'restaurant_id' => $fixture['restaurant']->id,
+            'report_date' => '2026-09-14',
+            'dish_id' => $fixture['dish']->id,
+            'dish_name' => $fixture['dish']->name,
+            'unit_price' => '200.00',
+            'quantity' => 1,
+            'line_total' => '200.00',
         ]);
 
         $freshOrder = $order->fresh();

@@ -60,13 +60,16 @@ const {
     myOrders,
     myOrdersLoading,
     myOrdersRefreshing,
+    myOrdersLoadingMore,
     myOrdersError,
+    hasMoreOrders,
     selectedOrderId,
     orderDetail,
     orderDetailLoading,
     orderDetailError,
     ordersUnreadCount,
     loadMyOrders,
+    loadMoreMyOrders,
     goToMyOrders,
     handleSelectOrder,
     closeOrderDetail,
@@ -157,8 +160,11 @@ onMounted(async () => {
         :loading="myOrdersLoading"
         :error="myOrdersError"
         :refreshing="myOrdersRefreshing"
+        :loading-more="myOrdersLoadingMore"
+        :has-more="hasMoreOrders"
         @select-order="handleSelectOrder"
         @refresh="loadMyOrders({ refreshing: true })"
+        @load-more="loadMoreMyOrders"
         @back="goHome"
     />
 

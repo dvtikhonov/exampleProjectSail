@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * DEV/админ: тестовые сообщения MAX-бота (маршруты под /dishes/test-bot* сохранены для BC).
+ * В production маршруты не регистрируются (и дополнительно forbid.production → 404).
  */
 class AdminMaxBotTestController extends Controller
 {

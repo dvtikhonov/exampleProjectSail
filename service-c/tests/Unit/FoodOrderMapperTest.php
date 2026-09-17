@@ -58,8 +58,6 @@ class FoodOrderMapperTest extends TestCase
             'address_review_status' => OrderReviewStatus::Pending,
             'composition_review_status' => OrderReviewStatus::Pending,
             'payment_review_status' => OrderReviewStatus::Approved,
-            'payment_reviewed_by' => 10_003,
-            'payment_reviewed_at' => '2026-08-31 12:00:00',
             'total' => '550.00',
             'items_total' => '500.00',
             'delivery_cost' => '50.00',
@@ -69,6 +67,12 @@ class FoodOrderMapperTest extends TestCase
             'is_manual' => true,
             'created_by_max_user_id' => 9_001,
         ]);
+        // Reviewer-поля вне $fillable — задаём через forceFill.
+        $model->forceFill([
+            'payment_reviewed_by' => 10_003,
+            'payment_reviewed_at' => '2026-08-31 12:00:00',
+        ])->save();
+        $model->refresh();
 
         $record = $this->mapper->toRecord($model->load(['restaurant', 'maxUser']));
 

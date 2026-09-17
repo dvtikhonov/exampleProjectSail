@@ -8,6 +8,7 @@ use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
+use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Order\FoodOrderAfterSubmitNotifyKind;
 use App\Mappers\Max\MaxUserDisplayMapper;
@@ -21,6 +22,24 @@ use Psr\Log\LoggerInterface;
 class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
 {
     use Queueable;
+
+    private const MARKER_VALUE = 1;
+
+    /** Максимум попыток при сбое отправки уведомления. */
+    public int $tries = 3;
+
+    /** Таймаут одной попытки (секунды). */
+    public int $timeout = 30;
+
+    /**
+     * Задержки между повторными попытками (секунды).
+     *
+     * @return list<int>
+     */
+    public function backoff(): array
+    {
+        return [10, 30, 60];
+    }
 
     /**
      * @param  OrderDto  $orderDto  DTO заказа для UI Stand
@@ -46,6 +65,7 @@ class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
         FoodOrderCustomerReadRepositoryInterface $foodOrderCustomerReadRepository,
         MaxUserIdentityRepositoryInterface $maxUserRepository,
         MaxUserDisplayMapper $maxUserDisplayMapper,
+        CacheStoreInterface $cache,
         LoggerInterface $logger,
     ): void {
         $order = $foodOrderCustomerReadRepository->findById($this->orderId);
@@ -61,11 +81,44 @@ class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
             return;
         }
 
-        $maxNotifier->notify($this->orderDto, $maxUserDisplayMapper->fromRecord($maxUser));
+        $uiStandLeg = self::uiStandLegKey();
+        if (! $this->isLegCompleted($cache, $uiStandLeg)) {
+            $maxNotifier->notify($this->orderDto, $maxUserDisplayMapper->fromRecord($maxUser));
+            $this->markLegCompleted($cache, $uiStandLeg);
+        }
 
-        match ($this->kind) {
-            FoodOrderAfterSubmitNotifyKind::Submitted => $customerNotifier->notifySubmitted($order),
-            FoodOrderAfterSubmitNotifyKind::Confirmed => $customerNotifier->notifyConfirmed($order),
-        };
+        $customerLeg = self::customerLegKey($this->kind);
+        if (! $this->isLegCompleted($cache, $customerLeg)) {
+            match ($this->kind) {
+                FoodOrderAfterSubmitNotifyKind::Submitted => $customerNotifier->notifySubmitted($order),
+                FoodOrderAfterSubmitNotifyKind::Confirmed => $customerNotifier->notifyConfirmed($order),
+            };
+            $this->markLegCompleted($cache, $customerLeg);
+        }
+    }
+
+    private static function uiStandLegKey(): string
+    {
+        return 'ui_stand';
+    }
+
+    private static function customerLegKey(FoodOrderAfterSubmitNotifyKind $kind): string
+    {
+        return 'customer:'.$kind->value;
+    }
+
+    private function markerKey(string $leg): string
+    {
+        return 'food.notify.'.$this->orderId.'.'.$leg;
+    }
+
+    private function isLegCompleted(CacheStoreInterface $cache, string $leg): bool
+    {
+        return $cache->get($this->markerKey($leg)) !== null;
+    }
+
+    private function markLegCompleted(CacheStoreInterface $cache, string $leg): void
+    {
+        $cache->forever($this->markerKey($leg), self::MARKER_VALUE);
     }
 }

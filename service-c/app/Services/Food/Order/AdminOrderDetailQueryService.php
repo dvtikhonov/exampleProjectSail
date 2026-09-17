@@ -34,7 +34,7 @@ class AdminOrderDetailQueryService
     ): AdminOrderDetailDto {
         $this->assertScopeAccess($admin, $scope);
 
-        $order = $this->foodOrderReadRepository->findById($orderId);
+        $order = $this->foodOrderReadRepository->findByIdForScope($orderId, $scope);
 
         if ($order === null) {
             throw new FoodDomainException('Заказ не найден.', 404);

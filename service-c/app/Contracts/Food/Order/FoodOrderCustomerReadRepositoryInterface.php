@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Contracts\Food\Order;
 
 use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Shared\PaginatedResultDto;
 
 /**
  * Чтение заказов еды для клиентского API MAX mini-app.
@@ -17,9 +18,9 @@ interface FoodOrderCustomerReadRepositoryInterface
     public function findById(int $id): ?FoodOrderRecord;
 
     /**
-     * Заказы клиента в хронологическом порядке (новые первыми).
+     * Постраничный список заказов клиента (новые первыми).
      *
-     * @return list<FoodOrderRecord>
+     * @return PaginatedResultDto<FoodOrderRecord>
      */
-    public function findByMaxUserId(int $maxUserId): array;
+    public function paginateByMaxUserId(int $maxUserId, int $perPage, int $page): PaginatedResultDto;
 }

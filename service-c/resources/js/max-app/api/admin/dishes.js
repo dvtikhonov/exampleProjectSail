@@ -14,6 +14,8 @@ import { client } from '../http';
  * }} [filters]
  * @returns {Promise<{
  *   dishes: AdminDishDto[],
+ *   total: number,
+ *   truncated: boolean,
  *   menuAvailabilityDate: string|null,
  *   menuAvailabilityError: string|null,
  * }>}
@@ -46,6 +48,8 @@ export async function fetchAdminDishes({
 
     return {
         dishes: data.dishes,
+        total: data.total ?? (Array.isArray(data.dishes) ? data.dishes.length : 0),
+        truncated: Boolean(data.truncated),
         menuAvailabilityDate: data.menu_availability_date ?? null,
         menuAvailabilityError: data.menu_availability_error ?? null,
     };

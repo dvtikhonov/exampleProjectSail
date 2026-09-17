@@ -5,7 +5,12 @@
 import axios from 'axios';
 import { getInitData } from '../bridge/maxBridge';
 
-/** @type {string|null} Токен авторизации после POST /max/auth */
+/**
+ * Bearer в sessionStorage — ограничение MAX mini-app (нет надёжного httpOnly cookie
+ * между WebView и API). Не кладём токен в DOM / v-html.
+ *
+ * @type {string|null} Токен авторизации после POST /max/auth
+ */
 let authToken = sessionStorage.getItem('max_miniapp_token');
 
 /** @type {Promise<unknown>|null} */

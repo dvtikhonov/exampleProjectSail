@@ -24,6 +24,14 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    total: {
+        type: Number,
+        default: 0,
+    },
+    truncated: {
+        type: Boolean,
+        default: false,
+    },
     /** Дата меню `Y-m-d` с бэкенда (или null) */
     menuAvailabilityDate: {
         type: String,
@@ -443,7 +451,15 @@ defineExpose({ openFilePicker });
                 Блюда не найдены
             </div>
 
-            <ul v-else class="space-y-3">
+            <template v-else>
+                <div
+                    v-if="truncated"
+                    class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+                >
+                    Показаны {{ dishes.length }} из {{ total }} блюд. Уточните фильтры, чтобы увидеть остальные.
+                </div>
+
+                <ul class="space-y-3">
                 <li
                     v-for="dish in dishes"
                     :key="dish.id"
@@ -502,6 +518,7 @@ defineExpose({ openFilePicker });
                     </div>
                 </li>
             </ul>
+            </template>
         </div>
     </div>
 </template>

@@ -21,7 +21,6 @@ use Laravel\Sanctum\HasApiTokens;
     'username',
     'language_code',
     'photo_url',
-    'ai_access_until',
     'customer_category_id',
     'delivery_address',
 ])]

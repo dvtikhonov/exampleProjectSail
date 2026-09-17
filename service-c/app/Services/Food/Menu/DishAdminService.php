@@ -41,7 +41,11 @@ class DishAdminService implements DishAdminServiceInterface
     /**
      * Возвращает список блюд для админки.
      *
-     * @return list<AdminDishDto>
+     * @return array{
+     *     dishes: list<AdminDishDto>,
+     *     total: int,
+     *     truncated: bool
+     * }
      */
     public function list(
         ?int $restaurantId = null,
@@ -49,17 +53,21 @@ class DishAdminService implements DishAdminServiceInterface
         ?string $nameSearch = null,
         AdminDishAvailabilityFilter $availability = AdminDishAvailabilityFilter::All,
     ): array {
-        $dishes = $this->dishReadRepository->listForAdmin(
+        $result = $this->dishReadRepository->listForAdmin(
             $restaurantId,
             $categoryId,
             $nameSearch,
             $availability->toIsAvailable(),
         );
 
-        return array_map(
-            fn (DishRecord $dish): AdminDishDto => $this->mapToAdminDto($dish),
-            $dishes,
-        );
+        return [
+            'dishes' => array_map(
+                fn (DishRecord $dish): AdminDishDto => $this->mapToAdminDto($dish),
+                $result->items,
+            ),
+            'total' => $result->total,
+            'truncated' => $result->truncated,
+        ];
     }
 
     /**

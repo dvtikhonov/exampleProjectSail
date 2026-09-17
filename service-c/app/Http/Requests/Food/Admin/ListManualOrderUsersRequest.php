@@ -15,6 +15,10 @@ class ListManualOrderUsersRequest extends FormRequest
 
     private const MAX_PER_PAGE = 100;
 
+    private const DEFAULT_PAGE = 1;
+
+    private const MAX_PAGE = 10000;
+
     /**
      * Разрешает выполнение запроса.
      */
@@ -32,6 +36,7 @@ class ListManualOrderUsersRequest extends FormRequest
     {
         return [
             'q' => ['nullable', 'string', 'max:255'],
+            'page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PAGE],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
         ];
     }
@@ -50,6 +55,16 @@ class ListManualOrderUsersRequest extends FormRequest
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    /**
+     * Номер страницы списка пользователей.
+     */
+    public function page(): int
+    {
+        $value = $this->validated('page');
+
+        return $value !== null ? (int) $value : self::DEFAULT_PAGE;
     }
 
     /**

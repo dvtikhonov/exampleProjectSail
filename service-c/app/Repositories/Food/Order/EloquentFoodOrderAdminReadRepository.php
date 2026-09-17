@@ -7,6 +7,7 @@ namespace App\Repositories\Food\Order;
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Shared\PaginatedResultDto;
+use App\Enums\Food\Order\AdminOrderListScope;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Models\Food\FoodOrder;
@@ -27,6 +28,18 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
         $model = FoodOrder::query()
             ->with(['restaurant', 'maxUser'])
             ->find($id);
+
+        return $model !== null ? $this->mapToRecord($model) : null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findByIdForScope(int $id, AdminOrderListScope $scope): ?FoodOrderRecord
+    {
+        $model = $this->reviewHistoryQuery($scope)
+            ->whereKey($id)
+            ->first();
 
         return $model !== null ? $this->mapToRecord($model) : null;
     }
@@ -92,11 +105,23 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
     /**
      * {@inheritDoc}
      */
-    public function paginateAll(int $perPage): PaginatedResultDto
+    public function paginateForAddressReviewAll(int $perPage): PaginatedResultDto
     {
         return $this->paginateRecords(
-            FoodOrder::query()
-                ->with(['restaurant', 'maxUser'])
+            $this->reviewHistoryQuery(AdminOrderListScope::Address)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+            $perPage,
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function paginateForCompositionReviewAll(int $perPage): PaginatedResultDto
+    {
+        return $this->paginateRecords(
+            $this->reviewHistoryQuery(AdminOrderListScope::Composition)
                 ->orderByDesc('created_at')
                 ->orderByDesc('id'),
             $perPage,
@@ -163,6 +188,30 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
             ->first();
 
         return $model !== null ? $this->mapToRecord($model) : null;
+    }
+
+    /**
+     * Базовый запрос истории проверки в рамках admin scope (status=all / detail).
+     * Без фильтра Pending; включает confirmed/rejected; исключает draft_after_scanning.
+     *
+     * @return Builder<FoodOrder>
+     */
+    private function reviewHistoryQuery(AdminOrderListScope $scope): Builder
+    {
+        $query = FoodOrder::query()
+            ->with(['restaurant', 'maxUser'])
+            ->where('status', '!=', OrderStatus::DraftAfterScanning);
+
+        // Scope-смысл как у pending-очередей: address смотрит address/payment,
+        // composition — composition (в т.ч. legacy not_applicable уже в истории).
+        return match ($scope) {
+            AdminOrderListScope::Address => $query->where(function (Builder $builder): void {
+                $builder
+                    ->whereNotNull('address_review_status')
+                    ->orWhereNotNull('payment_review_status');
+            }),
+            AdminOrderListScope::Composition => $query->whereNotNull('composition_review_status'),
+        };
     }
 
     /**

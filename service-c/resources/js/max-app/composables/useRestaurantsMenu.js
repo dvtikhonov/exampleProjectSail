@@ -32,6 +32,12 @@ export function useRestaurantsMenu({
     const addingDishId = ref(null);
     const addingComboRef = ref(null);
 
+    /**
+     * Защита от race-condition: применяем только самый новый ответ fetchMenu.
+     * @type {number}
+     */
+    let loadRequestSeq = 0;
+
     async function loadRestaurants() {
         restaurantsLoading.value = true;
         restaurantsError.value = '';
@@ -46,6 +52,8 @@ export function useRestaurantsMenu({
     }
 
     async function openRestaurant(restaurant) {
+        const requestSeq = ++loadRequestSeq;
+
         selectedRestaurant.value = restaurant;
         currentView.value = VIEWS.menu;
         menu.value = null;
@@ -53,13 +61,25 @@ export function useRestaurantsMenu({
         menuError.value = '';
 
         try {
-            menu.value = await fetchMenu(restaurant.id, {
+            const nextMenu = await fetchMenu(restaurant.id, {
                 includeUnavailable: cartTransport.includeUnavailableInMenu,
             });
+
+            if (requestSeq !== loadRequestSeq) {
+                return;
+            }
+
+            menu.value = nextMenu;
         } catch (error) {
+            if (requestSeq !== loadRequestSeq) {
+                return;
+            }
+
             menuError.value = extractErrorMessage(error);
         } finally {
-            menuLoading.value = false;
+            if (requestSeq === loadRequestSeq) {
+                menuLoading.value = false;
+            }
         }
     }
 
@@ -118,24 +138,42 @@ export function useRestaurantsMenu({
             return;
         }
 
+        const requestSeq = ++loadRequestSeq;
+        const restaurantId = selectedRestaurant.value.id;
+
         menuLoading.value = true;
         menuError.value = '';
 
         try {
-            menu.value = await fetchMenu(selectedRestaurant.value.id, {
+            const nextMenu = await fetchMenu(restaurantId, {
                 includeUnavailable: cartTransport.includeUnavailableInMenu,
             });
+
+            if (requestSeq !== loadRequestSeq) {
+                return;
+            }
+
+            menu.value = nextMenu;
         } catch (error) {
+            if (requestSeq !== loadRequestSeq) {
+                return;
+            }
+
             menuError.value = extractErrorMessage(error);
         } finally {
-            menuLoading.value = false;
+            if (requestSeq === loadRequestSeq) {
+                menuLoading.value = false;
+            }
         }
     }
 
     /** Сброс выбранного ресторана и меню при возврате на главный экран */
     function resetRestaurantSelection() {
+        loadRequestSeq += 1;
         selectedRestaurant.value = null;
         menu.value = null;
+        menuLoading.value = false;
+        menuError.value = '';
     }
 
     return {

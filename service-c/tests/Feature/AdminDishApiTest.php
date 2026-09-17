@@ -98,6 +98,19 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('message', 'Доступ запрещён.');
     }
 
+    /** В production test-bot маршруты отвечают 404 (как будто отсутствуют). */
+    public function test_test_bot_endpoints_return_not_found_in_production(): void
+    {
+        $auth = $this->menuManagerAuth();
+
+        $this->app['env'] = 'production';
+
+        $this->postJson('/api/food/admin/dishes/test-bot', [], $auth['headers'])
+            ->assertNotFound();
+        $this->postJson('/api/food/admin/dishes/test-bot-2', [], $auth['headers'])
+            ->assertNotFound();
+    }
+
     /** Эндпоинт теста бота возвращает 503, если получатели не заданы. */
     public function test_test_bot_endpoint_returns_service_unavailable_when_recipients_missing(): void
     {
@@ -197,8 +210,8 @@ class AdminDishApiTest extends TestCase
             ->assertJsonPath('dishes.0.restaurant_id', $first['restaurant']->id);
     }
 
-    /** Без фильтров ресторана и категории список ограничен 10 записями. */
-    public function test_dishes_index_limits_to_ten_without_restaurant_and_category(): void
+    /** Без фильтров ресторана и категории список отдаёт блюда в пределах общего лимита. */
+    public function test_dishes_index_returns_dishes_without_restaurant_and_category_within_limit(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Limit Cafe', 'Dish 01');
 
@@ -213,10 +226,12 @@ class AdminDishApiTest extends TestCase
 
         $this->getJson('/api/food/admin/dishes', $auth['headers'])
             ->assertOk()
-            ->assertJsonCount(10, 'dishes');
+            ->assertJsonCount(12, 'dishes')
+            ->assertJsonPath('total', 12)
+            ->assertJsonPath('truncated', false);
     }
 
-    /** При выбранном ресторане список отдаёт все блюда без лимита. */
+    /** При выбранном ресторане список отдаёт блюда в пределах общего лимита. */
     public function test_dishes_index_returns_all_when_restaurant_selected(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish('Full Cafe', 'Dish 01');
@@ -235,7 +250,45 @@ class AdminDishApiTest extends TestCase
             $auth['headers'],
         )
             ->assertOk()
-            ->assertJsonCount(12, 'dishes');
+            ->assertJsonCount(12, 'dishes')
+            ->assertJsonPath('total', 12)
+            ->assertJsonPath('truncated', false);
+    }
+
+    /** При превышении лимита API сообщает total и truncated. */
+    public function test_dishes_index_reports_truncated_when_over_limit(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish('Truncate Cafe', 'Dish 0001');
+        $now = now()->toDateTimeString();
+        $rows = [];
+
+        for ($i = 2; $i <= 501; $i++) {
+            $rows[] = [
+                'menu_category_id' => $fixture['category']->id,
+                'name' => sprintf('Dish %04d', $i),
+                'description' => null,
+                'weight' => 100,
+                'weight_unit' => DishWeightUnit::Gram->value,
+                'image_url' => 'dishes/seed/placeholder-1.jpg',
+                'price' => 100,
+                'vat_rate' => null,
+                'is_available' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($rows, 100) as $chunk) {
+            Dish::query()->insert($chunk);
+        }
+
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes', $auth['headers'])
+            ->assertOk()
+            ->assertJsonCount(500, 'dishes')
+            ->assertJsonPath('total', 501)
+            ->assertJsonPath('truncated', true);
     }
 
     /** Менеджер меню может фильтровать блюда по имени. */

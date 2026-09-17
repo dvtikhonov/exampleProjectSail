@@ -32,15 +32,18 @@ class OrderController extends Controller
      */
     public function index(ListCustomerOrdersRequest $request): JsonResponse
     {
-        $orders = $this->customerOrderQueryService->list(
+        $result = $this->customerOrderQueryService->list(
             $this->authenticatedMaxUserResolver->identity(),
+            $request->perPage(),
+            $request->page(),
         );
 
         return response()->json([
             'orders' => array_map(
                 static fn ($order): array => $order->toArray(),
-                $orders,
+                $result['orders'],
             ),
+            'meta' => $result['meta'],
         ]);
     }
 

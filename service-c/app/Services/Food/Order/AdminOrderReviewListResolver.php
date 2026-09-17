@@ -41,7 +41,14 @@ class AdminOrderReviewListResolver
                     $perPage,
                 ),
             },
-            AdminOrderListStatus::All => $this->foodOrderReadRepository->paginateAll($perPage),
+            AdminOrderListStatus::All => match ($scope) {
+                AdminOrderListScope::Address => $this->foodOrderReadRepository->paginateForAddressReviewAll(
+                    $perPage,
+                ),
+                AdminOrderListScope::Composition => $this->foodOrderReadRepository->paginateForCompositionReviewAll(
+                    $perPage,
+                ),
+            },
         };
     }
 }

@@ -18,6 +18,10 @@ class ListAdminOrdersRequest extends FormRequest
 
     private const MAX_PER_PAGE = 100;
 
+    private const DEFAULT_PAGE = 1;
+
+    private const MAX_PAGE = 10000;
+
     /**
      * Разрешает любой запрос.
      */
@@ -44,6 +48,7 @@ class ListAdminOrdersRequest extends FormRequest
         return [
             'scope' => ['required', 'string', Rule::enum(AdminOrderListScope::class)],
             'status' => ['nullable', 'string', Rule::enum(AdminOrderListStatus::class)],
+            'page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PAGE],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_PER_PAGE],
         ];
     }
@@ -72,6 +77,7 @@ class ListAdminOrdersRequest extends FormRequest
         return [
             'scope' => 'область проверки',
             'status' => 'статус',
+            'page' => 'номер страницы',
             'per_page' => 'размер страницы',
         ];
     }
@@ -96,6 +102,16 @@ class ListAdminOrdersRequest extends FormRequest
         }
 
         return AdminOrderListStatus::from($value);
+    }
+
+    /**
+     * Номер страницы списка заказов.
+     */
+    public function page(): int
+    {
+        $value = $this->validated('page');
+
+        return $value !== null ? (int) $value : self::DEFAULT_PAGE;
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Repositories\Food\Order;
 
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Shared\PaginatedResultDto;
 use App\Models\Food\FoodOrder;
 
 /**
@@ -30,14 +31,26 @@ class EloquentFoodOrderCustomerReadRepository implements FoodOrderCustomerReadRe
     /**
      * {@inheritDoc}
      */
-    public function findByMaxUserId(int $maxUserId): array
+    public function paginateByMaxUserId(int $maxUserId, int $perPage, int $page): PaginatedResultDto
     {
-        return FoodOrder::query()
+        $paginator = FoodOrder::query()
             ->with(['restaurant'])
             ->where('max_user_id', $maxUserId)
             ->orderByDesc('created_at')
-            ->get()
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        /** @var list<FoodOrderRecord> $records */
+        $records = $paginator->getCollection()
             ->map(fn (FoodOrder $model): FoodOrderRecord => $this->mapToRecord($model))
+            ->values()
             ->all();
+
+        return new PaginatedResultDto(
+            items: $records,
+            total: $paginator->total(),
+            perPage: $paginator->perPage(),
+            currentPage: $paginator->currentPage(),
+            lastPage: $paginator->lastPage(),
+        );
     }
 }

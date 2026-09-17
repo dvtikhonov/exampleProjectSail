@@ -32,6 +32,8 @@ class MaxBotInfoCommand extends Command
         $response = Http::baseUrl('https://platform-api.max.ru')
             ->withHeaders(['Authorization' => $token])
             ->acceptJson()
+            ->timeout(15)
+            ->connectTimeout(5)
             ->get('/me');
 
         if ($response->status() === 401) {

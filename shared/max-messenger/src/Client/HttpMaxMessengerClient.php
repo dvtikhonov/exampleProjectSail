@@ -27,6 +27,12 @@ class HttpMaxMessengerClient implements MaxMessengerClientInterface
 
     private const UPLOADS_ENDPOINT = '/uploads';
 
+    private const REQUEST_TIMEOUT_SECONDS = 15;
+
+    private const CONNECT_TIMEOUT_SECONDS = 5;
+
+    private const UPLOAD_TIMEOUT_SECONDS = 30;
+
     public function __construct(
         private readonly MaxBotTokenProviderInterface $tokenProvider,
         private readonly MaxMessengerRetryConfig $retryConfig = new MaxMessengerRetryConfig,
@@ -217,7 +223,7 @@ class HttpMaxMessengerClient implements MaxMessengerClientInterface
 
     private function postFileToUploadUrl(string $uploadUrl, string $contents, string $fileName): string
     {
-        $response = Http::asMultipart()
+        $response = $this->uploadHttpClient()
             ->attach('data', $contents, $fileName)
             ->post($uploadUrl);
 
@@ -346,7 +352,16 @@ class HttpMaxMessengerClient implements MaxMessengerClientInterface
                 'Authorization' => $token,
             ])
             ->acceptJson()
-            ->asJson();
+            ->asJson()
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS);
+    }
+
+    private function uploadHttpClient(): PendingRequest
+    {
+        return Http::asMultipart()
+            ->timeout(self::UPLOAD_TIMEOUT_SECONDS)
+            ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS);
     }
 
     private function endpointWithRecipient(MaxMessageDto $message): string

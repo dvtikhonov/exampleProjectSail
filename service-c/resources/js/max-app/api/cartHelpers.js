@@ -44,7 +44,9 @@ export async function addComboWithRollback({
         );
 
         if (firstComboItem) {
-            await removeItem(firstComboItem.id).catch(() => {});
+            await removeItem(firstComboItem.id).catch((rollbackError) => {
+                console.warn('Не удалось откатить первую позицию комбо после ошибки добавления', rollbackError);
+            });
         }
 
         throw error;

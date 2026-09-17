@@ -21,6 +21,7 @@ interface MaxUserManualOrderQueryRepositoryInterface
 
     /**
      * Поиск пользователей по подстроке в first_name / last_name / username (без delivery_address).
+     * Не более 3 записей (для resolveExactlyOne: 0 / 1 / >1).
      *
      * @return list<MaxUserRecord>
      */

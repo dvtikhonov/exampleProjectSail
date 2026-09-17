@@ -32,6 +32,8 @@ export function useDishAdmin({ filters }) {
     const menuAvailabilityDate = ref(null);
     /** @type {import('vue').Ref<string|null>} */
     const menuAvailabilityError = ref(null);
+    const dishesTotal = ref(0);
+    const dishesTruncated = ref(false);
 
     const { filterRestaurantId, filterCategoryId, filterNameSearch } = filters;
     /** @type {import('vue').Ref<string>} */
@@ -155,6 +157,8 @@ export function useDishAdmin({ filters }) {
             });
 
             dishes.value = result.dishes;
+            dishesTotal.value = result.total;
+            dishesTruncated.value = result.truncated;
             menuAvailabilityDate.value = result.menuAvailabilityDate;
             menuAvailabilityError.value = result.menuAvailabilityError;
         } catch (error) {
@@ -431,6 +435,8 @@ export function useDishAdmin({ filters }) {
         dishesLoading,
         dishesRefreshing,
         dishesError,
+        dishesTotal,
+        dishesTruncated,
         menuAvailabilityDate,
         menuAvailabilityError,
         filterRestaurantId,

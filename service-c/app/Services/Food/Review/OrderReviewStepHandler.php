@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Food\Review;
 
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
 use App\Contracts\Food\Review\OrderReviewCompletionServiceInterface;
 use App\Contracts\Food\Review\OrderReviewStepHandlerInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
+use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
 use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
@@ -26,7 +27,7 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
         private readonly OrderReviewAuthorizationServiceInterface $orderReviewAuthorizationService,
         private readonly OrderReviewUpdateFactory $orderReviewUpdateFactory,
         private readonly OrderReviewCompletionServiceInterface $orderReviewCompletionService,
-        private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly FoodOrderReviewNotifierInterface $foodOrderReviewNotifier,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
     ) {}
@@ -46,15 +47,17 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
 
             $this->orderReviewAuthorizationService->assertCanApprove($admin, $order, $step);
 
-            return $this->foodOrderWriteRepository->update(
+            $order = $this->foodOrderWriteRepository->update(
                 $order,
                 $this->orderReviewUpdateFactory->buildApprovalUpdate($step, $order, $admin->maxUserId),
             );
+            // Variant B: sync в той же TX; notify — после commit.
+            $this->foodOrderItemSyncService->syncIfConfirmed($order);
+
+            return $order;
         });
 
         $this->orderReviewCompletionService->notifyIfFullyApproved($statusBefore, $order);
-        // Variant B: при переходе в confirmed — sync; иначе delete по order_id.
-        $this->foodOrderItemSyncService->syncIfConfirmed($order);
 
         return $order;
     }
@@ -71,15 +74,21 @@ class OrderReviewStepHandler implements OrderReviewStepHandlerInterface
 
             $this->orderReviewAuthorizationService->assertCanReject($admin, $order, $step, $comment);
 
-            return $this->foodOrderWriteRepository->update(
+            $order = $this->foodOrderWriteRepository->update(
                 $order,
                 $this->orderReviewUpdateFactory->buildRejectionUpdate($step, $order, $admin->maxUserId, $comment),
             );
+            // Variant B: sync/delete items в той же TX; notify — после commit.
+            $this->foodOrderItemSyncService->syncIfConfirmed($order);
+
+            return $order;
         });
 
-        $this->foodOrderCustomerNotifier->notifyRejected($order, $step->rejectionScope());
-        // Variant B: rejected не должен иметь строк в max_food_order_items.
-        $this->foodOrderItemSyncService->syncIfConfirmed($order);
+        $this->foodOrderReviewNotifier->notify(
+            orderId: $order->id,
+            kind: FoodOrderReviewNotifyKind::Rejected,
+            rejectionScope: $step->rejectionScope(),
+        );
 
         return $order;
     }

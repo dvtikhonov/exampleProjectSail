@@ -9,6 +9,7 @@ use App\Models\Food\CustomerCategory;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Tests\Support\MaxInitDataFixtureBuilder;
 use Tests\Support\MessMaxLogTestHelper;
@@ -24,6 +25,8 @@ class MaxAuthControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Cache::flush();
 
         config([
             'max.bot_access_token' => self::BOT_TOKEN,
@@ -180,5 +183,17 @@ class MaxAuthControllerTest extends TestCase
             'first_name' => 'Max',
             'customer_category_id' => $vipCategory->id,
         ]);
+    }
+
+    /** Store возвращает 429 при превышении rate limit (20/мин). */
+    public function test_store_returns_too_many_requests_when_rate_limited(): void
+    {
+        $payload = ['init_data' => 'auth_date=1&user=%7B%7D&hash=deadbeef'];
+
+        for ($i = 0; $i < 20; $i++) {
+            $this->postJson('/api/max/auth', $payload)->assertUnauthorized();
+        }
+
+        $this->postJson('/api/max/auth', $payload)->assertTooManyRequests();
     }
 }

@@ -22,12 +22,13 @@ import { client, extractErrorMessage } from '../http';
 /**
  * @typedef {object} FoodReportExportResult
  * @property {boolean} ok
+ * @property {boolean} queued
  * @property {string} filename
  * @property {string} message
  */
 
 /**
- * Генерация .xlsx и отправка в чат MAX текущего менеджера:
+ * Постановка выгрузки отчёта в очередь (файл уйдёт в чат MAX асинхронно):
  * POST /api/food/admin/reports/export.
  *
  * @param {FoodReportExportParams} params
@@ -64,16 +65,22 @@ export async function exportFoodReport({
             throw new Error(
                 typeof data?.message === 'string' && data.message.trim() !== ''
                     ? data.message.trim()
-                    : 'Не удалось отправить отчёт в MAX.',
+                    : 'Не удалось поставить отчёт в очередь.',
             );
         }
 
+        const queued = data.queued === true;
+        const defaultMessage = queued
+            ? 'Отчёт будет отправлен в чат MAX.'
+            : 'Отчёт отправлен в чат MAX.';
+
         return {
             ok: true,
+            queued,
             filename: typeof data.filename === 'string' ? data.filename : '',
             message: typeof data.message === 'string' && data.message.trim() !== ''
                 ? data.message.trim()
-                : 'Отчёт отправлен в чат MAX.',
+                : defaultMessage,
         };
     } catch (error) {
         throw new Error(extractErrorMessage(error));

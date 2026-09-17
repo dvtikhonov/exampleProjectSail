@@ -56,13 +56,61 @@ class DishImageDeliveryService implements DishImageDeliveryInterface
             throw new FoodDomainException('Изображение блюда не найдено.', 404);
         }
 
+        $this->assertSafeRelativePath($source);
+
         if (! $this->fileStorage->exists($source)) {
             throw new FoodDomainException('Изображение блюда не найдено.', 404);
         }
 
+        $absolutePath = $this->fileStorage->path($source);
+        $this->assertWithinPublicDisk($absolutePath);
+
         return new DishImageFileDto(
-            absolutePath: $this->fileStorage->path($source),
+            absolutePath: $absolutePath,
             headers: self::CACHE_HEADERS,
         );
+    }
+
+    /**
+     * Отклоняет traversal, абсолютные пути и пути вне allow-list префикса dishes/.
+     *
+     * @throws FoodDomainException
+     */
+    private function assertSafeRelativePath(string $source): void
+    {
+        if (
+            str_contains($source, '..')
+            || str_contains($source, "\0")
+            || str_starts_with($source, '/')
+            || str_contains($source, '\\')
+        ) {
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
+        }
+
+        if (! str_starts_with($source, 'dishes/')) {
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
+        }
+    }
+
+    /**
+     * Проверяет, что realpath файла лежит внутри корня public-диска.
+     *
+     * @throws FoodDomainException
+     */
+    private function assertWithinPublicDisk(string $absolutePath): void
+    {
+        $diskRoot = $this->fileStorage->path('');
+        $fileReal = realpath($absolutePath);
+        $rootReal = realpath($diskRoot);
+
+        if ($fileReal === false || $rootReal === false) {
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
+        }
+
+        $rootPrefix = rtrim($rootReal, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
+
+        if ($fileReal !== $rootReal && ! str_starts_with($fileReal, $rootPrefix)) {
+            throw new FoodDomainException('Изображение блюда не найдено.', 404);
+        }
     }
 }

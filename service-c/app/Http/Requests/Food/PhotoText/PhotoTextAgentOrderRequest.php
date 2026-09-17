@@ -22,7 +22,7 @@ class PhotoTextAgentOrderRequest extends PhotoTextAgentFormRequest
             'customer_query' => ['required', 'string', 'max:255'],
             'order_date' => ['required', 'date_format:Y-m-d'],
             'restaurant_id' => $this->activeRestaurantIdRules(),
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*.name' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
             'items.*.combo_ref' => ['nullable', 'uuid'],

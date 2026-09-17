@@ -47,4 +47,20 @@ class LaravelCacheStore implements CacheStoreInterface
     {
         return $this->cache->forget($key);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function add(string $key, mixed $value): bool
+    {
+        return $this->cache->add($key, $value);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function increment(string $key, int $by = 1): int
+    {
+        return $this->cache->increment($key, $by);
+    }
 }

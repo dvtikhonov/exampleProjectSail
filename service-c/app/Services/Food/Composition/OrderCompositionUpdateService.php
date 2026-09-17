@@ -7,12 +7,13 @@ namespace App\Services\Food\Composition;
 use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\FoodOrderUpdateCommand;
 use App\DTO\Food\Shared\MaxUserIdentity;
+use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Exceptions\Food\FoodDomainException;
 use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 
@@ -25,7 +26,7 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly OrderReviewAuthorizationServiceInterface $orderReviewAuthorizationService,
         private readonly OrderCompositionSnapshotBuilderInterface $orderCompositionSnapshotBuilder,
-        private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly FoodOrderReviewNotifierInterface $foodOrderReviewNotifier,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
     ) {}
@@ -51,17 +52,23 @@ class OrderCompositionUpdateService implements OrderCompositionUpdateServiceInte
                 existingDishIds: $this->existingDishIdsFromSnapshot($order->itemsSnapshot),
             );
 
-            return $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
+            $order = $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
                 itemsSnapshot: $composition->itemsSnapshot,
                 itemsTotal: $composition->itemsTotal,
                 deliveryCost: $composition->deliveryCost,
                 total: $composition->total,
             ));
+            // Variant B: sync в той же TX; notify — после commit.
+            $this->foodOrderItemSyncService->syncIfConfirmed($order);
+
+            return $order;
         });
 
-        $this->foodOrderCustomerNotifier->notifyCompositionChanged($order);
-        // Variant B: sync если confirmed, иначе delete items.
-        $this->foodOrderItemSyncService->syncIfConfirmed($order);
+        $this->foodOrderReviewNotifier->notify(
+            orderId: $order->id,
+            kind: FoodOrderReviewNotifyKind::CompositionChanged,
+            idempotencySuffix: $order->updatedAt ?? $order->createdAt,
+        );
 
         return $order;
     }

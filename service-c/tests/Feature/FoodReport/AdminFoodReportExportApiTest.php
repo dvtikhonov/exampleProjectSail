@@ -13,21 +13,24 @@ use App\Models\Food\FoodOrder;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Modules\FoodReport\Contracts\FoodReportMaxDeliveryInterface;
+use App\Modules\FoodReport\Enums\ReportType;
+use App\Modules\FoodReport\Jobs\ExportFoodReportToMaxJob;
 use App\Repositories\Food\Order\FoodOrderMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
-use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 /**
- * Feature: POST /api/food/admin/reports/export — .xlsx в чат MAX по report_type.
+ * Feature: POST /api/food/admin/reports/export — очередь ExportFoodReportToMaxJob.
  */
 class AdminFoodReportExportApiTest extends TestCase
 {
@@ -96,7 +99,48 @@ class AdminFoodReportExportApiTest extends TestCase
             ->assertJsonValidationErrors(['report_type']);
     }
 
-    /** Revenue .xlsx: отправка в MAX, лист «Выручка», даты по возрастанию, Итого. */
+    /** HTTP: dispatch job + 200 queued без вызова delivery. */
+    public function test_export_queues_job_without_calling_delivery(): void
+    {
+        Bus::fake([ExportFoodReportToMaxJob::class]);
+
+        $manager = $this->maxManagerAuth();
+        $restaurant = Restaurant::factory()->create();
+        $filename = sprintf('report_%d_2026-09-01_2026-09-10.xlsx', $restaurant->id);
+
+        $delivery = $this->createMock(FoodReportMaxDeliveryInterface::class);
+        $delivery->expects($this->never())->method('deliver');
+        $this->app->instance(FoodReportMaxDeliveryInterface::class, $delivery);
+
+        $response = $this->postJson('/api/food/admin/reports/export', $this->payload([
+            'restaurant_id' => $restaurant->id,
+            'report_type' => 'revenue',
+        ]), $manager['headers']);
+
+        $response->assertOk()
+            ->assertJson([
+                'ok' => true,
+                'queued' => true,
+                'filename' => $filename,
+                'message' => 'Отчёт будет отправлен в чат MAX.',
+            ]);
+
+        Bus::assertDispatched(
+            ExportFoodReportToMaxJob::class,
+            function (ExportFoodReportToMaxJob $job) use ($manager, $restaurant, $filename): bool {
+                return $job->maxUserId === $manager['user']->max_user_id
+                    && $job->reportType === ReportType::Revenue
+                    && $job->filter->restaurantId === $restaurant->id
+                    && $job->filter->dateFrom === '2026-09-01'
+                    && $job->filter->dateTo === '2026-09-10'
+                    && $job->limitPerDay === 20
+                    && $job->filename === $filename
+                    && str_contains($job->messageText, 'Выручка за период');
+            },
+        );
+    }
+
+    /** Revenue .xlsx: job доставляет файл в MAX (sync queue). */
     public function test_export_revenue_xlsx_sent_to_max_user(): void
     {
         $manager = $this->maxManagerAuth();
@@ -144,8 +188,9 @@ class AdminFoodReportExportApiTest extends TestCase
         $response->assertOk()
             ->assertJson([
                 'ok' => true,
+                'queued' => true,
                 'filename' => $filename,
-                'message' => 'Отчёт отправлен в чат MAX.',
+                'message' => 'Отчёт будет отправлен в чат MAX.',
             ]);
 
         $this->assertSame($filename, $capture->fileName);
@@ -179,7 +224,7 @@ class AdminFoodReportExportApiTest extends TestCase
         $this->assertSame('2100.00', (string) $sheet->getCell('D5')->getValue());
     }
 
-    /** Top dishes .xlsx: перекрёстная таблица, отправка в MAX. */
+    /** Top dishes .xlsx: перекрёстная таблица, job отправляет в MAX. */
     public function test_export_top_dishes_xlsx_sent_to_max_user(): void
     {
         $manager = $this->maxManagerAuth();
@@ -236,7 +281,8 @@ class AdminFoodReportExportApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('filename', $filename)
-            ->assertJsonPath('ok', true);
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('queued', true);
 
         $this->assertSame($filename, $capture->fileName);
         $this->assertStringContainsString('Топ позиций', $capture->message->text);
@@ -259,29 +305,6 @@ class AdminFoodReportExportApiTest extends TestCase
         $this->assertSame('', (string) ($sheet->getCell('B4')->getValue() ?? ''));
         $this->assertSame(1, (int) $sheet->getCell('D4')->getValue());
         $this->assertSame('150.00', (string) $sheet->getCell('E4')->getValue());
-    }
-
-    /** Ошибка MAX Bot API → 502 с безопасным сообщением. */
-    public function test_export_returns_502_when_max_delivery_fails(): void
-    {
-        $manager = $this->maxManagerAuth();
-        $restaurant = Restaurant::factory()->create();
-
-        $client = $this->createMock(MaxMessengerClientInterface::class);
-        $client->expects($this->once())
-            ->method('uploadFile')
-            ->willThrowException(new MaxMessengerRequestException('Не удалось загрузить файл в MAX.'));
-        $client->expects($this->never())->method('sendMessage');
-        $this->app->instance(MaxMessengerClientInterface::class, $client);
-
-        $this->postJson('/api/food/admin/reports/export', $this->payload([
-            'restaurant_id' => $restaurant->id,
-            'report_type' => 'revenue',
-        ]), $manager['headers'])
-            ->assertStatus(502)
-            ->assertJson([
-                'message' => 'Не удалось загрузить файл в MAX.',
-            ]);
     }
 
     /**

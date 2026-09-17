@@ -329,6 +329,50 @@ class AdminFoodReportQueryApiTest extends TestCase
             ->assertJsonMissing(['dish_name' => 'Draft Dish']);
     }
 
+    /** limit ограничивает top-N на день на стороне SQL (не весь GROUP BY в PHP). */
+    public function test_top_dishes_respects_per_day_limit(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $restaurant = Restaurant::factory()->create(['name' => 'Limit Cafe']);
+        $confirmed = $this->createOrder($restaurant, OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-04',
+            'items_total' => '600.00',
+        ]);
+
+        foreach ([
+            ['dish_id' => 1, 'dish_name' => 'A', 'quantity' => 10, 'line_total' => '100.00'],
+            ['dish_id' => 2, 'dish_name' => 'B', 'quantity' => 9, 'line_total' => '90.00'],
+            ['dish_id' => 3, 'dish_name' => 'C', 'quantity' => 8, 'line_total' => '80.00'],
+            ['dish_id' => 4, 'dish_name' => 'D', 'quantity' => 1, 'line_total' => '10.00'],
+        ] as $row) {
+            FoodOrderItem::query()->create([
+                'order_id' => $confirmed->id,
+                'restaurant_id' => $restaurant->id,
+                'report_date' => '2026-09-04',
+                'dish_id' => $row['dish_id'],
+                'dish_name' => $row['dish_name'],
+                'unit_price' => '10.00',
+                'quantity' => $row['quantity'],
+                'line_total' => $row['line_total'],
+            ]);
+        }
+
+        $response = $this->getJson('/api/food/admin/reports/top-dishes?'.$this->queryString([
+            'date_from' => '2026-09-04',
+            'date_to' => '2026-09-04',
+            'restaurant_id' => $restaurant->id,
+            'limit' => 2,
+        ]), $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('days.0.date', '2026-09-04')
+            ->assertJsonPath('days.0.items.0.dish_name', 'A')
+            ->assertJsonPath('days.0.items.1.dish_name', 'B')
+            ->assertJsonMissing(['dish_name' => 'C'])
+            ->assertJsonMissing(['dish_name' => 'D']);
+
+        $this->assertCount(2, $response->json('days.0.items'));
+    }
+
     /** Пустой период возвращает пустые days и нулевую meta. */
     public function test_revenue_empty_period_returns_zero_meta(): void
     {
