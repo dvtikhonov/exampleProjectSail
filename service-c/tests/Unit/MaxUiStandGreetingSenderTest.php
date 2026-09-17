@@ -22,9 +22,7 @@ class MaxUiStandGreetingSenderTest extends TestCase
             'max.rate_limit_retry_delay_ms' => 0,
             'max.ui_stand.mini_app_url' => 'https://example.test/max-app',
             'max.ui_stand.mini_app_button_text' => 'Заказ еды',
-            'max.ui_stand.greeting_text' => 'Привет! Выберите ответ:',
-            'max.ui_stand.button_yes_payload' => 'yes',
-            'max.ui_stand.button_no_payload' => 'no',
+            'max.ui_stand.greeting_text' => 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
             'max.ui_stand.recipient_chat_ids' => [111],
             'max.ui_stand.recipient_user_ids' => [222],
         ]);
@@ -47,16 +45,12 @@ class MaxUiStandGreetingSenderTest extends TestCase
 
             return str_contains($request->url(), 'chat_id=111')
                 && $request->hasHeader('Authorization', self::TOKEN)
-                && $request['text'] === 'Привет! Выберите ответ:'
+                && $request['text'] === 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".'
                 && ($attachments[0]['type'] ?? null) === 'inline_keyboard'
+                && count($buttons) === 1
                 && ($buttons[0][0]['type'] ?? null) === 'open_app'
                 && ($buttons[0][0]['text'] ?? null) === 'Заказ еды'
-                && ($buttons[0][0]['web_app'] ?? null) === 'https://example.test/max-app'
-                && ($buttons[1][0]['type'] ?? null) === 'callback'
-                && ($buttons[1][0]['text'] ?? null) === 'да'
-                && ($buttons[1][0]['payload'] ?? null) === 'yes'
-                && ($buttons[1][1]['text'] ?? null) === 'нет'
-                && ($buttons[1][1]['payload'] ?? null) === 'no';
+                && ($buttons[0][0]['web_app'] ?? null) === 'https://example.test/max-app';
         });
 
         Http::assertSent(function ($request): bool {
