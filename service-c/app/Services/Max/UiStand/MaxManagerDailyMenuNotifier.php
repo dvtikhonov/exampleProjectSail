@@ -22,7 +22,7 @@ use Throwable;
  * Два уведомления о меню дня пользователям с ролью max_manager.
  *
  * Сначала DM на max_user_id менеджера; при ошибке MAX — fallback в MAX_UI_STAND_*
- * (как у уведомления «Заказ на …» оформившему ручной заказ).
+ * из .env (без кэша webhook; как у «Заказ на …»).
  */
 class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterface
 {
@@ -88,14 +88,14 @@ class MaxManagerDailyMenuNotifier implements MaxManagerDailyMenuNotifierInterfac
     }
 
     /**
-     * Fallback: меню дня в UI Stand (chat_id / user_id), если DM менеджеру недоступен.
+     * Fallback: меню дня в UI Stand (только MAX_UI_STAND_*), если DM менеджеру недоступен.
      *
      * @return int Количество успешно отправленных сообщений
      */
     private function trySendToUiStand(string $text, int $failedUserId): int
     {
-        $chatIds = $this->uiStandRecipientResolver->chatIds();
-        $userIds = $this->uiStandRecipientResolver->userIds();
+        $chatIds = $this->uiStandRecipientResolver->configuredChatIds();
+        $userIds = $this->uiStandRecipientResolver->configuredUserIds();
 
         if ($chatIds === [] && $userIds === []) {
             $this->logger->warning(

@@ -734,7 +734,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 ## Уведомления о заказах в MAX
 
-После успешного `POST /api/food/orders/submit` (commit в `max_food_orders`) service-c ставит в очередь **`NotifyFoodOrderAfterSubmitJob`**, который отправляет **текстовое** сообщение с кнопкой **«Заказ еды»** (`open_app`) во **все** чаты и пользователей из `MAX_UI_STAND_CHAT_IDS` / `MAX_UI_STAND_USER_IDS` (+ кэш webhook, как у «тест бот 2»). Ручной submit (`submitManual`) — тот же job с `FoodOrderAfterSubmitNotifyKind::Confirmed`.
+После успешного `POST /api/food/orders/submit` (commit в `max_food_orders`) service-c ставит в очередь **`NotifyFoodOrderAfterSubmitJob`**, который отправляет **текстовое** сообщение с кнопкой **«Заказ еды»** (`open_app`) во **все** чаты и пользователей из `MAX_UI_STAND_CHAT_IDS` / `MAX_UI_STAND_USER_IDS` (только `.env`, без кэша webhook). Ручной submit (`submitManual`) — тот же job с `FoodOrderAfterSubmitNotifyKind::Confirmed`.
 
 Кнопка открывает mini-app (`MAX_MINI_APP_URL` или URL из `MAX_WEBHOOK_URL` / `max.bot_username`). Если URL mini-app не настроен, уходит только текст без кнопки.
 
@@ -779,7 +779,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 | Компонент | Файл |
 |---|---|
-| Получатели | `MaxUiStandRecipientResolver` (`MAX_UI_STAND_*` + кэш webhook) |
+| Получатели | `MaxUiStandRecipientResolver::configured*` (`MAX_UI_STAND_*` из `.env`) |
 | Лимит текста | `config/max.php` → `order_notifications.max_text_length` |
 | Сборка текста | `app/Services/Max/Food/FoodOrderCustomerMaxMessageBuilder.php` (+ `Support/Max/Food/Formatting/*`) |
 | Отправка | `app/Infrastructure/Laravel/LaravelFoodOrderMaxNotifier.php` |
@@ -838,7 +838,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 |---|---|---|
 | Клиент заказа (`order.max_user_id`) | Сообщение написал **админ** | `В чат заказа №N поступило сообщение` (без тела сообщения) |
 | Клиент заказа | Сообщение написал **сам клиент** | **Не отправляется** (своё сообщение не дублируется) |
-| `MAX_UI_STAND_CHAT_IDS` / `MAX_UI_STAND_USER_IDS` (+ кэш webhook) | Любое новое сообщение | `В чат заказа №N поступило сообщение` + текст сообщения (превью до 200 символов) |
+| `MAX_UI_STAND_CHAT_IDS` / `MAX_UI_STAND_USER_IDS` (только `.env`) | Любое новое сообщение | `В чат заказа №N поступило сообщение` + текст сообщения (превью до 200 символов) |
 
 К клиенту и в UI Stand добавляется кнопка **«Открыть заказ №N»** (`open_app` с `payload` = `order_{id}_chat` → `start_param` mini-app), если настроен URL mini-app.
 
@@ -855,7 +855,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 | Контур | Переменные `.env` | Кто вызывает | Текст сообщения |
 |---|---|---|---|
-| UI Stand / заказы / чат | `MAX_UI_STAND_CHAT_IDS`, `MAX_UI_STAND_USER_IDS` (+ кэш webhook) | `POST /orders/submit`, `POST .../messages`, `max:ui-stand:send`, **«тест бот 2»** | Новый заказ / сообщение в чате / приветствие / `тест бот 2` |
+| UI Stand / заказы / чат | `MAX_UI_STAND_CHAT_IDS`, `MAX_UI_STAND_USER_IDS` (заказы/чат/приветствие — только `.env`; **«тест бот 2»** ещё + кэш webhook) | `POST /orders/submit`, `POST .../messages`, `max:ui-stand:send`, **«тест бот 2»** | Новый заказ / сообщение в чате / приветствие / `тест бот 2` |
 | Отчёты (меню / тест) | `MAX_REPORT_CHAT_IDS`, `MAX_REPORT_USER_IDS` | кнопка **«тест бот»**, cron `food:sync-dish-availability` | `Тест БОТ` / «Доступно для заказов меню на …» (дата «Блюда на» по offsets) |
 
 Пример разделения чатов (prod/dev):

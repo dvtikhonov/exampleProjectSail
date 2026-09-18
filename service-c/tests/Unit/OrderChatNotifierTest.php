@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Contracts\Food\Chat\FoodOrderChatMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
+use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -321,6 +322,41 @@ TEXT,
 
         $this->assertSame([9001, 9002], $sentUserIds);
         $this->assertNotContains(1002, $sentUserIds);
+    }
+
+    /** Уведомление чата не шлёт накопленным bot_started user_id — только MAX_UI_STAND_*. */
+    public function test_notify_ignores_webhook_registry_recipients(): void
+    {
+        $this->disableOpenAppTarget();
+        Config::set('max.ui_stand.recipient_chat_ids', [777001]);
+        Config::set('max.ui_stand.recipient_user_ids', []);
+
+        $registry = $this->app->make(MaxUiStandRecipientRegistryInterface::class);
+        $registry->rememberUserId(777);
+        $registry->rememberChatId(-100500);
+
+        $sentTargets = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentTargets): void {
+                $sentTargets[] = ['chat_id' => $message->chatId, 'user_id' => $message->userId];
+            });
+        $client->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $notifier = $this->makeNotifier($client);
+
+        $order = $this->makeOrder(id: 42, maxUserId: 1002);
+        $message = $this->makeMessageDto(
+            foodOrderId: 42,
+            body: 'Где мой заказ?',
+            authorType: OrderMessageAuthorType::Customer,
+        );
+
+        $notifier->notify($order, $message);
+
+        $this->assertSame([['chat_id' => 777001, 'user_id' => null]], $sentTargets);
     }
 
     /** Создаёт notifier с подставным MAX-клиентом. */

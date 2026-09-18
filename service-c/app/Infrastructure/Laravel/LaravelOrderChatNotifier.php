@@ -70,12 +70,12 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     }
 
     /**
-     * Уведомляет получателей UI Stand (MAX_UI_STAND_CHAT_IDS / USER_IDS).
+     * Уведомляет получателей UI Stand (только MAX_UI_STAND_* из .env).
      */
     private function notifyUiStand(FoodOrderRecord $order, OrderMessageDto $message): void
     {
-        $chatIds = $this->uiStandRecipientResolver->chatIds();
-        $userIds = $this->uiStandRecipientResolver->userIds();
+        $chatIds = $this->uiStandRecipientResolver->configuredChatIds();
+        $userIds = $this->uiStandRecipientResolver->configuredUserIds();
 
         if ($chatIds === [] && $userIds === []) {
             $this->logger->warning('MAX order chat notification skipped: UI Stand recipients are not configured', [
