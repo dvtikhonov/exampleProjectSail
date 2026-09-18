@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
@@ -208,6 +209,39 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         $notifier->notify($this->makeOrder(), $this->makeMaxUser());
 
         $this->assertSame([10, 20], $callOrder);
+    }
+
+    /** Notify не шлёт накопленным bot_started user_id — только MAX_UI_STAND_*. */
+    public function test_notify_ignores_webhook_registry_user_ids(): void
+    {
+        Config::set('max.ui_stand.mini_app_url', 'https://example.test/max-app');
+        Config::set('max.ui_stand.recipient_chat_ids', [111]);
+        Config::set('max.ui_stand.recipient_user_ids', []);
+
+        $registry = $this->app->make(MaxUiStandRecipientRegistryInterface::class);
+        $registry->rememberUserId(777);
+        $registry->rememberChatId(-100500);
+
+        $sentTargets = [];
+        $client = $this->createMock(MaxMessengerClientInterface::class);
+        $client
+            ->expects($this->once())
+            ->method('sendInlineKeyboardMessage')
+            ->willReturnCallback(function (MaxInlineKeyboardMessageDto $message) use (&$sentTargets): void {
+                $sentTargets[] = ['chat_id' => $message->chatId, 'user_id' => $message->userId];
+            });
+        $client->expects($this->never())->method('sendMessage');
+
+        $notifier = $this->makeNotifier(
+            $client,
+            new MaxOrderNotificationConfig(chatIds: [], userIds: [], maxTextLength: 4000),
+            chatIds: [111],
+            userIds: [],
+        );
+
+        $notifier->notify($this->makeOrder(), $this->makeMaxUser());
+
+        $this->assertSame([['chat_id' => 111, 'user_id' => null]], $sentTargets);
     }
 
     /** Создаёт тестируемый нотификатор. */

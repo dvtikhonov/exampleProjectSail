@@ -483,8 +483,8 @@ TEXT,
             ->willReturn([1003]);
 
         $uiStandResolver = $this->createMock(MaxUiStandRecipientResolverInterface::class);
-        $uiStandResolver->method('chatIds')->willReturn([-75495934087316]);
-        $uiStandResolver->method('userIds')->willReturn([]);
+        $uiStandResolver->method('configuredChatIds')->willReturn([-75495934087316]);
+        $uiStandResolver->method('configuredUserIds')->willReturn([]);
 
         $notifier = $this->makeNotifier($client, $recipientResolver, $uiStandResolver);
 
@@ -593,8 +593,8 @@ TEXT,
         $recipientResolver->expects($this->never())->method('resolveMaxUserIds');
 
         $uiStandResolver = $this->createMock(MaxUiStandRecipientResolverInterface::class);
-        $uiStandResolver->method('chatIds')->willReturn([-75495934087316]);
-        $uiStandResolver->method('userIds')->willReturn([]);
+        $uiStandResolver->method('configuredChatIds')->willReturn([-75495934087316]);
+        $uiStandResolver->method('configuredUserIds')->willReturn([]);
 
         $notifier = $this->makeNotifier($client, $recipientResolver, $uiStandResolver);
 

@@ -57,7 +57,7 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
      * {@inheritDoc}
      *
      * Сначала DM на created_by_max_user_id; при ошибке MAX (например демо-id → 404)
-     * — fallback в получатели UI Stand (MAX_UI_STAND_*), куда уже приходят рабочие уведомления.
+     * — fallback в MAX_UI_STAND_* из .env (без кэша webhook).
      */
     public function notifyManualOrderCreatorConfirmed(FoodOrderRecord $order): void
     {
@@ -81,12 +81,12 @@ class LaravelFoodOrderCustomerNotifier implements FoodOrderCustomerNotifierInter
     }
 
     /**
-     * Fallback: детальный состав ручного заказа в UI Stand (chat_id / user_id).
+     * Fallback: детальный состав ручного заказа в UI Stand (только MAX_UI_STAND_*).
      */
     private function trySendManualCreatorToUiStand(string $text, FoodOrderRecord $order): void
     {
-        $chatIds = $this->uiStandRecipientResolver->chatIds();
-        $userIds = $this->uiStandRecipientResolver->userIds();
+        $chatIds = $this->uiStandRecipientResolver->configuredChatIds();
+        $userIds = $this->uiStandRecipientResolver->configuredUserIds();
 
         if ($chatIds === [] && $userIds === []) {
             $this->logger->warning(

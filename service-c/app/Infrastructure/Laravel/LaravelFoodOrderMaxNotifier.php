@@ -15,7 +15,7 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Отправка уведомлений о новом заказе еды в чаты и пользователей MAX
- * (получатели UI Stand: MAX_UI_STAND_* и кэш webhook — как у «тест бот 2»).
+ * (только MAX_UI_STAND_* из .env, без кэша bot_started / webhook).
  */
 class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
 {
@@ -33,8 +33,8 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
      */
     public function notify(OrderDto $order, MaxUserDisplayDto $customer): void
     {
-        $chatIds = $this->uiStandRecipientResolver->chatIds();
-        $userIds = $this->uiStandRecipientResolver->userIds();
+        $chatIds = $this->uiStandRecipientResolver->configuredChatIds();
+        $userIds = $this->uiStandRecipientResolver->configuredUserIds();
 
         if ($chatIds === [] && $userIds === []) {
             $this->logger->warning(

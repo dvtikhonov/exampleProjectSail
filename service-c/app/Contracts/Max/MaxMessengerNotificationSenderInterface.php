@@ -27,7 +27,7 @@ interface MaxMessengerNotificationSenderInterface
     ): bool;
 
     /**
-     * Рассылает сообщение всем получателям UI Stand (chatIds + userIds из resolver).
+     * Рассылает сообщение получателям из MAX_UI_STAND_* (без кэша webhook).
      *
      * @param  array<int, array<int, MaxInlineKeyboardButtonDto>>  $buttonRows
      * @param  array<string, mixed>  $logContext

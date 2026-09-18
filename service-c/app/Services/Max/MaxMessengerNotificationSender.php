@@ -80,7 +80,7 @@ final class MaxMessengerNotificationSender implements MaxMessengerNotificationSe
         array $logContext,
         string $failureLogMessage = 'MAX notification send failed',
     ): void {
-        foreach ($this->uiStandRecipientResolver->chatIds() as $chatId) {
+        foreach ($this->uiStandRecipientResolver->configuredChatIds() as $chatId) {
             $this->send(
                 text: $text,
                 chatId: $chatId,
@@ -94,7 +94,7 @@ final class MaxMessengerNotificationSender implements MaxMessengerNotificationSe
             );
         }
 
-        foreach ($this->uiStandRecipientResolver->userIds() as $userId) {
+        foreach ($this->uiStandRecipientResolver->configuredUserIds() as $userId) {
             $this->send(
                 text: $text,
                 userId: $userId,
