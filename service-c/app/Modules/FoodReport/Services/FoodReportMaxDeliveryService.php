@@ -35,4 +35,3 @@ final class FoodReportMaxDeliveryService implements FoodReportMaxDeliveryInterfa
         ));
     }
 }
-

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\FoodReport\Console;
 
-use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
 use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
+use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
 use Illuminate\Console\Command;
 
 /**

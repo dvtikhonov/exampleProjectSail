@@ -6,6 +6,7 @@ namespace App\Services\Food\Composition;
 
 use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Composition\OrderCompositionUpdateServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
@@ -15,7 +16,6 @@ use App\DTO\Food\Order\FoodOrderUpdateCommand;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Exceptions\Food\FoodDomainException;
-use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 
 /**
  * Обновление состава заказа проверяющим composition_reviewer.

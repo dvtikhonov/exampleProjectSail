@@ -12,9 +12,4 @@ namespace App\Contracts\Food\Review;
  * {@see FoodOrderCompositionNotifierInterface},
  * {@see FoodOrderManualCreatorNotifierInterface}.
  */
-interface FoodOrderCustomerNotifierInterface extends
-    FoodOrderStatusNotifierInterface,
-    FoodOrderCompositionNotifierInterface,
-    FoodOrderManualCreatorNotifierInterface
-{
-}
+interface FoodOrderCustomerNotifierInterface extends FoodOrderCompositionNotifierInterface, FoodOrderManualCreatorNotifierInterface, FoodOrderStatusNotifierInterface {}

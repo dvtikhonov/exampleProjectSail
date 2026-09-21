@@ -13,10 +13,4 @@ namespace App\Contracts\Food\Review;
  * {@see FoodOrderManualCreatorMaxMessageBuilderInterface},
  * {@see FoodOrderUiStandNewRequestMaxMessageBuilderInterface}.
  */
-interface FoodOrderCustomerMaxMessageBuilderInterface extends
-    FoodOrderCustomerStatusMaxMessageBuilderInterface,
-    FoodOrderCustomerCompositionMaxMessageBuilderInterface,
-    FoodOrderManualCreatorMaxMessageBuilderInterface,
-    FoodOrderUiStandNewRequestMaxMessageBuilderInterface
-{
-}
+interface FoodOrderCustomerMaxMessageBuilderInterface extends FoodOrderCustomerCompositionMaxMessageBuilderInterface, FoodOrderCustomerStatusMaxMessageBuilderInterface, FoodOrderManualCreatorMaxMessageBuilderInterface, FoodOrderUiStandNewRequestMaxMessageBuilderInterface {}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
@@ -20,7 +21,6 @@ use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
-use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Services\Food\Review\OrderReviewAuthorizationService;
 use App\Services\Food\Review\OrderReviewCompletionService;
 use App\Services\Food\Review\OrderReviewStepHandler;

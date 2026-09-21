@@ -7,6 +7,7 @@ namespace App\Services\Food\Order;
 use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\Cart\CartTotalsCalculatorInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
 use App\Contracts\Food\Order\OrderItemsSnapshotBuilderInterface;
@@ -21,7 +22,6 @@ use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use DateTimeInterface;
 
 /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\FoodReport;
 
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
@@ -12,7 +13,6 @@ use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
-use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Models\FoodOrderItem;
 use App\Repositories\Food\Order\FoodOrderMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
