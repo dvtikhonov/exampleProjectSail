@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Cart\CartTotalsCalculatorInterface;
 use App\Models\Max\MaxUser;
-use App\Services\Food\Cart\CartTotalsCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -33,7 +33,7 @@ class CartTotalsCalculatorTest extends TestCase
             'first_name' => 'NoCategory',
         ]);
 
-        $totals = app(CartTotalsCalculator::class)->calculate(
+        $totals = app(CartTotalsCalculatorInterface::class)->calculate(
             restaurantId: $fixture['restaurant']->id,
             maxUserId: $maxUser->max_user_id,
             itemsTotal: 300.0,
@@ -58,7 +58,7 @@ class CartTotalsCalculatorTest extends TestCase
 
         $maxUser = FoodTestDataBuilder::createMaxUserWithCategory($fixture['customer_category']);
 
-        $calculator = app(CartTotalsCalculator::class);
+        $calculator = app(CartTotalsCalculatorInterface::class);
 
         $belowThreshold = $calculator->calculate(
             restaurantId: $fixture['restaurant']->id,
@@ -93,7 +93,7 @@ class CartTotalsCalculatorTest extends TestCase
         $category = FoodTestDataBuilder::createCustomerCategory();
         $maxUser = FoodTestDataBuilder::createMaxUserWithCategory($category);
 
-        $totals = app(CartTotalsCalculator::class)->calculate(
+        $totals = app(CartTotalsCalculatorInterface::class)->calculate(
             restaurantId: $fixture['restaurant']->id,
             maxUserId: $maxUser->max_user_id,
             itemsTotal: 100.0,

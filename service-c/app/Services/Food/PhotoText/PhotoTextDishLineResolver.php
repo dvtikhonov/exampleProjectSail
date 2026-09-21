@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\PhotoText;
 
+use App\Contracts\Food\Composition\ComboPairValidatorInterface;
 use App\Contracts\Food\PhotoText\PhotoTextComboRefGrouperInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishNameMatcherInterface;
@@ -15,7 +16,6 @@ use App\DTO\Food\PhotoText\PhotoTextPlacementResultDto;
 use App\Enums\Food\PhotoText\PhotoTextComboRefGroupKind;
 use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Composition\ComboPairValidator;
 
 /**
  * Матчинг канонических позиций агента PhotoText к блюдам/комбо: matched[] + issues[].
@@ -24,7 +24,7 @@ class PhotoTextDishLineResolver implements PhotoTextDishLineResolverInterface
 {
     public function __construct(
         private readonly PhotoTextDishNameMatcherInterface $dishNameMatcher,
-        private readonly ComboPairValidator $comboPairValidator,
+        private readonly ComboPairValidatorInterface $comboPairValidator,
         private readonly PhotoTextComboRefGrouperInterface $comboRefGrouper,
         private readonly PhotoTextMatchIssueFactory $matchIssueFactory,
     ) {}

@@ -85,7 +85,7 @@ class MaxWebAppInitDataValidator implements MaxWebAppInitDataValidatorInterface
         }
 
         $authDate = (int) $authDateRaw;
-        $maxAgeSeconds = (int) $this->config->get('max.miniapp.auth_date_max_age_seconds', 86_400);
+        $maxAgeSeconds = (int) $this->config->get('max.miniapp.auth_date_max_age_seconds', 3_600);
 
         if ($authDate > time()) {
             throw MaxWebAppInitDataException::invalid('initData auth_date is in the future.');

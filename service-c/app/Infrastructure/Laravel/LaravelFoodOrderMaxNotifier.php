@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Laravel;
 
-use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderUiStandNewRequestMaxMessageBuilderInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
@@ -22,7 +22,7 @@ class LaravelFoodOrderMaxNotifier implements FoodOrderMaxNotifierInterface
     public function __construct(
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
-        private readonly FoodOrderCustomerMaxMessageBuilderInterface $messageBuilder,
+        private readonly FoodOrderUiStandNewRequestMaxMessageBuilderInterface $messageBuilder,
         private readonly MaxOpenAppButtonFactory $openAppButtonFactory,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
         private readonly LoggerInterface $logger,

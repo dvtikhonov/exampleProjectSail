@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Review\FoodOrderReviewNotifierInterface;
 use App\Contracts\Food\Review\OrderReviewAuthorizationServiceInterface;
@@ -15,7 +16,6 @@ use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 
 /**
  * Единый обработчик approve/reject для всех этапов проверки заказа.

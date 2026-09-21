@@ -7,6 +7,21 @@ import { VIEWS } from '../constants/views';
 
 const DEFAULT_PER_PAGE = 20;
 
+/**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isRequestCanceled(error) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    return (
+        /** @type {{ code?: string, name?: string }} */ (error).code === 'ERR_CANCELED'
+        || /** @type {{ code?: string, name?: string }} */ (error).name === 'CanceledError'
+    );
+}
+
 /** @returns {{ current_page: number, per_page: number, total: number, last_page: number }} */
 function emptyOrdersMeta() {
     return {
@@ -34,6 +49,10 @@ export function useMyOrders({ currentView }) {
     const orderDetailLoading = ref(false);
     const orderDetailError = ref('');
 
+    let detailSeq = 0;
+    /** @type {AbortController|null} */
+    let detailAbortController = null;
+
     const ordersUnreadCount = computed(() =>
         myOrders.value.reduce((sum, order) => sum + (order.unread_count ?? 0), 0),
     );
@@ -41,6 +60,13 @@ export function useMyOrders({ currentView }) {
     const hasMoreOrders = computed(
         () => myOrdersMeta.value.current_page < myOrdersMeta.value.last_page,
     );
+
+    function abortOrderDetail() {
+        if (detailAbortController !== null) {
+            detailAbortController.abort();
+            detailAbortController = null;
+        }
+    }
 
     /**
      * @param {{ refreshing?: boolean, silent?: boolean }} [options]
@@ -92,13 +118,22 @@ export function useMyOrders({ currentView }) {
     }
 
     function goToMyOrders() {
+        abortOrderDetail();
+        detailSeq += 1;
         currentView.value = VIEWS.orderList;
         selectedOrderId.value = null;
         orderDetail.value = null;
+        orderDetailLoading.value = false;
         loadMyOrders();
     }
 
     async function openOrderDetail(orderId) {
+        abortOrderDetail();
+
+        const controller = new AbortController();
+        detailAbortController = controller;
+        const mySeq = ++detailSeq;
+
         selectedOrderId.value = orderId;
         currentView.value = VIEWS.orderDetail;
         orderDetail.value = null;
@@ -106,11 +141,23 @@ export function useMyOrders({ currentView }) {
         orderDetailLoading.value = true;
 
         try {
-            orderDetail.value = await fetchOrder(orderId);
+            const detail = await fetchOrder(orderId, { signal: controller.signal });
+
+            if (mySeq !== detailSeq || selectedOrderId.value !== orderId) {
+                return;
+            }
+
+            orderDetail.value = detail;
         } catch (error) {
+            if (isRequestCanceled(error) || mySeq !== detailSeq || selectedOrderId.value !== orderId) {
+                return;
+            }
+
             orderDetailError.value = extractErrorMessage(error);
         } finally {
-            orderDetailLoading.value = false;
+            if (mySeq === detailSeq) {
+                orderDetailLoading.value = false;
+            }
         }
     }
 
@@ -122,10 +169,13 @@ export function useMyOrders({ currentView }) {
     }
 
     function closeOrderDetail() {
+        abortOrderDetail();
+        detailSeq += 1;
         currentView.value = VIEWS.orderList;
         selectedOrderId.value = null;
         orderDetail.value = null;
         orderDetailError.value = '';
+        orderDetailLoading.value = false;
         loadMyOrders();
     }
 
@@ -142,8 +192,11 @@ export function useMyOrders({ currentView }) {
 
     /** Сброс выбранного заказа при возврате на главный экран */
     function resetOrderSelection() {
+        abortOrderDetail();
+        detailSeq += 1;
         selectedOrderId.value = null;
         orderDetail.value = null;
+        orderDetailLoading.value = false;
     }
 
     return {

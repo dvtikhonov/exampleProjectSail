@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\PhotoText;
 
 use App\Contracts\Food\PhotoText\PhotoTextDishNameMatcherInterface;
+use App\Contracts\Food\PhotoText\PhotoTextScheduleMatcherInterface;
 use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleIssueDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleMatchedDto;
@@ -13,7 +14,7 @@ use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
 /**
  * Exact match имён графика PhotoText (без записи в БД).
  */
-class PhotoTextScheduleMatcher
+class PhotoTextScheduleMatcher implements PhotoTextScheduleMatcherInterface
 {
     public function __construct(
         private readonly PhotoTextDishNameMatcherInterface $dishNameMatcher,
@@ -22,10 +23,7 @@ class PhotoTextScheduleMatcher
     ) {}
 
     /**
-     * Exact match имён в ресторане (±фильтр категорий); график не пишется.
-     *
-     * @param  list<int>|null  $categoryIds
-     * @param  list<PhotoTextScheduleEntryDto>  $entries
+     * {@inheritDoc}
      */
     public function match(
         int $restaurantId,

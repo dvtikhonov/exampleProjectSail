@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Composition;
 
+use App\Contracts\Food\Cart\CartTotalsCalculatorInterface;
+use App\Contracts\Food\Composition\ComboPairValidatorInterface;
 use App\Contracts\Food\Composition\OrderCompositionSnapshotBuilderInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
+use App\Contracts\Food\Order\OrderItemsSnapshotBuilderInterface;
 use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Composition\OrderCompositionSnapshotDto;
 use App\DTO\Food\Menu\DishRecord;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Cart\CartTotalsCalculator;
-use App\Services\Food\Order\OrderItemsSnapshotBuilder;
 
 /**
  * Сборка items_snapshot из dish_id/qty/combo и пересчёт totals по клиенту заказа.
@@ -20,9 +21,9 @@ class OrderCompositionSnapshotBuilder implements OrderCompositionSnapshotBuilder
 {
     public function __construct(
         private readonly DishCatalogRepositoryInterface $dishRepository,
-        private readonly ComboPairValidator $comboPairValidator,
-        private readonly OrderItemsSnapshotBuilder $orderItemsSnapshotBuilder,
-        private readonly CartTotalsCalculator $cartTotalsCalculator,
+        private readonly ComboPairValidatorInterface $comboPairValidator,
+        private readonly OrderItemsSnapshotBuilderInterface $orderItemsSnapshotBuilder,
+        private readonly CartTotalsCalculatorInterface $cartTotalsCalculator,
         private readonly FoodMoneyFormatterInterface $moneyFormatter,
     ) {}
 

@@ -12,6 +12,10 @@ use App\Modules\FoodReport\DTO\RevenueDayRowDto;
 use App\Modules\FoodReport\DTO\RevenueReportDto;
 use App\Modules\FoodReport\DTO\TopDishDayRowDto;
 use App\Modules\FoodReport\DTO\TopDishesReportDto;
+use App\Modules\FoodReport\FoodReportLimits;
+use DateTimeImmutable;
+use Exception;
+use InvalidArgumentException;
 
 /**
  * Query-сервис отчётов Food: выручка (items_total) и топ блюд (только confirmed).
@@ -28,6 +32,8 @@ final class FoodReportQueryService implements FoodReportQueryServiceInterface
      */
     public function revenue(ReportFilterDto $filter): RevenueReportDto
     {
+        $this->assertSpanWithinLimit($filter);
+
         $rawDays = $this->reportRepository->aggregateRevenueByDay($filter);
         usort(
             $rawDays,
@@ -69,6 +75,8 @@ final class FoodReportQueryService implements FoodReportQueryServiceInterface
      */
     public function topDishes(ReportFilterDto $filter, int $limitPerDay = 20): TopDishesReportDto
     {
+        $this->assertSpanWithinLimit($filter);
+
         $rawRows = $this->reportRepository->aggregateTopDishesByDay($filter, $limitPerDay);
 
         $rows = [];
@@ -86,5 +94,33 @@ final class FoodReportQueryService implements FoodReportQueryServiceInterface
         }
 
         return new TopDishesReportDto($rows);
+    }
+
+    /**
+     * Защита сервисного слоя: период не длиннее {@see FoodReportLimits::MAX_SPAN_DAYS}.
+     * Логика совпадает с UX-проверкой в FoodReportFilterRequest.
+     *
+     * @throws InvalidArgumentException
+     */
+    private function assertSpanWithinLimit(ReportFilterDto $filter): void
+    {
+        try {
+            $fromDate = new DateTimeImmutable($filter->dateFrom);
+            $toDate = new DateTimeImmutable($filter->dateTo);
+        } catch (Exception $exception) {
+            throw new InvalidArgumentException(
+                'Некорректный период отчёта: date_from/date_to должны быть датами Y-m-d.',
+                0,
+                $exception,
+            );
+        }
+
+        $spanDays = (int) $fromDate->diff($toDate)->days;
+
+        if ($spanDays > FoodReportLimits::MAX_SPAN_DAYS) {
+            throw new InvalidArgumentException(
+                'Период отчёта не может превышать '.FoodReportLimits::MAX_SPAN_DAYS.' дня.',
+            );
+        }
     }
 }

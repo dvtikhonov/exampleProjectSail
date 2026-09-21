@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderManualCreatorNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
@@ -35,7 +35,7 @@ class PhotoTextOrderApiTest extends TestCase
 
         $this->resetFoodDomainTables();
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
-        $this->mock(FoodOrderCustomerNotifierInterface::class)->shouldIgnoreMissing();
+        $this->mock(FoodOrderManualCreatorNotifierInterface::class)->shouldIgnoreMissing();
     }
 
     /** POST /orders создаёт запись в max_food_orders со статусом draft_after_scanning. */
@@ -155,5 +155,36 @@ class PhotoTextOrderApiTest extends TestCase
         ], $this->photoTextWriteHeaders())
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['items']);
+    }
+
+    /** Env allow-list другого max_user при активном AI — 403 на place. */
+    public function test_place_forbidden_when_env_manager_mismatches_active_ai_user(): void
+    {
+        $activeManager = $this->phototextManager(10_017, 'ActiveAiManager');
+        $this->phototextManager(10_018, 'EnvOnlyManager');
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Обедов Mismatch',
+            'Салат Оливье',
+            80,
+        );
+        FoodTestDataBuilder::createMaxUserWithCategory(
+            $fixture['customer_category'],
+            maxUserId: 55_204,
+            firstName: 'КлиентMismatchPhotoText',
+        );
+
+        $this->configurePhotoTextAgent($activeManager['user']->max_user_id);
+        config(['phototext.manager_max_user_id' => 10_018]);
+
+        $this->postJson('/api/food/phototext/orders', [
+            'customer_query' => 'КлиентMismatchPhotoText',
+            'order_date' => '2026-08-14',
+            'restaurant_id' => $fixture['restaurant']->id,
+            'items' => [
+                ['name' => 'Салат Оливье', 'quantity' => 1],
+            ],
+        ], $this->photoTextWriteHeaders())
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Активный AI-пользователь не совпадает с PhotoText-менеджером.');
     }
 }

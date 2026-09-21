@@ -17,6 +17,7 @@
 | `yandex-parser` | Node/Playwright: headless-парсер Яндекс.Карт для `service-d` (`POST /resolve`, `/sync-reviews`); внутренний URL `http://yandex-parser:3000` — см. [yandex-parser/README.md](yandex-parser/README.md) |
 | `service-f` | Laravel 13 + Filament 3: URL shortener на субдомене `urlshort.*`, админка `/admin`, публичный редирект `GET /{code}` — см. [service-f/README.md](service-f/README.md) |
 | `service-g` | Laravel 13 API + Nuxt 3: каркас To-Do List на `listtodo.localhost`, Sanctum, фронтенд в `nuxt-app/` — см. [service-g/README.md](service-g/README.md) |
+| `service-i` | Laravel 13 + Vue 3 SPA: Notes CRUD на SQLite (`:8089` / `notes.localhost`), без auth; Node только в docker build — см. [service-i/README.md](service-i/README.md) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `shared/max-messenger` | Локальный Composer-пакет `example/max-messenger`: HTTP-клиент MAX Bot API (`service-b`, `service-c`) |
@@ -112,6 +113,8 @@ SERVICE_G_DB_PASSWORD=<your-local-password>
 
 Создайте `service_g_db` во внешнем MySQL (см. [service-g/README.md](service-g/README.md)). Для PHPUnit backend-тестов `service-g` использует SQLite `:memory:` — отдельную тестовую MySQL-базу создавать не нужно.
 
+Для `service-i` MySQL не нужен: runtime и тесты на SQLite (файл в контейнере / `:memory:` в PHPUnit). См. [service-i/README.md](service-i/README.md).
+
 Для `service-a` задайте `DB_*` через `environment` в `docker-compose.yml` или через `.env` сервиса. Если сервисы используют разные базы, создайте их заранее во внешнем MySQL.
 
 Стандартные `.env.example` у сервисов по умолчанию настроены на SQLite — для Docker-запуска через корневой compose их нужно перевести на MySQL.
@@ -122,7 +125,7 @@ SERVICE_G_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `service-g`, `service-g-nuxt`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `service-g`, `service-g-nuxt`, `service-i`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
@@ -222,9 +225,11 @@ docker compose up -d main-app
 | `service-f` напрямую | `http://localhost:8087` |
 | `service-g` напрямую (Laravel API) | `http://localhost:8088` |
 | `service-g-nuxt` напрямую | `http://localhost:3000` |
+| `service-i` напрямую | `http://localhost:8089` (UI `/notes`, API `/api/notes`) |
 | `service-d` через gateway (субдомен) | `http://yandexmaps.localhost:8080` (нужна запись в `/etc/hosts`) |
 | `service-f` через gateway (субдомен) | `http://urlshort.localhost:8080` (Host-based routing в gateway) |
 | `service-g` через gateway (субдомен) | `http://listtodo.localhost:8080` (Nuxt UI + `/api` → Laravel) |
+| `service-i` через gateway (субдомен) | `http://notes.localhost:8080` (нужна запись в `/etc/hosts`) |
 | Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
 | Vite dev server | `http://localhost:5173` (`main-app`), `5174` (`service-c`), `5175` (`service-d`) |
 | MailHog | `http://localhost:8025` |
@@ -841,6 +846,7 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `service-e` — Symfony 8 API торговых точек через `/api/e/`; общая таблица `sales_outlets` с `service-a`; см. [service-e/README.md](service-e/README.md).
 - `service-f` — URL shortener на субдомене `urlshort.*`, Filament `/admin`; БД `service_f_db`; см. [service-f/README.md](service-f/README.md).
 - `service-g` — To-Do List (каркас): Laravel API + Nuxt 3 на `listtodo.localhost`, Sanctum; БД `service_g_db`; см. [service-g/README.md](service-g/README.md).
+- `service-i` — Notes CRUD: Laravel + Vue 3 SPA на SQLite (`:8089` / `notes.localhost`), публичный API; Node только в multi-stage build; **не** в CI; см. [service-i/README.md](service-i/README.md).
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.

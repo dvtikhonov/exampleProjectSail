@@ -10,8 +10,10 @@ use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextDishLineResolverInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
+use App\Contracts\Max\MaxAiAccessServiceInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
+use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\PhotoText\PhotoTextMatchedLineDto;
@@ -32,6 +34,8 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
         private readonly ManualOrderSubmissionServiceInterface $orderSubmissionService,
         private readonly MaxUserIdentityRepositoryInterface $maxUserRepository,
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
+        private readonly MaxAiAccessServiceInterface $maxAiAccessService,
+        private readonly ClockInterface $clock,
         private readonly ApplicationConfigInterface $config,
         private readonly TransactionManagerInterface $transactionManager,
     ) {}
@@ -96,26 +100,38 @@ class PhotoTextManualOrderPlacementService implements PhotoTextManualOrderPlacem
     }
 
     /**
-     * Менеджер из PHOTOTEXT_MANAGER_MAX_USER_ID с активной ролью max_manager.
+     * Менеджер write-операций = активный AI-пользователь с ролью max_manager.
+     *
+     * PHOTOTEXT_MANAGER_MAX_USER_ID (>0) — опциональный allow-list: active должен совпадать.
      *
      * @throws FoodDomainException
      */
     private function resolveManager(): MaxUserIdentity
     {
-        $managerId = (int) $this->config->get('phototext.manager_max_user_id');
+        $status = $this->maxAiAccessService->getStatus($this->clock->now());
 
-        if ($managerId < 1) {
-            throw new FoodDomainException('PhotoText-менеджер не настроен.', 500);
+        if (! $status->enabled || $status->activeMaxUserId === null) {
+            throw new FoodDomainException('Доступ AI к базе не разрешён.', 403);
+        }
+
+        $managerId = $status->activeMaxUserId;
+        $allowedManagerId = (int) $this->config->get('phototext.manager_max_user_id');
+
+        if ($allowedManagerId > 0 && $allowedManagerId !== $managerId) {
+            throw new FoodDomainException(
+                'Активный AI-пользователь не совпадает с PhotoText-менеджером.',
+                403,
+            );
         }
 
         $manager = $this->maxUserRepository->findByMaxUserId($managerId);
 
         if ($manager === null) {
-            throw new FoodDomainException('PhotoText-менеджер не найден.', 500);
+            throw new FoodDomainException('PhotoText-менеджер не найден.', 403);
         }
 
         if (! $this->foodOrderAdminRepository->hasActiveRole($managerId, FoodOrderAdminRole::MaxManager)) {
-            throw new FoodDomainException('PhotoText-менеджер не имеет роли max_manager.', 500);
+            throw new FoodDomainException('PhotoText-менеджер не имеет роли max_manager.', 403);
         }
 
         return new MaxUserIdentity(

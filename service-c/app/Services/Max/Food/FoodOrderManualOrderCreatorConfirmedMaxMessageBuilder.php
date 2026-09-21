@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Max\Food;
 
+use App\Contracts\Food\Review\FoodOrderManualCreatorMaxMessageBuilderInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Support\Max\Food\Formatting\FoodOrderMaxBoundedItemsMessageAssembler;
 use App\Support\Max\Food\Formatting\FoodOrderMaxClientFormatter;
@@ -14,7 +15,7 @@ use App\Support\Max\Food\Formatting\FoodOrderMaxTextAssembler;
 /**
  * Текст доп. MAX-уведомления менеджеру, оформившему ручной заказ, после подтверждения.
  */
-final class FoodOrderManualOrderCreatorConfirmedMaxMessageBuilder
+final class FoodOrderManualOrderCreatorConfirmedMaxMessageBuilder implements FoodOrderManualCreatorMaxMessageBuilderInterface
 {
     public function __construct(
         private readonly FoodOrderMaxClientFormatter $clientFormatter,

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderStatusNotifierInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
@@ -22,6 +22,7 @@ use App\Models\Max\MaxUser;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -50,6 +51,23 @@ class FoodOrderApiTest extends TestCase
     {
         $this->postJson('/api/food/orders/submit')
             ->assertUnauthorized();
+    }
+
+    /** POST /api/food/orders/submit защищён throttle:10,1 (+ throttle:api из группы). */
+    public function test_submit_order_route_has_throttle_middleware(): void
+    {
+        $route = collect(Route::getRoutes())->first(
+            static function ($route): bool {
+                return $route->uri() === 'api/food/orders/submit'
+                    && in_array('POST', $route->methods(), true);
+            },
+        );
+
+        $this->assertNotNull($route);
+        $middleware = $route->gatherMiddleware();
+        $this->assertContains('throttle:10,1', $middleware);
+        $this->assertContains('max.miniapp.auth', $middleware);
+        $this->assertContains('throttle:api', app('router')->getMiddlewareGroups()['api']);
     }
 
     /** Submit заказа отклоняет пустую корзину. */
@@ -88,7 +106,7 @@ class FoodOrderApiTest extends TestCase
                 $capturedUser = $user;
             });
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
         $customerNotifier
             ->expects($this->once())
             ->method('notifySubmitted')
@@ -97,7 +115,7 @@ class FoodOrderApiTest extends TestCase
             });
 
         $this->app->instance(FoodOrderMaxNotifierInterface::class, $notifier);
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        $this->app->instance(FoodOrderStatusNotifierInterface::class, $customerNotifier);
 
         $this->addItemToCart($auth, $fixture['dish']->id, 2);
         $this->setCartDeliveryAddress($auth, $address);

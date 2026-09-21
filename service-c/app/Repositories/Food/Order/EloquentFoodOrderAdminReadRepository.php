@@ -5,31 +5,30 @@ declare(strict_types=1);
 namespace App\Repositories\Food\Order;
 
 use App\Contracts\Food\Order\FoodOrderAdminReadRepositoryInterface;
+use App\Contracts\Food\Order\FoodOrderAdminReviewReadRepositoryInterface;
+use App\Contracts\Food\Order\FoodOrderManualAdminReadRepositoryInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Shared\PaginatedResultDto;
 use App\Enums\Food\Order\AdminOrderListScope;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
-use App\Models\Food\FoodOrder;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Eloquent-реализация чтения заказов еды для административного API.
+ * Composition-адаптер полного admin-read порта: делегирует в review / manual репозитории.
  */
 class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadRepositoryInterface
 {
-    use MapsFoodOrderEloquent;
+    public function __construct(
+        private readonly FoodOrderAdminReviewReadRepositoryInterface $reviewReadRepository,
+        private readonly FoodOrderManualAdminReadRepositoryInterface $manualReadRepository,
+    ) {}
 
     /**
      * {@inheritDoc}
      */
     public function findById(int $id): ?FoodOrderRecord
     {
-        $model = FoodOrder::query()
-            ->with(['restaurant', 'maxUser'])
-            ->find($id);
-
-        return $model !== null ? $this->mapToRecord($model) : null;
+        return $this->reviewReadRepository->findById($id);
     }
 
     /**
@@ -37,11 +36,7 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
      */
     public function findByIdForScope(int $id, AdminOrderListScope $scope): ?FoodOrderRecord
     {
-        $model = $this->reviewHistoryQuery($scope)
-            ->whereKey($id)
-            ->first();
-
-        return $model !== null ? $this->mapToRecord($model) : null;
+        return $this->reviewReadRepository->findByIdForScope($id, $scope);
     }
 
     /**
@@ -49,30 +44,7 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
      */
     public function paginateForAddressReview(OrderReviewStatus $reviewStatus, int $perPage): PaginatedResultDto
     {
-        $query = FoodOrder::query()
-            ->with(['restaurant', 'maxUser'])
-            ->whereNotIn('status', $this->statusesExcludedFromReviewQueue());
-
-        if ($reviewStatus === OrderReviewStatus::Pending) {
-            $query->where(function ($builder): void {
-                $builder
-                    ->where('address_review_status', OrderReviewStatus::Pending)
-                    ->orWhere('payment_review_status', OrderReviewStatus::Pending);
-            });
-        } else {
-            $query->where(function ($builder) use ($reviewStatus): void {
-                $builder
-                    ->where('address_review_status', $reviewStatus)
-                    ->orWhere('payment_review_status', $reviewStatus);
-            });
-        }
-
-        return $this->paginateRecords(
-            $query
-                ->orderByDesc('created_at')
-                ->orderByDesc('id'),
-            $perPage,
-        );
+        return $this->reviewReadRepository->paginateForAddressReview($reviewStatus, $perPage);
     }
 
     /**
@@ -80,26 +52,7 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
      */
     public function paginateForCompositionReview(OrderReviewStatus $reviewStatus, int $perPage): PaginatedResultDto
     {
-        $query = FoodOrder::query()
-            ->with(['restaurant', 'maxUser'])
-            ->whereNotIn('status', $this->statusesExcludedFromReviewQueue());
-
-        if ($reviewStatus === OrderReviewStatus::Pending) {
-            $query->where(function ($builder): void {
-                $builder
-                    ->where('composition_review_status', OrderReviewStatus::Pending)
-                    ->orWhere('composition_review_status', OrderReviewStatus::NotApplicable);
-            });
-        } else {
-            $query->where('composition_review_status', $reviewStatus);
-        }
-
-        return $this->paginateRecords(
-            $query
-                ->orderByDesc('created_at')
-                ->orderByDesc('id'),
-            $perPage,
-        );
+        return $this->reviewReadRepository->paginateForCompositionReview($reviewStatus, $perPage);
     }
 
     /**
@@ -107,12 +60,7 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
      */
     public function paginateForAddressReviewAll(int $perPage): PaginatedResultDto
     {
-        return $this->paginateRecords(
-            $this->reviewHistoryQuery(AdminOrderListScope::Address)
-                ->orderByDesc('created_at')
-                ->orderByDesc('id'),
-            $perPage,
-        );
+        return $this->reviewReadRepository->paginateForAddressReviewAll($perPage);
     }
 
     /**
@@ -120,12 +68,7 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
      */
     public function paginateForCompositionReviewAll(int $perPage): PaginatedResultDto
     {
-        return $this->paginateRecords(
-            $this->reviewHistoryQuery(AdminOrderListScope::Composition)
-                ->orderByDesc('created_at')
-                ->orderByDesc('id'),
-            $perPage,
-        );
+        return $this->reviewReadRepository->paginateForCompositionReviewAll($perPage);
     }
 
     /**
@@ -139,18 +82,13 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
         ?int $customerMaxUserId = null,
         ?OrderStatus $status = null,
     ): PaginatedResultDto {
-        return $this->paginateRecords(
-            $this->manualOrdersQuery(
-                $query,
-                $dateFrom,
-                $dateTo,
-                $customerMaxUserId,
-                $status,
-            )
-                ->with(['restaurant', 'maxUser'])
-                ->orderByDesc('created_at')
-                ->orderByDesc('id'),
+        return $this->manualReadRepository->paginateManualOrders(
+            $query,
+            $dateFrom,
+            $dateTo,
             $perPage,
+            $customerMaxUserId,
+            $status,
         );
     }
 
@@ -164,15 +102,13 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
         ?int $customerMaxUserId = null,
         ?OrderStatus $status = null,
     ): string {
-        $sum = $this->manualOrdersQuery(
+        return $this->manualReadRepository->sumManualOrdersTotal(
             $query,
             $dateFrom,
             $dateTo,
             $customerMaxUserId,
             $status,
-        )->sum('total');
-
-        return number_format((float) $sum, 2, '.', '');
+        );
     }
 
     /**
@@ -180,107 +116,6 @@ class EloquentFoodOrderAdminReadRepository implements FoodOrderAdminReadReposito
      */
     public function findManualOrderById(int $id): ?FoodOrderRecord
     {
-        $model = FoodOrder::query()
-            ->with(['restaurant', 'maxUser'])
-            ->withExists('messages')
-            ->where('is_manual', true)
-            ->whereKey($id)
-            ->first();
-
-        return $model !== null ? $this->mapToRecord($model) : null;
-    }
-
-    /**
-     * Базовый запрос истории проверки в рамках admin scope (status=all / detail).
-     * Без фильтра Pending; включает confirmed/rejected; исключает draft_after_scanning.
-     *
-     * @return Builder<FoodOrder>
-     */
-    private function reviewHistoryQuery(AdminOrderListScope $scope): Builder
-    {
-        $query = FoodOrder::query()
-            ->with(['restaurant', 'maxUser'])
-            ->where('status', '!=', OrderStatus::DraftAfterScanning);
-
-        // Scope-смысл как у pending-очередей: address смотрит address/payment,
-        // composition — composition (в т.ч. legacy not_applicable уже в истории).
-        return match ($scope) {
-            AdminOrderListScope::Address => $query->where(function (Builder $builder): void {
-                $builder
-                    ->whereNotNull('address_review_status')
-                    ->orWhereNotNull('payment_review_status');
-            }),
-            AdminOrderListScope::Composition => $query->whereNotNull('composition_review_status'),
-        };
-    }
-
-    /**
-     * Статусы, которые не попадают в очередь «Проверка заказов».
-     *
-     * @return list<OrderStatus>
-     */
-    private function statusesExcludedFromReviewQueue(): array
-    {
-        return [
-            OrderStatus::Rejected,
-            OrderStatus::Confirmed,
-            OrderStatus::DraftAfterScanning,
-        ];
-    }
-
-    /**
-     * Базовый запрос ручных заказов с фильтрами списка.
-     *
-     * @return Builder<FoodOrder>
-     */
-    private function manualOrdersQuery(
-        ?string $query,
-        ?string $dateFrom,
-        ?string $dateTo,
-        ?int $customerMaxUserId = null,
-        ?OrderStatus $status = null,
-    ): Builder {
-        $builder = FoodOrder::query()->where('is_manual', true);
-
-        if ($customerMaxUserId !== null) {
-            $builder->where('max_user_id', $customerMaxUserId);
-        }
-
-        if ($status !== null) {
-            $builder->where('status', $status);
-        }
-
-        if ($dateFrom !== null) {
-            $builder->where('created_at', '>=', $dateFrom.' 00:00:00');
-        }
-
-        if ($dateTo !== null) {
-            $builder->where('created_at', '<=', $dateTo.' 23:59:59');
-        }
-
-        $normalizedQuery = $query !== null ? trim($query) : '';
-
-        if ($normalizedQuery !== '') {
-            $like = '%'.$normalizedQuery.'%';
-
-            $builder->whereHas('maxUser', function (Builder $userQuery) use ($normalizedQuery, $like): void {
-                $userQuery->where(function (Builder $searchQuery) use ($normalizedQuery, $like): void {
-                    $searchQuery
-                        ->where('first_name', 'like', $like)
-                        ->orWhere('last_name', 'like', $like)
-                        ->orWhere('username', 'like', $like)
-                        ->orWhereRaw(
-                            "CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) LIKE ?",
-                            [$like],
-                        );
-
-                    if (ctype_digit($normalizedQuery)) {
-                        $searchQuery->orWhere('max_user_id', (int) $normalizedQuery);
-                    }
-                });
-            });
-        }
-
-        return $builder;
+        return $this->manualReadRepository->findManualOrderById($id);
     }
 }

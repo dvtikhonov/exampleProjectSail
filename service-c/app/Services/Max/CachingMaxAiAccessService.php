@@ -8,7 +8,7 @@ use App\Contracts\Max\MaxAiAccessServiceInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Max\AiAccessStatusDto;
 use App\DTO\Max\MaxUserIdentity;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
@@ -20,6 +20,9 @@ use DateTimeInterface;
 class CachingMaxAiAccessService implements MaxAiAccessServiceInterface
 {
     public const string CACHE_KEY = 'max.ai_access.status';
+
+    /** Короткий TTL положительного статуса (multi-instance / file cache). */
+    private const int ENABLED_TTL_SECONDS = 15;
 
     private const int DISABLED_TTL_SECONDS = 60;
 
@@ -72,7 +75,7 @@ class CachingMaxAiAccessService implements MaxAiAccessServiceInterface
     }
 
     /**
-     * Кладёт статус в кэш с TTL: до expires_at (если включён) или safety-net 60 с.
+     * Кладёт статус в кэш с TTL: enabled — до 15 с (cap), disabled — 60 с.
      */
     private function putStatus(AiAccessStatusDto $status, DateTimeInterface $now): void
     {
@@ -88,7 +91,7 @@ class CachingMaxAiAccessService implements MaxAiAccessServiceInterface
     }
 
     /**
-     * TTL кэша: при включённом доступе — секунды до expires_at (минимум 1);
+     * TTL кэша: при включённом доступе — min(секунды до expires_at, 15);
      * при выключенном — 60 с.
      */
     private function ttlSeconds(AiAccessStatusDto $status, DateTimeInterface $now): int
@@ -97,10 +100,11 @@ class CachingMaxAiAccessService implements MaxAiAccessServiceInterface
             return self::DISABLED_TTL_SECONDS;
         }
 
-        $expiresAt = CarbonImmutable::parse($status->expiresAt);
-        $seconds = $expiresAt->getTimestamp() - CarbonImmutable::instance($now)->getTimestamp();
+        $expiresAt = new DateTimeImmutable($status->expiresAt);
+        $secondsUntilExpiry = $expiresAt->getTimestamp()
+            - DateTimeImmutable::createFromInterface($now)->getTimestamp();
 
-        return max(1, $seconds);
+        return max(1, min($secondsUntilExpiry, self::ENABLED_TTL_SECONDS));
     }
 
     /**
@@ -149,8 +153,8 @@ class CachingMaxAiAccessService implements MaxAiAccessServiceInterface
             return null;
         }
 
-        $expiresAtMoment = CarbonImmutable::parse($expiresAt);
-        if ($expiresAtMoment->getTimestamp() <= CarbonImmutable::instance($now)->getTimestamp()) {
+        $expiresAtMoment = new DateTimeImmutable($expiresAt);
+        if ($expiresAtMoment->getTimestamp() <= DateTimeImmutable::createFromInterface($now)->getTimestamp()) {
             return null;
         }
 

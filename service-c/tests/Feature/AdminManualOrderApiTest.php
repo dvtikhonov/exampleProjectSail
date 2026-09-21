@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderStatusNotifierInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Order\OrderStatus;
@@ -120,6 +120,42 @@ class AdminManualOrderApiTest extends TestCase
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('users.0.max_user_id', 55_010)
             ->assertJsonPath('users.0.username', 'unique_login');
+
+        $this->getJson('/api/food/admin/manual-orders/users?q=FindMe', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('users.0.max_user_id', 55_010);
+    }
+
+    /** Поиск пользователей не учитывает delivery_address. */
+    public function test_max_manager_search_users_ignores_delivery_address(): void
+    {
+        $manager = $this->maxManagerAuth();
+        MaxUser::query()->create([
+            'max_user_id' => 55_012,
+            'first_name' => 'AddressOnly',
+            'username' => 'addr_only_user',
+            'delivery_address' => 'ул. УникальнаяФразаАдресаXYZ, 99',
+        ]);
+        MaxUser::query()->create([
+            'max_user_id' => 55_013,
+            'first_name' => 'NameHit',
+            'username' => 'name_hit_user',
+            'delivery_address' => 'ул. Другая, 1',
+        ]);
+
+        $this->getJson(
+            '/api/food/admin/manual-orders/users?q='.rawurlencode('УникальнаяФразаАдресаXYZ'),
+            $manager['headers'],
+        )
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+
+        $this->getJson('/api/food/admin/manual-orders/users?q=NameHit', $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('users.0.max_user_id', 55_013)
+            ->assertJsonPath('users.0.delivery_address', 'ул. Другая, 1');
     }
 
     /** Список ручных заказов требует аутентификацию. */
@@ -526,7 +562,7 @@ class AdminManualOrderApiTest extends TestCase
         $address = 'ул. Заказчика, 12';
 
         $capturedCustomerOrder = null;
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
         $customerNotifier
             ->expects($this->once())
             ->method('notifyConfirmed')
@@ -534,7 +570,7 @@ class AdminManualOrderApiTest extends TestCase
                 $capturedCustomerOrder = $order;
             });
         $customerNotifier->expects($this->never())->method('notifySubmitted');
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        $this->app->instance(FoodOrderStatusNotifierInterface::class, $customerNotifier);
 
         $this->addManualCartItem(
             $manager,

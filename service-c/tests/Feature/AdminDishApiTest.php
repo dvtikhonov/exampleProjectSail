@@ -365,6 +365,20 @@ class AdminDishApiTest extends TestCase
             ->assertJsonValidationErrors(['category_id']);
     }
 
+    /** Список блюд отклоняет несуществующие filter id. */
+    public function test_dishes_index_rejects_nonexistent_filter_ids(): void
+    {
+        $auth = $this->menuManagerAuth();
+
+        $this->getJson('/api/food/admin/dishes?restaurant_id=999999', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['restaurant_id']);
+
+        $this->getJson('/api/food/admin/dishes?category_id=999999', $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['category_id']);
+    }
+
     /** CRUD блюд менеджером меню проходит по успешному сценарию. */
     public function test_menu_manager_crud_happy_path(): void
     {

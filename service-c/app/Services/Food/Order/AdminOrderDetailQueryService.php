@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Order;
 
+use App\Contracts\Food\Order\AdminOrderDetailQueryServiceInterface;
 use App\Contracts\Food\Order\FoodOrderAdminReviewReadRepositoryInterface;
 use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Order\AdminOrderDetailDto;
@@ -15,7 +16,7 @@ use App\Exceptions\Food\FoodDomainException;
 /**
  * Детальная выборка заказа для административного API проверки.
  */
-class AdminOrderDetailQueryService
+class AdminOrderDetailQueryService implements AdminOrderDetailQueryServiceInterface
 {
     public function __construct(
         private readonly FoodOrderAdminReviewReadRepositoryInterface $foodOrderReadRepository,

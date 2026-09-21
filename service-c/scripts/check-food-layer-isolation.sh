@@ -43,6 +43,8 @@ check_dir() {
     check_pattern "$dir" "$label" '\bStorage::' 'Storage:: facade'
     check_pattern "$dir" "$label" '\bCache::' 'Cache:: facade'
     check_pattern "$dir" "$label" 'use Illuminate\\' 'use Illuminate\'
+    # Food core must not import module implementations (DIP / dependency inversion).
+    check_pattern "$dir" "$label" 'App\\Modules\\' 'App\Modules\'
 }
 
 check_dir "app/Contracts/Food" "app/Contracts/Food"

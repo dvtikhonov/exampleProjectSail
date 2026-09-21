@@ -14,6 +14,7 @@ use App\Models\Food\FoodOrder;
 use App\Models\Food\FoodOrderMessage;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -47,6 +48,23 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('messages', []);
     }
 
+    /** POST /api/food/orders/{order}/messages защищён throttle:30,1 (+ throttle:api из группы). */
+    public function test_store_message_route_has_throttle_middleware(): void
+    {
+        $route = collect(Route::getRoutes())->first(
+            static function ($route): bool {
+                return $route->uri() === 'api/food/orders/{order}/messages'
+                    && in_array('POST', $route->methods(), true);
+            },
+        );
+
+        $this->assertNotNull($route);
+        $middleware = $route->gatherMiddleware();
+        $this->assertContains('throttle:30,1', $middleware);
+        $this->assertContains('max.miniapp.auth', $middleware);
+        $this->assertContains('throttle:api', app('router')->getMiddlewareGroups()['api']);
+    }
+
     /** Клиент может отправить сообщение по своему заказу. */
     public function test_customer_can_send_message_on_own_order(): void
     {
@@ -73,7 +91,7 @@ class OrderChatApiTest extends TestCase
         ]);
     }
 
-    /** Клиент не может получить доступ к чужому чату заказа. */
+    /** Клиент не может получить доступ к чужому чату заказа (ответ как у отсутствующего). */
     public function test_customer_cannot_access_another_users_order_chat(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_201);
@@ -83,17 +101,17 @@ class OrderChatApiTest extends TestCase
         ]));
 
         $this->getJson("/api/food/orders/{$orderId}/messages", $otherAuth['headers'])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Доступ запрещён.');
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
 
         $this->postJson("/api/food/orders/{$orderId}/messages", [
             'body' => 'Чужое сообщение',
         ], $otherAuth['headers'])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Доступ запрещён.');
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
     }
 
-    /** Админ может читать и писать сообщения по любому заказу. */
+    /** Админ (address_reviewer) может читать и писать сообщения по любому заказу. */
     public function test_admin_can_read_and_write_messages_on_any_order(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_301);
@@ -118,6 +136,52 @@ class OrderChatApiTest extends TestCase
             ->assertJsonCount(1, 'messages')
             ->assertJsonPath('messages.0.body', $adminReply)
             ->assertJsonPath('messages.0.author_type', OrderMessageAuthorType::Admin->value);
+    }
+
+    /** Max manager может читать и писать сообщения по чужому заказу. */
+    public function test_max_manager_can_access_another_users_order_chat(): void
+    {
+        $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_311);
+        $managerAuth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_311,
+                'first_name' => 'MaxManager',
+            ])),
+            FoodOrderAdminRole::MaxManager,
+        );
+
+        $this->getJson("/api/food/orders/{$orderId}/messages", $managerAuth['headers'])
+            ->assertOk()
+            ->assertJsonPath('messages', []);
+
+        $this->postJson("/api/food/orders/{$orderId}/messages", [
+            'body' => 'Ответ max_manager',
+        ], $managerAuth['headers'])
+            ->assertCreated()
+            ->assertJsonPath('message.author_type', OrderMessageAuthorType::Admin->value);
+    }
+
+    /** Menu manager не имеет доступа к чужому чату заказа (404 без enumeration). */
+    public function test_menu_manager_cannot_access_another_users_order_chat(): void
+    {
+        $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_321);
+        $menuManagerAuth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_321,
+                'first_name' => 'MenuManager',
+            ])),
+            FoodOrderAdminRole::MenuManager,
+        );
+
+        $this->getJson("/api/food/orders/{$orderId}/messages", $menuManagerAuth['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
+
+        $this->postJson("/api/food/orders/{$orderId}/messages", [
+            'body' => 'Сообщение menu_manager',
+        ], $menuManagerAuth['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
     }
 
     /** Отправка сообщения валидирует body. */
@@ -276,7 +340,7 @@ class OrderChatApiTest extends TestCase
             ->assertJsonPath('message', 'Заказ не найден.');
     }
 
-    /** Не-админ и не-владелец не могут получить доступ к чату. */
+    /** Не-админ и не-владелец не могут получить доступ к чату (404 без enumeration). */
     public function test_non_admin_non_owner_cannot_access_chat(): void
     {
         $orderId = $this->createSubmittedOrder(customerMaxUserId: 55_701);
@@ -286,8 +350,8 @@ class OrderChatApiTest extends TestCase
         ]));
 
         $this->getJson("/api/food/orders/{$orderId}/messages", $auth['headers'])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Доступ запрещён.');
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
     }
 
     /** Создаёт отправленный заказ для теста. */

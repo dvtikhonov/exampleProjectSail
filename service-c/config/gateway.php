@@ -7,8 +7,8 @@ declare(strict_types=1);
  */
 return [
     /**
-     * Опциональный секрет заголовка X-Gateway-Secret (сравнение через hash_equals).
-     * Пустой — заголовок не требуется (удобно для PHPUnit в local/testing).
+     * Обязательный секрет заголовка X-Gateway-Secret (сравнение через hash_equals).
+     * Пустой — TrustGatewayAuth отвечает 401.
      */
     'auth_secret' => (string) env('GATEWAY_AUTH_SECRET', ''),
 ];

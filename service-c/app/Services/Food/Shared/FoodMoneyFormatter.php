@@ -16,7 +16,7 @@ class FoodMoneyFormatter implements FoodMoneyFormatterInterface
      */
     public function format(string|float|int $amount): string
     {
-        return number_format((float) $amount, 2, '.', '');
+        return bcadd($this->normalizeAmount($amount), '0', 2);
     }
 
     /**
@@ -42,5 +42,23 @@ class FoodMoneyFormatter implements FoodMoneyFormatterInterface
         $cents = abs($cents);
 
         return $sign.sprintf('%d.%02d', intdiv($cents, 100), $cents % 100);
+    }
+
+    /**
+     * Приводит сумму к числовой строке для bcmath без (float)-каста.
+     */
+    private function normalizeAmount(string|float|int $amount): string
+    {
+        if (is_int($amount)) {
+            return (string) $amount;
+        }
+
+        if (is_float($amount)) {
+            return sprintf('%.14F', $amount);
+        }
+
+        $normalized = trim($amount);
+
+        return $normalized === '' ? '0' : $normalized;
     }
 }

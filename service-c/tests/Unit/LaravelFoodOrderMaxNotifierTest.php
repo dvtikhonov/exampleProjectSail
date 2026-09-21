@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
+use App\Contracts\Food\Review\FoodOrderUiStandNewRequestMaxMessageBuilderInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
@@ -257,7 +257,7 @@ class LaravelFoodOrderMaxNotifierTest extends TestCase
         return new LaravelFoodOrderMaxNotifier(
             configProvider: $this->makeConfigProvider($config),
             uiStandRecipientResolver: $this->app->make(MaxUiStandRecipientResolverInterface::class),
-            messageBuilder: $this->app->make(FoodOrderCustomerMaxMessageBuilderInterface::class),
+            messageBuilder: $this->app->make(FoodOrderUiStandNewRequestMaxMessageBuilderInterface::class),
             openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
             notificationSender: $this->makeNotificationSender($client),
             logger: Log::channel('max_log'),

@@ -9,7 +9,8 @@ use App\Contracts\Max\MaxUserAiAccessRepositoryInterface;
 use App\DTO\Max\AiAccessStatusDto;
 use App\DTO\Max\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
-use Carbon\CarbonImmutable;
+use DateInterval;
+use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
@@ -71,7 +72,8 @@ class MaxAiAccessService implements MaxAiAccessServiceInterface
             throw new FoodDomainException('уже разрешен доступ AI к базе', 409);
         }
 
-        $until = CarbonImmutable::instance($now)->addMinutes(self::AI_ACCESS_TTL_MINUTES);
+        $until = DateTimeImmutable::createFromInterface($now)
+            ->add(new DateInterval('PT'.self::AI_ACCESS_TTL_MINUTES.'M'));
 
         // Атомарное включение: обновляем только если на момент now нет активных записей.
         $updated = $this->maxUserRepository->setAiAccessUntilIfNoneActive(

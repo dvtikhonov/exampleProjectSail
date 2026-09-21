@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
+use App\Contracts\Food\Cart\CartTotalsCalculatorInterface;
 use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
+use App\Contracts\Food\Delivery\DeliveryCostResolverInterface;
 use App\Contracts\Food\Delivery\DeliveryTierRepositoryInterface;
 use App\DTO\Food\Cart\CartTotalsDto;
-use App\Services\Food\Delivery\DeliveryCostResolver;
 
 /**
  * Расчёт итогов корзины с учётом тарифов доставки.
  */
-class CartTotalsCalculator
+class CartTotalsCalculator implements CartTotalsCalculatorInterface
 {
     public function __construct(
-        private readonly DeliveryCostResolver $deliveryCostResolver,
+        private readonly DeliveryCostResolverInterface $deliveryCostResolver,
         private readonly DeliveryTierRepositoryInterface $deliveryTierRepository,
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
     ) {}

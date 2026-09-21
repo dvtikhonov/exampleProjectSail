@@ -9,10 +9,8 @@ use App\Models\Food\FoodOrder;
 use App\Modules\FoodReport\Contracts\FoodOrderReportRepositoryInterface;
 use App\Modules\FoodReport\DTO\ReportFilterDto;
 use App\Modules\FoodReport\Enums\ReportDateAxis;
-use App\Modules\FoodReport\Http\Requests\FoodReportFilterRequest;
+use App\Modules\FoodReport\FoodReportLimits;
 use App\Modules\FoodReport\Models\FoodOrderItem;
-use DateInterval;
-use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -54,54 +52,65 @@ final class EloquentFoodOrderReportRepository implements FoodOrderReportReposito
     /**
      * {@inheritDoc}
      *
-     * Top-N по дням: отдельный SQL на каждый день периода с
-     * `ORDER BY … LIMIT $limitPerDay` (MySQL 5.7 без window functions).
-     * Период ограничен
-     * ≤ {@see FoodReportFilterRequest::MAX_SPAN_DAYS} дней.
+     * Top-N по дням на стороне SQL (MySQL 5.7): внутренний
+     * `GROUP BY report_day, dish_id, dish_name`, затем peer-rank через
+     * `COUNT(*)` с tie-break `quantity DESC → amount DESC → dish_name ASC`
+     * и `WHERE rank < $limitPerDay`. Без window functions.
+     * Период ≤ {@see FoodReportLimits::MAX_SPAN_DAYS}.
      */
     public function aggregateTopDishesByDay(ReportFilterDto $filter, int $limitPerDay): array
     {
         $dateExpression = $this->itemsDateExpression($filter->dateAxis);
+
+        $aggregated = FoodOrderItem::query()
+            ->from('max_food_order_items as items')
+            ->join('max_food_orders as orders', 'orders.id', '=', 'items.order_id')
+            ->where('orders.status', OrderStatus::Confirmed)
+            ->where('items.restaurant_id', $filter->restaurantId)
+            ->whereRaw($dateExpression.' BETWEEN ? AND ?', [$filter->dateFrom, $filter->dateTo])
+            ->selectRaw($dateExpression.' as report_day')
+            ->selectRaw('items.dish_id as dish_id')
+            ->selectRaw('items.dish_name as dish_name')
+            ->selectRaw('SUM(items.quantity) as quantity')
+            ->selectRaw('COALESCE(SUM(items.line_total), 0) as amount')
+            ->groupBy(DB::raw($dateExpression), 'items.dish_id', 'items.dish_name');
+
+        $aggSql = '('.$aggregated->toSql().')';
+        $bindings = $aggregated->getBindings();
+
+        $sql = <<<SQL
+SELECT a.report_day, a.dish_id, a.dish_name, a.quantity, a.amount
+FROM {$aggSql} AS a
+WHERE (
+    SELECT COUNT(*)
+    FROM {$aggSql} AS b
+    WHERE b.report_day = a.report_day
+      AND (
+            b.quantity > a.quantity
+            OR (b.quantity = a.quantity AND b.amount > a.amount)
+            OR (b.quantity = a.quantity AND b.amount = a.amount AND b.dish_name < a.dish_name)
+      )
+) < ?
+ORDER BY a.report_day ASC, a.quantity DESC, a.amount DESC, a.dish_name ASC
+SQL;
+
+        $rows = DB::select(
+            $sql,
+            array_merge($bindings, $bindings, [$limitPerDay]),
+        );
+
         $result = [];
 
-        $day = new DateTimeImmutable($filter->dateFrom);
-        $end = new DateTimeImmutable($filter->dateTo);
-        $oneDay = new DateInterval('P1D');
+        foreach ($rows as $row) {
+            $dishId = $row->dish_id;
 
-        while ($day <= $end) {
-            $dayStr = $day->format('Y-m-d');
-
-            $rows = FoodOrderItem::query()
-                ->from('max_food_order_items as items')
-                ->join('max_food_orders as orders', 'orders.id', '=', 'items.order_id')
-                ->where('orders.status', OrderStatus::Confirmed)
-                ->where('items.restaurant_id', $filter->restaurantId)
-                ->whereRaw($dateExpression.' = ?', [$dayStr])
-                ->selectRaw($dateExpression.' as report_day')
-                ->selectRaw('items.dish_id as dish_id')
-                ->selectRaw('items.dish_name as dish_name')
-                ->selectRaw('SUM(items.quantity) as quantity')
-                ->selectRaw('COALESCE(SUM(items.line_total), 0) as amount')
-                ->groupBy(DB::raw($dateExpression), 'items.dish_id', 'items.dish_name')
-                ->orderByDesc('quantity')
-                ->orderByDesc('amount')
-                ->orderBy('dish_name')
-                ->limit($limitPerDay)
-                ->get();
-
-            foreach ($rows as $row) {
-                $dishId = $row->dish_id;
-
-                $result[] = [
-                    'date' => $dayStr,
-                    'dish_id' => $dishId !== null ? (int) $dishId : null,
-                    'dish_name' => (string) $row->dish_name,
-                    'quantity' => (int) $row->quantity,
-                    'amount' => (string) $row->amount,
-                ];
-            }
-
-            $day = $day->add($oneDay);
+            $result[] = [
+                'date' => (string) $row->report_day,
+                'dish_id' => $dishId !== null ? (int) $dishId : null,
+                'dish_name' => (string) $row->dish_name,
+                'quantity' => (int) $row->quantity,
+                'amount' => (string) $row->amount,
+            ];
         }
 
         return $result;

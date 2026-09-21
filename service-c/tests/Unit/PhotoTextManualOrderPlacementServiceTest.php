@@ -6,7 +6,7 @@ namespace Tests\Unit;
 
 use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Food\PhotoText\PhotoTextManualOrderPlacementServiceInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderManualCreatorNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\PhotoText\PhotoTextAgentItemDto;
 use App\Enums\Food\Cart\CartStatus;
@@ -20,6 +20,7 @@ use App\Models\Food\FoodOrder;
 use App\Models\Food\MenuCategory;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use RuntimeException;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\FoodTestDataBuilder;
@@ -39,7 +40,7 @@ class PhotoTextManualOrderPlacementServiceTest extends TestCase
 
         $this->resetFoodDomainTables();
         $this->mock(FoodOrderMaxNotifierInterface::class)->shouldIgnoreMissing();
-        $this->mock(FoodOrderCustomerNotifierInterface::class)->shouldIgnoreMissing();
+        $this->mock(FoodOrderManualCreatorNotifierInterface::class)->shouldIgnoreMissing();
     }
 
     /** Блюдо другого ресторана даёт issue и не попадает в matched. */
@@ -227,16 +228,22 @@ class PhotoTextManualOrderPlacementServiceTest extends TestCase
             'first_name' => 'Сибирь-Финанс филиал',
         ]);
 
-        $this->expectException(FoodDomainException::class);
-        $this->expectExceptionMessage('Найдено несколько клиентов');
-
-        $this->placementService()->match(
-            'Сибирь-Финанс',
-            (int) $fixture['restaurant']->id,
-            [
-                new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
-            ],
-        );
+        try {
+            $this->placementService()->match(
+                'Сибирь-Финанс',
+                (int) $fixture['restaurant']->id,
+                [
+                    new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
+                ],
+            );
+            $this->fail('Expected FoodDomainException was not thrown.');
+        } catch (FoodDomainException $e) {
+            $this->assertStringStartsWith('Найдено несколько клиентов', $e->getMessage());
+            $this->assertStringNotContainsString('max_user_id:', $e->getMessage());
+            $this->assertStringNotContainsString('66010', $e->getMessage());
+            $this->assertStringNotContainsString('66011', $e->getMessage());
+            $this->assertSame(422, $e->statusCode());
+        }
     }
 
     /** Сбой submit mid-place откатывает clear/addItem — корзина не остаётся грязной. */
@@ -310,12 +317,97 @@ class PhotoTextManualOrderPlacementServiceTest extends TestCase
         );
     }
 
+    /** Place оформляет заказ от активного AI-пользователя при совпадении env allow-list. */
+    public function test_place_uses_active_ai_user_when_env_allow_list_matches(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Целевой',
+            'Салат "Фасолька"',
+            200,
+        );
+        $this->createCustomer('Сибирь-Финанс', $fixture['customer_category']->id, 'ул. Клиента, 1');
+        $manager = $this->seedManager(77_010);
+
+        $result = $this->placementService()->place(
+            'Сибирь-Финанс',
+            '2026-08-17',
+            (int) $fixture['restaurant']->id,
+            [
+                new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
+            ],
+        );
+
+        $this->assertNotNull($result->orderId);
+        $order = FoodOrder::query()->findOrFail($result->orderId);
+        $this->assertSame($manager->max_user_id, $order->created_by_max_user_id);
+    }
+
+    /** Env allow-list другого пользователя при активном AI — 403. */
+    public function test_place_forbidden_when_env_manager_mismatches_active_ai_user(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Целевой',
+            'Салат "Фасолька"',
+            200,
+        );
+        $this->createCustomer('Сибирь-Финанс', $fixture['customer_category']->id, 'ул. Клиента, 1');
+        $this->seedManager(77_011);
+        config(['phototext.manager_max_user_id' => 77_099]);
+
+        try {
+            $this->placementService()->place(
+                'Сибирь-Финанс',
+                '2026-08-17',
+                (int) $fixture['restaurant']->id,
+                [
+                    new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
+                ],
+            );
+            $this->fail('Ожидался FoodDomainException');
+        } catch (FoodDomainException $exception) {
+            $this->assertSame(403, $exception->statusCode());
+            $this->assertStringContainsString('не совпадает', $exception->getMessage());
+        }
+
+        $this->assertSame(0, FoodOrder::query()->count());
+    }
+
+    /** Без активного AI-доступа place возвращает 403 (defense-in-depth). */
+    public function test_place_forbidden_when_ai_access_disabled(): void
+    {
+        $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery(
+            'Целевой',
+            'Салат "Фасолька"',
+            200,
+        );
+        $this->createCustomer('Сибирь-Финанс', $fixture['customer_category']->id, 'ул. Клиента, 1');
+        $manager = $this->seedManager(77_012);
+        $manager->forceFill(['ai_access_until' => null])->save();
+
+        try {
+            $this->placementService()->place(
+                'Сибирь-Финанс',
+                '2026-08-17',
+                (int) $fixture['restaurant']->id,
+                [
+                    new PhotoTextAgentItemDto(name: 'Салат "Фасолька"', quantity: 1),
+                ],
+            );
+            $this->fail('Ожидался FoodDomainException');
+        } catch (FoodDomainException $exception) {
+            $this->assertSame(403, $exception->statusCode());
+            $this->assertSame('Доступ AI к базе не разрешён.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, FoodOrder::query()->count());
+    }
+
     private function placementService(): PhotoTextManualOrderPlacementServiceInterface
     {
         return $this->app->make(PhotoTextManualOrderPlacementServiceInterface::class);
     }
 
-    /** Менеджер PhotoText с ролью max_manager. */
+    /** Менеджер PhotoText с ролью max_manager и активным AI-доступом. */
     private function seedManager(int $maxUserId): MaxUser
     {
         $manager = MaxUser::query()->create([
@@ -326,6 +418,10 @@ class PhotoTextManualOrderPlacementServiceTest extends TestCase
             ['user' => $manager, 'headers' => []],
             FoodOrderAdminRole::MaxManager,
         );
+        // ai_access_until вне $fillable — только query/forceFill.
+        $manager->forceFill([
+            'ai_access_until' => Carbon::now()->addMinutes(30),
+        ])->save();
         config(['phototext.manager_max_user_id' => $manager->max_user_id]);
 
         return $manager;

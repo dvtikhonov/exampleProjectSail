@@ -8,6 +8,7 @@ use App\Contracts\Food\Chat\OrderChatAuthorizationServiceInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Chat\OrderMessageAuthorType;
+use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
@@ -18,6 +19,8 @@ class OrderChatAuthorizationService implements OrderChatAuthorizationServiceInte
     /**
      * Запрещает доступ к чату, если пользователь не владелец и не активный админ.
      *
+     * Для клиента отказ выглядит как «заказ не найден» (без enumeration).
+     *
      * @throws FoodDomainException
      */
     public function assertCanAccessChat(MaxUserIdentity $user, FoodOrderRecord $order): void
@@ -26,7 +29,7 @@ class OrderChatAuthorizationService implements OrderChatAuthorizationServiceInte
             return;
         }
 
-        throw new FoodDomainException('Доступ запрещён.', 403);
+        throw new FoodDomainException('Заказ не найден.', 404);
     }
 
     /**
@@ -52,7 +55,7 @@ class OrderChatAuthorizationService implements OrderChatAuthorizationServiceInte
             return OrderMessageAuthorType::Admin;
         }
 
-        throw new FoodDomainException('Доступ запрещён.', 403);
+        throw new FoodDomainException('Заказ не найден.', 404);
     }
 
     /**
@@ -64,10 +67,15 @@ class OrderChatAuthorizationService implements OrderChatAuthorizationServiceInte
     }
 
     /**
-     * Есть ли у пользователя хотя бы одна активная роль админа заказов.
+     * Есть ли у пользователя роль из allow-list доступа к чату заказа.
+     *
+     * Допускаются только AddressReviewer, CompositionReviewer и MaxManager
+     * (MenuManager и прочие роли — нет).
      */
     private function isActiveAdmin(MaxUserIdentity $user): bool
     {
-        return $user->adminRoles !== [];
+        return $user->hasAdminRole(FoodOrderAdminRole::AddressReviewer)
+            || $user->hasAdminRole(FoodOrderAdminRole::CompositionReviewer)
+            || $user->hasAdminRole(FoodOrderAdminRole::MaxManager);
     }
 }

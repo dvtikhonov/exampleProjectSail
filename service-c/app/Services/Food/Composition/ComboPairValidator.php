@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Composition;
 
+use App\Contracts\Food\Composition\ComboPairValidatorInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\DTO\Food\Menu\DishRecord;
 use App\Exceptions\Food\FoodDomainException;
@@ -11,7 +12,7 @@ use App\Exceptions\Food\FoodDomainException;
 /**
  * Валидация пары блюд для комбо: доступность, ресторан, разные категории с is_combo_available.
  */
-class ComboPairValidator
+class ComboPairValidator implements ComboPairValidatorInterface
 {
     public function __construct(
         private readonly DishCatalogRepositoryInterface $dishRepository,

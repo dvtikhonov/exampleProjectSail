@@ -66,10 +66,11 @@ export async function fetchManualOrders({
  * Детальный просмотр ручного заказа.
  *
  * @param {number} orderId
+ * @param {{ signal?: AbortSignal }} [options]
  * @returns {Promise<AdminOrderDetailDto>}
  */
-export async function fetchManualOrder(orderId) {
-    const { data } = await client.get(`/food/admin/manual-orders/${orderId}`);
+export async function fetchManualOrder(orderId, { signal } = {}) {
+    const { data } = await client.get(`/food/admin/manual-orders/${orderId}`, { signal });
 
     return data.order;
 }

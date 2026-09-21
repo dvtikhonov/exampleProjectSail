@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
-use App\Contracts\Food\Order\ManualOrderSubmissionServiceInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Shared\MaxUserIdentity;
@@ -17,18 +16,16 @@ use App\Http\Requests\Food\Admin\ManualOrderCustomerFormRequest;
 use App\Http\Requests\Food\Admin\ManualUpdateCartDeliveryAddressRequest;
 use App\Http\Requests\Food\Admin\ManualUpdateCartItemRequest;
 use App\Http\Requests\Food\Admin\ShowManualOrderCartRequest;
-use App\Http\Requests\Food\Admin\SubmitManualOrderRequest;
 use Illuminate\Http\JsonResponse;
 
 /**
- * Ручная черновая корзина и оформление заказа для роли max_manager.
+ * Ручная черновая корзина для роли max_manager.
  */
 class AdminManualOrderCartController extends Controller
 {
     public function __construct(
         private readonly ManualOrderUserQueryServiceInterface $manualOrderUserQueryService,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
-        private readonly ManualOrderSubmissionServiceInterface $orderSubmissionService,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
     ) {}
@@ -132,23 +129,6 @@ class AdminManualOrderCartController extends Controller
         return response()->json([
             'cart' => null,
         ]);
-    }
-
-    /**
-     * Оформляет ручной заказ из корзины менеджера от имени клиента.
-     */
-    public function submit(SubmitManualOrderRequest $request): JsonResponse
-    {
-        [$customer, $manager] = $this->resolveCustomerAndManager($request);
-        $order = $this->orderSubmissionService->submitManual(
-            $customer,
-            $manager,
-            $request->deliveryDate(),
-        );
-
-        return response()->json([
-            'order' => $order->toArray(),
-        ], JsonResponse::HTTP_CREATED);
     }
 
     /**

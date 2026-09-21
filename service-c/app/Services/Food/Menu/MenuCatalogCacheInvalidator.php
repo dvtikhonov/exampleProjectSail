@@ -14,11 +14,15 @@ use Throwable;
  *
  * Старые ключи с прежней версией доживают TTL; новые чтения идут в miss.
  * Сбой записи кэша (например Permission denied на file store) логируется
- * и не роняет успешное сохранение блюда/категории.
+ * с `event=food.catalog_cache_invalidation_failed` и не роняет успешное
+ * сохранение блюда/категории (каталог может быть stale до TTL).
  */
 class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterface
 {
     public const string VERSION_CACHE_KEY = 'food.catalog.version';
+
+    /** Стабильный ключ для grep/алертов при сбое bump версии кэша. */
+    public const string FAILURE_EVENT = 'food.catalog_cache_invalidation_failed';
 
     private const int DEFAULT_VERSION = 1;
 
@@ -38,6 +42,7 @@ class MenuCatalogCacheInvalidator implements MenuCatalogCacheInvalidatorInterfac
             $this->cache->increment(self::VERSION_CACHE_KEY);
         } catch (Throwable $exception) {
             $this->logger->warning('Menu catalog cache invalidation failed.', [
+                'event' => self::FAILURE_EVENT,
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
                 'cache_key' => self::VERSION_CACHE_KEY,

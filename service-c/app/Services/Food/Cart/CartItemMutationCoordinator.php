@@ -5,28 +5,31 @@ declare(strict_types=1);
 namespace App\Services\Food\Cart;
 
 use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
+use App\Contracts\Food\Cart\CartItemMutationCoordinatorInterface;
 use App\Contracts\Food\Cart\CartItemRepositoryInterface;
 use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
+use App\Contracts\Food\Composition\ComboPairValidatorInterface;
 use App\Contracts\Food\Menu\DishCatalogRepositoryInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
+use App\DTO\Food\Cart\CartAddItemPolicy;
 use App\DTO\Food\Cart\CartCreateCommand;
+use App\DTO\Food\Cart\CartDraftContext;
 use App\DTO\Food\Cart\CartItemRecord;
 use App\DTO\Food\Cart\CartRecord;
 use App\Enums\Food\Cart\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Services\Food\Composition\ComboPairValidator;
 
 /**
  * Общая логика мутаций позиций черновика корзины (user и manual).
  */
-class CartItemMutationCoordinator
+class CartItemMutationCoordinator implements CartItemMutationCoordinatorInterface
 {
     public function __construct(
         private readonly CartDraftRepositoryInterface $cartDraftRepository,
         private readonly CartItemRepositoryInterface $cartItemRepository,
         private readonly CartLifecycleRepositoryInterface $cartLifecycleRepository,
         private readonly DishCatalogRepositoryInterface $dishRepository,
-        private readonly ComboPairValidator $comboPairValidator,
+        private readonly ComboPairValidatorInterface $comboPairValidator,
         private readonly CartItemUpserter $cartItemUpserter,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
     ) {}
@@ -192,10 +195,9 @@ class CartItemMutationCoordinator
             throw new FoodDomainException('Позиция корзины не найдена.', 404);
         }
 
-        if (
-            $context->createdByMaxUserId !== null
-            && $cartItem->cartCreatedByMaxUserId !== $context->createdByMaxUserId
-        ) {
+        // Строгое сравнение: user-контекст (createdBy === null) отсекает manual-позиции;
+        // manual-контекст — чужие manual-корзины другого менеджера.
+        if ($cartItem->cartCreatedByMaxUserId !== $context->createdByMaxUserId) {
             throw new FoodDomainException('Позиция корзины не найдена.', 404);
         }
 

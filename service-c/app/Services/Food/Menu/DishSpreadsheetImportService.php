@@ -6,12 +6,12 @@ namespace App\Services\Food\Menu;
 
 use App\Contracts\Food\Menu\DishBulkImportWriterInterface;
 use App\Contracts\Food\Menu\DishSpreadsheetImportServiceInterface;
+use App\Contracts\Food\Menu\DishSpreadsheetRowsReaderInterface;
 use App\Contracts\Food\Menu\MenuCategoryReadRepositoryInterface;
 use App\DTO\Food\Menu\DishImportResultDto;
 use App\DTO\Food\Menu\ImportDishRowDto;
 use App\DTO\Shared\UploadedFileDto;
 use App\Exceptions\Food\FoodDomainException;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
  * Импорт блюд из XLS/XLSX в выбранную категорию меню.
@@ -21,6 +21,7 @@ class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterf
     public function __construct(
         private readonly DishBulkImportWriterInterface $bulkImportWriter,
         private readonly DishSpreadsheetRowParser $rowParser,
+        private readonly DishSpreadsheetRowsReaderInterface $rowsReader,
         private readonly MenuCategoryReadRepositoryInterface $menuCategoryRepository,
     ) {}
 
@@ -41,14 +42,7 @@ class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterf
             throw new FoodDomainException('Файл таблицы недействителен.', 422);
         }
 
-        try {
-            $spreadsheet = IOFactory::load($path);
-        } catch (\Throwable) {
-            throw new FoodDomainException('Не удалось прочитать файл таблицы.', 422);
-        }
-
-        $sheet = $spreadsheet->getActiveSheet();
-        $highestRow = $sheet->getHighestDataRow();
+        $sheetRows = $this->rowsReader->readRows($path);
 
         /** @var list<ImportDishRowDto> $validRows */
         $validRows = [];
@@ -56,19 +50,12 @@ class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterf
         /** @var list<array{row: int, message: string}> $errors */
         $errors = [];
 
-        for ($rowNumber = 2; $rowNumber <= $highestRow; $rowNumber++) {
-            $nameCell = $sheet->getCell('A'.$rowNumber)->getCalculatedValue();
-            $priceCell = $sheet->getCell('B'.$rowNumber)->getCalculatedValue();
-
-            if ($this->isEmptyRow($nameCell, $priceCell)) {
-                continue;
-            }
-
+        foreach ($sheetRows as $sheetRow) {
             try {
-                $validRows[] = $this->rowParser->parse($nameCell, $priceCell);
+                $validRows[] = $this->rowParser->parse($sheetRow['name'], $sheetRow['price']);
             } catch (FoodDomainException $exception) {
                 $errors[] = [
-                    'row' => $rowNumber,
+                    'row' => $sheetRow['row'],
                     'message' => $exception->getMessage(),
                 ];
             }
@@ -81,13 +68,5 @@ class DishSpreadsheetImportService implements DishSpreadsheetImportServiceInterf
         }
 
         return new DishImportResultDto($importedCount, $errors);
-    }
-
-    /**
-     * Проверяет, является ли строка таблицы пустой.
-     */
-    private function isEmptyRow(mixed $nameCell, mixed $priceCell): bool
-    {
-        return trim((string) $nameCell) === '' && trim((string) $priceCell) === '';
     }
 }

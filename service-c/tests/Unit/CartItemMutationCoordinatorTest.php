@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\DTO\Food\Cart\CartDraftContext;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Cart\CartStatus;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Cart;
 use App\Models\Food\CartItem;
 use App\Models\Max\MaxUser;
-use App\Services\Food\Cart\CartDraftContext;
 use App\Services\Food\Cart\CartItemMutationCoordinator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
@@ -84,6 +84,63 @@ class CartItemMutationCoordinatorTest extends TestCase
             CartDraftContext::manual($this->identity($customer), $this->identity($otherManager)),
             $cartItem->id,
             2,
+        );
+    }
+
+    /** updateQuantity в user-контексте отклоняет позицию manual-корзины того же владельца. */
+    public function test_update_quantity_user_context_rejects_manual_draft_item(): void
+    {
+        $customer = MaxUser::query()->create([
+            'max_user_id' => 13_041,
+            'first_name' => 'Customer',
+        ]);
+        $manager = MaxUser::query()->create([
+            'max_user_id' => 13_042,
+            'first_name' => 'Manager',
+        ]);
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+        $cartItem = $this->createManualDraftItem(
+            $customer,
+            $manager,
+            $fixture['restaurant']->id,
+            $fixture['dish']->id,
+        );
+
+        $this->expectException(FoodDomainException::class);
+        $this->expectExceptionMessage('Позиция корзины не найдена.');
+
+        app(CartItemMutationCoordinator::class)->performUpdateQuantity(
+            CartDraftContext::user($this->identity($customer)),
+            $cartItem->id,
+            2,
+        );
+    }
+
+    /** removeItem в user-контексте отклоняет позицию manual-корзины того же владельца. */
+    public function test_remove_item_user_context_rejects_manual_draft_item(): void
+    {
+        $customer = MaxUser::query()->create([
+            'max_user_id' => 13_051,
+            'first_name' => 'Customer',
+        ]);
+        $manager = MaxUser::query()->create([
+            'max_user_id' => 13_052,
+            'first_name' => 'Manager',
+        ]);
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish(price: 100);
+        $cartItem = $this->createManualDraftItem(
+            $customer,
+            $manager,
+            $fixture['restaurant']->id,
+            $fixture['dish']->id,
+        );
+
+        $this->expectException(FoodDomainException::class);
+        $this->expectExceptionMessage('Позиция корзины не найдена.');
+
+        app(CartItemMutationCoordinator::class)->performRemoveItem(
+            CartDraftContext::user($this->identity($customer)),
+            $cartItem->id,
         );
     }
 

@@ -253,7 +253,16 @@ abstract class BaseDishFormRequest extends FormRequest
      */
     private function formatPrice(mixed $value): string
     {
-        return number_format((float) $value, 2, '.', '');
+        if (is_int($value)) {
+            $normalized = (string) $value;
+        } elseif (is_float($value)) {
+            $normalized = sprintf('%.14F', $value);
+        } else {
+            $normalized = trim((string) $value);
+            $normalized = $normalized === '' ? '0' : $normalized;
+        }
+
+        return bcadd($normalized, '0', 2);
     }
 
     /**

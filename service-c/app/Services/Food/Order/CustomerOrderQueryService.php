@@ -92,12 +92,8 @@ class CustomerOrderQueryService implements CustomerOrderQueryServiceInterface
     {
         $order = $this->foodOrderReadRepository->findById($orderId);
 
-        if ($order === null) {
+        if ($order === null || $order->maxUserId !== $customer->maxUserId) {
             throw new FoodDomainException('Заказ не найден.', 404);
-        }
-
-        if ($order->maxUserId !== $customer->maxUserId) {
-            throw new FoodDomainException('Доступ запрещён.', 403);
         }
 
         return $this->mapOrder($order);

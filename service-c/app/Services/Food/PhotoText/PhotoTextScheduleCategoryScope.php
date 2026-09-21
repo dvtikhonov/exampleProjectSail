@@ -10,6 +10,8 @@ use App\Exceptions\Food\FoodDomainException;
 
 /**
  * Нормализация и проверка scope категорий PhotoText schedule (ресторан / optional category_ids).
+ *
+ * Внутренний collaborator PhotoText; не инжектить из Delivery.
  */
 class PhotoTextScheduleCategoryScope
 {

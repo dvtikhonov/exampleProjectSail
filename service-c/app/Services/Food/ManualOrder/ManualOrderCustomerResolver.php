@@ -7,7 +7,6 @@ namespace App\Services\Food\ManualOrder;
 use App\Contracts\Food\ManualOrder\ManualOrderCustomerResolverInterface;
 use App\Contracts\Max\MaxUserManualOrderQueryRepositoryInterface;
 use App\DTO\Food\Shared\MaxUserIdentity;
-use App\DTO\Max\MaxUserRecord;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
@@ -37,12 +36,9 @@ class ManualOrderCustomerResolver implements ManualOrderCustomerResolverInterfac
         }
 
         if (count($users) > 1) {
-            $ids = implode(
-                ', ',
-                array_map(static fn (MaxUserRecord $user): string => (string) $user->maxUserId, $users),
+            throw new FoodDomainException(
+                'Найдено несколько клиентов по запросу «'.$query.'». Уточните ФИО или username.',
             );
-
-            throw new FoodDomainException('Найдено несколько клиентов: '.$query.' (max_user_id: '.$ids.')');
         }
 
         $customer = $users[0];

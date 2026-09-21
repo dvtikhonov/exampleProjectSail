@@ -37,13 +37,13 @@ class SyncDishAvailabilityScheduleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'restaurant_id' => ['required', 'integer', 'min:1'],
-            'category_id' => ['required', 'integer', 'min:1'],
+            'restaurant_id' => ['required', 'integer', 'min:1', 'exists:max_restaurants,id'],
+            'category_id' => ['required', 'integer', 'min:1', 'exists:max_menu_categories,id'],
             'date_from' => ['nullable', 'date', 'date_format:Y-m-d'],
             'date_to' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-            'changes' => ['required', 'array'],
+            'changes' => ['required', 'array', 'min:1', 'max:500'],
             'changes.*.dish_id' => ['required', 'integer', 'min:1'],
-            'changes.*.dates' => ['present', 'array'],
+            'changes.*.dates' => ['present', 'array', 'max:62'],
             'changes.*.dates.*' => ['date', 'date_format:Y-m-d'],
         ];
     }

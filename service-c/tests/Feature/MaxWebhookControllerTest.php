@@ -225,7 +225,9 @@ class MaxWebhookControllerTest extends TestCase
         ));
         $this->assertCount(1, $errorLogs);
         $this->assertSame('error', $errorLogs[0]->level);
+        $this->assertSame(RuntimeException::class, $errorLogs[0]->context['exception'] ?? null);
         $this->assertSame('router boom', $errorLogs[0]->context['error'] ?? null);
+        $this->assertSame('bot_started', $errorLogs[0]->context['update_type'] ?? null);
     }
 
     /** Финальный сбой answerCallback на message_callback → HTTP 500. */
@@ -257,6 +259,10 @@ class MaxWebhookControllerTest extends TestCase
         ));
         $this->assertCount(1, $errorLogs);
         $this->assertSame('error', $errorLogs[0]->level);
+        $this->assertIsString($errorLogs[0]->context['exception'] ?? null);
+        $this->assertNotSame('', $errorLogs[0]->context['exception']);
+        $this->assertArrayHasKey('error', $errorLogs[0]->context);
+        $this->assertSame('message_callback', $errorLogs[0]->context['update_type'] ?? null);
     }
 
     /** POST /api/webhooks/max защищён throttle:60,1. */

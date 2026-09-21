@@ -41,7 +41,7 @@ class ImportDishesSpreadsheetRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'mimes:xls,xlsx', 'max:'.self::MAX_FILE_KILOBYTES],
-            'menu_category_id' => ['required', 'integer', 'min:1'],
+            'menu_category_id' => ['required', 'integer', 'min:1', 'exists:max_menu_categories,id'],
         ];
     }
 
@@ -57,6 +57,7 @@ class ImportDishesSpreadsheetRequest extends FormRequest
             'file.mimes' => 'Допустимы только файлы .xls и .xlsx.',
             'file.max' => 'Размер файла не должен превышать 5 МБ.',
             'menu_category_id.required' => 'Выберите категорию меню.',
+            'menu_category_id.exists' => 'Указанная категория меню не найдена.',
         ];
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
+use App\Contracts\Food\Order\OrderItemsSnapshotBuilderInterface;
 use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Cart\CartItemRecord;
 use App\DTO\Food\Menu\DishRecord;
@@ -14,7 +15,7 @@ use App\Enums\Food\Menu\DishWeightUnit;
 /**
  * Построение снимка позиций заказа из позиций корзины или блюд каталога.
  */
-class OrderItemsSnapshotBuilder
+class OrderItemsSnapshotBuilder implements OrderItemsSnapshotBuilderInterface
 {
     public function __construct(
         private readonly FoodMoneyFormatterInterface $moneyFormatter,

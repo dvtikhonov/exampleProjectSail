@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Delivery;
 
+use App\Contracts\Food\Delivery\DeliveryCostResolverInterface;
 use App\DTO\Food\Delivery\DeliveryTierDto;
 
 /**
  * Определение применимости и стоимости доставки по тарифам.
  */
-class DeliveryCostResolver
+class DeliveryCostResolver implements DeliveryCostResolverInterface
 {
     /**
      * Проверяет, доступна ли доставка при наличии категории клиента.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Support;
 
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
+use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Food\CartItem;
 use App\Models\Food\FoodOrder;
 use App\Models\Max\MaxUser;
@@ -39,7 +40,9 @@ final class CustomerResourceOwnershipGuard
     }
 
     /**
-     * Может ли пользователь читать/писать чат заказа (владелец или активный админ).
+     * Может ли пользователь читать/писать чат заказа (владелец или роль из allow-list).
+     *
+     * Allow-list: AddressReviewer, CompositionReviewer, MaxManager (не MenuManager).
      *
      * @return bool|null true — доступ есть; false — запрещён; null — заказ не найден
      */
@@ -55,7 +58,11 @@ final class CustomerResourceOwnershipGuard
             return true;
         }
 
-        return $this->foodOrderAdminRepository->getActiveRoles((int) $user->max_user_id) !== [];
+        $maxUserId = (int) $user->max_user_id;
+
+        return $this->foodOrderAdminRepository->hasActiveRole($maxUserId, FoodOrderAdminRole::AddressReviewer)
+            || $this->foodOrderAdminRepository->hasActiveRole($maxUserId, FoodOrderAdminRole::CompositionReviewer)
+            || $this->foodOrderAdminRepository->hasActiveRole($maxUserId, FoodOrderAdminRole::MaxManager);
     }
 
     /**
@@ -66,13 +73,16 @@ final class CustomerResourceOwnershipGuard
     public function ownsCartItem(MaxUser $user, int $cartItemId): bool
     {
         $item = CartItem::query()
-            ->with('cart:id,max_user_id')
+            ->with('cart:id,max_user_id,created_by_max_user_id')
             ->find($cartItemId);
 
         if ($item === null || $item->cart === null) {
             return false;
         }
 
-        return (int) $item->cart->max_user_id === (int) $user->max_user_id;
+        // Личная корзина: max_user_id совпадает и created_by_max_user_id IS NULL.
+        // Manual-позиции (created_by задан) клиенту недоступны даже при том же max_user_id.
+        return (int) $item->cart->max_user_id === (int) $user->max_user_id
+            && $item->cart->created_by_max_user_id === null;
     }
 }

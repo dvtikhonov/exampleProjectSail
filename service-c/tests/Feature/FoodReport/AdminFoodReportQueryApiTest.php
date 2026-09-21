@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\FoodReport;
 
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Enums\Food\Cart\CartStatus;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\FoodOrderAdminRole;
@@ -12,7 +13,6 @@ use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Models\FoodOrderItem;
 use App\Repositories\Food\Order\FoodOrderMapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -329,7 +329,7 @@ class AdminFoodReportQueryApiTest extends TestCase
             ->assertJsonMissing(['dish_name' => 'Draft Dish']);
     }
 
-    /** limit ограничивает top-N на день на стороне SQL (не весь GROUP BY в PHP). */
+    /** limit ограничивает top-N на день (GROUP BY + peer-rank COUNT в SQL, MySQL 5.7). */
     public function test_top_dishes_respects_per_day_limit(): void
     {
         $manager = $this->maxManagerAuth();
@@ -371,6 +371,116 @@ class AdminFoodReportQueryApiTest extends TestCase
             ->assertJsonMissing(['dish_name' => 'D']);
 
         $this->assertCount(2, $response->json('days.0.items'));
+    }
+
+    /** Tie-break топа: quantity DESC → amount DESC → dish_name ASC (SQL peer-rank). */
+    public function test_top_dishes_tie_break_order(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $restaurant = Restaurant::factory()->create(['name' => 'TieBreak Cafe']);
+        $confirmed = $this->createOrder($restaurant, OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-07',
+            'items_total' => '400.00',
+        ]);
+
+        foreach ([
+            ['dish_id' => 1, 'dish_name' => 'Zebra', 'quantity' => 5, 'line_total' => '50.00'],
+            ['dish_id' => 2, 'dish_name' => 'Alpha', 'quantity' => 5, 'line_total' => '50.00'],
+            ['dish_id' => 3, 'dish_name' => 'Beta', 'quantity' => 5, 'line_total' => '80.00'],
+            ['dish_id' => 4, 'dish_name' => 'TopQty', 'quantity' => 9, 'line_total' => '10.00'],
+        ] as $row) {
+            FoodOrderItem::query()->create([
+                'order_id' => $confirmed->id,
+                'restaurant_id' => $restaurant->id,
+                'report_date' => '2026-09-07',
+                'dish_id' => $row['dish_id'],
+                'dish_name' => $row['dish_name'],
+                'unit_price' => '10.00',
+                'quantity' => $row['quantity'],
+                'line_total' => $row['line_total'],
+            ]);
+        }
+
+        $this->getJson('/api/food/admin/reports/top-dishes?'.$this->queryString([
+            'date_from' => '2026-09-07',
+            'date_to' => '2026-09-07',
+            'restaurant_id' => $restaurant->id,
+            'limit' => 10,
+        ]), $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('days.0.items.0.dish_name', 'TopQty')
+            ->assertJsonPath('days.0.items.1.dish_name', 'Beta')
+            ->assertJsonPath('days.0.items.2.dish_name', 'Alpha')
+            ->assertJsonPath('days.0.items.3.dish_name', 'Zebra');
+    }
+
+    /** limit применяется независимо к каждому дню периода. */
+    public function test_top_dishes_applies_limit_independently_per_day(): void
+    {
+        $manager = $this->maxManagerAuth();
+        $restaurant = Restaurant::factory()->create(['name' => 'MultiDay Limit Cafe']);
+
+        $dayOne = $this->createOrder($restaurant, OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-05',
+            'items_total' => '300.00',
+        ]);
+        foreach ([
+            ['dish_id' => 1, 'dish_name' => 'Day1-Top', 'quantity' => 10, 'line_total' => '100.00'],
+            ['dish_id' => 2, 'dish_name' => 'Day1-Second', 'quantity' => 5, 'line_total' => '50.00'],
+            ['dish_id' => 3, 'dish_name' => 'Day1-Cut', 'quantity' => 1, 'line_total' => '10.00'],
+        ] as $row) {
+            FoodOrderItem::query()->create([
+                'order_id' => $dayOne->id,
+                'restaurant_id' => $restaurant->id,
+                'report_date' => '2026-09-05',
+                'dish_id' => $row['dish_id'],
+                'dish_name' => $row['dish_name'],
+                'unit_price' => '10.00',
+                'quantity' => $row['quantity'],
+                'line_total' => $row['line_total'],
+            ]);
+        }
+
+        $dayTwo = $this->createOrder($restaurant, OrderStatus::Confirmed, [
+            'delivery_date' => '2026-09-06',
+            'items_total' => '300.00',
+        ]);
+        foreach ([
+            ['dish_id' => 4, 'dish_name' => 'Day2-Top', 'quantity' => 8, 'line_total' => '80.00'],
+            ['dish_id' => 5, 'dish_name' => 'Day2-Second', 'quantity' => 7, 'line_total' => '70.00'],
+            ['dish_id' => 6, 'dish_name' => 'Day2-Cut', 'quantity' => 2, 'line_total' => '20.00'],
+        ] as $row) {
+            FoodOrderItem::query()->create([
+                'order_id' => $dayTwo->id,
+                'restaurant_id' => $restaurant->id,
+                'report_date' => '2026-09-06',
+                'dish_id' => $row['dish_id'],
+                'dish_name' => $row['dish_name'],
+                'unit_price' => '10.00',
+                'quantity' => $row['quantity'],
+                'line_total' => $row['line_total'],
+            ]);
+        }
+
+        $response = $this->getJson('/api/food/admin/reports/top-dishes?'.$this->queryString([
+            'date_from' => '2026-09-05',
+            'date_to' => '2026-09-06',
+            'restaurant_id' => $restaurant->id,
+            'limit' => 2,
+        ]), $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('days.0.date', '2026-09-05')
+            ->assertJsonPath('days.0.items.0.dish_name', 'Day1-Top')
+            ->assertJsonPath('days.0.items.1.dish_name', 'Day1-Second')
+            ->assertJsonPath('days.1.date', '2026-09-06')
+            ->assertJsonPath('days.1.items.0.dish_name', 'Day2-Top')
+            ->assertJsonPath('days.1.items.1.dish_name', 'Day2-Second')
+            ->assertJsonMissing(['dish_name' => 'Day1-Cut'])
+            ->assertJsonMissing(['dish_name' => 'Day2-Cut']);
+
+        $this->assertCount(2, $response->json('days'));
+        $this->assertCount(2, $response->json('days.0.items'));
+        $this->assertCount(2, $response->json('days.1.items'));
     }
 
     /** Пустой период возвращает пустые days и нулевую meta. */

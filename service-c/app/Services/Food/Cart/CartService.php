@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
+use App\Contracts\Food\Cart\CartDtoFactoryInterface;
+use App\Contracts\Food\Cart\CartItemMutationCoordinatorInterface;
 use App\Contracts\Food\Cart\CartServiceInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
+use App\DTO\Food\Cart\CartAddItemPolicy;
+use App\DTO\Food\Cart\CartDraftContext;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Exceptions\Food\FoodDomainException;
@@ -16,8 +20,8 @@ use App\Exceptions\Food\FoodDomainException;
 class CartService implements CartServiceInterface
 {
     public function __construct(
-        private readonly CartDtoFactory $cartDtoFactory,
-        private readonly CartItemMutationCoordinator $cartItemMutationCoordinator,
+        private readonly CartDtoFactoryInterface $cartDtoFactory,
+        private readonly CartItemMutationCoordinatorInterface $cartItemMutationCoordinator,
         private readonly TransactionManagerInterface $transactionManager,
     ) {}
 

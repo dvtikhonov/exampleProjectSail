@@ -44,6 +44,16 @@ abstract class TestCase extends BaseTestCase
         $_ENV['CACHE_STORE'] = 'array';
         putenv('CACHE_STORE=array');
 
+        // TrustGatewayAuth требует непустой секрет; phpunit.xml / .env.testing задают
+        // testing-gateway-secret, но при пустом значении в окружении контейнера — подставляем.
+        $gatewaySecret = (string) ($_SERVER['GATEWAY_AUTH_SECRET'] ?? $_ENV['GATEWAY_AUTH_SECRET'] ?? getenv('GATEWAY_AUTH_SECRET') ?: '');
+        if ($gatewaySecret === '') {
+            $gatewaySecret = 'testing-gateway-secret';
+        }
+        $_SERVER['GATEWAY_AUTH_SECRET'] = $gatewaySecret;
+        $_ENV['GATEWAY_AUTH_SECRET'] = $gatewaySecret;
+        putenv('GATEWAY_AUTH_SECRET='.$gatewaySecret);
+
         if (! $this->app) {
             $this->refreshApplication();
         }
@@ -51,6 +61,7 @@ abstract class TestCase extends BaseTestCase
         config()->set('database.connections.mysql.database', 'sail_db_testing');
         config()->set('database.default', 'mysql');
         config()->set('cache.default', 'array');
+        config()->set('gateway.auth_secret', $gatewaySecret);
         DB::purge('mysql');
     }
 

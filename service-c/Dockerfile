@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd zip pdo_mysql \
+    && docker-php-ext-install gd zip pdo_mysql bcmath \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Лимиты multipart для фото блюд (согласованы с DishPhotoAllowedExtensions::MAX_SIZE_*).

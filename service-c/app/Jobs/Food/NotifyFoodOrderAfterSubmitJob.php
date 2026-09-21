@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Jobs\Food;
 
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderStatusNotifierInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Order\OrderDto;
@@ -61,7 +61,7 @@ class NotifyFoodOrderAfterSubmitJob implements ShouldQueue
      */
     public function handle(
         FoodOrderMaxNotifierInterface $maxNotifier,
-        FoodOrderCustomerNotifierInterface $customerNotifier,
+        FoodOrderStatusNotifierInterface $customerNotifier,
         FoodOrderCustomerReadRepositoryInterface $foodOrderCustomerReadRepository,
         MaxUserIdentityRepositoryInterface $maxUserRepository,
         MaxUserDisplayMapper $maxUserDisplayMapper,

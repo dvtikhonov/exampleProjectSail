@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Max\Food;
 
+use App\Contracts\Food\Review\FoodOrderCustomerCompositionMaxMessageBuilderInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Support\Max\Food\Formatting\FoodOrderMaxBoundedItemsMessageAssembler;
 use App\Support\Max\Food\Formatting\FoodOrderMaxDateFormatter;
@@ -14,7 +15,7 @@ use App\Support\Max\Food\Formatting\FoodOrderMaxTextAssembler;
 /**
  * Текст MAX-уведомления клиенту об окончательном варианте заказа после правки состава.
  */
-final class FoodOrderCustomerCompositionChangedMaxMessageBuilder
+final class FoodOrderCustomerCompositionChangedMaxMessageBuilder implements FoodOrderCustomerCompositionMaxMessageBuilderInterface
 {
     public function __construct(
         private readonly FoodOrderMaxDateFormatter $dateFormatter,

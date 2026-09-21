@@ -271,6 +271,20 @@ class FoodCartApiTest extends TestCase
         ]);
     }
 
+    /** Нечисловой ID позиции корзины не матчит маршрут. */
+    public function test_cart_item_routes_reject_non_numeric_item_id(): void
+    {
+        $auth = $this->authenticateMaxUser();
+
+        $this->patchJson('/api/food/cart/items/abc', [
+            'quantity' => 2,
+        ], $auth['headers'])
+            ->assertNotFound();
+
+        $this->deleteJson('/api/food/cart/items/abc', [], $auth['headers'])
+            ->assertNotFound();
+    }
+
     /** Очистка корзины удаляет все позиции и черновую корзину. */
     public function test_clear_cart_removes_all_items_and_draft_cart(): void
     {
@@ -320,6 +334,40 @@ class FoodCartApiTest extends TestCase
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
         $cart = Cart::query()->create([
             'max_user_id' => $otherUser['user']->max_user_id,
+            'restaurant_id' => $fixture['restaurant']->id,
+            'status' => CartStatus::Draft,
+        ]);
+
+        $cartItem = CartItem::query()->create([
+            'cart_id' => $cart->id,
+            'dish_id' => $fixture['dish']->id,
+            'quantity' => 1,
+        ]);
+
+        $this->patchJson('/api/food/cart/items/'.$cartItem->id, [
+            'quantity' => 2,
+        ], $auth['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Позиция корзины не найдена.');
+
+        $this->deleteJson('/api/food/cart/items/'.$cartItem->id, [], $auth['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Позиция корзины не найдена.');
+    }
+
+    /** Клиент не может менять позицию своей manual-корзины (created_by задан). */
+    public function test_cart_item_operations_reject_manual_cart_item_for_customer(): void
+    {
+        $auth = $this->authenticateMaxUser();
+        $manager = MaxUser::query()->create([
+            'max_user_id' => 88_003,
+            'first_name' => 'Manager',
+        ]);
+
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $cart = Cart::query()->create([
+            'max_user_id' => $auth['user']->max_user_id,
+            'created_by_max_user_id' => $manager->max_user_id,
             'restaurant_id' => $fixture['restaurant']->id,
             'status' => CartStatus::Draft,
         ]);
@@ -569,6 +617,13 @@ class FoodCartApiTest extends TestCase
             'delivery_address' => '',
         ], $auth['headers'])
             ->assertUnprocessable()
+            ->assertJsonPath('message', 'Укажите адрес доставки.');
+
+        $this->patchJson('/api/food/cart', [
+            'delivery_address' => '   ',
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['delivery_address'])
             ->assertJsonPath('message', 'Укажите адрес доставки.');
     }
 

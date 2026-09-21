@@ -13,7 +13,11 @@ use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
+use App\Infrastructure\Laravel\FoodOrderCustomerMaxDispatchHelper;
+use App\Infrastructure\Laravel\LaravelFoodOrderCompositionNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderCustomerNotifier;
+use App\Infrastructure\Laravel\LaravelFoodOrderManualCreatorNotifier;
+use App\Infrastructure\Laravel\LaravelFoodOrderStatusNotifier;
 use App\Infrastructure\Laravel\MaxOpenAppButtonFactory;
 use App\Services\Max\MaxMessengerNotificationSender;
 use Illuminate\Log\Events\MessageLogged;
@@ -675,22 +679,43 @@ TEXT,
         $this->assertSame('User blocked bot', $log->context['error']);
     }
 
-    /** Создаёт notifier с подставным MAX-клиентом. */
+    /** Создаёт composition-notifier с подставным MAX-клиентом. */
     private function makeNotifier(
         MaxMessengerClientInterface $client,
         ?OrderCustomerNotifyRecipientResolverInterface $recipientResolver = null,
         ?MaxUiStandRecipientResolverInterface $uiStandRecipientResolver = null,
     ): LaravelFoodOrderCustomerNotifier {
-        return new LaravelFoodOrderCustomerNotifier(
-            messageBuilder: $this->messageBuilder,
+        $dispatchHelper = new FoodOrderCustomerMaxDispatchHelper(
             chatMessageBuilder: $this->app->make(FoodOrderChatMaxMessageBuilderInterface::class),
             openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
             recipientResolver: $recipientResolver
                 ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
+            notificationSender: $this->makeNotificationSender($client),
+        );
+
+        $manualCreatorNotifier = new LaravelFoodOrderManualCreatorNotifier(
+            manualCreatorMessageBuilder: $this->messageBuilder,
             uiStandRecipientResolver: $uiStandRecipientResolver
                 ?? $this->app->make(MaxUiStandRecipientResolverInterface::class),
-            notificationSender: $this->makeNotificationSender($client),
+            dispatchHelper: $dispatchHelper,
             logger: Log::channel('max_log'),
+        );
+
+        $statusNotifier = new LaravelFoodOrderStatusNotifier(
+            statusMessageBuilder: $this->messageBuilder,
+            dispatchHelper: $dispatchHelper,
+            manualCreatorNotifier: $manualCreatorNotifier,
+        );
+
+        $compositionNotifier = new LaravelFoodOrderCompositionNotifier(
+            compositionMessageBuilder: $this->messageBuilder,
+            dispatchHelper: $dispatchHelper,
+        );
+
+        return new LaravelFoodOrderCustomerNotifier(
+            statusNotifier: $statusNotifier,
+            compositionNotifier: $compositionNotifier,
+            manualCreatorNotifier: $manualCreatorNotifier,
         );
     }
 

@@ -31,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Do not call trustProxies(at: ...) here: env/config are unavailable in this callback;
         // TrustProxies reads config('trustedproxy.proxies') at request time.
 
+        $middleware->throttleApi('api');
+
         $middleware->alias([
             'trust.gateway' => TrustGatewayAuth::class,
             'max.webhook.secret' => VerifyMaxWebhookSecret::class,

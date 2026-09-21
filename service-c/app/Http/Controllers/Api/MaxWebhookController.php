@@ -45,8 +45,11 @@ class MaxWebhookController extends Controller
             $this->router->handle($dto->payload);
         } catch (Throwable $exception) {
             $this->logger->error('MAX webhook handling failed', [
+                'exception' => $exception::class,
                 'error' => $exception->getMessage(),
+                'update_type' => $dto->updateType,
             ]);
+            report($exception);
 
             return response('', Response::HTTP_INTERNAL_SERVER_ERROR);
         }

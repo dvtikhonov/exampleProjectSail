@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderStatusNotifierInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -122,7 +122,7 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
             $this->callback(fn (MaxUserDisplayDto $u): bool => $u->maxUserId === $maxUser->max_user_id),
         );
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
         $customerNotifier
             ->expects($this->once())
             ->method('notifySubmitted')
@@ -197,7 +197,7 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
         $maxNotifier = $this->createMock(FoodOrderMaxNotifierInterface::class);
         $maxNotifier->expects($this->once())->method('notify');
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
         $customerNotifier->expects($this->once())->method('notifySubmitted');
 
         $job = new NotifyFoodOrderAfterSubmitJob(
@@ -278,7 +278,7 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
                 }
             });
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
         $customerNotifier->expects($this->once())->method('notifySubmitted');
 
         $job = new NotifyFoodOrderAfterSubmitJob(
@@ -359,7 +359,7 @@ class NotifyFoodOrderAfterSubmitJobTest extends TestCase
         $maxNotifier = $this->createMock(FoodOrderMaxNotifierInterface::class);
         $maxNotifier->expects($this->never())->method('notify');
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
         $customerNotifier->expects($this->once())->method('notifySubmitted');
 
         $job = new NotifyFoodOrderAfterSubmitJob(

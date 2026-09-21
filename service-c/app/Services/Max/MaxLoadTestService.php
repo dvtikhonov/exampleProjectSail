@@ -59,7 +59,7 @@ class MaxLoadTestService implements MaxLoadTestServiceInterface
             throw new InvalidArgumentException('outputPath не должен быть пустым.');
         }
 
-        $expiresInSeconds = (int) $this->config->get('max.miniapp.token_ttl_seconds', 86_400);
+        $expiresInSeconds = (int) $this->config->get('max.miniapp.token_ttl_seconds', 3_600);
         $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
         $expiresAt = $this->clock->now()->add(new DateInterval('PT'.$expiresInSeconds.'S'));
 
