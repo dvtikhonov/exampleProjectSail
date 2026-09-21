@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderCompositionNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderStatusNotifierInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Cart\CartStatus;
@@ -57,13 +58,15 @@ class NotifyFoodOrderReviewJobTest extends TestCase
     {
         $order = $this->createOrder(maxUserId: 88_101, status: OrderStatus::Confirmed);
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
+        $statusNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
+        $statusNotifier
             ->expects($this->once())
             ->method('notifyConfirmed')
             ->with($this->callback(fn (FoodOrderRecord $o): bool => $o->id === $order->id));
-        $customerNotifier->expects($this->never())->method('notifyRejected');
-        $customerNotifier->expects($this->never())->method('notifyCompositionChanged');
+        $statusNotifier->expects($this->never())->method('notifyRejected');
+
+        $compositionNotifier = $this->createMock(FoodOrderCompositionNotifierInterface::class);
+        $compositionNotifier->expects($this->never())->method('notifyCompositionChanged');
 
         $job = new NotifyFoodOrderReviewJob(
             orderId: $order->id,
@@ -71,7 +74,8 @@ class NotifyFoodOrderReviewJobTest extends TestCase
         );
 
         $job->handle(
-            $customerNotifier,
+            $statusNotifier,
+            $compositionNotifier,
             app(FoodOrderCustomerReadRepositoryInterface::class),
             $this->app->make(CacheStoreInterface::class),
             app(LoggerInterface::class),
@@ -83,14 +87,17 @@ class NotifyFoodOrderReviewJobTest extends TestCase
     {
         $order = $this->createOrder(maxUserId: 88_102, status: OrderStatus::Rejected);
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
+        $statusNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
+        $statusNotifier
             ->expects($this->once())
             ->method('notifyRejected')
             ->with(
                 $this->callback(fn (FoodOrderRecord $o): bool => $o->id === $order->id),
                 OrderRejectionScope::Address,
             );
+
+        $compositionNotifier = $this->createMock(FoodOrderCompositionNotifierInterface::class);
+        $compositionNotifier->expects($this->never())->method('notifyCompositionChanged');
 
         $job = new NotifyFoodOrderReviewJob(
             orderId: $order->id,
@@ -99,7 +106,8 @@ class NotifyFoodOrderReviewJobTest extends TestCase
         );
 
         $job->handle(
-            $customerNotifier,
+            $statusNotifier,
+            $compositionNotifier,
             app(FoodOrderCustomerReadRepositoryInterface::class),
             $this->app->make(CacheStoreInterface::class),
             app(LoggerInterface::class),
@@ -111,8 +119,12 @@ class NotifyFoodOrderReviewJobTest extends TestCase
     {
         $order = $this->createOrder(maxUserId: 88_103, status: OrderStatus::PendingReview);
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
+        $statusNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
+        $statusNotifier->expects($this->never())->method('notifyConfirmed');
+        $statusNotifier->expects($this->never())->method('notifyRejected');
+
+        $compositionNotifier = $this->createMock(FoodOrderCompositionNotifierInterface::class);
+        $compositionNotifier
             ->expects($this->once())
             ->method('notifyCompositionChanged')
             ->with($this->callback(fn (FoodOrderRecord $o): bool => $o->id === $order->id));
@@ -124,7 +136,8 @@ class NotifyFoodOrderReviewJobTest extends TestCase
         );
 
         $job->handle(
-            $customerNotifier,
+            $statusNotifier,
+            $compositionNotifier,
             app(FoodOrderCustomerReadRepositoryInterface::class),
             $this->app->make(CacheStoreInterface::class),
             app(LoggerInterface::class),
@@ -136,8 +149,11 @@ class NotifyFoodOrderReviewJobTest extends TestCase
     {
         $order = $this->createOrder(maxUserId: 88_104, status: OrderStatus::Confirmed);
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier->expects($this->once())->method('notifyConfirmed');
+        $statusNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
+        $statusNotifier->expects($this->once())->method('notifyConfirmed');
+
+        $compositionNotifier = $this->createMock(FoodOrderCompositionNotifierInterface::class);
+        $compositionNotifier->expects($this->never())->method('notifyCompositionChanged');
 
         $job = new NotifyFoodOrderReviewJob(
             orderId: $order->id,
@@ -145,7 +161,8 @@ class NotifyFoodOrderReviewJobTest extends TestCase
         );
 
         $deps = [
-            $customerNotifier,
+            $statusNotifier,
+            $compositionNotifier,
             app(FoodOrderCustomerReadRepositoryInterface::class),
             $this->app->make(CacheStoreInterface::class),
             app(LoggerInterface::class),
@@ -161,8 +178,8 @@ class NotifyFoodOrderReviewJobTest extends TestCase
         $order = $this->createOrder(maxUserId: 88_105, status: OrderStatus::Confirmed);
 
         $attempts = 0;
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
-        $customerNotifier
+        $statusNotifier = $this->createMock(FoodOrderStatusNotifierInterface::class);
+        $statusNotifier
             ->expects($this->exactly(2))
             ->method('notifyConfirmed')
             ->willReturnCallback(function () use (&$attempts): void {
@@ -172,13 +189,17 @@ class NotifyFoodOrderReviewJobTest extends TestCase
                 }
             });
 
+        $compositionNotifier = $this->createMock(FoodOrderCompositionNotifierInterface::class);
+        $compositionNotifier->expects($this->never())->method('notifyCompositionChanged');
+
         $job = new NotifyFoodOrderReviewJob(
             orderId: $order->id,
             kind: FoodOrderReviewNotifyKind::Approved,
         );
 
         $deps = [
-            $customerNotifier,
+            $statusNotifier,
+            $compositionNotifier,
             app(FoodOrderCustomerReadRepositoryInterface::class),
             $this->app->make(CacheStoreInterface::class),
             app(LoggerInterface::class),
