@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\FoodReport;
 
+use App\Modules\FoodReport\Contracts\FoodReportMaxDeliveryInterface;
 use App\Modules\FoodReport\Services\FoodReportMaxDeliveryService;
-use PHPUnit\Framework\TestCase;
-use Shared\MaxMessenger\Client\NullMaxMessengerClient;
+use App\Modules\FoodReport\Services\NullFoodReportMaxDelivery;
 use Shared\MaxMessenger\Contracts\MaxMessengerClientInterface;
 use Shared\MaxMessenger\DTO\MaxMessageDto;
 use Shared\MaxMessenger\Exceptions\MaxMessengerRequestException;
+use Tests\TestCase;
 
 /**
- * Unit: FoodReportMaxDeliveryService — upload + sendMessage с file attachment.
+ * Unit: FoodReportMaxDeliveryService / NullFoodReportMaxDelivery + DI binding.
  */
 final class FoodReportMaxDeliveryServiceTest extends TestCase
 {
@@ -43,10 +44,10 @@ final class FoodReportMaxDeliveryServiceTest extends TestCase
         );
     }
 
-    /** NullMaxMessengerClient → MaxMessengerException до upload (не silent ok). */
-    public function test_deliver_rejects_null_messenger_client(): void
+    /** NullFoodReportMaxDelivery → MaxMessengerRequestException до upload (не silent ok). */
+    public function test_null_delivery_rejects_before_upload(): void
     {
-        $service = new FoodReportMaxDeliveryService(new NullMaxMessengerClient);
+        $service = new NullFoodReportMaxDelivery;
 
         try {
             $service->deliver(
@@ -62,5 +63,25 @@ final class FoodReportMaxDeliveryServiceTest extends TestCase
                 $exception->userMessage(),
             );
         }
+    }
+
+    /** При messenger_driver=null контейнер отдаёт NullFoodReportMaxDelivery. */
+    public function test_null_messenger_driver_binds_null_delivery(): void
+    {
+        config(['max.messenger_driver' => 'null']);
+
+        $delivery = $this->app->make(FoodReportMaxDeliveryInterface::class);
+
+        $this->assertInstanceOf(NullFoodReportMaxDelivery::class, $delivery);
+    }
+
+    /** При messenger_driver=http контейнер отдаёт FoodReportMaxDeliveryService. */
+    public function test_http_messenger_driver_binds_real_delivery(): void
+    {
+        config(['max.messenger_driver' => 'http']);
+
+        $delivery = $this->app->make(FoodReportMaxDeliveryInterface::class);
+
+        $this->assertInstanceOf(FoodReportMaxDeliveryService::class, $delivery);
     }
 }

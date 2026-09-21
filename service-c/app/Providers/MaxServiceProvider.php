@@ -35,7 +35,7 @@ use App\Contracts\Shared\CacheStoreInterface;
 use App\Enums\Max\MaxWebhookUpdateType;
 use App\Http\Controllers\Api\MaxWebhookController;
 use App\Http\Resolvers\AuthenticatedMaxUserResolver;
-use App\Infrastructure\Laravel\LaravelFoodOrderCustomerNotifier;
+use App\Infrastructure\Laravel\LaravelFoodOrderManualCreatorNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderMaxNotifier;
 use App\Infrastructure\Laravel\LaravelMaxAdminBotTestSender;
 use App\Infrastructure\Laravel\LaravelMaxMiniAppAccessLogger;
@@ -43,7 +43,13 @@ use App\Infrastructure\Laravel\LaravelMaxMiniAppTokenIssuer;
 use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
 use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientResolver;
 use App\Infrastructure\Laravel\LaravelOrderChatNotifier;
+use App\Infrastructure\Laravel\MaxWebhookSubscriptionClient;
 use App\Repositories\Max\EloquentMaxLoadTestDataRepository;
+use App\Repositories\Max\EloquentMaxLoadTestUserRepository;
+use App\Repositories\Max\EloquentMaxUserAiAccessRepository;
+use App\Repositories\Max\EloquentMaxUserDeliveryRepository;
+use App\Repositories\Max\EloquentMaxUserIdentityRepository;
+use App\Repositories\Max\EloquentMaxUserManualOrderQueryRepository;
 use App\Repositories\Max\EloquentMaxUserRepository;
 use App\Services\Max\CachingMaxAiAccessService;
 use App\Services\Max\ConfigMaxMessengerRetryConfigFactory;
@@ -62,7 +68,6 @@ use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
 use App\Services\Max\UiStand\MaxUiStandGreetingSender;
 use App\Services\Max\UiStand\MaxWebhookStaleDevTunnelCleaner;
 use App\Services\Max\UiStand\MaxWebhookSubscriber;
-use App\Services\Max\UiStand\MaxWebhookSubscriptionClient;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
 use App\Services\Max\UiStand\MaxWebhookUrlProbe;
 use App\Services\Max\UiStand\MessageCallbackUpdateHandler;
@@ -91,12 +96,12 @@ class MaxServiceProvider extends ServiceProvider
         $this->app->bind(MaxLoadTestServiceInterface::class, MaxLoadTestService::class);
         $this->app->bind(AuthenticatedMaxUserResolverInterface::class, AuthenticatedMaxUserResolver::class);
         $this->app->bind(MaxUserDeliveryAddressInterface::class, MaxUserDeliveryAddressService::class);
+        $this->app->bind(MaxUserIdentityRepositoryInterface::class, EloquentMaxUserIdentityRepository::class);
+        $this->app->bind(MaxUserDeliveryRepositoryInterface::class, EloquentMaxUserDeliveryRepository::class);
+        $this->app->bind(MaxUserAiAccessRepositoryInterface::class, EloquentMaxUserAiAccessRepository::class);
+        $this->app->bind(MaxUserManualOrderQueryRepositoryInterface::class, EloquentMaxUserManualOrderQueryRepository::class);
+        $this->app->bind(MaxLoadTestUserRepositoryInterface::class, EloquentMaxLoadTestUserRepository::class);
         $this->app->bind(MaxUserRepositoryInterface::class, EloquentMaxUserRepository::class);
-        $this->app->bind(MaxUserIdentityRepositoryInterface::class, EloquentMaxUserRepository::class);
-        $this->app->bind(MaxUserDeliveryRepositoryInterface::class, EloquentMaxUserRepository::class);
-        $this->app->bind(MaxUserAiAccessRepositoryInterface::class, EloquentMaxUserRepository::class);
-        $this->app->bind(MaxUserManualOrderQueryRepositoryInterface::class, EloquentMaxUserRepository::class);
-        $this->app->bind(MaxLoadTestUserRepositoryInterface::class, EloquentMaxUserRepository::class);
         $this->app->bind(
             MaxAiAccessServiceInterface::class,
             function ($app): CachingMaxAiAccessService {
@@ -169,7 +174,7 @@ class MaxServiceProvider extends ServiceProvider
             MaxWebhookController::class,
             LaravelOrderChatNotifier::class,
             LaravelFoodOrderMaxNotifier::class,
-            LaravelFoodOrderCustomerNotifier::class,
+            LaravelFoodOrderManualCreatorNotifier::class,
             LaravelMaxAdminBotTestSender::class,
         ])
             ->needs(LoggerInterface::class)

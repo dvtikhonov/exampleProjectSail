@@ -11,10 +11,10 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * Architecture guard: app/Services and app/Contracts must not import Illuminate\*
- * or App\Models\*, and must not call Laravel helpers/facades
- * (config('…'), event(…), DB::, Log::, Storage::, Cache::)
- * beyond the checked-in baseline inventory.
+ * Architecture guard: app/Services, app/Contracts, app/DTO, app/Enums, and
+ * app/Exceptions must not import Illuminate\* or App\Models\*, and must not
+ * call Laravel helpers/facades (config('…'), event(…), DB::, Log::, Storage::,
+ * Cache::) beyond the checked-in baseline inventory.
  *
  * End-state: empty baseline — 0 leaks in core layers.
  */
@@ -23,6 +23,9 @@ final class CoreLayerIsolationTest extends TestCase
     private const SCAN_DIRS = [
         'app/Services',
         'app/Contracts',
+        'app/DTO',
+        'app/Enums',
+        'app/Exceptions',
     ];
 
     private const BASELINE_RELATIVE = 'tests/Architecture/baselines/core-illuminate-models-leaks.txt';
@@ -68,7 +71,7 @@ final class CoreLayerIsolationTest extends TestCase
         $messages = [];
 
         if ($newLeaks !== []) {
-            $messages[] = "New Illuminate\\ / App\\Models\\ / helper+facade leaks in Services/Contracts (not in baseline):\n  "
+            $messages[] = "New Illuminate\\ / App\\Models\\ / helper+facade leaks in core layers (not in baseline):\n  "
                 .implode("\n  ", $newLeaks)
                 ."\nFix via ports/adapters; do not extend the baseline.";
         }

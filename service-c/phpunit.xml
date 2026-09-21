@@ -43,5 +43,6 @@
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="PHOTOTEXT_AGENT_TOKEN" value=""/>
         <env name="PHOTOTEXT_MANAGER_MAX_USER_ID" value="0"/>
+        <env name="GATEWAY_AUTH_SECRET" value="testing-gateway-secret" force="true"/>
     </php>
 </phpunit>

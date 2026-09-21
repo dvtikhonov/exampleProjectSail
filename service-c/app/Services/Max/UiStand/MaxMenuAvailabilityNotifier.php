@@ -9,8 +9,9 @@ use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -104,7 +105,9 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     {
         return sprintf(
             'Доступно для заказов меню на %s',
-            CarbonImmutable::instance($date)->timezone(self::TIMEZONE)->format('d.m.Y'),
+            DateTimeImmutable::createFromInterface($date)
+                ->setTimezone(new DateTimeZone(self::TIMEZONE))
+                ->format('d.m.Y'),
         );
     }
 

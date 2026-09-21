@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
+use App\Contracts\Food\Review\OrderReviewUpdateStepHandlerInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\FoodOrderUpdateCommand;
-use App\Enums\Food\Order\OrderStatus;
-use App\Enums\Food\Review\OrderReviewStatus;
 use App\Enums\Food\Review\OrderReviewStep;
 use DateTimeInterface;
+use InvalidArgumentException;
 
 /**
  * Формирует команду обновления для approve/reject этапа проверки заказа.
+ *
+ * Внутренний collaborator Review; не инжектить из Delivery.
+ * Делегирует в реестр {@see OrderReviewUpdateStepHandlerInterface} (один handler = один шаг).
  */
 class OrderReviewUpdateFactory
 {
+    /**
+     * @param  array<string, OrderReviewUpdateStepHandlerInterface>  $handlers
+     */
     public function __construct(
-        private readonly OrderStatusResolver $orderStatusResolver,
         private readonly ClockInterface $clock,
+        private readonly array $handlers,
     ) {}
 
     /**
@@ -30,30 +36,9 @@ class OrderReviewUpdateFactory
         FoodOrderRecord $order,
         int $adminId,
     ): FoodOrderUpdateCommand {
-        $stepStatus = OrderReviewStatus::Approved;
         $reviewedAt = $this->clock->now()->format(DateTimeInterface::ATOM);
-        $resolvedStatus = $this->resolveOrderStatus($step, $order, $stepStatus);
 
-        return match ($step) {
-            OrderReviewStep::Address => new FoodOrderUpdateCommand(
-                status: $resolvedStatus,
-                addressReviewStatus: $stepStatus,
-                addressReviewedBy: $adminId,
-                addressReviewedAt: $reviewedAt,
-            ),
-            OrderReviewStep::Composition => new FoodOrderUpdateCommand(
-                status: $resolvedStatus,
-                compositionReviewStatus: $stepStatus,
-                compositionReviewedBy: $adminId,
-                compositionReviewedAt: $reviewedAt,
-            ),
-            OrderReviewStep::Payment => new FoodOrderUpdateCommand(
-                status: $resolvedStatus,
-                paymentReviewStatus: $stepStatus,
-                paymentReviewedBy: $adminId,
-                paymentReviewedAt: $reviewedAt,
-            ),
-        };
+        return $this->handlerFor($step)->buildApprovalUpdate($order, $adminId, $reviewedAt);
     }
 
     /**
@@ -65,59 +50,26 @@ class OrderReviewUpdateFactory
         int $adminId,
         string $comment,
     ): FoodOrderUpdateCommand {
-        $stepStatus = OrderReviewStatus::Rejected;
         $reviewedAt = $this->clock->now()->format(DateTimeInterface::ATOM);
-        $resolvedStatus = $this->resolveOrderStatus($step, $order, $stepStatus);
 
-        return match ($step) {
-            OrderReviewStep::Address => new FoodOrderUpdateCommand(
-                status: $resolvedStatus,
-                addressReviewStatus: $stepStatus,
-                addressReviewedBy: $adminId,
-                addressReviewedAt: $reviewedAt,
-                addressRejectionComment: $comment,
-            ),
-            OrderReviewStep::Composition => new FoodOrderUpdateCommand(
-                status: $resolvedStatus,
-                compositionReviewStatus: $stepStatus,
-                compositionReviewedBy: $adminId,
-                compositionReviewedAt: $reviewedAt,
-                compositionRejectionComment: $comment,
-            ),
-            OrderReviewStep::Payment => new FoodOrderUpdateCommand(
-                status: $resolvedStatus,
-                paymentReviewStatus: $stepStatus,
-                paymentReviewedBy: $adminId,
-                paymentReviewedAt: $reviewedAt,
-                paymentRejectionComment: $comment,
-            ),
-        };
+        return $this->handlerFor($step)->buildRejectionUpdate($order, $adminId, $comment, $reviewedAt);
     }
 
     /**
-     * Определяет итоговый статус заказа после проверки.
+     * Возвращает handler для этапа или бросает исключение, если реестр неполный.
+     *
+     * @throws InvalidArgumentException
      */
-    private function resolveOrderStatus(
-        OrderReviewStep $step,
-        FoodOrderRecord $order,
-        OrderReviewStatus $stepStatus,
-    ): OrderStatus {
-        return match ($step) {
-            OrderReviewStep::Address => $this->orderStatusResolver->resolve(
-                $stepStatus,
-                $order->compositionReviewStatus,
-                $order->paymentReviewStatus,
-            ),
-            OrderReviewStep::Composition => $this->orderStatusResolver->resolve(
-                $order->addressReviewStatus,
-                $stepStatus,
-                $order->paymentReviewStatus,
-            ),
-            OrderReviewStep::Payment => $this->orderStatusResolver->resolve(
-                $order->addressReviewStatus,
-                $order->compositionReviewStatus,
-                $stepStatus,
-            ),
-        };
+    private function handlerFor(OrderReviewStep $step): OrderReviewUpdateStepHandlerInterface
+    {
+        $handler = $this->handlers[$step->value] ?? null;
+
+        if (! $handler instanceof OrderReviewUpdateStepHandlerInterface) {
+            throw new InvalidArgumentException(
+                sprintf('No OrderReviewUpdateStepHandler registered for step: %s', $step->value),
+            );
+        }
+
+        return $handler;
     }
 }

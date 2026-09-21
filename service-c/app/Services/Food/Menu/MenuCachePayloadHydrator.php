@@ -12,7 +12,7 @@ use App\DTO\Food\Shared\RestaurantSummaryDto;
 /**
  * Восстановление DTO каталога из payload кэша (без ключей / TTL / version).
  *
- * Внутренний collaborator {@see CachingMenuQueryService}; не шарится между поддоменами.
+ * Внутренний collaborator {@see CachingMenuQueryService}; не инжектить из Delivery.
  */
 final class MenuCachePayloadHydrator
 {

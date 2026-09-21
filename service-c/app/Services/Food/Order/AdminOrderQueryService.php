@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Order;
 
+use App\Contracts\Food\Order\AdminOrderDetailQueryServiceInterface;
+use App\Contracts\Food\Order\AdminOrderListQueryServiceInterface;
 use App\Contracts\Food\Order\AdminOrderQueryServiceInterface;
 use App\DTO\Food\Order\AdminOrderDetailDto;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -16,13 +18,13 @@ use App\Exceptions\Food\FoodDomainException;
 /**
  * Facade: выборка заказов для административного API проверки.
  *
- * Делегирует в {@see AdminOrderListQueryService} и {@see AdminOrderDetailQueryService}.
+ * Делегирует в {@see AdminOrderListQueryServiceInterface} и {@see AdminOrderDetailQueryServiceInterface}.
  */
 class AdminOrderQueryService implements AdminOrderQueryServiceInterface
 {
     public function __construct(
-        private readonly AdminOrderListQueryService $listQueryService,
-        private readonly AdminOrderDetailQueryService $detailQueryService,
+        private readonly AdminOrderListQueryServiceInterface $listQueryService,
+        private readonly AdminOrderDetailQueryServiceInterface $detailQueryService,
     ) {}
 
     /**

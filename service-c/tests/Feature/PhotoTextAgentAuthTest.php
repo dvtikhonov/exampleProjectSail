@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Shared\ApplicationEnvironmentInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -181,6 +182,68 @@ class PhotoTextAgentAuthTest extends TestCase
 
         $applyResponse = $this->postJson('/api/food/phototext/schedule/apply', [], $headers);
         $this->assertNotSame(Response::HTTP_UNAUTHORIZED, $applyResponse->status());
+    }
+
+    /** В production без PHOTOTEXT_MANAGER_MAX_USER_ID write-мутации отвечают 503. */
+    public function test_mutations_return_service_unavailable_in_production_without_manager_allowlist(): void
+    {
+        $this->fakeProductionEnvironment();
+        config(['phototext.manager_max_user_id' => 0]);
+
+        $now = Carbon::parse('2026-08-20 12:00:00');
+        $this->travelTo($now);
+
+        $this->maxManagerWithAiAccess(
+            maxUserId: 30_007,
+            until: $now->copy()->addMinutes(30),
+        );
+
+        $headers = $this->photoTextWriteHeaders();
+        $message = 'PhotoText write недоступен: в production обязателен PHOTOTEXT_MANAGER_MAX_USER_ID > 0.';
+
+        $this->postJson('/api/food/phototext/orders', [], $headers)
+            ->assertStatus(Response::HTTP_SERVICE_UNAVAILABLE)
+            ->assertJsonPath('message', $message);
+
+        $this->postJson('/api/food/phototext/schedule/apply', [], $headers)
+            ->assertStatus(Response::HTTP_SERVICE_UNAVAILABLE)
+            ->assertJsonPath('message', $message);
+    }
+
+    /** В production с manager_max_user_id > 0 write-auth не отдаёт 503. */
+    public function test_mutations_do_not_return_503_in_production_with_manager_allowlist(): void
+    {
+        $this->fakeProductionEnvironment();
+
+        $now = Carbon::parse('2026-08-20 12:00:00');
+        $this->travelTo($now);
+
+        $this->maxManagerWithAiAccess(
+            maxUserId: 30_008,
+            until: $now->copy()->addMinutes(30),
+        );
+        config(['phototext.manager_max_user_id' => 30_008]);
+
+        $headers = $this->photoTextWriteHeaders();
+
+        $ordersResponse = $this->postJson('/api/food/phototext/orders', [], $headers);
+        $this->assertNotSame(Response::HTTP_SERVICE_UNAVAILABLE, $ordersResponse->status());
+        $this->assertNotSame(Response::HTTP_UNAUTHORIZED, $ordersResponse->status());
+
+        $applyResponse = $this->postJson('/api/food/phototext/schedule/apply', [], $headers);
+        $this->assertNotSame(Response::HTTP_SERVICE_UNAVAILABLE, $applyResponse->status());
+        $this->assertNotSame(Response::HTTP_UNAUTHORIZED, $applyResponse->status());
+    }
+
+    /** Подменяет ApplicationEnvironmentInterface так, что is(['production']) = true. */
+    private function fakeProductionEnvironment(): void
+    {
+        $environment = $this->createMock(ApplicationEnvironmentInterface::class);
+        $environment->method('is')->willReturnCallback(
+            static fn (array $environments): bool => in_array('production', $environments, true),
+        );
+
+        $this->app->instance(ApplicationEnvironmentInterface::class, $environment);
     }
 
     /**

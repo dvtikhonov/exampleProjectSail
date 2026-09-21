@@ -50,7 +50,9 @@ class MenuCatalogCacheInvalidatorTest extends TestCase
             ->with(
                 'Menu catalog cache invalidation failed.',
                 $this->callback(function (array $context): bool {
-                    return ($context['message'] ?? '') === 'Failed to open stream: Permission denied';
+                    return ($context['event'] ?? null) === MenuCatalogCacheInvalidator::FAILURE_EVENT
+                        && ($context['message'] ?? '') === 'Failed to open stream: Permission denied'
+                        && ($context['cache_key'] ?? null) === MenuCatalogCacheInvalidator::VERSION_CACHE_KEY;
                 }),
             );
 

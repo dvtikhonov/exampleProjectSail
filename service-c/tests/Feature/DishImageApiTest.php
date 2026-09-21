@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\FoodTestDataBuilder;
 use Tests\Support\ResetsFoodDomainTables;
@@ -102,14 +103,28 @@ class DishImageApiTest extends TestCase
             ->assertOk();
     }
 
-    /** Эндпоинт изображения блюда возвращает 429 при превышении rate limit (60/мин). */
+    /** GET /api/food/dishes/{dish}/image защищён named throttle food-dish-image. */
+    public function test_dish_image_route_has_throttle_middleware(): void
+    {
+        $route = collect(Route::getRoutes())->first(
+            static function ($route): bool {
+                return $route->uri() === 'api/food/dishes/{dish}/image'
+                    && in_array('GET', $route->methods(), true);
+            },
+        );
+
+        $this->assertNotNull($route);
+        $this->assertContains('throttle:food-dish-image', $route->gatherMiddleware());
+    }
+
+    /** Эндпоинт изображения блюда возвращает 429 при превышении rate limit (30/мин). */
     public function test_dish_image_endpoint_returns_too_many_requests_when_rate_limited(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
         $fixture['dish']->update(['image_url' => null]);
         $url = '/api/food/dishes/'.$fixture['dish']->id.'/image';
 
-        for ($i = 0; $i < 60; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $this->get($url)->assertNotFound();
         }
 

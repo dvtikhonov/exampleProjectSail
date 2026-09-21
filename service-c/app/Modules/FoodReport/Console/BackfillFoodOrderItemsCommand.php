@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\FoodReport\Console;
 
 use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use Illuminate\Console\Command;
 
 /**

@@ -15,7 +15,7 @@ use App\Models\Food\FoodOrder;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderItemWriteRepositoryInterface;
 use App\Modules\FoodReport\Models\FoodOrderItem;
 use App\Modules\FoodReport\Services\FoodOrderItemSyncService;

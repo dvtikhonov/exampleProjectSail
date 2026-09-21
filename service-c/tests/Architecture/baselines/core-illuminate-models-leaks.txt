@@ -1,4 +1,5 @@
-# Baseline: known Illuminate\ / App\Models\ / helper+facade leaks in app/Services and app/Contracts.
+# Baseline: known Illuminate\ / App\Models\ / helper+facade leaks in core layers
+# (app/Services, app/Contracts, app/DTO, app/Enums, app/Exceptions).
 # Helpers/facades: config('…'), event(…), DB::, Log::, Storage::, Cache::
 # Phase 0 inventory for Laravel core isolation. Remove a path when the file is cleaned.
 # Do not add new paths — fix the leak instead (ports in Contracts/Shared, adapters in Infrastructure/Laravel).

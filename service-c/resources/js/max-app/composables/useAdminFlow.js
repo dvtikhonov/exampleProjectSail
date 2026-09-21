@@ -16,6 +16,21 @@ import {
 import { ADMIN_VIEWS } from '../constants/views';
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isRequestCanceled(error) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    return (
+        /** @type {{ code?: string, name?: string }} */ (error).code === 'ERR_CANCELED'
+        || /** @type {{ code?: string, name?: string }} */ (error).name === 'CanceledError'
+    );
+}
+
+/**
  * @param {import('vue').Ref<'address'|'composition'|string>} adminScope — вкладка очереди (не adminSection)
  * @returns {object} Состояние и обработчики админ-интерфейса
  */
@@ -35,11 +50,25 @@ export function useAdminFlow(adminScope) {
     const showRejectModal = ref(false);
     const adminRejectTarget = ref('address');
 
+    let detailSeq = 0;
+    /** @type {AbortController|null} */
+    let detailAbortController = null;
+
+    function abortAdminOrderDetail() {
+        if (detailAbortController !== null) {
+            detailAbortController.abort();
+            detailAbortController = null;
+        }
+    }
+
     /** Сброс состояния и загрузка очереди при входе проверяющего */
     function initAdminSession() {
+        abortAdminOrderDetail();
+        detailSeq += 1;
         adminView.value = ADMIN_VIEWS.list;
         selectedAdminOrder.value = null;
         adminOrderDetail.value = null;
+        adminDetailLoading.value = false;
         adminActionError.value = '';
         showRejectModal.value = false;
         loadAdminOrders();
@@ -74,14 +103,24 @@ export function useAdminFlow(adminScope) {
             return;
         }
 
+        abortAdminOrderDetail();
+        detailSeq += 1;
         adminScope.value = scope;
         adminView.value = ADMIN_VIEWS.list;
         selectedAdminOrder.value = null;
         adminOrderDetail.value = null;
+        adminDetailLoading.value = false;
         await loadAdminOrders();
     }
 
     async function openAdminOrder(order) {
+        abortAdminOrderDetail();
+
+        const controller = new AbortController();
+        detailAbortController = controller;
+        const mySeq = ++detailSeq;
+        const orderId = order.id;
+
         selectedAdminOrder.value = order;
         adminView.value = ADMIN_VIEWS.detail;
         adminOrderDetail.value = null;
@@ -90,11 +129,29 @@ export function useAdminFlow(adminScope) {
         adminDetailLoading.value = true;
 
         try {
-            adminOrderDetail.value = await fetchAdminOrder(order.id, adminScope.value);
+            const detail = await fetchAdminOrder(orderId, adminScope.value, {
+                signal: controller.signal,
+            });
+
+            if (mySeq !== detailSeq || selectedAdminOrder.value?.id !== orderId) {
+                return;
+            }
+
+            adminOrderDetail.value = detail;
         } catch (error) {
+            if (
+                isRequestCanceled(error)
+                || mySeq !== detailSeq
+                || selectedAdminOrder.value?.id !== orderId
+            ) {
+                return;
+            }
+
             adminActionError.value = extractErrorMessage(error);
         } finally {
-            adminDetailLoading.value = false;
+            if (mySeq === detailSeq) {
+                adminDetailLoading.value = false;
+            }
         }
     }
 
@@ -108,9 +165,12 @@ export function useAdminFlow(adminScope) {
     }
 
     function closeAdminOrderDetail() {
+        abortAdminOrderDetail();
+        detailSeq += 1;
         adminView.value = ADMIN_VIEWS.list;
         selectedAdminOrder.value = null;
         adminOrderDetail.value = null;
+        adminDetailLoading.value = false;
         adminActionError.value = '';
         showRejectModal.value = false;
         adminRejectTarget.value = 'address';

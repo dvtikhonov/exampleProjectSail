@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Review;
 
+use App\Contracts\Food\Review\OrderStatusResolverInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
@@ -11,7 +12,7 @@ use App\Enums\Food\Review\OrderReviewStatus;
 /**
  * Вычисляет итоговый статус заказа по статусам этапов проверки.
  */
-class OrderStatusResolver
+class OrderStatusResolver implements OrderStatusResolverInterface
 {
     /**
      * Итоговый статус заказа по трём этапам проверки (адрес, состав, оплата).

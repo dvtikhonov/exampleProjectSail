@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderManualCreatorNotifierInterface;
 use App\Contracts\Food\Review\FoodOrderMaxNotifierInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Cart\CartStatus;
@@ -131,16 +131,14 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
         );
 
         $capturedOrder = null;
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderManualCreatorNotifierInterface::class);
         $customerNotifier
             ->expects($this->once())
             ->method('notifyManualOrderCreatorConfirmed')
             ->willReturnCallback(function (FoodOrderRecord $notifiedOrder) use (&$capturedOrder): void {
                 $capturedOrder = $notifiedOrder;
             });
-        $customerNotifier->expects($this->never())->method('notifyConfirmed');
-        $customerNotifier->expects($this->never())->method('notifySubmitted');
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        $this->app->instance(FoodOrderManualCreatorNotifierInterface::class, $customerNotifier);
 
         $this->postJson(
             '/api/food/admin/manual-orders/'.$order->id.'/complete',
@@ -370,9 +368,9 @@ class AdminDraftAfterScanningOrderApiTest extends TestCase
             reviewStatus: OrderReviewStatus::Approved,
         );
 
-        $customerNotifier = $this->createMock(FoodOrderCustomerNotifierInterface::class);
+        $customerNotifier = $this->createMock(FoodOrderManualCreatorNotifierInterface::class);
         $customerNotifier->expects($this->never())->method('notifyManualOrderCreatorConfirmed');
-        $this->app->instance(FoodOrderCustomerNotifierInterface::class, $customerNotifier);
+        $this->app->instance(FoodOrderManualCreatorNotifierInterface::class, $customerNotifier);
 
         $this->requestAction($method, $suffix, $order->id, $manager['headers'])
             ->assertUnprocessable()

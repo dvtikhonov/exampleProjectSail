@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Food\ManualOrder;
 
+use App\Contracts\Food\Cart\CartDtoFactoryInterface;
+use App\Contracts\Food\Cart\CartItemMutationCoordinatorInterface;
 use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
+use App\DTO\Food\Cart\CartAddItemPolicy;
+use App\DTO\Food\Cart\CartDraftContext;
 use App\DTO\Food\Cart\CartDto;
 use App\DTO\Food\Shared\MaxUserIdentity;
-use App\Services\Food\Cart\CartAddItemPolicy;
-use App\Services\Food\Cart\CartDraftContext;
-use App\Services\Food\Cart\CartDtoFactory;
-use App\Services\Food\Cart\CartItemMutationCoordinator;
 
 /**
  * Управление ручной корзиной менеджера от имени клиента.
@@ -21,8 +21,8 @@ use App\Services\Food\Cart\CartItemMutationCoordinator;
 class ManualOrderCartService implements ManualOrderCartServiceInterface
 {
     public function __construct(
-        private readonly CartDtoFactory $cartDtoFactory,
-        private readonly CartItemMutationCoordinator $cartItemMutationCoordinator,
+        private readonly CartDtoFactoryInterface $cartDtoFactory,
+        private readonly CartItemMutationCoordinatorInterface $cartItemMutationCoordinator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly CartLifecycleRepositoryInterface $cartLifecycleRepository,
         private readonly TransactionManagerInterface $transactionManager,

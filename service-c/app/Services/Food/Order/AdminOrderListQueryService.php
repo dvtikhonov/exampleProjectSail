@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Chat\OrderMessageRepositoryInterface;
+use App\Contracts\Food\Order\AdminOrderListQueryServiceInterface;
 use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Order\AdminOrderListItemDto;
 use App\DTO\Food\Order\FoodOrderRecord;
@@ -16,7 +17,7 @@ use App\Exceptions\Food\FoodDomainException;
 /**
  * Постраничный список заказов для административного API проверки.
  */
-class AdminOrderListQueryService
+class AdminOrderListQueryService implements AdminOrderListQueryServiceInterface
 {
     public function __construct(
         private readonly AdminOrderReviewListResolver $listResolver,

@@ -9,6 +9,8 @@ use App\Exceptions\Food\FoodDomainException;
 
 /**
  * Копирует placeholder-изображение блюда в public storage.
+ *
+ * Внутренний collaborator Menu; не инжектить из Delivery.
  */
 class DishDefaultImageProvider
 {

@@ -36,27 +36,28 @@ export async function fetchMyOrders({ page = 1, perPage = 20 } = {}) {
 
 /**
  * @param {number} orderId
+ * @param {{ signal?: AbortSignal }} [options]
  * @returns {Promise<OrderDto>}
  */
-export async function fetchOrder(orderId) {
-    const { data } = await client.get(`/food/orders/${orderId}`);
+export async function fetchOrder(orderId, { signal } = {}) {
+    const { data } = await client.get(`/food/orders/${orderId}`, { signal });
 
     return data.order;
 }
 
 /**
  * @param {number} orderId
- * @param {{ afterId?: number|null, limit?: number }} [options]
+ * @param {{ afterId?: number|null, limit?: number, signal?: AbortSignal }} [options]
  * @returns {Promise<OrderMessageDto[]>}
  */
-export async function fetchOrderMessages(orderId, { afterId = null, limit = 50 } = {}) {
+export async function fetchOrderMessages(orderId, { afterId = null, limit = 50, signal } = {}) {
     const params = { limit };
 
     if (afterId !== null) {
         params.after_id = afterId;
     }
 
-    const { data } = await client.get(`/food/orders/${orderId}/messages`, { params });
+    const { data } = await client.get(`/food/orders/${orderId}/messages`, { params, signal });
 
     return data.messages;
 }
@@ -64,10 +65,11 @@ export async function fetchOrderMessages(orderId, { afterId = null, limit = 50 }
 /**
  * @param {number} orderId
  * @param {string} body
+ * @param {{ signal?: AbortSignal }} [options]
  * @returns {Promise<OrderMessageDto>}
  */
-export async function sendOrderMessage(orderId, body) {
-    const { data } = await client.post(`/food/orders/${orderId}/messages`, { body });
+export async function sendOrderMessage(orderId, body, { signal } = {}) {
+    const { data } = await client.post(`/food/orders/${orderId}/messages`, { body }, { signal });
 
     return data.message;
 }

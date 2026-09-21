@@ -77,7 +77,7 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
     ): void {
         config([$configKey => $secret]);
 
-        $middleware = new $middlewareClass;
+        $middleware = $this->app->make($middlewareClass);
         $request = Request::create($requestUri, $requestMethod);
         $request->headers->set($headerName, 'wrong-value');
 
@@ -101,7 +101,7 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
     ): void {
         config([$configKey => $secret]);
 
-        $middleware = new $middlewareClass;
+        $middleware = $this->app->make($middlewareClass);
         $request = Request::create($requestUri, $requestMethod);
 
         $response = $middleware->handle($request, $this->okNext());
@@ -123,7 +123,7 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
     ): void {
         config([$configKey => '']);
 
-        $middleware = new $middlewareClass;
+        $middleware = $this->app->make($middlewareClass);
         $request = Request::create($requestUri, $requestMethod);
         $request->headers->set($headerName, $secret);
 
@@ -146,7 +146,7 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
     ): void {
         config([$configKey => $secret]);
 
-        $middleware = new $middlewareClass;
+        $middleware = $this->app->make($middlewareClass);
         $request = Request::create($requestUri, $requestMethod);
         $request->headers->set($headerName, $secret);
 

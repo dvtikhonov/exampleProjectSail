@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\PhotoText;
 
+use App\Contracts\Food\PhotoText\PhotoTextScheduleApplierInterface;
+use App\Contracts\Food\PhotoText\PhotoTextScheduleMatcherInterface;
 use App\Contracts\Food\PhotoText\PhotoTextSchedulePlacementServiceInterface;
 use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
 
@@ -11,13 +13,13 @@ use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
  * Facade: exact match имён графика PhotoText и запись через DishAvailabilityScheduleWriterInterface.
  * Apply заменяет график в окне целиком (фото — источник истины): старые даты в scope удаляются.
  *
- * Делегирует в {@see PhotoTextScheduleMatcher} и {@see PhotoTextScheduleApplier}.
+ * Делегирует в {@see PhotoTextScheduleMatcherInterface} и {@see PhotoTextScheduleApplierInterface}.
  */
 class PhotoTextSchedulePlacementService implements PhotoTextSchedulePlacementServiceInterface
 {
     public function __construct(
-        private readonly PhotoTextScheduleMatcher $matcher,
-        private readonly PhotoTextScheduleApplier $applier,
+        private readonly PhotoTextScheduleMatcherInterface $matcher,
+        private readonly PhotoTextScheduleApplierInterface $applier,
     ) {}
 
     /**

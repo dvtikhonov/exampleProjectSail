@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Max\Food;
 
+use App\Contracts\Food\Review\FoodOrderCustomerStatusMaxMessageBuilderInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\OrderRejectionScope;
 
 /**
  * Тексты MAX-уведомлений клиенту о статусе заявки (принято / подтверждено / отклонено).
  */
-final class FoodOrderCustomerStatusMaxMessageBuilder
+final class FoodOrderCustomerStatusMaxMessageBuilder implements FoodOrderCustomerStatusMaxMessageBuilderInterface
 {
     /**
      * Текст уведомления клиенту о принятии заказа на рассмотрение.

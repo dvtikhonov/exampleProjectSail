@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Shared\MenuReadRepositoryInterface;
+use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
+use App\Repositories\Food\Shared\EloquentMenuReadRepository;
 use App\Repositories\Food\Shared\EloquentRestaurantRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
@@ -32,7 +35,9 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $beta = Restaurant::factory()->create(['name' => 'Beta']);
         Restaurant::factory()->inactive()->create(['name' => 'Alpha']);
 
-        $repository = app(EloquentRestaurantRepository::class);
+        $repository = app(RestaurantRepositoryInterface::class);
+
+        $this->assertInstanceOf(EloquentRestaurantRepository::class, $repository);
 
         $restaurants = $repository->findAllActive();
 
@@ -47,7 +52,9 @@ class EloquentRestaurantRepositoryTest extends TestCase
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
 
-        $repository = app(EloquentRestaurantRepository::class);
+        $repository = app(MenuReadRepositoryInterface::class);
+
+        $this->assertInstanceOf(EloquentMenuReadRepository::class, $repository);
 
         $restaurant = $repository->findActiveWithMenu($fixture['restaurant']->id);
 
@@ -64,7 +71,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
     {
         $restaurant = Restaurant::factory()->inactive()->create();
 
-        $repository = app(EloquentRestaurantRepository::class);
+        $repository = app(MenuReadRepositoryInterface::class);
 
         $this->assertNull($repository->findActiveWithMenu($restaurant->id));
     }
@@ -86,7 +93,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        $repository = app(EloquentRestaurantRepository::class);
+        $repository = app(MenuReadRepositoryInterface::class);
 
         $loaded = $repository->findActiveWithMenu($restaurant->id);
 
@@ -101,7 +108,7 @@ class EloquentRestaurantRepositoryTest extends TestCase
         $fixture = FoodTestDataBuilder::createRestaurantWithDish();
         $fixture['dish']->update(['is_available' => false]);
 
-        $repository = app(EloquentRestaurantRepository::class);
+        $repository = app(MenuReadRepositoryInterface::class);
 
         $withoutUnavailable = $repository->findActiveWithMenu($fixture['restaurant']->id);
         $withUnavailable = $repository->findActiveWithMenu($fixture['restaurant']->id, true);

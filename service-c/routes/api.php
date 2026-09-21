@@ -3,9 +3,11 @@
 use App\Http\Controllers\Api\Food\AdminAiAccessController;
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
+use App\Http\Controllers\Api\Food\AdminDishImportController;
 use App\Http\Controllers\Api\Food\AdminDraftAfterScanningOrderController;
 use App\Http\Controllers\Api\Food\AdminManualOrderCartController;
 use App\Http\Controllers\Api\Food\AdminManualOrderQueryController;
+use App\Http\Controllers\Api\Food\AdminManualOrderSubmitController;
 use App\Http\Controllers\Api\Food\AdminMaxBotTestController;
 use App\Http\Controllers\Api\Food\AdminMenuCategoryController;
 use App\Http\Controllers\Api\Food\AdminOrderCompositionController;
@@ -33,7 +35,8 @@ Route::post('/max/auth', [MaxAuthController::class, 'store'])
 
 // Публичный same-origin URL для <img> (без Bearer — WebView MAX не шлёт Authorization на картинки).
 Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show'])
-    ->middleware('throttle:60,1');
+    ->middleware('throttle:food-dish-image')
+    ->whereNumber('dish');
 
 // Агент Cursor: токен X-PhotoText-Token + активный AI-доступ max_manager (ai_access_until > now).
 Route::middleware(['phototext.agent.token', 'phototext.ai.access'])->prefix('food/phototext')->group(function () {
@@ -61,30 +64,35 @@ Route::middleware('max.miniapp.auth')->group(function () {
 
     Route::prefix('food')->group(function () {
         Route::get('/restaurants', [RestaurantController::class, 'index']);
-        Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
+        Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu'])
+            ->whereNumber('restaurant');
 
         Route::get('/cart', [CartController::class, 'show']);
         Route::patch('/cart', [CartController::class, 'updateDeliveryAddress']);
         Route::delete('/cart', [CartController::class, 'clear']);
         Route::post('/cart/items', [CartController::class, 'store']);
-        Route::patch('/cart/items/{item}', [CartController::class, 'update']);
-        Route::delete('/cart/items/{item}', [CartController::class, 'destroy']);
+        Route::patch('/cart/items/{item}', [CartController::class, 'update'])
+            ->whereNumber('item');
+        Route::delete('/cart/items/{item}', [CartController::class, 'destroy'])
+            ->whereNumber('item');
 
-        Route::post('/orders/submit', [OrderController::class, 'submit']);
+        Route::post('/orders/submit', [OrderController::class, 'submit'])
+            ->middleware('throttle:10,1');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{order}', [OrderController::class, 'show'])
             ->whereNumber('order');
         Route::get('/orders/{order}/messages', [OrderChatController::class, 'index'])
             ->whereNumber('order');
         Route::post('/orders/{order}/messages', [OrderChatController::class, 'store'])
+            ->middleware('throttle:30,1')
             ->whereNumber('order');
 
         Route::prefix('admin')->group(function () {
             Route::get('/me', [AdminOrderReviewQueryController::class, 'me']);
             Route::get('/orders', [AdminOrderReviewQueryController::class, 'index'])
-                ->middleware('food.order.admin:address_reviewer,composition_reviewer,menu_manager,max_manager');
+                ->middleware('food.order.admin:address_reviewer,composition_reviewer');
             Route::get('/orders/{order}', [AdminOrderReviewQueryController::class, 'show'])
-                ->middleware('food.order.admin:address_reviewer,composition_reviewer,menu_manager,max_manager')
+                ->middleware('food.order.admin:address_reviewer,composition_reviewer')
                 ->whereNumber('order');
 
             Route::middleware('food.order.admin:max_manager')->group(function () {
@@ -133,7 +141,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 }
                 Route::get('/dishes/{dish}', [AdminDishController::class, 'show'])
                     ->whereNumber('dish');
-                Route::post('/dishes/import', [AdminDishController::class, 'import']);
+                Route::post('/dishes/import', [AdminDishImportController::class, 'import']);
                 Route::post('/dishes', [AdminDishController::class, 'store']);
                 Route::post('/dishes/{dish}', [AdminDishController::class, 'update'])
                     ->whereNumber('dish');
@@ -165,7 +173,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
                         ->whereNumber('item');
                     Route::delete('/cart/items/{item}', [AdminManualOrderCartController::class, 'destroyItem'])
                         ->whereNumber('item');
-                    Route::post('/submit', [AdminManualOrderCartController::class, 'submit']);
+                    Route::post('/submit', [AdminManualOrderSubmitController::class, 'submit']);
                     Route::post('/{order}/complete', [AdminDraftAfterScanningOrderController::class, 'complete'])
                         ->whereNumber('order');
                     Route::post('/{order}/move-to-cart', [AdminDraftAfterScanningOrderController::class, 'moveToCart'])

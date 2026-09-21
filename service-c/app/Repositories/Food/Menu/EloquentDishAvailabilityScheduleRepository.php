@@ -1,0 +1,136 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories\Food\Menu;
+
+use App\Contracts\Food\Menu\DishAvailabilityScheduleRepositoryInterface;
+use App\DTO\Food\Menu\DishRecord;
+use App\Models\Food\Dish;
+use App\Models\Food\DishAvailabilityDate;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Eloquent-реализация порта графика доступности блюд.
+ */
+class EloquentDishAvailabilityScheduleRepository implements DishAvailabilityScheduleRepositoryInterface
+{
+    public function __construct(
+        private readonly DishMapper $dishMapper,
+    ) {}
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listDishesForCategory(int $restaurantId, int $categoryId): array
+    {
+        return Dish::query()
+            ->where('menu_category_id', $categoryId)
+            ->whereHas(
+                'menuCategory',
+                static fn ($query) => $query->where('restaurant_id', $restaurantId),
+            )
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Dish $dish): DishRecord => $this->dishMapper->toRecord($dish))
+            ->all();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getScheduleForDishes(array $dishIds, string $dateFrom, string $dateTo): array
+    {
+        if ($dishIds === []) {
+            return [];
+        }
+
+        $rows = DishAvailabilityDate::query()
+            ->whereIn('dish_id', $dishIds)
+            ->whereBetween('available_date', [$dateFrom, $dateTo])
+            ->orderBy('available_date')
+            ->get(['dish_id', 'available_date']);
+
+        $schedule = [];
+
+        foreach ($dishIds as $dishId) {
+            $schedule[$dishId] = [];
+        }
+
+        foreach ($rows as $row) {
+            $schedule[(int) $row->dish_id][] = $row->available_date->format('Y-m-d');
+        }
+
+        return $schedule;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function syncDishesAvailabilityInRange(
+        array $dishAvailableDates,
+        string $rangeFrom,
+        string $rangeTo,
+        string $editableFrom,
+    ): void {
+        if ($dishAvailableDates === []) {
+            return;
+        }
+
+        $syncFrom = max($rangeFrom, $editableFrom);
+        $dishIds = array_map(static fn (int|string $id): int => (int) $id, array_keys($dishAvailableDates));
+        $now = now();
+        $rows = [];
+
+        foreach ($dishAvailableDates as $dishId => $availableDates) {
+            $datesInScope = array_values(array_unique(array_filter(
+                $availableDates,
+                static fn (string $date): bool => $date >= $syncFrom && $date <= $rangeTo,
+            )));
+
+            foreach ($datesInScope as $date) {
+                $rows[] = [
+                    'dish_id' => (int) $dishId,
+                    'available_date' => $date,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        DB::transaction(function () use ($dishIds, $syncFrom, $rangeTo, $rows): void {
+            // Сериализуем concurrent sync по блюдам (admin + PhotoText apply).
+            Dish::query()->whereIn('id', $dishIds)->orderBy('id')->lockForUpdate()->get();
+
+            DishAvailabilityDate::query()
+                ->whereIn('dish_id', $dishIds)
+                ->whereBetween('available_date', [$syncFrom, $rangeTo])
+                ->delete();
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                DishAvailabilityDate::query()->insert($chunk);
+            }
+        });
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dishesBelongToCategory(array $dishIds, int $categoryId, int $restaurantId): bool
+    {
+        if ($dishIds === []) {
+            return true;
+        }
+
+        $matchedCount = Dish::query()
+            ->whereIn('id', $dishIds)
+            ->where('menu_category_id', $categoryId)
+            ->whereHas(
+                'menuCategory',
+                static fn ($query) => $query->where('restaurant_id', $restaurantId),
+            )
+            ->count();
+
+        return $matchedCount === count(array_unique($dishIds));
+    }
+}

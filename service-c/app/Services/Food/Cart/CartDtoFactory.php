@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Food\Cart;
 
+use App\Contracts\Food\Cart\CartDtoFactoryInterface;
+use App\Contracts\Food\Cart\CartTotalsCalculatorInterface;
 use App\Contracts\Food\Menu\DishImageUrlResolverInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
@@ -16,12 +18,12 @@ use App\Enums\Food\Menu\DishWeightUnit;
 /**
  * Сборка CartDto из доменной проекции корзины с расчётом сумм.
  */
-class CartDtoFactory
+class CartDtoFactory implements CartDtoFactoryInterface
 {
     public function __construct(
         private readonly FoodMoneyFormatterInterface $moneyFormatter,
         private readonly DishImageUrlResolverInterface $imageUrlResolver,
-        private readonly CartTotalsCalculator $cartTotalsCalculator,
+        private readonly CartTotalsCalculatorInterface $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}

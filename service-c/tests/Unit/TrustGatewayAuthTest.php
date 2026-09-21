@@ -9,14 +9,19 @@ use App\DTO\Auth\GatewayUserDto;
 use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Responses\GatewayUnauthorizedResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 class TrustGatewayAuthTest extends TestCase
 {
+    private const string GATEWAY_SECRET = 'expected-secret';
+
     /** Логинит пользователя, когда resolver вернул DTO. */
     public function test_logs_in_when_resolver_returns_dto(): void
     {
+        Config::set('gateway.auth_secret', self::GATEWAY_SECRET);
+
         $dto = new GatewayUserDto(id: 42, name: 'Gateway User 42', email: 'gateway-user-42@gateway.local');
 
         $resolver = $this->createMock(GatewayUserResolverInterface::class);
@@ -35,6 +40,7 @@ class TrustGatewayAuthTest extends TestCase
         $middleware = new TrustGatewayAuth($resolver, $session);
         $request = Request::create('/test');
         $request->headers->set('X-User-Id', '42');
+        $request->headers->set('X-Gateway-Secret', self::GATEWAY_SECRET);
 
         $response = $middleware->handle($request, fn (Request $req) => response('ok'));
 
@@ -44,6 +50,8 @@ class TrustGatewayAuthTest extends TestCase
     /** Возвращает 401, когда заголовок отсутствует. */
     public function test_returns_unauthorized_when_header_missing(): void
     {
+        Config::set('gateway.auth_secret', self::GATEWAY_SECRET);
+
         $resolver = $this->createMock(GatewayUserResolverInterface::class);
         $resolver->expects($this->never())->method('resolve');
 
@@ -52,6 +60,7 @@ class TrustGatewayAuthTest extends TestCase
 
         $middleware = new TrustGatewayAuth($resolver, $session);
         $request = Request::create('/test');
+        $request->headers->set('X-Gateway-Secret', self::GATEWAY_SECRET);
 
         $response = $middleware->handle($request, fn (Request $req) => response('ok'));
 
@@ -65,6 +74,8 @@ class TrustGatewayAuthTest extends TestCase
     /** Возвращает 401, когда resolver вернул null. */
     public function test_returns_unauthorized_when_resolver_returns_null(): void
     {
+        Config::set('gateway.auth_secret', self::GATEWAY_SECRET);
+
         $resolver = $this->createMock(GatewayUserResolverInterface::class);
         $resolver->method('resolve')->willReturn(null);
 
@@ -74,6 +85,7 @@ class TrustGatewayAuthTest extends TestCase
         $middleware = new TrustGatewayAuth($resolver, $session);
         $request = Request::create('/test');
         $request->headers->set('X-User-Id', '42');
+        $request->headers->set('X-Gateway-Secret', self::GATEWAY_SECRET);
 
         $response = $middleware->handle($request, fn (Request $req) => response('ok'));
 
@@ -98,6 +110,32 @@ class TrustGatewayAuthTest extends TestCase
         $middleware = new TrustGatewayAuth($resolver, $session);
         $request = Request::create('/test');
         $request->headers->set('X-User-Id', '42');
+        $request->headers->set('X-Gateway-Secret', self::GATEWAY_SECRET);
+
+        $response = $middleware->handle($request, fn (Request $req) => response('ok'));
+
+        $this->assertSame(Response::HTTP_UNAUTHORIZED, $response->getStatusCode());
+        $this->assertSame(
+            json_encode(['message' => GatewayUnauthorizedResponse::MESSAGE], JSON_THROW_ON_ERROR),
+            $response->getContent(),
+        );
+    }
+
+    /** Пустой GATEWAY_AUTH_SECRET — 401. */
+    public function test_returns_unauthorized_when_gateway_secret_empty(): void
+    {
+        Config::set('gateway.auth_secret', '');
+
+        $resolver = $this->createMock(GatewayUserResolverInterface::class);
+        $resolver->expects($this->never())->method('resolve');
+
+        $session = $this->createMock(GatewayAuthSessionInterface::class);
+        $session->expects($this->never())->method('login');
+
+        $middleware = new TrustGatewayAuth($resolver, $session);
+        $request = Request::create('/test');
+        $request->headers->set('X-User-Id', '42');
+        $request->headers->set('X-Gateway-Secret', 'any-secret');
 
         $response = $middleware->handle($request, fn (Request $req) => response('ok'));
 
@@ -111,7 +149,7 @@ class TrustGatewayAuthTest extends TestCase
     /** При заданном GATEWAY_AUTH_SECRET без заголовка — 401. */
     public function test_returns_unauthorized_when_gateway_secret_required_but_missing(): void
     {
-        config(['gateway.auth_secret' => 'expected-secret']);
+        Config::set('gateway.auth_secret', self::GATEWAY_SECRET);
 
         $resolver = $this->createMock(GatewayUserResolverInterface::class);
         $resolver->expects($this->never())->method('resolve');
@@ -131,7 +169,7 @@ class TrustGatewayAuthTest extends TestCase
     /** При заданном секрете неверный X-Gateway-Secret — 401. */
     public function test_returns_unauthorized_when_gateway_secret_mismatches(): void
     {
-        config(['gateway.auth_secret' => 'expected-secret']);
+        Config::set('gateway.auth_secret', self::GATEWAY_SECRET);
 
         $resolver = $this->createMock(GatewayUserResolverInterface::class);
         $resolver->expects($this->never())->method('resolve');
@@ -152,7 +190,7 @@ class TrustGatewayAuthTest extends TestCase
     /** При совпадении X-Gateway-Secret логинит пользователя. */
     public function test_logs_in_when_gateway_secret_matches(): void
     {
-        config(['gateway.auth_secret' => 'expected-secret']);
+        Config::set('gateway.auth_secret', self::GATEWAY_SECRET);
 
         $dto = new GatewayUserDto(id: 42, name: 'Gateway User 42', email: 'gateway-user-42@gateway.local');
 
@@ -169,7 +207,7 @@ class TrustGatewayAuthTest extends TestCase
         $middleware = new TrustGatewayAuth($resolver, $session);
         $request = Request::create('/test');
         $request->headers->set('X-User-Id', '42');
-        $request->headers->set('X-Gateway-Secret', 'expected-secret');
+        $request->headers->set('X-Gateway-Secret', self::GATEWAY_SECRET);
 
         $response = $middleware->handle($request, fn (Request $req) => response('ok'));
 

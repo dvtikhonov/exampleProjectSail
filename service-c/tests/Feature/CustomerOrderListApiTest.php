@@ -122,7 +122,7 @@ class CustomerOrderListApiTest extends TestCase
             ->assertJsonPath('order.items_snapshot.0.dish_name', 'Steak');
     }
 
-    /** Клиент не может просмотреть чужой заказ. */
+    /** Клиент не может просмотреть чужой заказ (ответ как у отсутствующего — без enumeration). */
     public function test_customer_cannot_view_another_users_order(): void
     {
         $fixture = FoodTestDataBuilder::createRestaurantWithDishAndDelivery();
@@ -135,8 +135,21 @@ class CustomerOrderListApiTest extends TestCase
         ]));
 
         $this->getJson("/api/food/orders/{$orderId}", $otherAuth['headers'])
-            ->assertForbidden()
-            ->assertJsonPath('message', 'Доступ запрещён.');
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
+    }
+
+    /** Несуществующий заказ отдаёт тот же 404, что и чужой. */
+    public function test_customer_cannot_view_missing_order(): void
+    {
+        $auth = $this->authenticateMaxUser(MaxUser::query()->create([
+            'max_user_id' => 66_403,
+            'first_name' => 'MissingOrderCustomer',
+        ]));
+
+        $this->getJson('/api/food/orders/999999', $auth['headers'])
+            ->assertNotFound()
+            ->assertJsonPath('message', 'Заказ не найден.');
     }
 
     /** Список заказов возвращает несколько заказов, сначала новые. */

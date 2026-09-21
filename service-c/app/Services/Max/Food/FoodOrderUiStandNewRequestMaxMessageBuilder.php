@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Max\Food;
 
+use App\Contracts\Food\Review\FoodOrderUiStandNewRequestMaxMessageBuilderInterface;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
 use App\Support\Max\Food\Formatting\FoodOrderMaxBoundedItemsMessageAssembler;
@@ -15,7 +16,7 @@ use App\Support\Max\Food\Formatting\FoodOrderMaxTextAssembler;
 /**
  * Текст MAX-уведомления о новой заявке в UI Stand.
  */
-final class FoodOrderUiStandNewRequestMaxMessageBuilder
+final class FoodOrderUiStandNewRequestMaxMessageBuilder implements FoodOrderUiStandNewRequestMaxMessageBuilderInterface
 {
     public function __construct(
         private readonly FoodOrderMaxClientFormatter $clientFormatter,

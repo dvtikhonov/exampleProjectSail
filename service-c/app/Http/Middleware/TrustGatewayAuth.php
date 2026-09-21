@@ -15,8 +15,8 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Доверенная аутентификация пользователя через nginx-gateway.
  *
- * Доступна только в local/testing. При непустом gateway.auth_secret
- * дополнительно сверяет заголовок X-Gateway-Secret через hash_equals.
+ * Доступна только в local/testing. Требует непустой gateway.auth_secret
+ * и сверяет заголовок X-Gateway-Secret через hash_equals.
  */
 class TrustGatewayAuth
 {
@@ -26,7 +26,7 @@ class TrustGatewayAuth
     ) {}
 
     /**
-     * Проверяет окружение, опциональный секрет и доверие к gateway-аутентификации.
+     * Проверяет окружение, обязательный секрет и доверие к gateway-аутентификации.
      *
      * @param  Closure(Request): (Response)  $next
      */
@@ -37,11 +37,13 @@ class TrustGatewayAuth
         }
 
         $expectedSecret = (string) config('gateway.auth_secret', '');
-        if ($expectedSecret !== '') {
-            $providedSecret = (string) $request->header('X-Gateway-Secret', '');
-            if (! hash_equals($expectedSecret, $providedSecret)) {
-                return GatewayUnauthorizedResponse::make();
-            }
+        if ($expectedSecret === '') {
+            return GatewayUnauthorizedResponse::make();
+        }
+
+        $providedSecret = (string) $request->header('X-Gateway-Secret', '');
+        if (! hash_equals($expectedSecret, $providedSecret)) {
+            return GatewayUnauthorizedResponse::make();
         }
 
         $credentials = GatewayAuthCredentialsDto::tryFromUserIdHeader(

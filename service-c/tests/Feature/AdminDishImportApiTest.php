@@ -149,6 +149,28 @@ class AdminDishImportApiTest extends TestCase
         ]);
     }
 
+    /** Импорт отклоняет несуществующий menu_category_id на уровне FormRequest. */
+    public function test_import_rejects_nonexistent_menu_category_id(): void
+    {
+        $auth = $this->menuManagerAuth();
+        $xlsxPath = DishSpreadsheetTestFileFactory::createXlsx([
+            ['Борщ. 300г', '250'],
+        ]);
+
+        try {
+            $this->postMultipart('/api/food/admin/dishes/import', [
+                'file' => new UploadedFile($xlsxPath, 'menu.xlsx', null, null, true),
+                'menu_category_id' => 999_999,
+            ], $auth['headers'])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['menu_category_id']);
+        } finally {
+            @unlink($xlsxPath);
+        }
+
+        $this->assertSame(0, Dish::query()->count());
+    }
+
     /**
      * @param  array<string, mixed>  $data
      * @param  array<string, string>  $headers

@@ -18,7 +18,7 @@ final class FoodOrderMaxMoneyFormatter
             return '0.00';
         }
 
-        return number_format((float) $amount, 2, '.', '');
+        return bcadd($this->normalizeAmount($amount), '0', 2);
     }
 
     /**
@@ -26,6 +26,32 @@ final class FoodOrderMaxMoneyFormatter
      */
     public function formatRublesAmount(mixed $amount): string
     {
-        return (string) (int) round((float) ($amount ?? 0));
+        if ($amount === null || $amount === '') {
+            return '0';
+        }
+
+        $normalized = $this->normalizeAmount($amount);
+        // Округление half-away-from-zero: ±0.5, затем усечение scale=0.
+        $half = bccomp($normalized, '0', 14) < 0 ? '-0.5' : '0.5';
+
+        return bcadd($normalized, $half, 0);
+    }
+
+    /**
+     * Приводит сумму к числовой строке для bcmath без (float)-каста.
+     */
+    private function normalizeAmount(mixed $amount): string
+    {
+        if (is_int($amount)) {
+            return (string) $amount;
+        }
+
+        if (is_float($amount)) {
+            return sprintf('%.14F', $amount);
+        }
+
+        $normalized = trim((string) $amount);
+
+        return $normalized === '' ? '0' : $normalized;
     }
 }

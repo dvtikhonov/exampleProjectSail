@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Inventory Illuminate\ / App\Models\ / Laravel helper+facade leaks in app/Services and app/Contracts.
+# Inventory Illuminate\ / App\Models\ / Laravel helper+facade leaks in core layers:
+# app/Services, app/Contracts, app/DTO, app/Enums, app/Exceptions.
 # Helpers/facades: config('…'), event(…), DB::, Log::, Storage::, Cache::
 # Usage:
 #   bash scripts/architecture-leak-inventory.sh              # print current leaks
@@ -12,12 +13,14 @@ cd "$ROOT"
 
 BASELINE="${ROOT}/tests/Architecture/baselines/core-illuminate-models-leaks.txt"
 MODE="list"
+# Core dirs scanned for Illuminate / Eloquent / helper+facade leaks.
+CORE_SCAN_DIRS=(app/Services app/Contracts app/DTO app/Enums app/Exceptions)
 
 case "${1:-}" in
     --write-baseline) MODE="write" ;;
     --check) MODE="check" ;;
     -h|--help)
-        sed -n '2,7p' "$0"
+        sed -n '2,8p' "$0"
         exit 0
         ;;
     "")
@@ -33,12 +36,12 @@ collect_leaks() {
     tmp="$(mktemp)"
 
     {
-        grep -rl 'App\\Models' app/Services app/Contracts --include='*.php' 2>/dev/null || true
-        grep -rl 'Illuminate\\' app/Services app/Contracts --include='*.php' 2>/dev/null || true
+        grep -rl 'App\\Models' "${CORE_SCAN_DIRS[@]}" --include='*.php' 2>/dev/null || true
+        grep -rl 'Illuminate\\' "${CORE_SCAN_DIRS[@]}" --include='*.php' 2>/dev/null || true
         # Laravel config() helper (string key); avoids method names like ->config()
-        grep -rlE 'config[[:space:]]*\([[:space:]]*['\''"]' app/Services app/Contracts --include='*.php' 2>/dev/null || true
-        grep -rlE '\bevent[[:space:]]*\(' app/Services app/Contracts --include='*.php' 2>/dev/null || true
-        grep -rlE '\b(DB|Log|Storage|Cache)::' app/Services app/Contracts --include='*.php' 2>/dev/null || true
+        grep -rlE 'config[[:space:]]*\([[:space:]]*['\''"]' "${CORE_SCAN_DIRS[@]}" --include='*.php' 2>/dev/null || true
+        grep -rlE '\bevent[[:space:]]*\(' "${CORE_SCAN_DIRS[@]}" --include='*.php' 2>/dev/null || true
+        grep -rlE '\b(DB|Log|Storage|Cache)::' "${CORE_SCAN_DIRS[@]}" --include='*.php' 2>/dev/null || true
     } | sed 's|^\./||' | sort -u >"$tmp"
 
     cat "$tmp"
@@ -63,7 +66,8 @@ case "$MODE" in
     write)
         {
             cat <<'HDR'
-# Baseline: known Illuminate\ / App\Models\ / helper+facade leaks in app/Services and app/Contracts.
+# Baseline: known Illuminate\ / App\Models\ / helper+facade leaks in core layers
+# (app/Services, app/Contracts, app/DTO, app/Enums, app/Exceptions).
 # Helpers/facades: config('…'), event(…), DB::, Log::, Storage::, Cache::
 # Phase 0 inventory for Laravel core isolation. Remove a path when the file is cleaned.
 # Do not add new paths — fix the leak instead (ports in Contracts/Shared, adapters in Infrastructure/Laravel).
@@ -107,7 +111,7 @@ HDR
 
         if [[ ${#new_leaks[@]} -gt 0 ]]; then
             status=1
-            echo "ERROR: new Illuminate\\ / App\\Models\\ / helper+facade leaks in Services/Contracts (not in baseline):"
+            echo "ERROR: new Illuminate\\ / App\\Models\\ / helper+facade leaks in core layers (not in baseline):"
             printf '  %s\n' "${new_leaks[@]}"
             echo "Fix the leak — do not extend the baseline."
             echo ""

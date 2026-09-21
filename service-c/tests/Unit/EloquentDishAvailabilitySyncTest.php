@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Contracts\Food\Menu\DishAvailabilityFlagSyncRepositoryInterface;
+use App\Contracts\Food\Menu\DishAvailabilityScheduleRepositoryInterface;
 use App\Models\Food\DishAvailabilityDate;
-use App\Repositories\Food\Menu\EloquentDishAvailabilityRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\FoodTestDataBuilder;
@@ -24,10 +25,16 @@ class EloquentDishAvailabilitySyncTest extends TestCase
         $this->resetFoodDomainTables();
     }
 
-    /** Репозиторий через контейнер (нужен DishMapper в конструкторе). */
-    private function repository(): EloquentDishAvailabilityRepository
+    /** Порт синхронизации флага is_available. */
+    private function flagSyncRepository(): DishAvailabilityFlagSyncRepositoryInterface
     {
-        return $this->app->make(EloquentDishAvailabilityRepository::class);
+        return $this->app->make(DishAvailabilityFlagSyncRepositoryInterface::class);
+    }
+
+    /** Порт графика доступности. */
+    private function scheduleRepository(): DishAvailabilityScheduleRepositoryInterface
+    {
+        return $this->app->make(DishAvailabilityScheduleRepositoryInterface::class);
     }
 
     /** Sync включает блюда с датой на сегодня и выключает все остальные. */
@@ -53,7 +60,7 @@ class EloquentDishAvailabilitySyncTest extends TestCase
         $unscheduled = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'Без графика');
         $unscheduled['dish']->update(['is_available' => true]);
 
-        $updated = $this->repository()->syncDishesIsAvailableForDate($today);
+        $updated = $this->flagSyncRepository()->syncDishesIsAvailableForDate($today);
 
         $this->assertGreaterThan(0, $updated);
         $this->assertTrue($scheduledToday['dish']->fresh()->is_available);
@@ -76,7 +83,7 @@ class EloquentDishAvailabilitySyncTest extends TestCase
         $other = FoodTestDataBuilder::createRestaurantWithDish(dishName: 'Чужая');
         $other['dish']->update(['is_available' => true]);
 
-        $updated = $this->repository()->syncDishesIsAvailableForCategoryAndDate(
+        $updated = $this->flagSyncRepository()->syncDishesIsAvailableForCategoryAndDate(
             (int) $target['category']->id,
             $today,
         );
@@ -94,7 +101,7 @@ class EloquentDishAvailabilitySyncTest extends TestCase
         $a['dish']->update(['is_available' => true]);
         $b['dish']->update(['is_available' => true]);
 
-        $updated = $this->repository()->clearAllDishesIsAvailable();
+        $updated = $this->flagSyncRepository()->clearAllDishesIsAvailable();
 
         $this->assertGreaterThan(0, $updated);
         $this->assertFalse($a['dish']->fresh()->is_available);
@@ -121,7 +128,7 @@ class EloquentDishAvailabilitySyncTest extends TestCase
             'available_date' => $futureB,
         ]);
 
-        $this->repository()->syncDishesAvailabilityInRange(
+        $this->scheduleRepository()->syncDishesAvailabilityInRange(
             [
                 (int) $dishA['dish']->id => [$futureA],
                 (int) $dishB['dish']->id => [$futureB],
@@ -172,7 +179,7 @@ class EloquentDishAvailabilitySyncTest extends TestCase
             'available_date' => $tomorrow,
         ]);
 
-        $updated = $this->repository()->enableDishesIsAvailableForCategoryDates([
+        $updated = $this->flagSyncRepository()->enableDishesIsAvailableForCategoryDates([
             (int) $catA['category']->id => $tomorrow,
             (int) $catB['category']->id => $dayAfter,
         ]);

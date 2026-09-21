@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food\Concerns;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Общие правила и accessors для адреса доставки корзины.
@@ -48,6 +49,20 @@ trait ValidatesDeliveryAddress
         return [
             'delivery_address' => 'адрес доставки',
         ];
+    }
+
+    /**
+     * Проверяет, что адрес доставки не состоит только из пробелов.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $address = $this->input('delivery_address');
+
+            if (! is_string($address) || trim($address) === '') {
+                $validator->errors()->add('delivery_address', 'Укажите адрес доставки.');
+            }
+        });
     }
 
     /**

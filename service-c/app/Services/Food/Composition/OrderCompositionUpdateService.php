@@ -15,7 +15,7 @@ use App\DTO\Food\Order\FoodOrderUpdateCommand;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 
 /**
  * Обновление состава заказа проверяющим composition_reviewer.

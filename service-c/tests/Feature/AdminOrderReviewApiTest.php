@@ -342,6 +342,26 @@ class AdminOrderReviewApiTest extends TestCase
             ->assertJsonValidationErrors(['comment']);
     }
 
+    /** Отклонение адреса отклоняет комментарий из одних пробелов. */
+    public function test_address_reject_rejects_whitespace_only_comment(): void
+    {
+        $orderId = $this->createPendingReviewOrder();
+        $auth = $this->asFoodOrderAdmin(
+            $this->authenticateMaxUser(MaxUser::query()->create([
+                'max_user_id' => 10_013,
+                'first_name' => 'AddressAdminWs',
+            ])),
+            FoodOrderAdminRole::AddressReviewer,
+        );
+
+        $this->postJson("/api/food/admin/orders/{$orderId}/address/reject", [
+            'comment' => '   ',
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['comment'])
+            ->assertJsonPath('message', 'Укажите причину отклонения.');
+    }
+
     /** Отклонение адреса с комментарием уведомляет клиента и помечает заказ отклонённым. */
     public function test_address_reject_with_comment_notifies_customer_and_marks_order_rejected(): void
     {
@@ -1031,6 +1051,27 @@ class AdminOrderReviewApiTest extends TestCase
 
         $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
             'items' => [],
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['items']);
+    }
+
+    /** Обновление состава отклоняет больше 100 позиций. */
+    public function test_composition_update_rejects_more_than_100_items(): void
+    {
+        $fixture = $this->createPendingReviewOrderFixture(customerMaxUserId: 77_815);
+        $auth = $this->compositionAdminAuth();
+
+        $items = array_map(
+            static fn (int $i): array => [
+                'dish_id' => $fixture['dish']->id,
+                'quantity' => 1,
+            ],
+            range(1, 101),
+        );
+
+        $this->putJson("/api/food/admin/orders/{$fixture['order_id']}/composition", [
+            'items' => $items,
         ], $auth['headers'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['items']);

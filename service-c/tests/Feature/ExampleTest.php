@@ -17,6 +17,7 @@ class ExampleTest extends TestCase
 
         $response = $this
             ->withHeader('X-User-Id', (string) $user->id)
+            ->withHeader('X-Gateway-Secret', (string) config('gateway.auth_secret'))
             ->getJson('/api/data');
 
         $response

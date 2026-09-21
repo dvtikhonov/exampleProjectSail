@@ -37,8 +37,8 @@ class ListAdminDishesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'restaurant_id' => ['nullable', 'integer', 'min:1'],
-            'category_id' => ['nullable', 'integer', 'min:1'],
+            'restaurant_id' => ['nullable', 'integer', 'min:1', 'exists:max_restaurants,id'],
+            'category_id' => ['nullable', 'integer', 'min:1', 'exists:max_menu_categories,id'],
             'name' => ['nullable', 'string', 'max:255'],
             'availability' => [
                 'nullable',
@@ -57,6 +57,8 @@ class ListAdminDishesRequest extends FormRequest
     {
         return [
             'availability.in' => 'Некорректный availability. Используйте all, available или hidden.',
+            'restaurant_id.exists' => 'Указанный ресторан не найден.',
+            'category_id.exists' => 'Указанная категория меню не найдена.',
         ];
     }
 

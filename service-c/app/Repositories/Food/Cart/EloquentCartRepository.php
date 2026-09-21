@@ -4,23 +4,24 @@ declare(strict_types=1);
 
 namespace App\Repositories\Food\Cart;
 
+use App\Contracts\Food\Cart\CartDraftRepositoryInterface;
+use App\Contracts\Food\Cart\CartItemRepositoryInterface;
+use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
 use App\Contracts\Food\Cart\CartRepositoryInterface;
 use App\DTO\Food\Cart\CartCreateCommand;
 use App\DTO\Food\Cart\CartItemCreateCommand;
 use App\DTO\Food\Cart\CartItemRecord;
 use App\DTO\Food\Cart\CartRecord;
-use App\Enums\Food\Cart\CartStatus;
-use App\Models\Food\Cart;
-use App\Models\Food\CartItem;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Eloquent-реализация репозитория корзины.
+ * Composition-адаптер полного порта корзины: делегирует в draft / item / lifecycle.
  */
 class EloquentCartRepository implements CartRepositoryInterface
 {
     public function __construct(
-        private readonly CartMapper $cartMapper,
+        private readonly CartDraftRepositoryInterface $draftRepository,
+        private readonly CartItemRepositoryInterface $itemRepository,
+        private readonly CartLifecycleRepositoryInterface $lifecycleRepository,
     ) {}
 
     /**
@@ -28,11 +29,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findDraftByMaxUserId(int $maxUserId): ?CartRecord
     {
-        $cart = $this->draftQuery($maxUserId)
-            ->with(['restaurant', 'items.dish', 'items.comboPartnerDish'])
-            ->first();
-
-        return $cart !== null ? $this->cartMapper->toRecord($cart) : null;
+        return $this->draftRepository->findDraftByMaxUserId($maxUserId);
     }
 
     /**
@@ -40,12 +37,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findDraftForUpdate(int $maxUserId): ?CartRecord
     {
-        $cart = $this->draftQuery($maxUserId)
-            ->with(['restaurant', 'items.dish'])
-            ->lockForUpdate()
-            ->first();
-
-        return $cart !== null ? $this->cartMapper->toRecord($cart) : null;
+        return $this->draftRepository->findDraftForUpdate($maxUserId);
     }
 
     /**
@@ -53,11 +45,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findManualDraft(int $customerMaxUserId, int $managerMaxUserId): ?CartRecord
     {
-        $cart = $this->manualDraftQuery($customerMaxUserId, $managerMaxUserId)
-            ->with(['restaurant', 'items.dish', 'items.comboPartnerDish'])
-            ->first();
-
-        return $cart !== null ? $this->cartMapper->toRecord($cart) : null;
+        return $this->draftRepository->findManualDraft($customerMaxUserId, $managerMaxUserId);
     }
 
     /**
@@ -65,12 +53,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findManualDraftForUpdate(int $customerMaxUserId, int $managerMaxUserId): ?CartRecord
     {
-        $cart = $this->manualDraftQuery($customerMaxUserId, $managerMaxUserId)
-            ->with(['restaurant', 'items.dish'])
-            ->lockForUpdate()
-            ->first();
-
-        return $cart !== null ? $this->cartMapper->toRecord($cart) : null;
+        return $this->draftRepository->findManualDraftForUpdate($customerMaxUserId, $managerMaxUserId);
     }
 
     /**
@@ -78,9 +61,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function createDraft(CartCreateCommand $command): CartRecord
     {
-        $cart = Cart::query()->create($this->cartMapper->toCreateAttributes($command));
-
-        return $this->cartMapper->toRecord($cart);
+        return $this->draftRepository->createDraft($command);
     }
 
     /**
@@ -88,7 +69,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function updateDeliveryAddress(int $cartId, string $deliveryAddress): void
     {
-        Cart::query()->whereKey($cartId)->update(['delivery_address' => $deliveryAddress]);
+        $this->lifecycleRepository->updateDeliveryAddress($cartId, $deliveryAddress);
     }
 
     /**
@@ -96,7 +77,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function markAsSubmitted(int $cartId): void
     {
-        Cart::query()->whereKey($cartId)->update(['status' => CartStatus::Submitted]);
+        $this->lifecycleRepository->markAsSubmitted($cartId);
     }
 
     /**
@@ -104,11 +85,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function refreshForDto(int $cartId): CartRecord
     {
-        $cart = Cart::query()
-            ->with(['restaurant', 'items.dish', 'items.comboPartnerDish'])
-            ->findOrFail($cartId);
-
-        return $this->cartMapper->toRecord($cart);
+        return $this->lifecycleRepository->refreshForDto($cartId);
     }
 
     /**
@@ -116,7 +93,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function delete(int $cartId): void
     {
-        Cart::query()->whereKey($cartId)->delete();
+        $this->lifecycleRepository->delete($cartId);
     }
 
     /**
@@ -124,11 +101,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findItemById(int $cartItemId): ?CartItemRecord
     {
-        $item = CartItem::query()
-            ->with(['cart.restaurant', 'cart.items.dish', 'dish'])
-            ->find($cartItemId);
-
-        return $item !== null ? $this->cartMapper->toItemRecord($item) : null;
+        return $this->itemRepository->findItemById($cartItemId);
     }
 
     /**
@@ -136,13 +109,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findRegularItemByCartAndDish(int $cartId, int $dishId): ?CartItemRecord
     {
-        $item = CartItem::query()
-            ->where('cart_id', $cartId)
-            ->where('dish_id', $dishId)
-            ->whereNull('combo_ref')
-            ->first();
-
-        return $item !== null ? $this->cartMapper->toItemRecord($item) : null;
+        return $this->itemRepository->findRegularItemByCartAndDish($cartId, $dishId);
     }
 
     /**
@@ -150,13 +117,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function findComboItemByCartDishAndRef(int $cartId, int $dishId, string $comboRef): ?CartItemRecord
     {
-        $item = CartItem::query()
-            ->where('cart_id', $cartId)
-            ->where('dish_id', $dishId)
-            ->where('combo_ref', $comboRef)
-            ->first();
-
-        return $item !== null ? $this->cartMapper->toItemRecord($item) : null;
+        return $this->itemRepository->findComboItemByCartDishAndRef($cartId, $dishId, $comboRef);
     }
 
     /**
@@ -164,9 +125,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function createItem(CartItemCreateCommand $command): CartItemRecord
     {
-        $item = CartItem::query()->create($this->cartMapper->toItemCreateAttributes($command));
-
-        return $this->cartMapper->toItemRecord($item);
+        return $this->itemRepository->createItem($command);
     }
 
     /**
@@ -174,7 +133,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function incrementItemQuantity(int $cartItemId, int $quantity): void
     {
-        CartItem::query()->whereKey($cartItemId)->increment('quantity', $quantity);
+        $this->itemRepository->incrementItemQuantity($cartItemId, $quantity);
     }
 
     /**
@@ -182,7 +141,7 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function updateItemQuantity(int $cartItemId, int $quantity): void
     {
-        CartItem::query()->whereKey($cartItemId)->update(['quantity' => $quantity]);
+        $this->itemRepository->updateItemQuantity($cartItemId, $quantity);
     }
 
     /**
@@ -190,28 +149,6 @@ class EloquentCartRepository implements CartRepositoryInterface
      */
     public function deleteItem(int $cartItemId): void
     {
-        CartItem::query()->whereKey($cartItemId)->delete();
-    }
-
-    /**
-     * @return Builder<Cart>
-     */
-    private function draftQuery(int $maxUserId): Builder
-    {
-        return Cart::query()
-            ->where('max_user_id', $maxUserId)
-            ->where('status', CartStatus::Draft)
-            ->whereNull('created_by_max_user_id');
-    }
-
-    /**
-     * @return Builder<Cart>
-     */
-    private function manualDraftQuery(int $customerMaxUserId, int $managerMaxUserId): Builder
-    {
-        return Cart::query()
-            ->where('max_user_id', $customerMaxUserId)
-            ->where('created_by_max_user_id', $managerMaxUserId)
-            ->where('status', CartStatus::Draft);
+        $this->itemRepository->deleteItem($cartItemId);
     }
 }

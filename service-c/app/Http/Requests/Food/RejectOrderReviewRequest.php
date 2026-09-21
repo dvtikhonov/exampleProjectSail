@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Валидация запроса отклонения заказа администратором.
@@ -54,6 +55,20 @@ class RejectOrderReviewRequest extends FormRequest
         return [
             'comment' => 'причина отклонения',
         ];
+    }
+
+    /**
+     * Проверяет, что комментарий отклонения не состоит только из пробелов.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $comment = $this->input('comment');
+
+            if (! is_string($comment) || trim($comment) === '') {
+                $validator->errors()->add('comment', 'Укажите причину отклонения.');
+            }
+        });
     }
 
     /**

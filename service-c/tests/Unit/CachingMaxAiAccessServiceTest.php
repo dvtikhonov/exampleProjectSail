@@ -123,7 +123,7 @@ class CachingMaxAiAccessServiceTest extends TestCase
                     'active_max_user_id' => 7,
                     'expires_at' => '2026-09-05T10:30:00+00:00',
                 ],
-                1800,
+                15,
             )
             ->willReturn(true);
         $cache->expects($this->never())->method('get');

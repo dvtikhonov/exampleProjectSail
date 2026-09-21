@@ -32,11 +32,13 @@ export async function fetchAdminOrders(scope, status = 'pending', options = {}) 
 /**
  * @param {number} orderId
  * @param {'address'|'composition'} scope — adminScope, не adminSection (см. constants/views.js)
+ * @param {{ signal?: AbortSignal }} [options]
  * @returns {Promise<AdminOrderDetailDto>}
  */
-export async function fetchAdminOrder(orderId, scope) {
+export async function fetchAdminOrder(orderId, scope, { signal } = {}) {
     const { data } = await client.get(`/food/admin/orders/${orderId}`, {
         params: { scope },
+        signal,
     });
 
     return data.order;

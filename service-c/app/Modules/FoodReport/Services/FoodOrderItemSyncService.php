@@ -8,7 +8,7 @@ use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Order\OrderStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderItemWriteRepositoryInterface;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;

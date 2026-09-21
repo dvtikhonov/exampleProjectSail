@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Food\Order;
 
 use App\Contracts\Food\Cart\CartLifecycleRepositoryInterface;
+use App\Contracts\Food\Cart\CartTotalsCalculatorInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
 use App\Contracts\Food\Order\OrderFromCartCreatorInterface;
+use App\Contracts\Food\Order\OrderItemsSnapshotBuilderInterface;
+use App\Contracts\Food\Review\OrderStatusResolverInterface;
 use App\Contracts\Food\Shared\FoodMoneyFormatterInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Contracts\Shared\ClockInterface;
@@ -18,9 +21,7 @@ use App\DTO\Food\Order\OrderDto;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
-use App\Services\Food\Cart\CartTotalsCalculator;
-use App\Services\Food\Review\OrderStatusResolver;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use DateTimeInterface;
 
 /**
@@ -30,12 +31,12 @@ class OrderFromCartCreator implements OrderFromCartCreatorInterface
 {
     public function __construct(
         private readonly FoodMoneyFormatterInterface $moneyFormatter,
-        private readonly OrderItemsSnapshotBuilder $orderItemsSnapshotBuilder,
-        private readonly CartTotalsCalculator $cartTotalsCalculator,
+        private readonly OrderItemsSnapshotBuilderInterface $orderItemsSnapshotBuilder,
+        private readonly CartTotalsCalculatorInterface $cartTotalsCalculator,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly CartLifecycleRepositoryInterface $cartLifecycleRepository,
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
-        private readonly OrderStatusResolver $orderStatusResolver,
+        private readonly OrderStatusResolverInterface $orderStatusResolver,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
         private readonly ClockInterface $clock,
         private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,

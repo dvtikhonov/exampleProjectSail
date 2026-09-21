@@ -35,8 +35,8 @@ return [
     'public_app_url' => env('MAX_PUBLIC_APP_URL', ''),
 
     'miniapp' => [
-        'auth_date_max_age_seconds' => (int) env('MAX_MINIAPP_AUTH_DATE_MAX_AGE_SECONDS', 86_400),
-        'token_ttl_seconds' => (int) env('MAX_MINIAPP_TOKEN_TTL_SECONDS', 86_400),
+        'auth_date_max_age_seconds' => (int) env('MAX_MINIAPP_AUTH_DATE_MAX_AGE_SECONDS', 3_600),
+        'token_ttl_seconds' => (int) env('MAX_MINIAPP_TOKEN_TTL_SECONDS', 3_600),
     ],
 
     /**

@@ -11,6 +11,8 @@ use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
 
 /**
  * Сборка Issue DTO для пустого имени и fail матчера (order / schedule).
+ *
+ * Внутренний collaborator PhotoText; не инжектить из Delivery.
  */
 class PhotoTextMatchIssueFactory
 {

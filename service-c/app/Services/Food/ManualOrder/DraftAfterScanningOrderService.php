@@ -6,8 +6,9 @@ namespace App\Services\Food\ManualOrder;
 
 use App\Contracts\Food\ManualOrder\DraftAfterScanningOrderServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Contracts\Food\Order\FoodOrderWriteRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderManualCreatorNotifierInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Cart\CartDto;
@@ -18,18 +19,20 @@ use App\DTO\Food\Shared\MaxUserIdentity;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use DateTimeInterface;
 
 /**
- * Use-case действия с ручным заказом в статусе «Черновик после сканирования».
+ * Use-case facade: действия с ручным заказом в статусе «Черновик после сканирования».
+ *
+ * Eligibility (lock + статус) — через {@see DraftAfterScanningOrderLocator}.
  */
 class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceInterface
 {
     public function __construct(
+        private readonly DraftAfterScanningOrderLocator $locator,
         private readonly FoodOrderWriteRepositoryInterface $foodOrderWriteRepository,
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
-        private readonly FoodOrderCustomerNotifierInterface $foodOrderCustomerNotifier,
+        private readonly FoodOrderManualCreatorNotifierInterface $foodOrderCustomerNotifier,
         private readonly TransactionManagerInterface $transactionManager,
         private readonly ClockInterface $clock,
         private readonly FoodOrderItemSyncServiceInterface $foodOrderItemSyncService,
@@ -41,7 +44,7 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     public function complete(int $orderId, MaxUserIdentity $manager): FoodOrderRecord
     {
         $order = $this->transactionManager->run(function () use ($orderId, $manager): FoodOrderRecord {
-            $order = $this->lockEligibleOrder($orderId);
+            $order = $this->locator->lockEligibleOrder($orderId);
             $reviewedAt = $this->clock->now()->format(DateTimeInterface::ATOM);
 
             $order = $this->foodOrderWriteRepository->update($order, new FoodOrderUpdateCommand(
@@ -74,7 +77,7 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     public function moveToCart(int $orderId, MaxUserIdentity $manager): DraftAfterScanningMoveToCartResultDto
     {
         return $this->transactionManager->run(function () use ($orderId, $manager): DraftAfterScanningMoveToCartResultDto {
-            $order = $this->lockEligibleOrder($orderId);
+            $order = $this->locator->lockEligibleOrder($orderId);
             $customer = new MaxUserIdentity($order->maxUserId, []);
             $lines = $this->cartLinesFromSnapshot($order->itemsSnapshot);
 
@@ -135,32 +138,9 @@ class DraftAfterScanningOrderService implements DraftAfterScanningOrderServiceIn
     public function delete(int $orderId, MaxUserIdentity $manager): void
     {
         $this->transactionManager->run(function () use ($orderId): void {
-            $order = $this->lockEligibleOrder($orderId);
+            $order = $this->locator->lockEligibleOrder($orderId);
             $this->foodOrderWriteRepository->delete($order);
         });
-    }
-
-    /**
-     * Блокирует ручной заказ и проверяет статус «Черновик после сканирования».
-     *
-     * @throws FoodDomainException
-     */
-    private function lockEligibleOrder(int $orderId): FoodOrderRecord
-    {
-        $order = $this->foodOrderWriteRepository->findByIdForUpdate($orderId);
-
-        if ($order === null || ! $order->isManual) {
-            throw new FoodDomainException('Заказ не найден.', 404);
-        }
-
-        if ($order->status !== OrderStatus::DraftAfterScanning) {
-            throw new FoodDomainException(
-                'Действие доступно только для заказа в статусе «Черновик после сканирования».',
-                422,
-            );
-        }
-
-        return $order;
     }
 
     /**

@@ -7,7 +7,8 @@ import { getInitData } from '../bridge/maxBridge';
 
 /**
  * Bearer в sessionStorage — ограничение MAX mini-app (нет надёжного httpOnly cookie
- * между WebView и API). Не кладём токен в DOM / v-html.
+ * между WebView и API). Mitigations: не кладём токен в DOM / v-html / Blade `{!! !!}`;
+ * короткий TTL (`MAX_MINIAPP_TOKEN_TTL_SECONDS`); токен не логировать.
  *
  * @type {string|null} Токен авторизации после POST /max/auth
  */

@@ -80,7 +80,7 @@ class MaxLoadTestServiceTest extends TestCase
         $now = new DateTimeImmutable('2026-09-03 12:00:00');
         $outputPath = '/tmp/load-test-tokens-unit.json';
 
-        $this->config->method('get')->with('max.miniapp.token_ttl_seconds', 86_400)->willReturn(3600);
+        $this->config->method('get')->with('max.miniapp.token_ttl_seconds', 3_600)->willReturn(3600);
         $this->clock->method('now')->willReturn($now);
         $this->customerCategoryRepository->method('findOrCreateDefaultCategoryId')->willReturn(7);
 

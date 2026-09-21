@@ -40,7 +40,7 @@ trait ConfiguresPhotoTextAgent
         ];
     }
 
-    /** Настраивает agent/write token, manager_max_user_id и активный ai_access_until. */
+    /** Настраивает agent/write token, optional env allow-list и активный ai_access_until. */
     protected function configurePhotoTextAgent(
         int $managerMaxUserId,
         ?string $token = null,

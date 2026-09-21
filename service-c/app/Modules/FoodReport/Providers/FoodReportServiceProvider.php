@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\FoodReport\Providers;
 
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Console\BackfillFoodOrderItemsCommand;
 use App\Modules\FoodReport\Contracts\FoodOrderConfirmedBackfillSourceInterface;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderItemWriteRepositoryInterface;
 use App\Modules\FoodReport\Contracts\FoodOrderReportRepositoryInterface;
 use App\Modules\FoodReport\Contracts\FoodReportMaxDeliveryInterface;
@@ -15,10 +15,11 @@ use App\Modules\FoodReport\Contracts\FoodReportSpreadsheetExporterInterface;
 use App\Modules\FoodReport\Repositories\EloquentFoodOrderConfirmedBackfillSource;
 use App\Modules\FoodReport\Repositories\EloquentFoodOrderItemWriteRepository;
 use App\Modules\FoodReport\Repositories\EloquentFoodOrderReportRepository;
+use App\Modules\FoodReport\Infrastructure\PhpSpreadsheetFoodReportExporter;
 use App\Modules\FoodReport\Services\FoodOrderItemSyncService;
 use App\Modules\FoodReport\Services\FoodReportMaxDeliveryService;
 use App\Modules\FoodReport\Services\FoodReportQueryService;
-use App\Modules\FoodReport\Services\PhpSpreadsheetFoodReportExporter;
+use App\Modules\FoodReport\Services\NullFoodReportMaxDelivery;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -58,7 +59,14 @@ class FoodReportServiceProvider extends ServiceProvider
         );
         $this->app->bind(
             FoodReportMaxDeliveryInterface::class,
-            FoodReportMaxDeliveryService::class,
+            static function ($app): FoodReportMaxDeliveryInterface {
+                $driver = config('max.messenger_driver', 'http');
+                if ($driver === null || $driver === '' || $driver === 'null') {
+                    return new NullFoodReportMaxDelivery;
+                }
+
+                return $app->make(FoodReportMaxDeliveryService::class);
+            },
         );
     }
 

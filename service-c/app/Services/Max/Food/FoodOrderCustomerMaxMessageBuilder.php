@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Max\Food;
 
+use App\Contracts\Food\Review\FoodOrderCustomerCompositionMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
+use App\Contracts\Food\Review\FoodOrderCustomerStatusMaxMessageBuilderInterface;
+use App\Contracts\Food\Review\FoodOrderManualCreatorMaxMessageBuilderInterface;
+use App\Contracts\Food\Review\FoodOrderUiStandNewRequestMaxMessageBuilderInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
 use App\DTO\Food\Order\OrderDto;
 use App\DTO\Food\Shared\MaxUserDisplayDto;
@@ -12,15 +16,17 @@ use App\Enums\Food\Review\OrderRejectionScope;
 use App\Support\Max\Food\Formatting\FoodOrderMaxTextAssembler;
 
 /**
- * Facade: тексты MAX-уведомлений о статусе/составе заказа (клиент и новая заявка в UI Stand).
+ * Facade BC: тексты MAX-уведомлений о статусе/составе заказа (клиент и новая заявка в UI Stand).
+ *
+ * Реализует узкие порты через composition; для новых зависимостей предпочтительнее узкий Interface.
  */
 class FoodOrderCustomerMaxMessageBuilder implements FoodOrderCustomerMaxMessageBuilderInterface
 {
     public function __construct(
-        private readonly FoodOrderUiStandNewRequestMaxMessageBuilder $uiStandNewRequestBuilder,
-        private readonly FoodOrderCustomerStatusMaxMessageBuilder $customerStatusBuilder,
-        private readonly FoodOrderCustomerCompositionChangedMaxMessageBuilder $compositionChangedBuilder,
-        private readonly FoodOrderManualOrderCreatorConfirmedMaxMessageBuilder $manualOrderCreatorConfirmedBuilder,
+        private readonly FoodOrderUiStandNewRequestMaxMessageBuilderInterface $uiStandNewRequestBuilder,
+        private readonly FoodOrderCustomerStatusMaxMessageBuilderInterface $customerStatusBuilder,
+        private readonly FoodOrderCustomerCompositionMaxMessageBuilderInterface $compositionChangedBuilder,
+        private readonly FoodOrderManualCreatorMaxMessageBuilderInterface $manualOrderCreatorConfirmedBuilder,
     ) {}
 
     /**

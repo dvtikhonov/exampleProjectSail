@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Jobs\Food;
 
 use App\Contracts\Food\Order\FoodOrderCustomerReadRepositoryInterface;
-use App\Contracts\Food\Review\FoodOrderCustomerNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderCompositionNotifierInterface;
+use App\Contracts\Food\Review\FoodOrderStatusNotifierInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\Enums\Food\Review\FoodOrderReviewNotifyKind;
 use App\Enums\Food\Review\OrderRejectionScope;
@@ -58,7 +59,8 @@ class NotifyFoodOrderReviewJob implements ShouldQueue
      * Отправляет клиентское уведомление с идемпотентностью по cache-маркеру.
      */
     public function handle(
-        FoodOrderCustomerNotifierInterface $customerNotifier,
+        FoodOrderStatusNotifierInterface $statusNotifier,
+        FoodOrderCompositionNotifierInterface $compositionNotifier,
         FoodOrderCustomerReadRepositoryInterface $foodOrderCustomerReadRepository,
         CacheStoreInterface $cache,
         LoggerInterface $logger,
@@ -80,12 +82,12 @@ class NotifyFoodOrderReviewJob implements ShouldQueue
         }
 
         match ($this->kind) {
-            FoodOrderReviewNotifyKind::Approved => $customerNotifier->notifyConfirmed($order),
-            FoodOrderReviewNotifyKind::Rejected => $customerNotifier->notifyRejected(
+            FoodOrderReviewNotifyKind::Approved => $statusNotifier->notifyConfirmed($order),
+            FoodOrderReviewNotifyKind::Rejected => $statusNotifier->notifyRejected(
                 $order,
                 $this->requireRejectionScope(),
             ),
-            FoodOrderReviewNotifyKind::CompositionChanged => $customerNotifier->notifyCompositionChanged($order),
+            FoodOrderReviewNotifyKind::CompositionChanged => $compositionNotifier->notifyCompositionChanged($order),
         };
 
         $this->markLegCompleted($cache, $leg);

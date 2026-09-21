@@ -6,6 +6,7 @@ namespace App\Modules\FoodReport\Http\Requests;
 
 use App\Modules\FoodReport\DTO\ReportFilterDto;
 use App\Modules\FoodReport\Enums\ReportDateAxis;
+use App\Modules\FoodReport\FoodReportLimits;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -15,8 +16,6 @@ use Illuminate\Validation\Validator;
  */
 abstract class FoodReportFilterRequest extends FormRequest
 {
-    public const MAX_SPAN_DAYS = 93;
-
     public function authorize(): bool
     {
         return true;
@@ -65,7 +64,7 @@ abstract class FoodReportFilterRequest extends FormRequest
     }
 
     /**
-     * Доп. проверка: период не длиннее MAX_SPAN_DAYS.
+     * Доп. проверка: период не длиннее {@see FoodReportLimits::MAX_SPAN_DAYS}.
      */
     public function withValidator(Validator $validator): void
     {
@@ -86,10 +85,10 @@ abstract class FoodReportFilterRequest extends FormRequest
 
             $spanDays = (int) $fromDate->diff($toDate)->days;
 
-            if ($spanDays > self::MAX_SPAN_DAYS) {
+            if ($spanDays > FoodReportLimits::MAX_SPAN_DAYS) {
                 $validator->errors()->add(
                     'date_to',
-                    'Период отчёта не может превышать '.self::MAX_SPAN_DAYS.' дня.',
+                    'Период отчёта не может превышать '.FoodReportLimits::MAX_SPAN_DAYS.' дня.',
                 );
             }
         });

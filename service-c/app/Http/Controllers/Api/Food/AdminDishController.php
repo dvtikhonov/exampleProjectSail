@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Menu\DishAdminServiceInterface;
-use App\Contracts\Food\Menu\DishSpreadsheetImportServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\DTO\Food\Menu\AdminDishDto;
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Food\Admin\ImportDishesSpreadsheetRequest;
 use App\Http\Requests\Food\Admin\ListAdminDishesRequest;
 use App\Http\Requests\Food\Admin\ShowAdminDishRequest;
 use App\Http\Requests\Food\Admin\StoreDishRequest;
@@ -27,7 +25,6 @@ class AdminDishController extends Controller
 {
     public function __construct(
         private readonly DishAdminServiceInterface $dishAdminService,
-        private readonly DishSpreadsheetImportServiceInterface $dishSpreadsheetImportService,
         private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
         private readonly LoggerInterface $logger,
     ) {}
@@ -68,26 +65,6 @@ class AdminDishController extends Controller
         return $this->respondDish(function () use ($dishId) {
             return $this->dishAdminService->show($dishId);
         });
-    }
-
-    /**
-     * Импорт блюд из XLS/XLSX (multipart/form-data).
-     */
-    public function import(ImportDishesSpreadsheetRequest $request): JsonResponse
-    {
-        $result = $this->dishSpreadsheetImportService->import(
-            $request->spreadsheetFileDto(),
-            $request->menuCategoryId(),
-        );
-
-        if ($result->errors !== []) {
-            return response()->json([
-                'message' => 'Ошибки в файле импорта.',
-                ...$result->toArray(),
-            ], 422);
-        }
-
-        return response()->json($result->toArray());
     }
 
     /**

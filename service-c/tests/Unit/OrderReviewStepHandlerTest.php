@@ -20,12 +20,15 @@ use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
 use App\Enums\Food\Review\OrderReviewStep;
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\FoodReport\Contracts\FoodOrderItemSyncServiceInterface;
+use App\Contracts\Food\Order\FoodOrderItemSyncServiceInterface;
 use App\Services\Food\Review\OrderReviewAuthorizationService;
 use App\Services\Food\Review\OrderReviewCompletionService;
 use App\Services\Food\Review\OrderReviewStepHandler;
 use App\Services\Food\Review\OrderReviewUpdateFactory;
 use App\Services\Food\Review\OrderStatusResolver;
+use App\Services\Food\Review\UpdateStep\AddressOrderReviewUpdateStepHandler;
+use App\Services\Food\Review\UpdateStep\CompositionOrderReviewUpdateStepHandler;
+use App\Services\Food\Review\UpdateStep\PaymentOrderReviewUpdateStepHandler;
 use DateTimeImmutable;
 use PHPUnit\Framework\MockObject\MockObject;
 use Tests\TestCase;
@@ -73,12 +76,26 @@ class OrderReviewStepHandlerTest extends TestCase
         $this->handler = new OrderReviewStepHandler(
             $this->writeRepository,
             $authorizationService,
-            new OrderReviewUpdateFactory(new OrderStatusResolver, $clock),
+            $this->makeUpdateFactory($clock),
             $completionService,
             $this->reviewNotifier,
             $this->transactionManager,
             $this->syncService,
         );
+    }
+
+    /**
+     * Собирает OrderReviewUpdateFactory с реестром step-handlers (как в DI).
+     */
+    private function makeUpdateFactory(ClockInterface $clock): OrderReviewUpdateFactory
+    {
+        $resolver = new OrderStatusResolver;
+
+        return new OrderReviewUpdateFactory($clock, [
+            OrderReviewStep::Address->value => new AddressOrderReviewUpdateStepHandler($resolver),
+            OrderReviewStep::Composition->value => new CompositionOrderReviewUpdateStepHandler($resolver),
+            OrderReviewStep::Payment->value => new PaymentOrderReviewUpdateStepHandler($resolver),
+        ]);
     }
 
     /** approve обновляет заказ и ставит notify Approved при полном подтверждении. */

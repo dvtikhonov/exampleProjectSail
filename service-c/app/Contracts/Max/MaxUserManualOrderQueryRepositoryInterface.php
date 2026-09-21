@@ -14,6 +14,7 @@ interface MaxUserManualOrderQueryRepositoryInterface
 {
     /**
      * Постраничный поиск пользователей для ручных заказов.
+     * Поиск по first_name / last_name / username / max_user_id (без delivery_address).
      *
      * @return PaginatedResultDto<MaxUserRecord>
      */

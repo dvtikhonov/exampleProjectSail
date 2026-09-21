@@ -217,6 +217,32 @@ class AdminDishAvailabilityApiTest extends TestCase
         $this->assertTrue($fixture['dish']->fresh()->is_available);
     }
 
+    /** PUT отклоняет больше 500 изменений в changes. */
+    public function test_put_rejects_more_than_500_changes(): void
+    {
+        $dates = $this->scheduleDates();
+        $fixture = FoodTestDataBuilder::createRestaurantWithDish();
+        $auth = $this->menuManagerAuth();
+
+        $changes = array_map(
+            static fn (int $i): array => [
+                'dish_id' => $fixture['dish']->id,
+                'dates' => [$dates['future']],
+            ],
+            range(1, 501),
+        );
+
+        $this->putJson('/api/food/admin/dish-availability-schedule', [
+            'restaurant_id' => $fixture['restaurant']->id,
+            'category_id' => $fixture['category']->id,
+            'date_from' => $dates['editable_from'],
+            'date_to' => $dates['range_to'],
+            'changes' => $changes,
+        ], $auth['headers'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['changes']);
+    }
+
     /** PUT не создаёт дубликаты строк блюдо–дата. */
     public function test_put_does_not_create_duplicate_dish_date_rows(): void
     {

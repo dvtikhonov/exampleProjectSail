@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food;
 
+use App\Exceptions\Food\FoodDomainException;
 use App\Http\Requests\Food\Concerns\AuthorizesCustomerResourceOwnership;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -16,7 +17,9 @@ class SendOrderMessageRequest extends FormRequest
     use AuthorizesCustomerResourceOwnership;
 
     /**
-     * Владелец заказа или активный админ; отсутствующий заказ — в сервис → 404.
+     * Владелец заказа или активный админ; чужой/отсутствующий — 404 (без enumeration).
+     *
+     * @throws FoodDomainException
      */
     public function authorize(): bool
     {
@@ -31,7 +34,11 @@ class SendOrderMessageRequest extends FormRequest
             $this->routeResourceId('order'),
         );
 
-        return $canAccess !== false;
+        if ($canAccess !== true) {
+            throw new FoodDomainException('Заказ не найден.', 404);
+        }
+
+        return true;
     }
 
     /**

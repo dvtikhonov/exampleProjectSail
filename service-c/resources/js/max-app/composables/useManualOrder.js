@@ -24,6 +24,21 @@ export const MANUAL_ORDER_TABS = {
 };
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isRequestCanceled(error) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    return (
+        /** @type {{ code?: string, name?: string }} */ (error).code === 'ERR_CANCELED'
+        || /** @type {{ code?: string, name?: string }} */ (error).name === 'CanceledError'
+    );
+}
+
+/**
  * Подпись потребителя с ФИО для шапки ручного заказа.
  *
  * @param {object|null|undefined} user — элемент из GET manual-orders/users
@@ -89,7 +104,18 @@ export function useManualOrder() {
     /** @type {ReturnType<typeof setTimeout>|null} */
     let searchDebounceTimer = null;
 
+    let detailSeq = 0;
+    /** @type {AbortController|null} */
+    let detailAbortController = null;
+
     const isOrdering = computed(() => targetMaxUserId.value !== null);
+
+    function abortOrderDetail() {
+        if (detailAbortController !== null) {
+            detailAbortController.abort();
+            detailAbortController = null;
+        }
+    }
 
     const hasSelectedConsumer = computed(() => selectedConsumer.value !== null);
 
@@ -271,21 +297,41 @@ export function useManualOrder() {
             return;
         }
 
+        abortOrderDetail();
+
+        const controller = new AbortController();
+        detailAbortController = controller;
+        const mySeq = ++detailSeq;
+
         selectedOrderDetail.value = null;
         orderDetailError.value = '';
         orderDetailLoading.value = true;
 
         try {
-            selectedOrderDetail.value = await fetchManualOrder(orderId);
+            const detail = await fetchManualOrder(orderId, { signal: controller.signal });
+
+            if (mySeq !== detailSeq) {
+                return;
+            }
+
+            selectedOrderDetail.value = detail;
         } catch (error) {
+            if (isRequestCanceled(error) || mySeq !== detailSeq) {
+                return;
+            }
+
             orderDetailError.value = extractErrorMessage(error);
             selectedOrderDetail.value = { id: orderId };
         } finally {
-            orderDetailLoading.value = false;
+            if (mySeq === detailSeq) {
+                orderDetailLoading.value = false;
+            }
         }
     }
 
     function closeOrderDetail() {
+        abortOrderDetail();
+        detailSeq += 1;
         selectedOrderDetail.value = null;
         orderDetailLoading.value = false;
         orderDetailError.value = '';
@@ -452,6 +498,9 @@ export function useManualOrder() {
     }
 
     onScopeDispose(() => {
+        abortOrderDetail();
+        detailSeq += 1;
+
         if (searchDebounceTimer !== null) {
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = null;

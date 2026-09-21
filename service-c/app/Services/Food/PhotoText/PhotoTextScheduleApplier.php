@@ -6,22 +6,23 @@ namespace App\Services\Food\PhotoText;
 
 use App\Contracts\Food\Menu\DishAvailabilityScheduleRepositoryInterface;
 use App\Contracts\Food\Menu\DishAvailabilityScheduleWriterInterface;
+use App\Contracts\Food\PhotoText\PhotoTextScheduleApplierInterface;
+use App\Contracts\Food\PhotoText\PhotoTextScheduleMatcherInterface;
 use App\Contracts\Shared\TransactionManagerInterface;
 use App\DTO\Food\Menu\DishAvailabilityChangeDto;
 use App\DTO\Food\Menu\DishAvailabilityUpdateDto;
 use App\DTO\Food\Menu\DishRecord;
 use App\DTO\Food\Menu\MenuCategoryRecord;
-use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleMatchedDto;
 use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
 
 /**
  * Match + полная замена графика PhotoText в окне (фото — источник истины).
  */
-class PhotoTextScheduleApplier
+class PhotoTextScheduleApplier implements PhotoTextScheduleApplierInterface
 {
     public function __construct(
-        private readonly PhotoTextScheduleMatcher $matcher,
+        private readonly PhotoTextScheduleMatcherInterface $matcher,
         private readonly PhotoTextScheduleCategoryScope $categoryScope,
         private readonly DishAvailabilityScheduleRepositoryInterface $availabilityRepository,
         private readonly DishAvailabilityScheduleWriterInterface $scheduleWriter,
@@ -29,12 +30,9 @@ class PhotoTextScheduleApplier
     ) {}
 
     /**
-     * Match + полная замена графика в окне.
-     * Scope: указанные category_ids или все категории ресторана; блюда вне entries очищаются.
-     * Замена по всем категориям scope — в одной транзакции (вложенные TX writer — savepoints).
+     * {@inheritDoc}
      *
-     * @param  list<int>|null  $categoryIds
-     * @param  list<PhotoTextScheduleEntryDto>  $entries
+     * Замена по всем категориям scope — в одной транзакции (вложенные TX writer — savepoints).
      */
     public function apply(
         int $restaurantId,

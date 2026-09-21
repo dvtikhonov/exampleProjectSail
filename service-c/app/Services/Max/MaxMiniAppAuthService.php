@@ -45,7 +45,7 @@ class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
 
         $this->tokenIssuer->revokeNamedTokens($maxUser->maxUserId, self::TOKEN_NAME);
 
-        $expiresInSeconds = (int) $this->config->get('max.miniapp.token_ttl_seconds', 86_400);
+        $expiresInSeconds = (int) $this->config->get('max.miniapp.token_ttl_seconds', 3_600);
         $expiresAt = $this->clock->now()->add(new DateInterval('PT'.$expiresInSeconds.'S'));
 
         $plainTextToken = $this->tokenIssuer->createToken(

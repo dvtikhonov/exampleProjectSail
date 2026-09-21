@@ -6,6 +6,21 @@ import { extractErrorMessage, fetchOrderMessages, sendOrderMessage } from '../ap
 import { ORDER_CHAT_POLL_INTERVAL_MS } from '../constants/orderChat';
 
 /**
+ * @param {unknown} error
+ * @returns {boolean}
+ */
+function isRequestCanceled(error) {
+    if (!error || typeof error !== 'object') {
+        return false;
+    }
+
+    return (
+        /** @type {{ code?: string, name?: string }} */ (error).code === 'ERR_CANCELED'
+        || /** @type {{ code?: string, name?: string }} */ (error).name === 'CanceledError'
+    );
+}
+
+/**
  * @param {object} options
  * @param {import('vue').Ref<number>|(() => number)} options.orderId
  * @param {(payload?: unknown) => void} [options.onMessagesRead]
@@ -20,6 +35,11 @@ export function useOrderChat({ orderId, onMessagesRead }) {
     const body = ref('');
 
     let pollTimer = null;
+    let loadSeq = 0;
+    /** @type {AbortController|null} */
+    let loadAbortController = null;
+    /** @type {AbortController|null} */
+    let pollAbortController = null;
 
     /**
      * @returns {number}
@@ -28,30 +48,78 @@ export function useOrderChat({ orderId, onMessagesRead }) {
         return typeof orderId === 'function' ? orderId() : orderId.value;
     }
 
+    function abortLoad() {
+        if (loadAbortController !== null) {
+            loadAbortController.abort();
+            loadAbortController = null;
+        }
+    }
+
+    function abortPoll() {
+        if (pollAbortController !== null) {
+            pollAbortController.abort();
+            pollAbortController = null;
+        }
+    }
+
     async function loadMessages() {
+        abortLoad();
+        abortPoll();
+
+        const controller = new AbortController();
+        loadAbortController = controller;
+        const mySeq = ++loadSeq;
+        const requestedOrderId = resolveOrderId();
+
         loading.value = true;
         loadError.value = '';
 
         try {
-            messages.value = await fetchOrderMessages(resolveOrderId());
+            const loaded = await fetchOrderMessages(requestedOrderId, {
+                signal: controller.signal,
+            });
+
+            if (mySeq !== loadSeq) {
+                return;
+            }
+
+            messages.value = loaded;
             onMessagesRead?.();
         } catch (error) {
+            if (isRequestCanceled(error) || mySeq !== loadSeq) {
+                return;
+            }
+
             loadError.value = extractErrorMessage(error);
         } finally {
-            loading.value = false;
+            if (mySeq === loadSeq) {
+                loading.value = false;
+            }
         }
     }
 
     /** Инкрементальная подгрузка только сообщений новее lastId */
     async function pollNewMessages() {
         if (loading.value || messages.value.length === 0) {
-            return;
+            return false;
         }
 
+        abortPoll();
+
+        const controller = new AbortController();
+        pollAbortController = controller;
+        const orderIdAtStart = resolveOrderId();
         const lastId = messages.value[messages.value.length - 1].id;
 
         try {
-            const newMessages = await fetchOrderMessages(resolveOrderId(), { afterId: lastId });
+            const newMessages = await fetchOrderMessages(orderIdAtStart, {
+                afterId: lastId,
+                signal: controller.signal,
+            });
+
+            if (resolveOrderId() !== orderIdAtStart) {
+                return false;
+            }
 
             if (newMessages.length > 0) {
                 messages.value = [...messages.value, ...newMessages];
@@ -60,7 +128,7 @@ export function useOrderChat({ orderId, onMessagesRead }) {
                 return true;
             }
         } catch {
-            // Ошибки polling не перекрывают уже загруженную ленту.
+            // Ошибки polling (включая отмену) не перекрывают уже загруженную ленту.
         }
 
         return false;
@@ -73,16 +141,27 @@ export function useOrderChat({ orderId, onMessagesRead }) {
             return false;
         }
 
+        const orderIdAtStart = resolveOrderId();
+
         sending.value = true;
         sendError.value = '';
 
         try {
-            const message = await sendOrderMessage(resolveOrderId(), trimmed);
+            const message = await sendOrderMessage(orderIdAtStart, trimmed);
+
+            if (resolveOrderId() !== orderIdAtStart) {
+                return false;
+            }
+
             messages.value = [...messages.value, message];
             body.value = '';
 
             return true;
         } catch (error) {
+            if (isRequestCanceled(error)) {
+                return false;
+            }
+
             sendError.value = extractErrorMessage(error);
 
             return false;
@@ -119,6 +198,8 @@ export function useOrderChat({ orderId, onMessagesRead }) {
     });
 
     onUnmounted(() => {
+        abortLoad();
+        abortPoll();
         stopPolling();
     });
 

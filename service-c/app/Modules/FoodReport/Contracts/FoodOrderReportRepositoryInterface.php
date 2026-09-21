@@ -21,6 +21,8 @@ interface FoodOrderReportRepositoryInterface
 
     /**
      * Топ блюд по дням из max_food_order_items (только confirmed).
+     * Агрегат GROUP BY за период + top-N ($limitPerDay) на стороне SQL
+     * (peer-rank COUNT, MySQL 5.7; без window functions).
      *
      * @return list<array{
      *     date: string,
