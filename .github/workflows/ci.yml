@@ -12,6 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # service-i намеренно вне CI (проверки только локально / в контейнере service-i).
   php-style:
     name: PHP style (${{ matrix.service }})
     runs-on: ubuntu-latest
@@ -94,6 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # service-i не включаем — см. комментарий у php-style
         service:
           - main-app
           - service-d

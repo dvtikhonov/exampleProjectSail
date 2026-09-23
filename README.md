@@ -17,6 +17,7 @@
 | `yandex-parser` | Node/Playwright: headless-парсер Яндекс.Карт для `service-d` (`POST /resolve`, `/sync-reviews`); внутренний URL `http://yandex-parser:3000` — см. [yandex-parser/README.md](yandex-parser/README.md) |
 | `service-f` | Laravel 13 + Filament 3: URL shortener на субдомене `urlshort.*`, админка `/admin`, публичный редирект `GET /{code}` — см. [service-f/README.md](service-f/README.md) |
 | `service-g` | Laravel 13 API + Nuxt 3: каркас To-Do List на `listtodo.localhost`, Sanctum, фронтенд в `nuxt-app/` — см. [service-g/README.md](service-g/README.md) |
+| `service-i` | Vue 3 SPA (MStroy Frontend): TreeStore + AgGrid Enterprise tree, Docker nginx на `:8089` / `mstroy.localhost` — см. [service-i/README.md](service-i/README.md) |
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `shared/max-messenger` | Локальный Composer-пакет `example/max-messenger`: HTTP-клиент MAX Bot API (`service-b`, `service-c`) |
@@ -122,7 +123,7 @@ SERVICE_G_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `service-g`, `service-g-nuxt`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `service-g`, `service-g-nuxt`, `service-i`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
@@ -222,9 +223,11 @@ docker compose up -d main-app
 | `service-f` напрямую | `http://localhost:8087` |
 | `service-g` напрямую (Laravel API) | `http://localhost:8088` |
 | `service-g-nuxt` напрямую | `http://localhost:3000` |
+| `service-i` напрямую | `http://localhost:8089` |
 | `service-d` через gateway (субдомен) | `http://yandexmaps.localhost:8080` (нужна запись в `/etc/hosts`) |
 | `service-f` через gateway (субдомен) | `http://urlshort.localhost:8080` (Host-based routing в gateway) |
 | `service-g` через gateway (субдомен) | `http://listtodo.localhost:8080` (Nuxt UI + `/api` → Laravel) |
+| `service-i` через gateway (субдомен) | `http://mstroy.localhost:8080` (MStroy Frontend SPA) |
 | Laravel Reverb (WebSocket) | `ws://localhost:8090` (порт `REVERB_EXTERNAL_PORT`) |
 | Vite dev server | `http://localhost:5173` (`main-app`), `5174` (`service-c`), `5175` (`service-d`) |
 | MailHog | `http://localhost:8025` |
@@ -574,6 +577,8 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 | `frontend-build` | `npm ci` + `npm run build` в `main-app`, `service-d` и `service-g/nuxt-app` (Node 22) |
 | `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` (включая `service-e`, `service-f`, `service-g`) |
 
+`service-i` в CI **не** запускается (ни style/build, ни backend-tests) — проверки только локально / в контейнере `service-i`.
+
 Локально воспроизвести CI-контур тестов:
 
 ```bash
@@ -841,6 +846,7 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `service-e` — Symfony 8 API торговых точек через `/api/e/`; общая таблица `sales_outlets` с `service-a`; см. [service-e/README.md](service-e/README.md).
 - `service-f` — URL shortener на субдомене `urlshort.*`, Filament `/admin`; БД `service_f_db`; см. [service-f/README.md](service-f/README.md).
 - `service-g` — To-Do List (каркас): Laravel API + Nuxt 3 на `listtodo.localhost`, Sanctum; БД `service_g_db`; см. [service-g/README.md](service-g/README.md).
+- `service-i` — MStroy Frontend: Vue 3 + TreeStore + AgGrid на `:8089` / `mstroy.localhost`; runtime nginx без Node; см. [service-i/README.md](service-i/README.md).
 - `reverb` — отдельный контейнер на базе образа `main-app`, порт `8090`; для браузера в `.env` указывайте `VITE_REVERB_HOST=localhost`, внутри сети Docker — `REVERB_HOST=reverb`.
 - `nginx-gateway/auth.lua` не используется: `access_by_lua_file` в `nginx.conf` закомментирован.
 - `PASSPORT_CLIENT_SECRET` в gateway нужен только при схеме OAuth client credentials на стороне gateway; для текущего `auth_request` secret не обязателен при первом запуске.

@@ -23,6 +23,8 @@
 - `frontend-build` — `npm ci` + `npm run build` для `main-app` и `service-d`.
 - `backend-tests` — Docker Compose с overlay `docker-compose.ci.yml`, затем `./scripts/test-services.sh all` (все пять PHP-сервисов).
 
+**Вне CI:** `service-i` — не добавлять в matrix/`test-services.sh`/overlay; проверки только локально.
+
 ## Проверка перед реализацией следующих этапов
 
 Считать этот этап закрытым, если одновременно выполнены пункты ниже:

@@ -557,6 +557,13 @@ services:
     depends_on:
       - service-g
 
+  service-i:
+    build: ./service-i
+    ports:
+      - "${SERVICE_I_PORT:-8089}:80"
+    networks:
+      - internal
+
   reverb:
     build:
       context: ./main-app
@@ -646,6 +653,7 @@ services:
       - service-f
       - service-g
       - service-g-nuxt
+      - service-i
     networks:
       - internal
 
