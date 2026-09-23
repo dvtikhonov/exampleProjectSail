@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Note;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -125,29 +126,327 @@ class NoteCrudTest extends TestCase
         $this->assertDatabaseMissing('notes', ['id' => $note->id]);
     }
 
-    /** GET /api/notes (заглушка) возвращает сырой список моделей. */
-    public function test_index_returns_all_notes_as_raw_json(): void
+    /** GET /api/notes возвращает envelope { items, total, limit, offset } без meta. */
+    public function test_index_returns_envelope_with_note_resource_items(): void
     {
-        Note::factory()->create(['title' => 'Alpha']);
-        Note::factory()->create(['title' => 'Beta']);
+        Note::factory()->create([
+            'title' => 'Alpha',
+            'tags' => null,
+            'archived' => false,
+            'meta' => ['source' => 'hidden'],
+        ]);
+        Note::factory()->create([
+            'title' => 'Beta',
+            'archived' => false,
+        ]);
 
         $response = $this->getJson('/api/notes');
 
         $response->assertOk()
-            ->assertJsonCount(2)
+            ->assertJsonStructure([
+                'items' => [
+                    '*' => ['id', 'title', 'content', 'tags', 'archived', 'created_at', 'updated_at'],
+                ],
+                'total',
+                'limit',
+                'offset',
+            ])
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('limit', 20)
+            ->assertJsonPath('offset', 0)
+            ->assertJsonCount(2, 'items')
             ->assertJsonFragment(['title' => 'Alpha'])
-            ->assertJsonFragment(['title' => 'Beta']);
+            ->assertJsonFragment(['title' => 'Beta'])
+            ->assertJsonMissingPath('items.0.meta')
+            ->assertJsonMissingPath('data');
+
+        $alpha = collect($response->json('items'))->firstWhere('title', 'Alpha');
+        $this->assertIsArray($alpha);
+        $this->assertSame([], $alpha['tags']);
+        $this->assertArrayNotHasKey('meta', $alpha);
+    }
+
+    /** Без query — defaults: archived=false, sort=-updated_at, limit=20, offset=0. */
+    public function test_index_applies_defaults_and_excludes_archived(): void
+    {
+        Note::factory()->create(['title' => 'Active', 'archived' => false]);
+        Note::factory()->create(['title' => 'Hidden', 'archived' => true]);
+
+        $this->getJson('/api/notes')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('limit', 20)
+            ->assertJsonPath('offset', 0)
+            ->assertJsonPath('items.0.title', 'Active');
+    }
+
+    /** ?limit=50 приходит строкой из query — в envelope limit остаётся int 50. */
+    public function test_index_casts_limit_query_string_to_int(): void
+    {
+        Note::factory()->count(3)->create(['archived' => false]);
+
+        $response = $this->getJson('/api/notes?limit=50');
+
+        $response->assertOk()
+            ->assertJsonPath('limit', 50)
+            ->assertJsonPath('total', 3);
+
+        $this->assertIsInt($response->json('limit'));
+        $this->assertIsInt($response->json('offset'));
+    }
+
+    /** q ищет по title OR content; content=null не ломает OR. */
+    public function test_index_q_matches_title_or_content_including_null_content(): void
+    {
+        Note::factory()->create([
+            'title' => 'Laravel tips',
+            'content' => null,
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'Other',
+            'content' => 'Learn laravel basics',
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'Unrelated',
+            'content' => 'Nothing here',
+            'archived' => false,
+        ]);
+
+        $response = $this->getJson('/api/notes?q=laravel');
+
+        $response->assertOk()->assertJsonPath('total', 2);
+        $titles = collect($response->json('items'))->pluck('title')->all();
+        $this->assertContains('Laravel tips', $titles);
+        $this->assertContains('Other', $titles);
+        $this->assertNotContains('Unrelated', $titles);
+    }
+
+    /** ASCII case-insensitive: q=laravel находит "Laravel". */
+    public function test_index_q_is_ascii_case_insensitive(): void
+    {
+        Note::factory()->create([
+            'title' => 'Laravel',
+            'content' => 'docs',
+            'archived' => false,
+        ]);
+
+        $this->getJson('/api/notes?q=laravel')
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.title', 'Laravel');
     }
 
     /**
-     * Заготовка: фильтры GET /api/notes ещё не реализованы.
-     *
-     * @see NoteService::list() TODO filters, sort, pagination
+     * OR по q сгруппирован: AND с tags не «протекает».
+     * title=laravel + tags=[urgent] при q=laravel&tags=work → не в выдаче.
      */
-    public function test_index_filters_are_not_implemented_yet(): void
+    public function test_index_q_or_does_not_break_tags_and(): void
     {
-        $this->markTestIncomplete(
-            'Filters, sort and pagination for GET /api/notes are not implemented yet.'
+        Note::factory()->create([
+            'title' => 'laravel',
+            'content' => 'mismatch tags',
+            'tags' => ['urgent'],
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'laravel guide',
+            'content' => 'ok',
+            'tags' => ['work'],
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'No match',
+            'content' => 'work only',
+            'tags' => ['work'],
+            'archived' => false,
+        ]);
+
+        $response = $this->getJson('/api/notes?q=laravel&tags=work');
+
+        $response->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('items.0.title', 'laravel guide');
+    }
+
+    /** Несколько tags — AND; порядок в query не важен. */
+    public function test_index_tags_csv_applies_and_filter(): void
+    {
+        Note::factory()->create([
+            'title' => 'Both',
+            'tags' => ['work', 'urgent'],
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'Only work',
+            'tags' => ['work'],
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'Reversed order in DB',
+            'tags' => ['urgent', 'work'],
+            'archived' => false,
+        ]);
+
+        $response = $this->getJson('/api/notes?tags=urgent,work');
+
+        $response->assertOk()->assertJsonPath('total', 2);
+        $titles = collect($response->json('items'))->pluck('title')->all();
+        $this->assertContains('Both', $titles);
+        $this->assertContains('Reversed order in DB', $titles);
+        $this->assertNotContains('Only work', $titles);
+    }
+
+    /** ?tags[]=work&tags[]=urgent эквивалентен CSV tags=work,urgent. */
+    public function test_index_tags_array_format_equals_csv(): void
+    {
+        Note::factory()->create([
+            'title' => 'Match',
+            'tags' => ['work', 'urgent'],
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'Partial',
+            'tags' => ['work'],
+            'archived' => false,
+        ]);
+
+        $csv = $this->getJson('/api/notes?tags=work,urgent');
+        $array = $this->getJson('/api/notes?tags[]=work&tags[]=urgent');
+
+        $csv->assertOk()->assertJsonPath('total', 1);
+        $array->assertOk()->assertJsonPath('total', 1);
+        $this->assertSame($csv->json('items.0.id'), $array->json('items.0.id'));
+    }
+
+    /** Пустой tags / tags= → фильтр не применяется, 200. */
+    public function test_index_empty_tags_returns_ok_without_filter(): void
+    {
+        Note::factory()->create([
+            'title' => 'No tags',
+            'tags' => null,
+            'archived' => false,
+        ]);
+        Note::factory()->create([
+            'title' => 'With tag',
+            'tags' => ['work'],
+            'archived' => false,
+        ]);
+
+        $this->getJson('/api/notes?tags=')
+            ->assertOk()
+            ->assertJsonPath('total', 2);
+
+        $this->getJson('/api/notes?tags[]=')
+            ->assertOk()
+            ->assertJsonPath('total', 2);
+    }
+
+    /** sort=title и -title меняют порядок. */
+    public function test_index_sort_by_title(): void
+    {
+        Note::factory()->create(['title' => 'Charlie', 'archived' => false]);
+        Note::factory()->create(['title' => 'Alpha', 'archived' => false]);
+        Note::factory()->create(['title' => 'Bravo', 'archived' => false]);
+
+        $asc = $this->getJson('/api/notes?sort=title');
+        $asc->assertOk();
+        $this->assertSame(
+            ['Alpha', 'Bravo', 'Charlie'],
+            collect($asc->json('items'))->pluck('title')->all()
         );
+
+        $desc = $this->getJson('/api/notes?sort=-title');
+        $desc->assertOk();
+        $this->assertSame(
+            ['Charlie', 'Bravo', 'Alpha'],
+            collect($desc->json('items'))->pluck('title')->all()
+        );
+    }
+
+    /** sort=created_at и -created_at меняют порядок по дате создания. */
+    public function test_index_sort_by_created_at(): void
+    {
+        Note::factory()->create([
+            'title' => 'Oldest',
+            'archived' => false,
+            'created_at' => now()->subDays(3),
+        ]);
+        Note::factory()->create([
+            'title' => 'Middle',
+            'archived' => false,
+            'created_at' => now()->subDays(2),
+        ]);
+        Note::factory()->create([
+            'title' => 'Newest',
+            'archived' => false,
+            'created_at' => now()->subDay(),
+        ]);
+
+        $asc = $this->getJson('/api/notes?sort=created_at');
+        $asc->assertOk();
+        $this->assertSame(
+            ['Oldest', 'Middle', 'Newest'],
+            collect($asc->json('items'))->pluck('title')->all()
+        );
+
+        $desc = $this->getJson('/api/notes?sort=-created_at');
+        $desc->assertOk();
+        $this->assertSame(
+            ['Newest', 'Middle', 'Oldest'],
+            collect($desc->json('items'))->pluck('title')->all()
+        );
+    }
+
+    /** 30 заметок, limit=10, offset=10 → total=30, len(items)=10. */
+    public function test_index_pagination_limit_and_offset(): void
+    {
+        Note::factory()->count(30)->create(['archived' => false]);
+
+        $response = $this->getJson('/api/notes?limit=10&offset=10');
+
+        $response->assertOk()
+            ->assertJsonPath('total', 30)
+            ->assertJsonPath('limit', 10)
+            ->assertJsonPath('offset', 10)
+            ->assertJsonCount(10, 'items');
+    }
+
+    /** archived=all включает архивные. */
+    public function test_index_archived_all_includes_archived_notes(): void
+    {
+        Note::factory()->create(['title' => 'Active', 'archived' => false]);
+        Note::factory()->create(['title' => 'Archived', 'archived' => true]);
+
+        $this->getJson('/api/notes?archived=all')
+            ->assertOk()
+            ->assertJsonPath('total', 2);
+    }
+
+    #[DataProvider('indexValidationErrorProvider')]
+    public function test_index_returns_422_for_invalid_query(string $query, string $errorKey): void
+    {
+        $this->getJson('/api/notes?'.$query)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([$errorKey]);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function indexValidationErrorProvider(): array
+    {
+        return [
+            'sort whitelist' => ['sort=foo', 'sort'],
+            'limit zero' => ['limit=0', 'limit'],
+            'limit over max' => ['limit=101', 'limit'],
+            'limit non-integer' => ['limit=abc', 'limit'],
+            'offset negative' => ['offset=-1', 'offset'],
+            'offset non-integer' => ['offset=x', 'offset'],
+            'archived invalid' => ['archived=maybe', 'archived'],
+            'q too long' => ['q='.str_repeat('a', 256), 'q'],
+            'tag too long' => ['tags='.str_repeat('t', 51), 'tags.0'],
+        ];
     }
 }

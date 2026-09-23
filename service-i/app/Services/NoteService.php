@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Dto\Note\NoteListFilters;
+use App\Enums\NoteArchivedFilter;
 use App\Models\Note;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
 
 /**
  * Бизнес-логика CRUD заметок (Eloquent напрямую, без Repository).
@@ -14,15 +16,48 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 class NoteService
 {
     /**
-     * Список заметок без фильтров, сортировки и пагинации.
+     * Список заметок: фильтры → total → sort + offset/limit.
      *
-     * @return Collection<int, Note>
+     * @return array{items: Collection<int, Note>, total: int}
      */
-    public function list(): Collection
+    public function list(NoteListFilters $filters): array
     {
-        // TODO: filters, sort, pagination
+        $query = Note::query();
 
-        return Note::query()->get();
+        if ($filters->q !== null) {
+            $query->where(function ($q) use ($filters) {
+                $q->where('title', 'like', "%{$filters->q}%")
+                    ->orWhere('content', 'like', "%{$filters->q}%");
+            });
+        }
+//dump($filters);
+        foreach ($filters->tags as $tag) {
+            $query->whereJsonContains('tags', $tag);
+        }
+
+        if ($filters->archived !== NoteArchivedFilter::All) {
+            $query->where(
+                'archived',
+                $filters->archived === NoteArchivedFilter::Archived
+            );
+        }
+
+        $total = (clone $query)->count();
+
+        $sort = $filters->sort;
+        $desc = str_starts_with($sort, '-');
+        $column = ltrim($sort, '-');
+
+        $items = (clone $query)
+            ->orderBy($column, $desc ? 'desc' : 'asc')
+            ->offset($filters->offset)
+            ->limit($filters->limit)
+            ->get();
+
+        return [
+            'items' => $items,
+            'total' => $total,
+        ];
     }
 
     /**

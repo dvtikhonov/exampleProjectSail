@@ -17,7 +17,7 @@ const props = defineProps({
 const route = useRoute();
 const router = useRouter();
 const store = useNotesStore();
-const { loading, error } = storeToRefs(store);
+const { error } = storeToRefs(store);
 
 const isCreate = computed(() => route.name === 'notes.create' || !props.id);
 
@@ -81,12 +81,13 @@ async function onSubmit() {
     };
 
     try {
+        // После create/update — на Index, где onMounted вызовет loadFirst().
         if (isCreate.value) {
-            const note = await store.create(payload);
-            await router.push(`/notes/${note.id}/edit`);
+            await store.create(payload);
         } else {
             await store.update(props.id, payload);
         }
+        await router.push('/notes');
     } catch (e) {
         const errors = e?.response?.data?.errors;
         if (errors && typeof errors === 'object') {
@@ -184,7 +185,7 @@ async function onSubmit() {
                 <button
                     type="submit"
                     class="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-hover disabled:opacity-60"
-                    :disabled="saving || loading"
+                    :disabled="saving"
                 >
                     {{ saving ? 'Сохранение…' : 'Сохранить' }}
                 </button>
