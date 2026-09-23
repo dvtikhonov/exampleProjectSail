@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Note\IndexNoteRequest;
 use App\Http\Requests\Note\StoreNoteRequest;
 use App\Http\Requests\Note\UpdateNoteRequest;
 use App\Http\Resources\NoteResource;
-use App\Models\Note;
 use App\Services\NoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 /**
  * Публичный API CRUD заметок.
- *
- * Index — намеренная заглушка без Resource/фильтров/пагинации.
  */
 class NoteController extends Controller
 {
@@ -25,11 +23,21 @@ class NoteController extends Controller
     ) {}
 
     /**
-     * Заглушка списка: отдаёт все заметки как сырой JSON-массив моделей.
+     * Список заметок: envelope { items, total, limit, offset }.
+     *
+     * NoteResource::collection(...)->resolve() обязателен, иначе Laravel
+     * обернёт коллекцию в { data: [...] } и сломает контракт items.
      */
-    public function index(): JsonResponse
+    public function index(IndexNoteRequest $request): JsonResponse
     {
-        return response()->json(Note::all());
+        $result = $this->noteService->list($filters = $request->filters());
+
+        return response()->json([
+            'items' => NoteResource::collection($result['items'])->resolve(),
+            'total' => $result['total'],
+            'limit' => $filters->limit,
+            'offset' => $filters->offset,
+        ]);
     }
 
     /**

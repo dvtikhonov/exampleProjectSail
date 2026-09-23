@@ -74,18 +74,64 @@ flowchart TB
 
 | Метод | Путь | Поведение |
 |---|---|---|
-| `GET` | `/api/notes` | Заглушка: `Note::all()` без Resource/фильтров/пагинации |
+| `GET` | `/api/notes` | Список: фильтры / sort / limit-offset → envelope |
 | `POST` | `/api/notes` | Создание (`StoreNoteRequest`) |
 | `GET` | `/api/notes/{note}` | Одна заметка (`NoteResource`) |
 | `PUT`/`PATCH` | `/api/notes/{note}` | Обновление (`UpdateNoteRequest`) |
 | `DELETE` | `/api/notes/{note}` | Удаление |
 
-Валидация:
+### Breaking change: `GET /api/notes`
+
+Корень ответа больше не массив моделей. Контракт:
+
+```json
+{
+  "items": [ /* NoteResource… */ ],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+Элементы — через `NoteResource` (без `meta`; `tags` всегда массив, `null` → `[]`). В контроллере обязательно `NoteResource::collection(...)->resolve()`, иначе Laravel обернёт коллекцию в `{ data: [...] }` и сломает `items`.
+
+Слои: `IndexNoteRequest` → `NoteListFilters` → `NoteService::list` → envelope.
+
+### Query-параметры списка
+
+| Параметр | Описание | Default |
+|---|---|---|
+| `q` | поиск OR по `title` / `content` (LIKE, trim; `""` → без фильтра) | — |
+| `tags` | **CSV** `?tags=a,b` **или массив** `?tags[]=a&tags[]=b` → `string[]`; AND через `whereJsonContains` | `[]` (фильтр не применяется) |
+| `archived` | `false` \| `true` \| `all` (`NoteArchivedFilter` values) | `false` (только активные) |
+| `sort` | whitelist: `created_at`, `-created_at`, `updated_at`, `-updated_at`, `title`, `-title` | `-updated_at` |
+| `limit` | 1…100 | `20` |
+| `offset` | ≥ 0 | `0` |
+
+**Defaults только в `IndexNoteRequest::filters()`** — не в DTO, не в Controller, не в Service. Query приходит строками: `limit`/`offset` явно `(int)` в `filters()`, иначе `strict_types` + `int $limit` → TypeError.
+
+Во Vue `archived` хранится как API-строка `'false'|'true'|'all'`, не как имя PHP Enum case.
+
+Валидация CRUD:
 
 - **Store:** `title` required\|string\|max:255; `content` nullable\|string; `tags` nullable\|array; `tags.*` string\|max:50; `archived` sometimes\|boolean.
 - **Update:** те же поля, все `sometimes`.
+- **Index:** см. таблицу выше; невалидные query → 422.
 
 `NoteResource` отдаёт: `id`, `title`, `content`, `tags`, `archived`, timestamps. Поле `meta` (legacy) **не** отдаётся.
+
+### Known limitations
+
+- LIKE `%` / `_` в `q` не экранируются.
+- ASCII case-insensitive для латиницы; кириллица зависит от collation SQLite:
+
+```text
+q=laravel   → найдёт "Laravel"
+q=Ларавел   → не найдёт "laravel"
+q=Ларавел   → НЕ найдёт "ларавел"
+```
+
+- BINARY-сортировка строк; гонки при offset-пагинации при параллельных insert/delete.
 
 ---
 
@@ -96,11 +142,32 @@ flowchart TB
 | Путь | Страница |
 |---|---|
 | `/` | редирект на `/notes` |
-| `/notes` | список (`pages/Notes/Index.vue`) |
+| `/notes` | список (`pages/Notes/Index.vue`) — фильтры, URL sync, «Загрузить ещё» |
 | `/notes/new` | создание |
 | `/notes/:id/edit` | редактирование |
 
-Компонент `NoteCard.vue`: title, excerpt, tags, удаление. Клиент: `api/notes.js` + Pinia `stores/notes.js` (query-параметры намеренно не поддержаны).
+Клиент: `api/notes.js` + Pinia `stores/notes.js` (`loadFirst` / `loadMore`, AbortController). `NoteCard.vue`: title, excerpt, tags, удаление.
+
+### URL sync и один fetch при открытии
+
+`Index.vue`:
+
+1. `watch` на фильтры / `q` — **без `immediate: true`** (иначе двойной `loadFirst` вместе с mount).
+2. `onMounted`: прочитать `route.query` → store → **один** `loadFirst()`.
+3. Дальше: смена фильтров → `router.replace` + `loadFirst()`; debounce `q` (~300 ms) только во Vue.
+
+В URL пишутся только **недефолтные** значения; `offset` никогда. Шаринг тегов — CSV (`tags=a,b`). При чтении `route.query` value может быть `string|string[]` — нормализовать (`Array.isArray(v) ? v[0] : v`; для `tags` массив → список тегов).
+
+### Ручной QA
+
+1. `/notes?q=laravel` — фильтр + `q` в URL; в Network **ровно один** list-запрос при открытии (нет двойного `loadFirst`).
+2. Стерли поиск — нет `q=` в URL.
+3. `/notes?q=` — список грузится, поиск не применён; после взаимодействия `q=` уходит из URL.
+4. `/notes?sort=foo` — banner, пустой список, total 0.
+5. Load more при loading / !hasMore — no-op.
+6. Два быстрых клика Load more → один запрос в Network.
+7. Offline → Load more → banner; online → снова Load more → догрузка.
+8. Create/Edit → Index; delete → обновлённый total.
 
 ### Разработка UI вне Docker
 
@@ -124,9 +191,8 @@ npm run build   # или npm run dev — только на хосте
 docker compose exec service-i php artisan test
 ```
 
-- `tests/Feature/NoteCrudTest` — CRUD + валидация `title`
-- `tests/Unit/NoteServiceTest` — create/update/delete
-- incomplete-заготовка на будущие фильтры `GET /api/notes` (`markTestIncomplete`) — сьют остаётся зелёным
+- `tests/Feature/NoteCrudTest` — CRUD + envelope списка, tags CSV/`tags[]`, q+tags precedence, пагинация, 422 (`limit=abc`, `offset=x`, …)
+- `tests/Unit/NoteServiceTest` — `list(NoteListFilters)` + create/update/delete (defaults не в Service)
 
 ---
 
@@ -147,8 +213,8 @@ APP_URL=http://localhost:8089
 
 ## Вне скоупа (намеренно)
 
-- Фильтры, поиск, сортировка, пагинация, sync query ↔ Pinia
 - Sanctum / users / ownership
 - Repository / Contracts как в service-c
 - Node/Vite HMR в runtime-контейнере
 - Job/шаги CI для `service-i`
+- Vitest для Vue

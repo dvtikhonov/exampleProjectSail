@@ -1,8 +1,8 @@
 /**
  * HTTP-клиент CRUD заметок (/api/notes).
  *
- * Query-параметры (фильтры/сортировка/пагинация) намеренно не поддержаны —
- * см. TODO в Pinia-store.
+ * GET /notes принимает query: q, tags (CSV), archived, sort, limit, offset.
+ * Ответ списка: envelope { items, total, limit, offset }.
  */
 import axios from 'axios';
 
@@ -16,12 +16,22 @@ const api = axios.create({
 });
 
 /**
- * @returns {Promise<Array<Record<string, unknown>>>}
+ * @param {Record<string, unknown>} [params]
+ * @param {{ signal?: AbortSignal }} [options]
+ * @returns {Promise<{ items: Array<Record<string, unknown>>, total: number, limit: number, offset: number }>}
  */
-export async function fetchNotes() {
-    const { data } = await api.get('/notes');
+export async function fetchNotes(params = {}, options = {}) {
+    const { data } = await api.get('/notes', {
+        params,
+        signal: options.signal,
+    });
 
-    return Array.isArray(data) ? data : (data?.data ?? []);
+    return {
+        items: Array.isArray(data?.items) ? data.items : [],
+        total: Number(data?.total ?? 0),
+        limit: Number(data?.limit ?? 20),
+        offset: Number(data?.offset ?? 0),
+    };
 }
 
 /**
@@ -61,4 +71,17 @@ export async function updateNote(id, payload) {
  */
 export async function deleteNote(id) {
     await api.delete(`/notes/${id}`);
+}
+
+/**
+ * @param {unknown} e
+ * @returns {boolean}
+ */
+export function isRequestAborted(e) {
+    return (
+        axios.isCancel?.(e) === true
+        || e?.code === 'ERR_CANCELED'
+        || e?.name === 'CanceledError'
+        || e?.name === 'AbortError'
+    );
 }
