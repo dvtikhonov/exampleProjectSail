@@ -561,6 +561,9 @@ services:
     build: ./service-i
     ports:
       - "${SERVICE_I_PORT:-8089}:80"
+    volumes:
+      # items.json с хоста при каждом reload — без rebuild образа
+      - ./service-i/public/items.json:/usr/share/nginx/html/items.json:ro
     networks:
       - internal
 
