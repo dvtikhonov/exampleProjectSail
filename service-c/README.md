@@ -18,6 +18,7 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | [Уведомления клиенту о результате проверки](#уведомления-клиенту-о-результате-проверки) | Submitted / confirmed / rejected / состав изменён / ручной заказ |
 | [Уведомления о сообщениях в чате](#уведомления-о-сообщениях-в-чате-заказа) | Клиент + `MAX_UI_STAND_*` |
 | [UI Stand и тестовые кнопки бота](#ui-stand-и-тестовые-кнопки-бота) | `MAX_UI_STAND_*` vs `MAX_REPORT_*`, получение `chat_id`, «тест бот 2» |
+| [Пересылка входящих сообщений боту (MaxIncomingRelay)](#пересылка-входящих-сообщений-боту-maxincomingrelay) | `message_created` → Home_chat (`MAX_UI_STAND_CHAT_IDS`) + `max_log` |
 | [Связки PHP ↔ JavaScript](#связки-php--javascript) | Паритет доменной логики backend и mini-app (комбо в `items_snapshot`) |
 
 Порт по умолчанию: **8083** (`SERVICE_C_PORT` в `docker-compose.yml`). Vite dev: **5174** (`SERVICE_C_VITE_PORT`).
@@ -72,7 +73,7 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | DTO / Enum / Record | `*Dto` — JSON API; `*Record` / `*Command` — внутренний домен; Enum — статусы и роли; см. [Record vs DTO](#record-vs-dto-vs-command) |
 | Service + Repository | Домен Food в `app/Services/Food/{поддомен}/`; Eloquent в `app/Repositories/Food/{поддомен}/` |
 | Граница Max | Порты в `Contracts/Food/` и `Contracts/Max/`; notifiers / gateway / clock / storage — `Infrastructure/Laravel/`; сборка текстов и UI Stand — `Services/Max/{Food,Menu,UiStand}/` |
-| DI | Привязки `*Interface` → реализация в `FoodServiceProvider`, `MaxServiceProvider`, `SharedInfrastructureProvider` (`bootstrap/providers.php`); `AppServiceProvider` — только boot URL/HTTPS для туннеля |
+| DI | Привязки `*Interface` → реализация в `FoodServiceProvider`, `MaxServiceProvider`, `SharedInfrastructureProvider`, `MaxIncomingRelayServiceProvider` (`bootstrap/providers.php`); `AppServiceProvider` — только boot URL/HTTPS для туннеля |
 | Интерфейсы | **Контракт** — на границе пакета/поддомена (repo, use-case, notifier, cache port). **Concrete OK** — внутренние helpers одного поддомена (`*Factory`, `*Coordinator`, formatters), пока не шарятся между поддоменами и не мешают тестам. Не плодить `interface` «на каждый класс» |
 | Валидация | Form Request (`app/Http/Requests/Food/`) до контроллера; контроллер работает только с валидными данными |
 | Frontend | Vue 3 SPA без vue-router: `App.vue` (`AuthGate` + shells) + composables + модульный `api/` + Tailwind (`resources/css/max-app.css`) |
@@ -121,7 +122,7 @@ flowchart TB
 |---|---|---|---|
 | HTTP / Jobs | `Http/`, `Jobs/` | `$request->user()`, Eloquent для загрузки сущности на входе; сразу маппинг в domain-типы | Бизнес-правила без сервисов |
 | Application | `Services/Food/`, `Contracts/Food/` | `*Record`, `*Dto`, `*Command`, Enum, порты (`*Interface`), `Psr\Log\LoggerInterface` | `App\Models\*`, `DB::`, Laravel Facades |
-| Feature-модуль | `app/Modules/FoodReport/` | Contracts/Services модуля — те же запреты, что у Food Application; Eloquent только в `Repositories/` (+ `Models/`) | `App\Models\*` / Facades / `Illuminate\*` в Contracts/Services — CI: `scripts/check-food-report-module-isolation.sh`, `tests/Architecture/FoodReportModuleIsolationTest` |
+| Feature-модуль | `app/Modules/FoodReport/`, `app/Modules/MaxIncomingRelay/` | Contracts/Services модуля — те же запреты, что у Food Application; Eloquent только в `Repositories/` (+ `Models/` у FoodReport) | `App\Models\*` / Facades / `Illuminate\*` в Contracts/Services — CI: `scripts/check-food-report-module-isolation.sh`, `tests/Architecture/FoodReportModuleIsolationTest` |
 | Core | `Services/**`, `Contracts/**` (+ цель: `DTO/`, `Enums/`, `Exceptions/`) | порты, DTO, Enum, PSR-3 | `Illuminate\*`, `App\Models\*`, Facades, helpers (`config`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-core-layer-isolation.sh`, `tests/Architecture/CoreLayerIsolationTest`; **baseline пуст** (end-state для Services/Contracts достигнут) |
 | Support | `app/Support/` | чистые helpers (formatters, combo resolver, initData signer, `MaxPublicAppUrl`, …) | `Illuminate\*`, Facades, helpers (`config`/`request`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-support-layer-isolation.sh`, `tests/Architecture/SupportLayerIsolationTest` |
 | Infrastructure | `Repositories/{Food,Max,Auth}/`, `Infrastructure/Laravel/`, `Services/Max/` (builders, UI Stand; notifiers — в `Infrastructure/Laravel`) | Eloquent, `DB::transaction`, Storage, Cache, MAX HTTP | Доменные правила без портов |
@@ -859,7 +860,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 | Контур | Переменные `.env` | Кто вызывает | Текст сообщения |
 |---|---|---|---|
-| UI Stand / заказы / чат | `MAX_UI_STAND_CHAT_IDS`, `MAX_UI_STAND_USER_IDS` (заказы/чат/приветствие — только `.env`; **«тест бот 2»** ещё + кэш webhook) | `POST /orders/submit`, `POST .../messages`, `max:ui-stand:send`, **«тест бот 2»** | Новый заказ / сообщение в чате / приветствие / `тест бот 2` |
+| UI Stand / заказы / чат / входящие боту | `MAX_UI_STAND_CHAT_IDS`, `MAX_UI_STAND_USER_IDS` (заказы/чат/приветствие — только `.env`; **«тест бот 2»** ещё + кэш webhook; **MaxIncomingRelay** — только `CHAT_IDS`) | `POST /orders/submit`, `POST .../messages`, `max:ui-stand:send`, **«тест бот 2»**, webhook `message_created` | Новый заказ / сообщение в чате / приветствие / `тест бот 2` / входящий текст боту |
 | Отчёты (меню / тест) | `MAX_REPORT_CHAT_IDS`, `MAX_REPORT_USER_IDS` | кнопка **«тест бот»**, cron `food:sync-dish-availability` | `Тест БОТ` / «Доступно для заказов меню на …» (дата «Блюда на» по offsets) |
 
 Пример разделения чатов (prod/dev):
@@ -868,7 +869,7 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 # Чат отчётов «Обедов» — «тест бот» и уведомление о меню
 MAX_REPORT_CHAT_IDS=434832398
 
-# Группа Home_chat — новые заказы, чат заказа, UI Stand и «тест бот 2»
+# Группа Home_chat — новые заказы, чат заказа, UI Stand, «тест бот 2», пересылка входящих боту (MaxIncomingRelay)
 MAX_UI_STAND_CHAT_IDS=-75495934087316
 MAX_UI_STAND_USER_IDS=
 ```
@@ -938,7 +939,38 @@ curl -s "https://platform-api.max.ru/chats/-75495934087316" \
 | Сообщение ушло в личку, а не в группу | В `MAX_UI_STAND_USER_IDS` указан `user_id` администратора — для рассылки **только в группу** оставьте переменную пустой |
 | «тест бот 2» попал в «Обедов» | В кэше webhook остался старый `chat_id` — `php artisan cache:clear` и проверьте, что `434832398` **не** в `MAX_UI_STAND_CHAT_IDS` |
 
-> **Не путать с чатом по заказу:** внутренний чат клиент ↔ админ в mini-app идентифицируется `order_id` (`/api/food/orders/{id}/messages`), а не MAX `chat_id`. Push о новых сообщениях уходит в `MAX_UI_STAND_*` и клиенту — см. [Уведомления о сообщениях в чате заказа](#уведомления-о-сообщениях-в-чате-заказа).
+> **Не путать с чатом по заказу:** внутренний чат клиент ↔ админ в mini-app идентифицируется `order_id` (`/api/food/orders/{id}/messages`), а не MAX `chat_id`. Push о новых сообщениях уходит в `MAX_UI_STAND_*` и клиенту — см. [Уведомления о сообщениях в чате заказа](#уведомления-о-сообщениях-в-чате-заказа). Пересылка произвольного текста пользователю боту (`message_created`) — отдельный модуль [MaxIncomingRelay](#пересылка-входящих-сообщений-боту-maxincomingrelay), **не** чат заказа Food.
+
+## Пересылка входящих сообщений боту (`MaxIncomingRelay`)
+
+Модуль `app/Modules/MaxIncomingRelay/`: когда пользователь пишет **текст боту** в личку, webhook `message_created` собирает уведомление и **пересылает** его во все чаты из **`MAX_UI_STAND_CHAT_IDS`** (Home_chat) — **только** chat_ids из `.env`, без `MAX_UI_STAND_USER_IDS` и без кэша webhook. Тот же многострочный текст пишется в канал **`max_log`**.
+
+**Это не чат заказа Food** (`/api/food/orders/{id}/messages`). Автоответ пользователю, медиа и Long Polling — вне скоупа.
+
+Формат уведомления:
+
+```
+Получено сообщение от user_id {id}{опционально: ФИО}
+текст сообщения: {text}
+Дата и время: {dd.mm.yyyy HH:mm}
+Дата и номер последнего заказа: {dd.mm.yyyy} №{orderId} | нет
+```
+
+| Поле | Источник | Если нет данных |
+|---|---|---|
+| `user_id` | `message.sender.user_id` | событие пропускается |
+| ФИО | `first_name` + `last_name` отправителя | строка без ФИО: `от user_id 54321` |
+| текст | `message.body.text` | пустая строка после двоеточия |
+| Дата и время | `message.timestamp` (мс) → Europe/Moscow | текущее время (`ClockInterface`) |
+| Последний заказ | последний `max_food_orders` по `max_user_id` (`created_at DESC`) | `нет` |
+
+После деплоя или смены списка update types нужна **ручная** переподписка:
+
+```bash
+docker compose exec -T service-c php artisan max:webhook:subscribe
+```
+
+Проверка: написать боту в личку → сообщение в Home_chat в нужном формате + запись в `storage/logs/max_log-*.log` (`MAX incoming message relay`).
 
 ## Структура (ключевые каталоги)
 
@@ -1043,8 +1075,12 @@ service-c/
 │   │   │                           # CustomerRead / AdminRead, *Mapper.php — Eloquent ↔ *Record/*Command)
 │   │   ├── Max/                    # EloquentMaxUser, EloquentMaxLoadTestData, MaxUserMapper
 │   │   └── Auth/                   # EloquentGatewayUserResolver
+│   ├── Modules/
+│   │   ├── FoodReport/             # отчёты выручка/топ блюд (Contracts/Services/Repositories)
+│   │   └── MaxIncomingRelay/       # message_created → Home_chat + max_log (Handlers/Services/DTO)
 │   ├── Providers/                  # SharedInfrastructureProvider, FoodServiceProvider,
-│   │                               # MaxServiceProvider (DI); AppServiceProvider (URL/HTTPS туннель)
+│   │                               # MaxServiceProvider, MaxIncomingRelayServiceProvider (DI);
+│   │                               # AppServiceProvider (URL/HTTPS туннель)
 │   ├── Rules/                      # MinImageDimensions, ValidDishPhotoMime
 │   ├── Services/
 │   │   ├── Food/                   # поддомены (оркестраторы домена, без транспорта MAX):
@@ -1515,7 +1551,7 @@ location /api/c/ {
 
 | Метод | Путь | Описание |
 |---|---|---|
-| `POST` | `/api/webhooks/max` | Входящие события MAX (`message_callback`, `bot_started`) |
+| `POST` | `/api/webhooks/max` | Входящие события MAX (`message_callback`, `bot_started`, `message_created`) |
 | `POST` | `/api/max/auth` | `{ "init_data": "..." }` → `{ token, token_type, expires_in, user }` |
 | `GET` | `/api/food/dishes/{id}/image` | Изображение блюда с локального `public` disk (**без** Bearer — для `<img>` в WebView MAX); throttle `food-dish-image` 30/min per IP |
 
@@ -1742,7 +1778,7 @@ UI менеджера вызывает только `/export` (`api/admin/report
 
 ```bash
 docker compose exec -T service-c php artisan max:bot:info            # профиль бота (username, user_id)
-docker compose exec -T service-c php artisan max:webhook:subscribe   # подписка webhook
+docker compose exec -T service-c php artisan max:webhook:subscribe   # подписка webhook (message_callback, bot_started, message_created)
 docker compose exec -T service-c php artisan max:webhook:status      # статус подписок
 docker compose exec -T service-c php artisan max:webhook:clean       # очистка dev-туннелей (.trycloudflare.com)
 docker compose exec -T service-c php artisan max:miniapp:verify      # проверка URL mini-app
@@ -1842,7 +1878,8 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 | 3 | `./scripts/fxtun-exampleprojectsail.sh run` | Туннель на `exampleprojectsail.fxtun.dev` |
 | 4 | В `service-c/.env`: токен, секрет, `APP_URL`, `MAX_WEBHOOK_URL`, `MAX_BOT_USERNAME` | `max:bot:info` для username и `MAX_BOT_USER_ID` |
 | 5 | **Кабинет MAX** → URL мини-приложения = `https://exampleprojectsail.fxtun.dev/max-app` | Сохранено |
-| 6 | `docker compose exec -T service-c php artisan max:webhook:subscribe` | Подписка на `message_callback`, `bot_started`; проба URL OK |
+| 6 | `docker compose exec -T service-c php artisan max:webhook:subscribe` | Подписка на `message_callback`, `bot_started`, `message_created`; проба URL OK |
+| 6a | Написать боту текст в личку | В Home_chat (`MAX_UI_STAND_CHAT_IDS`) — уведомление MaxIncomingRelay; в `max_log` — тот же текст |
 | 7 | Открыть mini-app в MAX (чат с ботом → mini-app) | Загружается SPA «Заказ еды», список ресторанов |
 | 8 | Меню (адрес в шапке опционально) → «В корзину» → корзина → модалка подтверждения → «Оформить» | Стоимость доставки по категории; подсказка следующего порога (если есть); заявка `pending_review`; экран подтверждения; в `MAX_UI_STAND_*` — уведомление о новой заявке |
 | 8a | «Мои заказы» (бейдж непрочитанных) → детали → чат | Список заказов, статусы review, `unread_count`; отправка сообщения; в `MAX_UI_STAND_*` — «поступило сообщение» + текст; клиенту своё сообщение не дублируется |
@@ -1921,6 +1958,7 @@ docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).
 | Admin dish availability schedule | `tests/Feature/AdminDishAvailabilityApiTest.php` |
 | Sync dish availability (cron) | `tests/Feature/SyncDishAvailabilityCommandTest.php` |
 | MAX webhook / UI Stand | `tests/Feature/MaxWebhookControllerTest.php`, `tests/Unit/MaxCallbackHandlerTest.php`, `MaxUiStandGreetingSenderTest.php`, `MaxUiStandSendCommandTest.php`, `MaxWebhookUpdateRouterTest.php`, `MaxWebhookSubscriberTest.php`, `MaxWebhookSubscribeCommandTest.php`, `MaxCallbackUpdateDtoTest.php`, `MaxUiStandRecipientResolverTest.php`, `MaxUiStandRecipientRegistryTest.php` |
+| MaxIncomingRelay (`message_created`) | `tests/Unit/Modules/MaxIncomingRelay/*`, `tests/Feature/MaxIncomingRelay/MessageCreatedWebhookTest.php` |
 | Тестовые кнопки бота (админ) | `tests/Feature/AdminDishApiTest.php` (`test-bot`), `tests/Unit/LaravelMaxAdminBotTestSenderTest.php` |
 | open_app / tunnel context | `tests/Unit/MaxOpenAppTargetResolverTest.php`, `MaxAppRequestContextTest.php`, `MaxMiniAppAccessLoggerTest.php` |
 | `/max-app` route | `tests/Feature/MaxAppRouteTest.php` |

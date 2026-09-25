@@ -60,8 +60,10 @@ import { TreeStore } from './src/tree'
 
 ```
 service-i/
-  public/items.json   # статика для fetch('/items.json')
+  public/items.json   # runtime fetch('/items.json') при каждом reload (не в бандле)
   src/tree/           # TreeStore + types
   src/components/     # TreeGrid (AgGrid)
   Dockerfile          # multi-stage: node build → nginx runtime
 ```
+
+`items.json` читается браузером через `fetch` при каждой перезагрузке страницы (`cache: 'no-store'`). В Docker файл смонтирован volume’ом с хоста — правки в `public/items.json` видны без `--build`.

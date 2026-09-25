@@ -19,7 +19,11 @@ const rowData = computed(() => {
 
 async function loadItems(): Promise<void> {
   loading.value = true
-  const res = await fetch('/items.json')
+  // runtime-загрузка при каждом reload; не бандлится в JS и не кэшируется браузером
+  const res = await fetch('/items.json', { cache: 'no-store' })
+  if (!res.ok) {
+    throw new Error(`Failed to load items.json: ${res.status}`)
+  }
   const data = (await res.json()) as TreeItem[]
   await delay(2000)
   store.setItems(data)
