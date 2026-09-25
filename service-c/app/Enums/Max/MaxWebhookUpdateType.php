@@ -11,6 +11,7 @@ enum MaxWebhookUpdateType: string
 {
     case MessageCallback = 'message_callback';
     case BotStarted = 'bot_started';
+    case MessageCreated = 'message_created';
 
     /**
      * Строковые значения всех поддерживаемых типов (для subscribe API).

@@ -44,6 +44,7 @@ use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
 use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientResolver;
 use App\Infrastructure\Laravel\LaravelOrderChatNotifier;
 use App\Infrastructure\Laravel\MaxWebhookSubscriptionClient;
+use App\Modules\MaxIncomingRelay\Handlers\MessageCreatedUpdateHandler;
 use App\Repositories\Max\EloquentMaxLoadTestDataRepository;
 use App\Repositories\Max\EloquentMaxLoadTestUserRepository;
 use App\Repositories\Max\EloquentMaxUserAiAccessRepository;
@@ -136,6 +137,7 @@ class MaxServiceProvider extends ServiceProvider
                 [
                     MaxWebhookUpdateType::MessageCallback->value => $app->make(MessageCallbackUpdateHandler::class),
                     MaxWebhookUpdateType::BotStarted->value => $app->make(BotStartedUpdateHandler::class),
+                    MaxWebhookUpdateType::MessageCreated->value => $app->make(MessageCreatedUpdateHandler::class),
                 ],
                 Log::channel('max_log'),
             );
