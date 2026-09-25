@@ -33,7 +33,7 @@ final class IncomingMessageRelayService implements IncomingMessageRelayServiceIn
         $text = $this->notificationBuilder->build($message, $lastOrder);
         $chatIds = $this->recipientResolver->configuredChatIds();
 
-        $this->logger->info('MAX incoming message relay', [
+        $this->logger->warning('MAX incoming message relay', [
             'user_id' => $message->userId,
             'chat_id' => $message->chatId,
             'chat_ids' => $chatIds,

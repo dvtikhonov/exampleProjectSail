@@ -83,7 +83,7 @@ final class IncomingMessageRelayServiceTest extends TestCase
         ]);
 
         $relayLog = MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX incoming message relay');
-        $this->assertSame('info', $relayLog->level);
+        $this->assertSame('warning', $relayLog->level);
         $this->assertSame(54321, $relayLog->context['user_id'] ?? null);
         $this->assertSame([-1001, -1002], $relayLog->context['chat_ids'] ?? null);
         $this->assertSame($expectedText, $relayLog->context['text'] ?? null);
