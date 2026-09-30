@@ -56,4 +56,9 @@ return Application::configure(basePath: dirname(__DIR__))
             ->dailyAt('03:00')
             ->timezone('Europe/Moscow');
     })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('max:webhook:subscribe')
+            ->dailyAt('00:10')
+            ->timezone('Europe/Moscow');
+    })
     ->create();
