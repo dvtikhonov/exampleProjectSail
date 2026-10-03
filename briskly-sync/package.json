@@ -1,0 +1,37 @@
+{
+  "name": "briskly-sync",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Briskly HTTP-клиент, MCP food-source/briskly-target и Cursor orchestrator (match + classify 1D/2B)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "cli": "tsx src/cli/brisklyClientCli.ts",
+    "match": "tsx src/cli/matchCli.ts",
+    "apply": "tsx src/cli/applyCli.ts",
+    "sidecar": "tsx src/http/sidecar.ts",
+    "mcp:food-source": "tsx src/mcp/foodSource/runFoodSourceMcp.ts",
+    "mcp:briskly-target": "tsx src/mcp/brisklyTarget/runBrisklyTargetMcp.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "bin": {
+    "briskly-client": "./dist/cli/brisklyClientCli.js",
+    "briskly-match": "./dist/cli/matchCli.js",
+    "briskly-apply": "./dist/cli/applyCli.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.35",
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

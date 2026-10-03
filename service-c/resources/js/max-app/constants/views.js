@@ -12,8 +12,8 @@
  * - **ordersPanel** — вкладка внутри раздела «Заказы»: `review` | `reports`
  *   (проверка очереди vs выгрузка отчётов). См. {@link ADMIN_ORDERS_PANELS}.
  *
- * - **adminSection** — верхний раздел AdminAppShell: заказы / ручные заказы / меню
- *   (`orders` | `manualOrders` | `menu`). Переключается в AdminSectionNav.
+ * - **adminSection** — верхний раздел AdminAppShell: заказы / ручные заказы / меню / Briskly
+ *   (`orders` | `manualOrders` | `menu` | `briskly`). Переключается в AdminSectionNav.
  *   См. {@link ADMIN_SECTIONS}.
  *
  * Scope ≠ section: у пользователя с ролями address+menu одновременно могут быть
@@ -51,13 +51,15 @@ export const ADMIN_ORDERS_PANELS = {
 };
 
 /**
- * Разделы админ-интерфейса (adminSection): проверка заказов, ручные заказы или меню.
+ * Разделы админ-интерфейса (adminSection): заказы, ручные заказы, меню или Briskly.
  * Не путать с {@link ADMIN_SCOPES} (adminScope).
  */
 export const ADMIN_SECTIONS = {
     orders: 'orders',
     manualOrders: 'manualOrders',
     menu: 'menu',
+    /** Синхронизация с Briskly (роль max_manager) */
+    briskly: 'briskly',
 };
 
 /** Экраны клиентского потока: ресторан → меню → корзина → заказ */

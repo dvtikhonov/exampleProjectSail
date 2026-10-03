@@ -21,7 +21,7 @@ const maxUserId = ref(null);
 const adminRoles = ref([]);
 /** @type {import('vue').Ref<'address'|'composition'>} adminScope — вкладка очереди, не adminSection */
 const adminScope = ref(ADMIN_SCOPES.address);
-/** @type {import('vue').Ref<string>} adminSection — раздел shell (orders|manualOrders|menu) */
+/** @type {import('vue').Ref<string>} adminSection — раздел shell (orders|manualOrders|menu|briskly) */
 const adminSection = ref(ADMIN_SECTIONS.orders);
 
 const hasOrderReviewRoles = computed(() =>
@@ -48,6 +48,7 @@ const availableAdminSections = computed(() => {
 
     if (hasMaxManagerRole.value) {
         sections.push(ADMIN_SECTIONS.manualOrders);
+        sections.push(ADMIN_SECTIONS.briskly);
     }
 
     if (hasMenuManagerRole.value) {
@@ -78,7 +79,7 @@ function resolveDefaultAdminScope(roles) {
 }
 
 /**
- * Определяет начальный раздел админки (adminSection): заказы, ручные заказы или меню.
+ * Определяет начальный раздел админки (adminSection): заказы, ручные, меню или Briskly.
  *
  * @param {string[]} roles
  * @returns {string}

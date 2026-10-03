@@ -20,6 +20,21 @@ class DishAdminEnumsTest extends TestCase
         $this->assertSame('л', DishWeightUnit::Liter->label());
     }
 
+    /** Проверяет канонические слова и алиасы единиц веса. */
+    public function test_weight_unit_canonical_words_and_aliases(): void
+    {
+        $this->assertSame('грамм', DishWeightUnit::Gram->canonicalWord());
+        $this->assertSame('килограмм', DishWeightUnit::Kilogram->canonicalWord());
+        $this->assertSame('миллилитр', DishWeightUnit::Milliliter->canonicalWord());
+        $this->assertSame('литр', DishWeightUnit::Liter->canonicalWord());
+
+        foreach (DishWeightUnit::cases() as $unit) {
+            $this->assertNotEmpty($unit->aliases());
+            $this->assertContains($unit->label(), $unit->aliases());
+            $this->assertContains($unit->canonicalWord(), $unit->aliases());
+        }
+    }
+
     #[DataProvider('vatRateProvider')]
     /** Проверяет значения и метки ставок НДС. */
     public function test_vat_rate_values_and_labels(?int $dbValue, DishVatRate $expected, string $label): void
