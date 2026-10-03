@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts\Food\BrisklySync;
 
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
-use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
 use App\DTO\Food\BrisklySync\BrisklySyncApplyReportDto;
+use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
 use App\DTO\Food\BrisklySync\BrisklySyncSessionRecord;
 use App\DTO\Food\BrisklySync\CreateBrisklySyncSessionDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;

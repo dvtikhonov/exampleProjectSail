@@ -7,6 +7,7 @@ namespace App\Repositories\Food\Menu;
 use App\Contracts\Food\Menu\DailyMenuCatalogRepositoryInterface;
 use App\DTO\Food\Menu\DishRecord;
 use App\Models\Food\Dish;
+use Illuminate\Support\Collection;
 
 /**
  * Eloquent-каталог доступных блюд для уведомления о меню дня.
@@ -61,7 +62,7 @@ class EloquentDailyMenuCatalogRepository implements DailyMenuCatalogRepositoryIn
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, Dish>  $dishes
+     * @param  Collection<int, Dish>  $dishes
      * @return list<DishRecord>
      */
     private function mapAvailableDishes($dishes): array

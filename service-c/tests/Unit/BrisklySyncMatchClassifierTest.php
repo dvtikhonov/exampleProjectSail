@@ -19,7 +19,7 @@ class BrisklySyncMatchClassifierTest extends TestCase
 {
     public function test_classifies_price_diff_create_equal_ambiguous_and_briskly_only(): void
     {
-        $classifier = new BrisklySyncMatchClassifier();
+        $classifier = new BrisklySyncMatchClassifier;
 
         $source = [
             new SourceMenuLineDto('single:1', DailyMenuLineType::Single, 'A', '100.00', [1]),
@@ -67,7 +67,7 @@ class BrisklySyncMatchClassifierTest extends TestCase
 
     public function test_caps_sections_and_sets_truncated(): void
     {
-        $classifier = new BrisklySyncMatchClassifier();
+        $classifier = new BrisklySyncMatchClassifier;
         $source = [];
         $match = [];
         for ($i = 1; $i <= 30; $i++) {
@@ -98,7 +98,7 @@ class BrisklySyncMatchClassifierTest extends TestCase
 
     public function test_llm_price_in_match_payload_is_ignored_source_price_wins(): void
     {
-        $classifier = new BrisklySyncMatchClassifier();
+        $classifier = new BrisklySyncMatchClassifier;
 
         // LLM прислал price в candidate — DTO его отбрасывает; цена только из source/snapshot.
         $candidate = MatchCandidateDto::fromArray([
@@ -139,7 +139,7 @@ class BrisklySyncMatchClassifierTest extends TestCase
 
     public function test_create_proposal_keeps_briskly_create_name_with_weight(): void
     {
-        $classifier = new BrisklySyncMatchClassifier();
+        $classifier = new BrisklySyncMatchClassifier;
 
         $results = $classifier->classify(
             [

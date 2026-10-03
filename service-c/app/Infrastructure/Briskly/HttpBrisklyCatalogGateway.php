@@ -273,6 +273,7 @@ final class HttpBrisklyCatalogGateway implements BrisklyCatalogGatewayInterface
                 foreach ($errors as $field => $messages) {
                     if (is_string($messages) && trim($messages) !== '') {
                         $parts[] = is_string($field) ? $field.': '.$messages : $messages;
+
                         continue;
                     }
                     if (! is_array($messages)) {

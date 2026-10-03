@@ -6,16 +6,17 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
 use App\DTO\Food\BrisklySync\MatchCandidateDto;
 use App\DTO\Food\BrisklySync\MatchLineResultDto;
-use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
+use App\Models\Food\BrisklySyncSession;
 use App\Models\Food\Dish;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
@@ -265,7 +266,7 @@ class AdminBrisklySyncSessionApiTest extends TestCase
         [$sessionId, $lineKey] = $this->seedMatchedPriceDiffSession($manager);
 
         // Подмена proposals: briskly_item_id вне snapshot.
-        $session = \App\Models\Food\BrisklySyncSession::query()->findOrFail($sessionId);
+        $session = BrisklySyncSession::query()->findOrFail($sessionId);
         $proposals = $session->proposals;
         $proposals['sync_results']['price_updates']['items'][0]['briskly_item_id'] = 777777;
         $session->proposals = $proposals;
@@ -292,7 +293,7 @@ class AdminBrisklySyncSessionApiTest extends TestCase
         ], $manager['headers'])->assertCreated();
 
         $sessionId = $create->json('session.id');
-        $this->app->make(\App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface::class)
+        $this->app->make(BrisklySyncTokenStoreInterface::class)
             ->forget($sessionId);
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])

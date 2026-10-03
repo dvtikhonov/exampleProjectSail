@@ -66,11 +66,13 @@ final class BrisklySyncMatchClassifier implements BrisklySyncMatchClassifierInte
                         ? $sourceLine->brisklyCreateName
                         : $sourceLine->displayName,
                 );
+
                 continue;
             }
 
             if (count($match->candidates) > 1) {
                 $ambiguous++;
+
                 continue;
             }
 
@@ -85,6 +87,7 @@ final class BrisklySyncMatchClassifier implements BrisklySyncMatchClassifierInte
                         ? $sourceLine->brisklyCreateName
                         : $sourceLine->displayName,
                 );
+
                 continue;
             }
 
@@ -92,6 +95,7 @@ final class BrisklySyncMatchClassifier implements BrisklySyncMatchClassifierInte
 
             if (BrisklySyncPrice::equal($sourceLine->price, $briskly->price)) {
                 $equalPrice++;
+
                 continue;
             }
 

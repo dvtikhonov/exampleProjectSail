@@ -15,8 +15,8 @@ use App\Contracts\Food\ComboCatalog\ComboCatalogPromptBuilderInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
-use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
 use App\DTO\Food\BrisklySync\BrisklySyncApplyReportDto;
+use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
 use App\DTO\Food\BrisklySync\BrisklySyncSessionRecord;
 use App\DTO\Food\BrisklySync\CreateBrisklySyncSessionDto;
 use App\DTO\Food\BrisklySync\PriceDiffItemDto;
@@ -379,6 +379,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             foreach ($approvals->priceUpdates as $approval) {
                 if (! $approval->apply) {
                     $report['skipped_unchecked']++;
+
                     continue;
                 }
                 if ($updateCount >= $this->sectionCap) {
@@ -386,6 +387,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                         'line_key' => $approval->lineKey,
                         'message' => 'Превышен лимит UPDATE '.$this->sectionCap,
                     ];
+
                     continue;
                 }
 
@@ -395,11 +397,13 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                         'line_key' => $approval->lineKey,
                         'message' => 'line_key отсутствует в price_updates',
                     ];
+
                     continue;
                 }
 
                 if (BrisklySyncPrice::equal($proposal->sourcePrice, $proposal->brisklyPrice)) {
                     $report['skipped_equal']++;
+
                     continue;
                 }
 
@@ -423,6 +427,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             foreach ($approvals->creates as $approval) {
                 if (! $approval->apply) {
                     $report['skipped_unchecked']++;
+
                     continue;
                 }
                 if ($createCount >= $this->sectionCap) {
@@ -430,6 +435,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                         'line_key' => $approval->lineKey,
                         'message' => 'Превышен лимит CREATE '.$this->sectionCap,
                     ];
+
                     continue;
                 }
 
@@ -439,6 +445,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                         'line_key' => $approval->lineKey,
                         'message' => 'line_key отсутствует в creates',
                     ];
+
                     continue;
                 }
 
@@ -448,6 +455,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                         'line_key' => $approval->lineKey,
                         'message' => 'briskly_category_id обязателен для CREATE',
                     ];
+
                     continue;
                 }
 
