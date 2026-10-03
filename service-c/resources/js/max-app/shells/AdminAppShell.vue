@@ -9,6 +9,7 @@ import { useAuth } from '../composables/useAuth';
 import { ADMIN_SECTIONS } from '../constants/views';
 import { getStartParam } from '../bridge/maxBridge';
 import { resolveOrderChatDeepLinkOrderId } from '../utils/orderChatDeepLink';
+import BrisklySyncRoot from './admin/BrisklySyncRoot.vue';
 import ManualOrdersRoot from './admin/ManualOrdersRoot.vue';
 import MenuAdminRoot from './admin/MenuAdminRoot.vue';
 import OrdersAdminRoot from './admin/OrdersAdminRoot.vue';
@@ -72,6 +73,10 @@ onMounted(() => {
 
             <ManualOrdersRoot
                 v-else-if="adminSection === ADMIN_SECTIONS.manualOrders && hasMaxManagerRole"
+            />
+
+            <BrisklySyncRoot
+                v-else-if="adminSection === ADMIN_SECTIONS.briskly && hasMaxManagerRole"
             />
 
             <OrdersAdminRoot

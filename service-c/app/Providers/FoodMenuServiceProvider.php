@@ -2,6 +2,15 @@
 
 namespace App\Providers;
 
+use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchClassifierInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncSourceCollectorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
+use App\Contracts\Food\ComboCatalog\ComboCatalogPromptBuilderInterface;
+use App\Contracts\Food\ComboCatalog\WeightLabelCanonicalizerInterface;
 use App\Contracts\Food\Menu\DailyMenuCatalogRepositoryInterface;
 use App\Contracts\Food\Menu\DailyMenuLineCollectorInterface;
 use App\Contracts\Food\Menu\DishAdminBulkRepositoryInterface;
@@ -33,9 +42,14 @@ use App\Contracts\Food\Menu\MenuCategoryReadRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCategoryRepositoryInterface;
 use App\Contracts\Food\Menu\MenuCategoryWriteRepositoryInterface;
 use App\Contracts\Food\Menu\MenuQueryServiceInterface;
+use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\Contracts\Shared\ClockInterface;
+use App\Contracts\Shared\HttpClientInterface;
+use App\Infrastructure\Briskly\HttpBrisklyCatalogGateway;
+use App\Infrastructure\Briskly\HttpBrisklySyncMatchOrchestrator;
 use App\Infrastructure\Laravel\PhpSpreadsheetDishRowsReader;
+use App\Repositories\Food\BrisklySync\EloquentBrisklySyncSessionRepository;
 use App\Repositories\Food\Menu\EloquentDailyMenuCatalogRepository;
 use App\Repositories\Food\Menu\EloquentDishAdminBulkRepository;
 use App\Repositories\Food\Menu\EloquentDishAdminReadRepository;
@@ -47,6 +61,12 @@ use App\Repositories\Food\Menu\EloquentDishAvailabilityScheduleRepository;
 use App\Repositories\Food\Menu\EloquentDishCatalogRepository;
 use App\Repositories\Food\Menu\EloquentMenuCategoryAvailabilityOffsetRepository;
 use App\Repositories\Food\Menu\EloquentMenuCategoryRepository;
+use App\Services\Food\BrisklySync\BrisklySyncMatchClassifier;
+use App\Services\Food\BrisklySync\BrisklySyncSessionService;
+use App\Services\Food\BrisklySync\BrisklySyncSourceCollector;
+use App\Services\Food\BrisklySync\CacheBrisklySyncTokenStore;
+use App\Services\Food\ComboCatalog\ComboCatalogPromptBuilder;
+use App\Services\Food\ComboCatalog\WeightLabelCanonicalizer;
 use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
 use App\Services\Food\Menu\CachingMenuQueryService;
 use App\Services\Food\Menu\DailyMenuLineCollector;
@@ -145,6 +165,55 @@ class FoodMenuServiceProvider extends ServiceProvider
         );
         $this->app->bind(DailyMenuCatalogRepositoryInterface::class, EloquentDailyMenuCatalogRepository::class);
         $this->app->bind(DailyMenuLineCollectorInterface::class, DailyMenuLineCollector::class);
+        $this->app->bind(BrisklySyncSourceCollectorInterface::class, BrisklySyncSourceCollector::class);
+        $this->app->bind(WeightLabelCanonicalizerInterface::class, WeightLabelCanonicalizer::class);
+        $this->app->bind(ComboCatalogPromptBuilderInterface::class, ComboCatalogPromptBuilder::class);
+        $this->app->bind(BrisklySyncSessionRepositoryInterface::class, EloquentBrisklySyncSessionRepository::class);
+        $this->app->bind(BrisklySyncTokenStoreInterface::class, CacheBrisklySyncTokenStore::class);
+        $this->app->bind(BrisklySyncMatchClassifierInterface::class, BrisklySyncMatchClassifier::class);
+        $this->app->bind(
+            BrisklyCatalogGatewayInterface::class,
+            function ($app): HttpBrisklyCatalogGateway {
+                return new HttpBrisklyCatalogGateway(
+                    $app->make(HttpClientInterface::class),
+                    (string) config('briskly_sync.briskly_base_url'),
+                    (int) config('briskly_sync.briskly_timeout_seconds', 30),
+                    (int) config('briskly_sync.snapshot_page_limit', 100),
+                    (int) config('briskly_sync.snapshot_max_pages', 50),
+                    (int) config('briskly_sync.briskly_delay_ms', 200),
+                );
+            },
+        );
+        $this->app->bind(
+            BrisklySyncMatchOrchestratorInterface::class,
+            function ($app): HttpBrisklySyncMatchOrchestrator {
+                return new HttpBrisklySyncMatchOrchestrator(
+                    $app->make(HttpClientInterface::class),
+                    (string) config('briskly_sync.orchestrator_base_url'),
+                    (int) config('briskly_sync.orchestrator_timeout_seconds', 120),
+                );
+            },
+        );
+        $this->app->bind(
+            BrisklySyncSessionServiceInterface::class,
+            function ($app): BrisklySyncSessionService {
+                return new BrisklySyncSessionService(
+                    $app->make(BrisklySyncSessionRepositoryInterface::class),
+                    $app->make(BrisklySyncTokenStoreInterface::class),
+                    $app->make(BrisklySyncSourceCollectorInterface::class),
+                    $app->make(BrisklyCatalogGatewayInterface::class),
+                    $app->make(BrisklySyncMatchOrchestratorInterface::class),
+                    $app->make(BrisklySyncMatchClassifierInterface::class),
+                    $app->make(ComboCatalogPromptBuilderInterface::class),
+                    $app->make(RestaurantRepositoryInterface::class),
+                    $app->make(CacheStoreInterface::class),
+                    (int) config('briskly_sync.token_ttl_seconds', 7200),
+                    (int) config('briskly_sync.section_cap', 25),
+                    (float) config('briskly_sync.large_delta_ratio', 0.5),
+                    (int) config('briskly_sync.apply_lock_ttl_seconds', 120),
+                );
+            },
+        );
         $this->app->bind(
             MaxManagerDailyMenuMessageBuilderInterface::class,
             MaxManagerDailyMenuMessageBuilder::class,

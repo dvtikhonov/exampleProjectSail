@@ -17,4 +17,13 @@ interface DailyMenuCatalogRepositoryInterface
      * @return list<DishRecord>
      */
     public function listAvailableWithCategories(): array;
+
+    /**
+     * Блюда одного ресторана с категорией для Briskly sync source.
+     * Включает недоступные (is_available=false): цена в VPS нужна для сравнения с Briskly
+     * даже вне меню дня. Soft-deleted и чужие рестораны — нет.
+     *
+     * @return list<DishRecord>
+     */
+    public function listAvailableWithCategoriesForRestaurant(int $restaurantId): array;
 }

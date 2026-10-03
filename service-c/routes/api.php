@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\Food\AdminAiAccessController;
+use App\Http\Controllers\Api\Food\AdminBrisklySyncSessionController;
+use App\Http\Controllers\Api\Food\AdminBrisklySyncSourceController;
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
 use App\Http\Controllers\Api\Food\AdminDishImportController;
@@ -98,6 +100,29 @@ Route::middleware('max.miniapp.auth')->group(function () {
             Route::middleware('food.order.admin:max_manager')->group(function () {
                 Route::get('/ai-access', [AdminAiAccessController::class, 'show']);
                 Route::post('/ai-access/toggle', [AdminAiAccessController::class, 'toggle']);
+
+                Route::prefix('briskly-sync')->group(function () {
+                    Route::get('/source-lines', [AdminBrisklySyncSourceController::class, 'sourceLines']);
+
+                    Route::post('/sessions', [AdminBrisklySyncSessionController::class, 'store']);
+                    Route::get('/sessions/{session}', [AdminBrisklySyncSessionController::class, 'show'])
+                        ->whereUuid('session');
+                    Route::get('/sessions/{session}/source-lines', [AdminBrisklySyncSessionController::class, 'sourceLines'])
+                        ->whereUuid('session');
+                    Route::post('/sessions/{session}/snapshot', [AdminBrisklySyncSessionController::class, 'snapshot'])
+                        ->whereUuid('session');
+                    Route::post('/sessions/{session}/match', [AdminBrisklySyncSessionController::class, 'match'])
+                        ->whereUuid('session');
+                    Route::get('/sessions/{session}/sync-results', [AdminBrisklySyncSessionController::class, 'syncResults'])
+                        ->whereUuid('session');
+                    Route::put('/sessions/{session}/approvals', [AdminBrisklySyncSessionController::class, 'approvals'])
+                        ->whereUuid('session');
+                    Route::post('/sessions/{session}/apply', [AdminBrisklySyncSessionController::class, 'apply'])
+                        ->whereUuid('session');
+                    Route::get('/sessions/{session}/briskly-categories', [AdminBrisklySyncSessionController::class, 'categories'])
+                        ->whereUuid('session');
+                    Route::get('/briskly/categories', [AdminBrisklySyncSessionController::class, 'categories']);
+                });
             });
 
             Route::post('/orders/{order}/address/approve', [AdminOrderReviewStepController::class, 'approveAddress'])

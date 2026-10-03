@@ -14,6 +14,7 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 | [Ручные заказы (max_manager)](#ручные-заказы-max_manager) | Выбор клиента, изолированная корзина, submit → confirmed; просмотр; черновик после сканирования |
 | [Отчёты Food (FoodReport)](#отчёты-food-foodreport) | Выручка / топ блюд (только `confirmed`), `.xlsx`, вариант B |
 | [PhotoText (агент Cursor)](#phototext-агент-cursor) | Фото бланка → заказ; фото графика → schedule (`/api/food/phototext/*`, AI-доступ) |
+| [Синхронизация Briskly](#синхронизация-briskly) | Match цен VPS↔Briskly через Cursor sidecar; apply только после галочек (`max_manager`) |
 | [Уведомления о заказах в MAX](#уведомления-о-заказах-в-max) | Новый заказ → `MAX_UI_STAND_*` |
 | [Уведомления клиенту о результате проверки](#уведомления-клиенту-о-результате-проверки) | Submitted / confirmed / rejected / состав изменён / ручной заказ |
 | [Уведомления о сообщениях в чате](#уведомления-о-сообщениях-в-чате-заказа) | Клиент + `MAX_UI_STAND_*` |
@@ -575,6 +576,60 @@ HTTP API для slash-команд `/phototext-order` (заказ) и `/phototex
 Коды `issues[].code`: `dish_not_found` \| `dish_ambiguous` \| `combo_unresolved`.
 
 API — [PhotoText API](#phototext-api-агент-cursor).
+
+### Синхронизация Briskly
+
+Модуль сравнения меню VPS (`dishes` / combo-линии) с каталогом **Briskly Business** и записи цен/новых позиций **только после явных галочек** в UI. Роль: **`max_manager`**. Цены всегда из source VPS; LLM/клиент цену на apply не задают.
+
+Поток: UI (`AdminBrisklySyncPage` / `useBrisklySync`) → PHP Session API → HTTP sidecar [`briskly-sync/`](../briskly-sync/) (Cursor SDK + MCP) → классификация 1D/2B на сервере → approvals → apply в Briskly.
+
+```mermaid
+flowchart LR
+  UI["AdminBrisklySyncPage"]
+  PHP["service-c Session API"]
+  Orch["briskly-sync sidecar"]
+  Briskly["briskly.business"]
+
+  UI -->|"restaurant, token, filters"| PHP
+  PHP -->|"match prompt DTO"| Orch
+  Orch -->|"candidates"| PHP
+  PHP -->|"UPDATE/CREATE"| Briskly
+```
+
+| Правило | Поведение |
+|---|---|
+| Доступ | Только `max_manager`; `menu_manager` без max → `403` |
+| Фильтр поиска | Категория **VPS** + `search_text` + textarea **«Уточнение»** (`clarification`). Категория Briskly в фильтре **не** используется |
+| **1D** | Только в Briskly → не показывать (`skipped_briskly_only`). Только в VPS → секция **CREATE** |
+| **2B** | Жёсткий лимит **25** строк на секцию (`price_updates` / `creates`); при превышении `truncated: true` |
+| **3B** | Галочки apply **выключены** по умолчанию; apply без отмеченных → сессия остаётся `matched` |
+| Equal price | Не в UI, UPDATE не планируется (`equal_price`) |
+| Ambiguous | Не в таблицах (счётчик `ambiguous`) |
+| Bearer Briskly | Только в `POST /sessions` / кэш TTL; **не** в GET, не в БД plaintext, не в git |
+| Cursor | `CURSOR_API_KEY` на хосте sidecar; фронт ключ не получает |
+| Apply | Max 25 UPDATE + 25 CREATE; цена только из server source; Δ>50% → `confirm_large_delta`; повторный apply → `409` |
+
+**Env (service-c):**
+
+| Переменная | Назначение |
+|---|---|
+| `BRISKLY_SYNC_ORCHESTRATOR_URL` | База HTTP sidecar match (default `http://127.0.0.1:8791`) |
+| `BRISKLY_SYNC_TOKEN_TTL` | TTL Bearer Briskly в cache (сек, default `7200`) |
+| `BRISKLY_API_BASE_URL` | База company API Briskly |
+| `BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT` | Timeout HTTP к sidecar (сек) |
+
+**Env (пакет `briskly-sync/`, не коммитить секреты):** `CURSOR_API_KEY` (live match), `BRISKLY_TOKEN` (CLI/MCP), `BRISKLY_SYNC_PORT` (sidecar, default `8791`), `FOOD_SOURCE_BASE_URL` / `FOOD_SOURCE_AUTH_TOKEN` для MCP food-source. См. [`briskly-sync/README.md`](../briskly-sync/README.md) и `.env.example`.
+
+**Запуск sidecar (WSL/Docker-хост с Cursor local runtime):**
+
+```bash
+cd briskly-sync && cp .env.example .env   # заполнить CURSOR_API_KEY при live match
+npm install && npm run sidecar            # :8791 (Node ≥ 22.13)
+```
+
+Fixture match без Cursor: `npm run match -- --fixture fixtures/match-run.json`. Тесты Node: `npm test`. Тесты PHP — БД **`sail_db_testing`**.
+
+UI: раздел admin Briskly (`BrisklySyncRoot`, `ROLE_MAX_MANAGER`). API — [Food Admin API — Briskly sync](#food-admin-api--briskly-sync-max_manager).
 
 ### Проверка заказа (три этапа)
 
@@ -1391,6 +1446,19 @@ docker compose exec -T service-c php artisan test
 | `PHOTOTEXT_WRITE_TOKEN` | Секрет заголовка `X-PhotoText-Write-Token` для мутаций (`POST /orders`, `POST /schedule/apply`). Пустой/неверный → `401` только на place/apply; catalog/match работают с одним agent token |
 | `PHOTOTEXT_MANAGER_MAX_USER_ID` | `max_user_id` оформителя (`created_by`) с активной ролью `max_manager`. Ресторан в env **не** фиксируется — агент передаёт `restaurant_id`. Доступ AI к API — отдельно через `max_users.ai_access_until` (кнопка в mini-app), не через env |
 
+### Briskly sync
+
+| Переменная | Назначение |
+|---|---|
+| `BRISKLY_SYNC_ORCHESTRATOR_URL` | HTTP sidecar Node (`briskly-sync`), default `http://127.0.0.1:8791` |
+| `BRISKLY_SYNC_TOKEN_TTL` | TTL Bearer Briskly в cache (сек, default `7200`); токен не в БД |
+| `BRISKLY_API_BASE_URL` | База Briskly company API |
+| `BRISKLY_SYNC_SNAPSHOT_MAX_PAGES` | Лимит страниц snapshot get-list |
+| `BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT` | Timeout HTTP к sidecar (сек) |
+| `BRISKLY_SYNC_BRISKLY_TIMEOUT` | Timeout HTTP к Briskly (сек) |
+
+На хосте sidecar (не в service-c `.env`): **`CURSOR_API_KEY`** для live match через `@cursor/sdk`. См. [Синхронизация Briskly](#синхронизация-briskly) и [`briskly-sync/README.md`](../briskly-sync/README.md).
+
 ### Прочие
 
 | Переменная | Назначение |
@@ -1676,6 +1744,24 @@ UI менеджера вызывает только `/export` (`api/admin/report
 
 Домен — [Отчёты Food](#отчёты-food-foodreport).
 
+### Food Admin API — Briskly sync (`max_manager`)
+
+Префикс: `/api/food/admin/briskly-sync`. Middleware: `max.miniapp.auth` + `food.order.admin:max_manager`. Bearer Briskly **не** возвращается в GET. Домен — [Синхронизация Briskly](#синхронизация-briskly).
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `GET` | `/api/food/admin/briskly-sync/source-lines` | Source-линии ресторана (`restaurant_id`, опц. `vps_category_id`, `search_text`) |
+| `POST` | `/api/food/admin/briskly-sync/sessions` | Создать сессию: `restaurant_id`, `briskly_token` (required), опц. `vps_category_id`, `search_text` (≤120), `clarification` (≤2000) |
+| `GET` | `/api/food/admin/briskly-sync/sessions/{id}` | Мета сессии **без** token |
+| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/snapshot` | Загрузить snapshot Briskly (token из cache) |
+| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/match` | Cursor match + классификация 1D/2B |
+| `GET` | `/api/food/admin/briskly-sync/sessions/{id}/sync-results` | Результаты ≤25+25 + `truncated` / counts |
+| `PUT` | `/api/food/admin/briskly-sync/sessions/{id}/approvals` | Галочки UPDATE/CREATE (max 25+25); клиентский `price` **prohibited** |
+| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/apply` | Запись в Briskly; статус `approved`; повтор → `409` |
+| `GET` | `/api/food/admin/briskly-sync/briskly/categories?session_id=` | Категории Briskly **только для CREATE** |
+
+Валидация: Form Request на каждый endpoint. Истёкший token → `422` «Повторно введите токен Briskly.» Orchestrator недоступен → `503`.
+
 ### Food Admin API — меню (`menu_manager`)
 
 Префикс: `/api/food/admin`. Middleware: `max.miniapp.auth` + `food.order.admin:menu_manager`.
@@ -1934,6 +2020,7 @@ docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).
 | Admin order review | `tests/Feature/AdminOrderReviewApiTest.php` (approve/reject + `PUT .../composition`; `draft_after_scanning` скрыт из очереди) |
 | Ручные заказы (`max_manager`) | `tests/Feature/AdminManualOrderApiTest.php` (auth/403, users, cart CRUD, изоляция от личной корзины, submit → confirmed / `delivery_date`, уведомления); `tests/Feature/AdminManualOrderListApiTest.php` (фильтр `status` в т.ч. `draft_after_scanning`, `meta.total_amount`, `GET .../manual-orders/{id}`, `has_messages`); `tests/Feature/AdminDraftAfterScanningOrderApiTest.php` (complete / move-to-cart / delete) |
 | PhotoText (агент Cursor) | `tests/Feature/PhotoTextOrderApiTest.php` (токен 401, AI 403, catalog по `restaurant_id` в т.ч. unavailable, чужой ресторан → issue, слэш без `combo_ref` не режется, match/place combo_ref, разный qty → unresolved, клиент 0/>1, пустой matched → 422, place → `draft_after_scanning`, `delivery_date` из `order_date`, пустой адрес допустим, partial place); `tests/Feature/PhotoTextScheduleApiTest.php` (schedule match/apply, окно 7 дней, scope `category_ids`, AI 403); `tests/Feature/PhotoTextAgentAuthTest.php`; `tests/Unit/PhotoTextComboRefGrouperTest.php`, `PhotoTextManualOrderPlacementServiceTest.php`, `VerifyPhotoTextAgentTokenTest.php`, `EnsurePhotoTextAiAccessTest.php` |
+| Briskly sync | Feature: `AdminBrisklySyncSourceLinesApiTest`, `AdminBrisklySyncSessionApiTest`, `AdminBrisklySyncSecurityChecklistTest` (4b), `AdminBrisklySyncIntegrationRulesTest` (1D/2B/3B + фильтры, `sail_db_testing`); Unit: `BrisklySyncSourceCollectorTest`, `BrisklySyncMatchClassifierTest`; Node (`briskly-sync/`): `npm test` (classify 1D/2B, payload merge, prompt из PHP DTO) |
 | AI-доступ (`max_manager`) | `tests/Feature/MaxAiAccessApiTest.php` (toggle TTL 30 мин, 409 конфликт, cleanup просрочки); `tests/Unit/EnsurePhotoTextAiAccessTest.php` |
 | Job после submit | `tests/Unit/NotifyFoodOrderAfterSubmitJobTest.php`; dispatch из submit — `tests/Feature/FoodOrderApiTest.php` (`Bus::fake`) |
 | Кэш каталога | `tests/Feature/FoodCatalogCacheApiTest.php`, `tests/Unit/CachingMenuQueryServiceTest.php` |
