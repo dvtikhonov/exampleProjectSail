@@ -17,12 +17,24 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    /**
+     * Выравнивание пузыря. Если не передано — как isOwn.
+     * Нужно, когда все сообщения роли (например admin) справа, а «Вы» только у текущего отправителя.
+     */
+    alignEnd: {
+        type: Boolean,
+        default: undefined,
+    },
     perspective: {
         type: String,
         default: 'customer',
         validator: (value) => ['customer', 'admin'].includes(value),
     },
 });
+
+const showOnRight = computed(() => (
+    typeof props.alignEnd === 'boolean' ? props.alignEnd : props.isOwn
+));
 
 const formattedTime = computed(() => {
     try {
@@ -59,24 +71,24 @@ const senderLabel = computed(() => {
 <template>
     <div
         class="flex"
-        :class="isOwn ? 'justify-end' : 'justify-start'"
+        :class="showOnRight ? 'justify-end' : 'justify-start'"
     >
         <div
             class="max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm"
-            :class="isOwn
+            :class="showOnRight
                 ? 'rounded-br-md bg-max-primary text-white'
                 : 'rounded-bl-md border border-gray-100 bg-white text-gray-900'"
         >
             <p
                 class="mb-1 text-xs font-medium"
-                :class="isOwn ? 'text-white/80' : 'text-max-muted'"
+                :class="showOnRight ? 'text-white/80' : 'text-max-muted'"
             >
                 {{ senderLabel }}
             </p>
             <p class="whitespace-pre-wrap break-words text-sm leading-relaxed">{{ message.body }}</p>
             <p
                 class="mt-1 text-right text-[10px]"
-                :class="isOwn ? 'text-white/70' : 'text-max-muted'"
+                :class="showOnRight ? 'text-white/70' : 'text-max-muted'"
             >
                 {{ formattedTime }}
             </p>

@@ -19,7 +19,7 @@ use App\Exceptions\Food\FoodDomainException;
 interface BrisklySyncSessionServiceInterface
 {
     /**
-     * Создаёт сессию и кладёт Bearer в token store.
+     * Захватывает Bearer через sidecar CDP, создаёт сессию и кладёт токен в cache.
      *
      * @throws FoodDomainException
      */

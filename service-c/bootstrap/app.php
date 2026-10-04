@@ -11,6 +11,7 @@ use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
+use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -46,6 +47,12 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (FoodDomainException $exception, Request $request): JsonResponse {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $exception->statusCode());
+        });
+
+        $exceptions->render(function (BotDmDomainException $exception, Request $request): JsonResponse {
             return response()->json([
                 'message' => $exception->getMessage(),
             ], $exception->statusCode());

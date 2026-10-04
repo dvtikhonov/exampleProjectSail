@@ -245,6 +245,20 @@
  */
 
 /**
+ * Сообщение лички админ ↔ пользователь через бота (GET/POST …/bot-dm/{id}/messages).
+ *
+ * @typedef {object} BotDmMessageDto
+ * @property {number} id
+ * @property {number} max_user_id
+ * @property {number} sender_max_user_id
+ * @property {MaxUserName} sender
+ * @property {OrderMessageAuthorType|string} author_type
+ * @property {string} body
+ * @property {number|null} chat_id
+ * @property {string} created_at
+ */
+
+/**
  * Пользователь после POST /max/auth.
  *
  * @typedef {object} AuthUserDto

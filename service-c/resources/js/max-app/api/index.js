@@ -114,3 +114,9 @@ export {
     matchBrisklySyncSession,
     updateBrisklySyncApprovals,
 } from './admin/brisklySync';
+
+export {
+    fetchBotDmMessages,
+    fetchBotDmUsers,
+    sendBotDmMessage,
+} from './botDm';

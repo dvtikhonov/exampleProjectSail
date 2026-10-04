@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Переключатель разделов админки: заказы / ручные заказы / Briskly / меню.
+ * Переключатель разделов админки: заказы / ручные заказы / Briskly / чат бота / меню.
  */
 import { computed, watch } from 'vue';
 import { useAiAccess } from '../../composables/useAiAccess';
@@ -107,6 +107,19 @@ watch(
                     @click="$emit('change', ADMIN_SECTIONS.briskly)"
                 >
                     Briskly
+                </button>
+                <button
+                    v-if="hasMaxManagerRole"
+                    type="button"
+                    class="flex-1 border-b-2 px-4 py-2 text-sm font-medium transition"
+                    :class="
+                        adminSection === ADMIN_SECTIONS.botChat
+                            ? 'border-max-primary text-max-primary'
+                            : 'border-transparent text-max-muted hover:text-gray-700'
+                    "
+                    @click="$emit('change', ADMIN_SECTIONS.botChat)"
+                >
+                    Чат бота
                 </button>
                 <button
                     v-if="hasMenuManagerRole"

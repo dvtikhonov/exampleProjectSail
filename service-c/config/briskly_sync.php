@@ -42,6 +42,15 @@ return [
     /** Timeout HTTP к Briskly (сек). */
     'briskly_timeout_seconds' => (int) env('BRISKLY_SYNC_BRISKLY_TIMEOUT', 30),
 
+    /**
+     * Общий секрет sidecar ↔ service-c для POST /capture-token.
+     * Пустое значение отключает capture (503).
+     */
+    'capture_secret' => (string) env('BRISKLY_SYNC_CAPTURE_SECRET', ''),
+
+    /** Timeout HTTP к sidecar capture-token (сек). */
+    'capture_timeout_seconds' => (int) env('BRISKLY_SYNC_CAPTURE_TIMEOUT', 30),
+
     /** TTL lock на apply (сек). */
     'apply_lock_ttl_seconds' => 120,
 ];

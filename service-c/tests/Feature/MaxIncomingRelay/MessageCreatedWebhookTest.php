@@ -10,6 +10,7 @@ use App\Enums\Food\Review\OrderReviewStatus;
 use App\Models\Food\Cart;
 use App\Models\Food\FoodOrder;
 use App\Models\Max\MaxUser;
+use App\Modules\MaxIncomingRelay\Enums\BotDmAuthorType;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,7 +24,7 @@ use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 /**
- * Feature: POST /api/webhooks/max message_created → Home_chat + max_log.
+ * Feature: POST /api/webhooks/max message_created → Home_chat + max_log + persist bot DM.
  */
 final class MessageCreatedWebhookTest extends TestCase
 {
@@ -100,9 +101,48 @@ final class MessageCreatedWebhookTest extends TestCase
         Http::assertNotSent(function ($request): bool {
             return str_contains($request->url(), 'user_id=88888');
         });
+
+        $this->assertDatabaseHas('max_bot_direct_messages', [
+            'max_user_id' => MaxIncomingRelayPayloadFactory::DEFAULT_USER_ID,
+            'sender_max_user_id' => MaxIncomingRelayPayloadFactory::DEFAULT_USER_ID,
+            'author_type' => BotDmAuthorType::Customer->value,
+            'body' => MaxIncomingRelayPayloadFactory::DEFAULT_TEXT,
+            'chat_id' => MaxIncomingRelayPayloadFactory::DEFAULT_CHAT_ID,
+        ]);
     }
 
-    /** is_bot: true → 200 без пересылки. */
+    /** Пользователь вне max_users → Home_chat есть, записи в bot DM нет. */
+    public function test_message_created_skips_persist_for_unknown_max_user(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        $unknownUserId = 9_990_021;
+        $payload = MaxIncomingRelayPayloadFactory::textDialog([
+            'user_id' => $unknownUserId,
+            'timestamp_ms' => 1_790_152_800_000,
+        ]);
+
+        $response = $this->postJson('/api/webhooks/max', $payload, [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ]);
+
+        $response->assertOk();
+        MessMaxLogTestHelper::assertSingleMessage($captured, 'MAX incoming message relay');
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('max_bot_direct_messages', 0);
+        $this->assertDatabaseMissing('max_users', [
+            'max_user_id' => $unknownUserId,
+        ]);
+    }
+
+    /** is_bot: true → 200 без пересылки и без persist. */
     public function test_bot_sender_returns_ok_without_relay(): void
     {
         Http::fake();
@@ -115,9 +155,10 @@ final class MessageCreatedWebhookTest extends TestCase
 
         $response->assertOk();
         Http::assertNothingSent();
+        $this->assertDatabaseCount('max_bot_direct_messages', 0);
     }
 
-    /** Битый payload (нет message) → 200 без пересылки. */
+    /** Битый payload (нет message) → 200 без пересылки и без persist. */
     public function test_broken_payload_returns_ok_without_relay(): void
     {
         Http::fake();
@@ -130,6 +171,7 @@ final class MessageCreatedWebhookTest extends TestCase
 
         $response->assertOk();
         Http::assertNothingSent();
+        $this->assertDatabaseCount('max_bot_direct_messages', 0);
     }
 
     private function createOrder(int $maxUserId, string $createdAtMoscow): FoodOrder

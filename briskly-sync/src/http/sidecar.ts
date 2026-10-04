@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Минимальный HTTP sidecar для PHP (match / health).
+ * Минимальный HTTP sidecar для PHP (match / health / capture-token).
  * Порт: BRISKLY_SYNC_PORT (default 8791).
  *
  * POST /match  body: { prompt, source_lines, briskly_snapshot, use_fixture_response? }
+ * POST /capture-token  header: X-Briskly-Capture-Secret
  * GET  /health
  */
 
@@ -15,17 +16,28 @@ import type {
   ComboCatalogPromptDto,
   SourceMenuLine,
 } from '../orchestrator/types.js';
+import {
+  BrisklyTokenCaptureError,
+  captureBrisklyTokenFromCdp,
+  type CaptureTokenErrorCode,
+} from '../tokenCapture/captureBrisklyTokenFromCdp.js';
 
 loadPackageEnv();
 
 const port = Number(process.env.BRISKLY_SYNC_PORT ?? 8791);
 /** 127.0.0.1 — только локально; 0.0.0.0 — доступ из Docker (host.docker.internal). */
 const host = process.env.BRISKLY_SYNC_HOST ?? '127.0.0.1';
+const CAPTURE_SECRET_HEADER = 'x-briskly-capture-secret';
 
 const server = createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/health') {
       json(res, 200, { ok: true, service: 'briskly-sync' });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/capture-token') {
+      await handleCaptureToken(req, res);
       return;
     }
 
@@ -69,6 +81,63 @@ const server = createServer(async (req, res) => {
 server.listen(port, host, () => {
   console.error(`briskly-sync sidecar on http://${host}:${port}`);
 });
+
+async function handleCaptureToken(
+  req: import('node:http').IncomingMessage,
+  res: import('node:http').ServerResponse,
+): Promise<void> {
+  const configuredSecret = (process.env.BRISKLY_SYNC_CAPTURE_SECRET ?? '').trim();
+  if (!configuredSecret) {
+    json(res, 503, { error: 'capture_disabled' });
+    return;
+  }
+
+  const provided = headerValue(req, CAPTURE_SECRET_HEADER);
+  if (provided === undefined || provided !== configuredSecret) {
+    json(res, 401, { error: 'unauthorized' });
+    return;
+  }
+
+  try {
+    const result = await captureBrisklyTokenFromCdp({
+      log: (event, meta) => {
+        console.error(JSON.stringify({ event, ...meta }));
+      },
+    });
+    json(res, 200, { token: result.token, source: result.source });
+  } catch (err) {
+    if (err instanceof BrisklyTokenCaptureError) {
+      json(res, statusForCaptureError(err.code), { error: err.code });
+      return;
+    }
+    throw err;
+  }
+}
+
+function statusForCaptureError(code: CaptureTokenErrorCode): number {
+  switch (code) {
+    case 'cdp_unavailable':
+      return 503;
+    case 'no_briskly_tab':
+    case 'not_logged_in':
+    case 'no_token_observed':
+    case 'timeout':
+      return 422;
+    default:
+      return 503;
+  }
+}
+
+function headerValue(
+  req: import('node:http').IncomingMessage,
+  name: string,
+): string | undefined {
+  const raw = req.headers[name];
+  if (Array.isArray(raw)) {
+    return raw[0];
+  }
+  return raw;
+}
 
 function json(res: import('node:http').ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);

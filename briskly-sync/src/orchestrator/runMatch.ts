@@ -3,6 +3,7 @@ import { composeAgentPrompt, assertPhpPromptDto } from './buildMatchPrompt.js';
 import { classifyMatchResults } from './classifyMatchResults.js';
 import { buildMatchMcpServers } from './mcpConfig.js';
 import { parseMatchJson } from './parseMatchJson.js';
+import { resolveLocalAgentStore } from './resolveLocalAgentStore.js';
 import type { MatchRunInput, MatchRunOutput } from './types.js';
 
 /**
@@ -43,11 +44,13 @@ async function runCursorMatch(agentPrompt: string, input: MatchRunInput): Promis
   const cwd = input.cwd ?? process.cwd();
   const mcpServers = input.enableMcp ? buildMatchMcpServers(input.mcp) : undefined;
 
+  const localStore = await resolveLocalAgentStore(cwd);
+
   try {
     await using agent = await Agent.create({
       apiKey,
       model: { id: modelId },
-      local: { cwd },
+      local: localStore ? { cwd, store: localStore } : { cwd },
       ...(mcpServers ? { mcpServers } : {}),
     });
 

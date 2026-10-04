@@ -36,7 +36,6 @@ class AdminBrisklySyncSessionController extends Controller
 
         $session = $this->sessions->createSession(new CreateBrisklySyncSessionDto(
             restaurantId: $request->restaurantId(),
-            brisklyToken: $request->brisklyToken(),
             vpsCategoryId: $request->vpsCategoryId(),
             searchText: $request->searchText(),
             clarification: $request->clarification(),

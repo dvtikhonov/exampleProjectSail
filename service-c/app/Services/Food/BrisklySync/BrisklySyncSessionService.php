@@ -10,6 +10,7 @@ use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSourceCollectorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\Contracts\Food\ComboCatalog\ComboCatalogPromptBuilderInterface;
 use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
@@ -39,6 +40,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
     public function __construct(
         private readonly BrisklySyncSessionRepositoryInterface $sessions,
         private readonly BrisklySyncTokenStoreInterface $tokenStore,
+        private readonly BrisklySyncTokenCaptureGatewayInterface $tokenCapture,
         private readonly BrisklySyncSourceCollectorInterface $sourceCollector,
         private readonly BrisklyCatalogGatewayInterface $brisklyCatalog,
         private readonly BrisklySyncMatchOrchestratorInterface $orchestrator,
@@ -61,6 +63,8 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             throw new FoodDomainException('Ресторан не найден или неактивен.', 422);
         }
 
+        $token = $this->normalizeCapturedToken($this->tokenCapture->captureToken());
+
         $session = $this->sessions->create([
             'restaurant_id' => $dto->restaurantId,
             'created_by_max_user_id' => $dto->createdByMaxUserId,
@@ -70,7 +74,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             'status' => BrisklySyncSessionStatus::Setup,
         ]);
 
-        $this->tokenStore->put($session->id, $dto->brisklyToken, $this->tokenTtlSeconds);
+        $this->tokenStore->put($session->id, $token, $this->tokenTtlSeconds);
 
         return $session;
     }
@@ -568,7 +572,28 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
     {
         $token = $this->tokenStore->get($sessionId);
         if ($token === null) {
-            throw new FoodDomainException('Повторно введите токен Briskly.', 422);
+            throw new FoodDomainException(
+                'Токен Briskly недоступен — создайте сессию заново.',
+                422,
+            );
+        }
+
+        return $token;
+    }
+
+    /**
+     * Нормализация и проверка длины JWT после CDP capture.
+     *
+     * @return non-empty-string
+     */
+    private function normalizeCapturedToken(string $raw): string
+    {
+        $token = BrisklySyncBearerToken::normalize($raw);
+        if ($token === '' || strlen($token) < 10 || strlen($token) > 4096) {
+            throw new FoodDomainException(
+                'Не удалось получить токен Briskly: некорректная длина токена.',
+                422,
+            );
         }
 
         return $token;

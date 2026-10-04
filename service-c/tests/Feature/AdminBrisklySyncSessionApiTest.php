@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
@@ -48,6 +49,10 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
     public bool $orchestratorDown = false;
 
+    public string $fakeCaptureToken = 'secret-briskly-token-value';
+
+    public ?FoodDomainException $captureFailure = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -57,6 +62,8 @@ class AdminBrisklySyncSessionApiTest extends TestCase
         $this->fakeMatchLines = [];
         $this->brisklyWrites = [];
         $this->orchestratorDown = false;
+        $this->fakeCaptureToken = 'secret-briskly-token-value';
+        $this->captureFailure = null;
         $this->bindFakes();
     }
 
@@ -64,19 +71,16 @@ class AdminBrisklySyncSessionApiTest extends TestCase
     {
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => 1,
-            'briskly_token' => str_repeat('t', 20),
         ])->assertUnauthorized();
 
         $auth = $this->authenticateMaxUser();
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => 1,
-            'briskly_token' => str_repeat('t', 20),
         ], $auth['headers'])->assertForbidden();
 
         $menu = $this->asFoodOrderAdmin($auth, FoodOrderAdminRole::MenuManager);
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => 1,
-            'briskly_token' => str_repeat('t', 20),
         ], $menu['headers'])->assertForbidden();
     }
 
@@ -122,7 +126,6 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         $create = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => 'secret-briskly-token-value',
             'clarification' => 'игнорировать вес',
             'vps_category_id' => $category->id,
         ], $manager['headers'])->assertCreated();
@@ -289,7 +292,6 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         $create = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('x', 24),
         ], $manager['headers'])->assertCreated();
 
         $sessionId = $create->json('session.id');
@@ -298,7 +300,49 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Повторно введите токен Briskly.');
+            ->assertJsonPath('message', 'Токен Briskly недоступен — создайте сессию заново.');
+    }
+
+    public function test_create_session_stores_captured_token_without_client_token(): void
+    {
+        $manager = $this->maxManagerAuth(40_007);
+        $restaurant = Restaurant::factory()->create(['is_active' => true]);
+        $this->fakeCaptureToken = 'captured-from-cdp-token-xyz';
+
+        $create = $this->postJson(self::BASE.'/sessions', [
+            'restaurant_id' => $restaurant->id,
+            'briskly_token' => 'client-must-be-ignored-token',
+        ], $manager['headers'])->assertCreated();
+
+        $sessionId = $create->json('session.id');
+        $this->assertIsString($sessionId);
+        $create->assertJsonMissingPath('session.briskly_token');
+        $this->assertStringNotContainsString('captured-from-cdp-token-xyz', $create->getContent());
+        $this->assertStringNotContainsString('client-must-be-ignored-token', $create->getContent());
+
+        $stored = $this->app->make(BrisklySyncTokenStoreInterface::class)->get($sessionId);
+        $this->assertSame('captured-from-cdp-token-xyz', $stored);
+    }
+
+    public function test_create_session_fails_when_capture_unavailable(): void
+    {
+        $manager = $this->maxManagerAuth(40_008);
+        $restaurant = Restaurant::factory()->create(['is_active' => true]);
+        $this->captureFailure = new FoodDomainException(
+            'Не удалось получить токен Briskly: Chrome CDP недоступен.',
+            503,
+        );
+
+        $this->postJson(self::BASE.'/sessions', [
+            'restaurant_id' => $restaurant->id,
+        ], $manager['headers'])
+            ->assertStatus(503)
+            ->assertJsonPath(
+                'message',
+                'Не удалось получить токен Briskly: Chrome CDP недоступен.',
+            );
+
+        $this->assertSame(0, BrisklySyncSession::query()->count());
     }
 
     public function test_orchestrator_unavailable_returns_503(): void
@@ -323,7 +367,6 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('y', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
@@ -361,7 +404,6 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('z', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers']);
@@ -400,7 +442,6 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('w', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers']);
@@ -412,6 +453,20 @@ class AdminBrisklySyncSessionApiTest extends TestCase
     private function bindFakes(): void
     {
         $test = $this;
+
+        $this->app->instance(BrisklySyncTokenCaptureGatewayInterface::class, new class($test) implements BrisklySyncTokenCaptureGatewayInterface
+        {
+            public function __construct(private AdminBrisklySyncSessionApiTest $test) {}
+
+            public function captureToken(): string
+            {
+                if ($this->test->captureFailure !== null) {
+                    throw $this->test->captureFailure;
+                }
+
+                return $this->test->fakeCaptureToken;
+            }
+        });
 
         $this->app->instance(BrisklyCatalogGatewayInterface::class, new class($test) implements BrisklyCatalogGatewayInterface
         {

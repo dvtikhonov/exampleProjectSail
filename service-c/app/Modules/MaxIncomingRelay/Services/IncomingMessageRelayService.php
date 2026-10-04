@@ -6,13 +6,16 @@ namespace App\Modules\MaxIncomingRelay\Services;
 
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
+use App\Modules\MaxIncomingRelay\Contracts\BotDmMessageRepositoryInterface;
 use App\Modules\MaxIncomingRelay\Contracts\CustomerLastOrderRepositoryInterface;
 use App\Modules\MaxIncomingRelay\Contracts\IncomingMessageRelayServiceInterface;
 use App\Modules\MaxIncomingRelay\DTO\IncomingBotMessageDto;
+use App\Modules\MaxIncomingRelay\Enums\BotDmAuthorType;
 use Psr\Log\LoggerInterface;
 
 /**
- * Логирование и рассылка входящего сообщения боту в чаты Home_chat.
+ * Логирование, сохранение истории лички (для known max_users) и рассылка в Home_chat.
  */
 final class IncomingMessageRelayService implements IncomingMessageRelayServiceInterface
 {
@@ -21,6 +24,8 @@ final class IncomingMessageRelayService implements IncomingMessageRelayServiceIn
         private readonly IncomingMessageNotificationBuilder $notificationBuilder,
         private readonly MaxUiStandRecipientResolverInterface $recipientResolver,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
+        private readonly BotDmMessageRepositoryInterface $botDmMessageRepository,
+        private readonly MaxUserIdentityRepositoryInterface $maxUserIdentityRepository,
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -29,6 +34,8 @@ final class IncomingMessageRelayService implements IncomingMessageRelayServiceIn
      */
     public function relay(IncomingBotMessageDto $message): void
     {
+        $this->persistCustomerMessageIfEligible($message);
+
         $lastOrder = $this->lastOrderRepository->findLatestByMaxUserId($message->userId);
         $text = $this->notificationBuilder->build($message, $lastOrder);
         $chatIds = $this->recipientResolver->configuredChatIds();
@@ -60,5 +67,29 @@ final class IncomingMessageRelayService implements IncomingMessageRelayServiceIn
                 ],
             );
         }
+    }
+
+    /**
+     * Сохраняет входящее сообщение в историю лички, если отправитель есть в max_users и текст непустой.
+     * Рассылка в Home_chat от этого не зависит.
+     */
+    private function persistCustomerMessageIfEligible(IncomingBotMessageDto $message): void
+    {
+        $body = trim($message->text);
+        if ($body === '') {
+            return;
+        }
+
+        if ($this->maxUserIdentityRepository->findByMaxUserId($message->userId) === null) {
+            return;
+        }
+
+        $this->botDmMessageRepository->create(
+            maxUserId: $message->userId,
+            senderMaxUserId: $message->userId,
+            authorType: BotDmAuthorType::Customer,
+            body: $body,
+            chatId: $message->chatId,
+        );
     }
 }

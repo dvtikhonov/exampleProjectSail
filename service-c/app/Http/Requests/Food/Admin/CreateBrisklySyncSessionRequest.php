@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Food\Admin;
 
-use App\Services\Food\BrisklySync\BrisklySyncBearerToken;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
  * Валидация POST admin/briskly-sync/sessions.
  *
- * Поля: restaurant_id, briskly_token, vps_category_id, search_text, clarification.
+ * Поля: restaurant_id, vps_category_id, search_text, clarification.
+ * Bearer Briskly захватывается на сервере (не из тела запроса).
  */
 class CreateBrisklySyncSessionRequest extends FormRequest
 {
@@ -23,16 +23,6 @@ class CreateBrisklySyncSessionRequest extends FormRequest
     public function wantsJson(): bool
     {
         return true;
-    }
-
-    protected function prepareForValidation(): void
-    {
-        $raw = $this->input('briskly_token');
-        if (is_string($raw)) {
-            $this->merge([
-                'briskly_token' => BrisklySyncBearerToken::normalize($raw),
-            ]);
-        }
     }
 
     /**
@@ -51,7 +41,6 @@ class CreateBrisklySyncSessionRequest extends FormRequest
                     ->where('is_active', true)
                     ->whereNull('deleted_at'),
             ],
-            'briskly_token' => ['required', 'string', 'min:10', 'max:4096'],
             'vps_category_id' => [
                 'nullable',
                 'integer',
@@ -77,7 +66,6 @@ class CreateBrisklySyncSessionRequest extends FormRequest
         return [
             'restaurant_id.required' => 'Укажите ресторан.',
             'restaurant_id.exists' => 'Ресторан не найден или неактивен.',
-            'briskly_token.required' => 'Укажите Bearer-токен Briskly.',
             'vps_category_id.exists' => 'Категория меню не найдена для выбранного ресторана.',
             'search_text.max' => 'Текст поиска не должен превышать 120 символов.',
             'clarification.max' => 'Уточнение не должно превышать 2000 символов.',
@@ -87,11 +75,6 @@ class CreateBrisklySyncSessionRequest extends FormRequest
     public function restaurantId(): int
     {
         return (int) $this->validated('restaurant_id');
-    }
-
-    public function brisklyToken(): string
-    {
-        return (string) $this->validated('briskly_token');
     }
 
     public function vpsCategoryId(): ?int
