@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Exceptions\Food\FoodDomainException;
-use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
 use App\Http\Middleware\AuthenticateMaxMiniApp;
 use App\Http\Middleware\EnsureFoodOrderAdmin;
 use App\Http\Middleware\EnsurePhotoTextAiAccess;
@@ -12,6 +11,7 @@ use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
+use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
