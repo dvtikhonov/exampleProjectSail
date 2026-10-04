@@ -11,6 +11,7 @@ use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Exceptions\Food\FoodDomainException;
+use Psr\Log\LoggerInterface;
 
 /**
  * HTTP-клиент к Node sidecar briskly-sync (POST /match).
@@ -21,6 +22,7 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
         private readonly HttpClientInterface $http,
         private readonly string $baseUrl,
         private readonly int $timeoutSeconds,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -31,6 +33,13 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
         array $sourceLines,
         array $brisklySnapshot,
     ): array {
+        $this->logger->info('Briskly sync LLM prompt', [
+            'system' => $prompt->system,
+            'user' => $prompt->user,
+            'source_lines_count' => count($sourceLines),
+            'briskly_snapshot_count' => count($brisklySnapshot),
+        ]);
+
         $payload = [
             'prompt' => $prompt->toArray(),
             'source_lines' => array_map(

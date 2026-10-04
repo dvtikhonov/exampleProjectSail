@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Modules\MaxIncomingRelay\Providers;
 
+use App\Modules\MaxIncomingRelay\Contracts\BotDmChatServiceInterface;
+use App\Modules\MaxIncomingRelay\Contracts\BotDmMessageRepositoryInterface;
 use App\Modules\MaxIncomingRelay\Contracts\CustomerLastOrderRepositoryInterface;
 use App\Modules\MaxIncomingRelay\Contracts\IncomingMessageRelayServiceInterface;
+use App\Modules\MaxIncomingRelay\Repositories\EloquentBotDmMessageRepository;
 use App\Modules\MaxIncomingRelay\Repositories\EloquentCustomerLastOrderRepository;
+use App\Modules\MaxIncomingRelay\Services\BotDmChatService;
 use App\Modules\MaxIncomingRelay\Services\IncomingMessageNotificationBuilder;
 use App\Modules\MaxIncomingRelay\Services\IncomingMessageRelayService;
 use Illuminate\Support\Facades\Log;
@@ -26,6 +30,14 @@ class MaxIncomingRelayServiceProvider extends ServiceProvider
         $this->app->bind(
             CustomerLastOrderRepositoryInterface::class,
             EloquentCustomerLastOrderRepository::class,
+        );
+        $this->app->bind(
+            BotDmMessageRepositoryInterface::class,
+            EloquentBotDmMessageRepository::class,
+        );
+        $this->app->bind(
+            BotDmChatServiceInterface::class,
+            BotDmChatService::class,
         );
         $this->app->singleton(IncomingMessageNotificationBuilder::class);
         $this->app->bind(

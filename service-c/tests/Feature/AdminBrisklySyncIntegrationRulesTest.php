@@ -6,6 +6,8 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
+use App\Exceptions\Food\FoodDomainException;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
@@ -47,6 +49,10 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
     /** @var list<array{op: string, payload: array<string, mixed>}> */
     public array $brisklyWrites = [];
 
+    public string $fakeCaptureToken = 'test-captured-briskly-token';
+
+    public ?FoodDomainException $captureFailure = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -55,6 +61,8 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
         $this->fakeCategories = [];
         $this->fakeMatchLines = [];
         $this->brisklyWrites = [];
+        $this->fakeCaptureToken = 'test-captured-briskly-token';
+        $this->captureFailure = null;
         $this->bindFakes();
     }
 
@@ -156,7 +164,6 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('i', 24),
             'vps_category_id' => $category->id,
             'clarification' => 'игнорировать скобки и вес',
         ], $manager['headers'])
@@ -165,7 +172,7 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
             ->assertJsonPath('session.vps_category_id', $category->id)
             ->json('session.id');
 
-        $this->assertStringNotContainsString(str_repeat('i', 24), (string) json_encode(
+        $this->assertStringNotContainsString($this->fakeCaptureToken, (string) json_encode(
             $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])->json(),
         ));
 
@@ -306,7 +313,6 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('v', 24),
             'vps_category_id' => $foreignCategory->id,
         ], $manager['headers'])
             ->assertStatus(422)
@@ -314,7 +320,6 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('v', 24),
             'search_text' => str_repeat('x', 121),
         ], $manager['headers'])
             ->assertStatus(422)
@@ -322,7 +327,6 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('v', 24),
             'clarification' => str_repeat('y', 2001),
         ], $manager['headers'])
             ->assertStatus(422)
@@ -330,7 +334,6 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('v', 24),
             'vps_category_id' => $ownCategory->id,
             'search_text' => 'борщ',
             'clarification' => 'не учитывать вес',
@@ -353,14 +356,13 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('m', 24),
         ], $menu['headers'])->assertForbidden();
 
         $manager = $this->maxManagerAuth(70_004);
         $secret = 'token-must-not-leak-in-get-'.$manager['user']->max_user_id;
+        $this->fakeCaptureToken = $secret;
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => $secret,
         ], $manager['headers'])->json('session.id');
 
         $show = $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
@@ -372,6 +374,20 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
     private function bindFakes(): void
     {
         $test = $this;
+
+        $this->app->instance(BrisklySyncTokenCaptureGatewayInterface::class, new class($test) implements BrisklySyncTokenCaptureGatewayInterface
+        {
+            public function __construct(private AdminBrisklySyncIntegrationRulesTest $test) {}
+
+            public function captureToken(): string
+            {
+                if ($this->test->captureFailure !== null) {
+                    throw $this->test->captureFailure;
+                }
+
+                return $this->test->fakeCaptureToken;
+            }
+        });
 
         $this->app->instance(BrisklyCatalogGatewayInterface::class, new class($test) implements BrisklyCatalogGatewayInterface
         {

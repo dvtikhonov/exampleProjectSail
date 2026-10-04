@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Exceptions\Food\FoodDomainException;
+use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
 use App\Http\Middleware\AuthenticateMaxMiniApp;
 use App\Http\Middleware\EnsureFoodOrderAdmin;
 use App\Http\Middleware\EnsurePhotoTextAiAccess;
@@ -46,6 +47,12 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (FoodDomainException $exception, Request $request): JsonResponse {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $exception->statusCode());
+        });
+
+        $exceptions->render(function (BotDmDomainException $exception, Request $request): JsonResponse {
             return response()->json([
                 'message' => $exception->getMessage(),
             ], $exception->statusCode());

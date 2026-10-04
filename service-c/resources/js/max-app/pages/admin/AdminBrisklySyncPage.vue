@@ -13,7 +13,6 @@ const {
     vpsCategoriesLoading,
     vpsCategoriesError,
     restaurantId,
-    brisklyToken,
     vpsCategoryId,
     searchText,
     clarification,
@@ -53,7 +52,6 @@ const {
     checkedCreateCount,
     loadRestaurants,
     setRestaurantId,
-    setBrisklyToken,
     setVpsCategoryId,
     setSearchText,
     setClarification,
@@ -70,13 +68,6 @@ const {
 onMounted(() => {
     loadRestaurants();
 });
-
-/**
- * @param {Event} event
- */
-function onTokenInput(event) {
-    setBrisklyToken(/** @type {HTMLInputElement} */ (event.target).value);
-}
 
 /**
  * @param {Event} event
@@ -150,7 +141,7 @@ function formatPrice(price) {
                         Поиск
                     </h2>
                     <p class="mt-0.5 text-xs text-max-muted">
-                        Ресторан, токен Briskly, категория VPS и текст. Категория Briskly в фильтре не используется.
+                        Ресторан, категория VPS и текст. Токен Briskly захватывается на сервере из Chrome CDP.
                     </p>
                 </div>
 
@@ -170,7 +161,8 @@ function formatPrice(price) {
 
                 <div
                     v-if="searchError"
-                    class="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                    class="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                    role="alert"
                 >
                     {{ searchError }}
                 </div>
@@ -198,28 +190,6 @@ function formatPrice(price) {
                             placeholder="Выберите ресторан"
                             @update:model-value="setRestaurantId"
                         />
-                    </div>
-
-                    <div>
-                        <label
-                            class="mb-1.5 block text-sm font-medium text-gray-900"
-                            for="briskly-sync-token"
-                        >
-                            Bearer Briskly
-                        </label>
-                        <input
-                            id="briskly-sync-token"
-                            type="password"
-                            autocomplete="off"
-                            class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-max-primary focus:ring-2 focus:ring-max-primary/20 disabled:bg-gray-50"
-                            :value="brisklyToken"
-                            :disabled="searching || applying"
-                            placeholder="Токен только на сессию"
-                            @input="onTokenInput"
-                        >
-                        <p class="mt-1 text-xs text-max-muted">
-                            JWT из DevTools (Authorization). Префикс «Bearer » можно не убирать — снимем сами. Не сохраняется в браузере.
-                        </p>
                     </div>
 
                     <div>

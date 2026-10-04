@@ -38,8 +38,6 @@ export function useBrisklySync() {
 
     /** @type {import('vue').Ref<string>} */
     const restaurantId = ref('');
-    /** @type {import('vue').Ref<string>} Bearer только в памяти UI (не в GET) */
-    const brisklyToken = ref('');
     /** @type {import('vue').Ref<string>} '' = все категории */
     const vpsCategoryId = ref('');
     /** @type {import('vue').Ref<string>} */
@@ -121,7 +119,6 @@ export function useBrisklySync() {
 
     const canSearch = computed(() => (
         restaurantId.value !== ''
-        && brisklyToken.value.trim().length >= 10
         && !restaurantsLoading.value
         && !searching.value
         && !applying.value
@@ -229,13 +226,6 @@ export function useBrisklySync() {
      */
     function setRestaurantId(value) {
         restaurantId.value = value;
-    }
-
-    /**
-     * @param {string} value
-     */
-    function setBrisklyToken(value) {
-        brisklyToken.value = value;
     }
 
     /**
@@ -605,7 +595,6 @@ export function useBrisklySync() {
 
             const session = await createBrisklySyncSession({
                 restaurantId: restaurantNumericId,
-                brisklyToken: brisklyToken.value.trim(),
                 vpsCategoryId: categoryNumeric !== null && Number.isFinite(categoryNumeric)
                     ? categoryNumeric
                     : null,
@@ -664,7 +653,6 @@ export function useBrisklySync() {
         vpsCategoriesLoading,
         vpsCategoriesError,
         restaurantId,
-        brisklyToken,
         vpsCategoryId,
         searchText,
         clarification,
@@ -708,7 +696,6 @@ export function useBrisklySync() {
         checkedCreateCount,
         loadRestaurants,
         setRestaurantId,
-        setBrisklyToken,
         setVpsCategoryId,
         setSearchText,
         setClarification,

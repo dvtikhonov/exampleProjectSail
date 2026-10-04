@@ -581,16 +581,19 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 Модуль сравнения меню VPS (`dishes` / combo-линии) с каталогом **Briskly Business** и записи цен/новых позиций **только после явных галочек** в UI. Роль: **`max_manager`**. Цены всегда из source VPS; LLM/клиент цену на apply не задают.
 
-Поток: UI (`AdminBrisklySyncPage` / `useBrisklySync`) → PHP Session API → HTTP sidecar [`briskly-sync/`](../briskly-sync/) (Cursor SDK + MCP) → классификация 1D/2B на сервере → approvals → apply в Briskly.
+Поток: UI (`AdminBrisklySyncPage` / `useBrisklySync`) → PHP Session API → HTTP sidecar [`briskly-sync/`](../briskly-sync/) (Cursor SDK + MCP) → классификация 1D/2B на сервере → approvals → apply в Briskly. Bearer Briskly **не** вводится в admin UI: при `POST /sessions` PHP вызывает sidecar `POST /capture-token`, sidecar читает JWT из уже открытого Chrome через CDP.
 
 ```mermaid
 flowchart LR
+  Chrome["Chrome CDP :9222"]
   UI["AdminBrisklySyncPage"]
   PHP["service-c Session API"]
-  Orch["briskly-sync sidecar"]
+  Orch["briskly-sync sidecar :8791"]
   Briskly["briskly.business"]
 
-  UI -->|"restaurant, token, filters"| PHP
+  Chrome -->|"Authorization JWT"| Orch
+  UI -->|"restaurant, filters"| PHP
+  PHP -->|"POST /capture-token"| Orch
   PHP -->|"match prompt DTO"| Orch
   Orch -->|"candidates"| PHP
   PHP -->|"UPDATE/CREATE"| Briskly
@@ -605,31 +608,55 @@ flowchart LR
 | **3B** | Галочки apply **выключены** по умолчанию; apply без отмеченных → сессия остаётся `matched` |
 | Equal price | Не в UI, UPDATE не планируется (`equal_price`) |
 | Ambiguous | Не в таблицах (счётчик `ambiguous`) |
-| Bearer Briskly | Только в `POST /sessions` / кэш TTL; **не** в GET, не в БД plaintext, не в git |
+| Bearer Briskly | Серверный CDP capture при `POST /sessions` → кэш TTL; **не** в теле API/GET, не в БД plaintext, не в git |
 | Cursor | `CURSOR_API_KEY` на хосте sidecar; фронт ключ не получает |
 | Apply | Max 25 UPDATE + 25 CREATE; цена только из server source; Δ>50% → `confirm_large_delta`; повторный apply → `409` |
 
-**Env (service-c):**
+#### Что запустить по порядку
 
-| Переменная | Назначение |
-|---|---|
-| `BRISKLY_SYNC_ORCHESTRATOR_URL` | База HTTP sidecar match (default `http://127.0.0.1:8791`) |
-| `BRISKLY_SYNC_TOKEN_TTL` | TTL Bearer Briskly в cache (сек, default `7200`) |
-| `BRISKLY_API_BASE_URL` | База company API Briskly |
-| `BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT` | Timeout HTTP к sidecar (сек) |
+Одновременно должны работать: **Chrome CDP (Windows)** + **sidecar (WSL)** + **service-c в Docker (`main-app`)**. Env — один раз до старта.
 
-**Env (пакет `briskly-sync/`, не коммитить секреты):** `CURSOR_API_KEY` (live match), `BRISKLY_TOKEN` (CLI/MCP), `BRISKLY_SYNC_PORT` (sidecar, default `8791`), `FOOD_SOURCE_BASE_URL` / `FOOD_SOURCE_AUTH_TOKEN` для MCP food-source. См. [`briskly-sync/README.md`](../briskly-sync/README.md) и `.env.example`.
+0. **Env (заранее)**  
+   - `briskly-sync/.env`: `BRISKLY_SYNC_CAPTURE_SECRET`, `BRISKLY_SYNC_HOST=0.0.0.0`, `CURSOR_API_KEY` (live match), опц. `BRISKLY_CDP_URL`  
+   - `service-c/.env`: тот же `BRISKLY_SYNC_CAPTURE_SECRET`, `BRISKLY_SYNC_ORCHESTRATOR_URL=http://host.docker.internal:8791`  
+   - Остальное — defaults в `config/briskly_sync.php` / `.env.example`. Секреты не коммитить.
 
-**Запуск sidecar (WSL/Docker-хост с Cursor local runtime):**
+1. **Windows → Chrome с CDP** (закрыть все окна Chrome; обычным ярлыком больше не открывать):
 
-```bash
-cd briskly-sync && cp .env.example .env   # заполнить CURSOR_API_KEY при live match
-npm install && npm run sidecar            # :8791 (Node ≥ 22.13)
+```bat
+в cmd -  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\chrome-briskly-cdp" --no-first-run https://briskly.business/items
 ```
 
-Fixture match без Cursor: `npm run match -- --fixture fixtures/match-run.json`. Тесты Node: `npm test`. Тесты PHP — БД **`sail_db_testing`**.
+Войти в Briskly, вкладку `/items` не закрывать. Проверка CDP на Windows:
 
-UI: раздел admin Briskly (`BrisklySyncRoot`, `ROLE_MAX_MANAGER`). API — [Food Admin API — Briskly sync](#food-admin-api--briskly-sync-max_manager).
+```powershell
+в cmd - powershell -Command "Invoke-WebRequest http://127.0.0.1:9222/json/version -UseBasicParsing | Select-Object -ExpandProperty Content"
+```
+
+Должен вернуться JSON (`Browser`, `webSocketDebuggerUrl`, …). В том же Chrome также можно открыть `http://127.0.0.1:9222/json`.
+
+2. **Windows → CDP-прокси** — только если из WSL `curl http://127.0.0.1:9222/json/version` не отвечает:
+
+```powershell
+powershell -File briskly-sync\scripts\start-cdp-proxy.ps1
+```
+
+В `briskly-sync/.env`: `BRISKLY_CDP_URL=http://<IP-Windows>:9223`.
+
+3. **WSL → sidecar**:
+
+```bash
+cd /home/ddd/exampleProjectSail/briskly-sync
+npm run sidecar
+```
+
+Проверка: `curl -sS http://127.0.0.1:8791/health`.
+
+4. **Docker → service-c** — контейнер `main-app` уже запущен как обычно. PHP ходит на sidecar через `host.docker.internal:8791`.
+
+5. **UI** — admin Briskly (`max_manager`): создать сессию → snapshot → match → галочки → apply. Токен сервер забирает из Chrome (шаг 1).
+
+Подробности CDP CLI: [`briskly-sync/README.md`](../briskly-sync/README.md). API — [Food Admin API — Briskly sync](#food-admin-api--briskly-sync-max_manager).
 
 ### Проверка заказа (три этапа)
 
@@ -1450,14 +1477,16 @@ docker compose exec -T service-c php artisan test
 
 | Переменная | Назначение |
 |---|---|
-| `BRISKLY_SYNC_ORCHESTRATOR_URL` | HTTP sidecar Node (`briskly-sync`), default `http://127.0.0.1:8791` |
+| `BRISKLY_SYNC_ORCHESTRATOR_URL` | HTTP sidecar Node (`briskly-sync`). Docker PHP: `http://host.docker.internal:8791`; PHP на хосте: `http://127.0.0.1:8791` |
 | `BRISKLY_SYNC_TOKEN_TTL` | TTL Bearer Briskly в cache (сек, default `7200`); токен не в БД |
+| `BRISKLY_SYNC_CAPTURE_SECRET` | Секрет для серверного `POST /capture-token` (общий с sidecar) |
+| `BRISKLY_SYNC_CAPTURE_TIMEOUT` | Timeout HTTP capture-token (сек, default `30`) |
 | `BRISKLY_API_BASE_URL` | База Briskly company API |
 | `BRISKLY_SYNC_SNAPSHOT_MAX_PAGES` | Лимит страниц snapshot get-list |
 | `BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT` | Timeout HTTP к sidecar (сек) |
 | `BRISKLY_SYNC_BRISKLY_TIMEOUT` | Timeout HTTP к Briskly (сек) |
 
-На хосте sidecar (не в service-c `.env`): **`CURSOR_API_KEY`** для live match через `@cursor/sdk`. См. [Синхронизация Briskly](#синхронизация-briskly) и [`briskly-sync/README.md`](../briskly-sync/README.md).
+На хосте sidecar (не в service-c `.env`): **`CURSOR_API_KEY`**, **`BRISKLY_CDP_URL`**, **`BRISKLY_SYNC_HOST`**. Chrome CDP: команда запуска и полный процесс — [Синхронизация Briskly](#синхронизация-briskly). Пакет: [`briskly-sync/README.md`](../briskly-sync/README.md).
 
 ### Прочие
 
@@ -1751,7 +1780,7 @@ UI менеджера вызывает только `/export` (`api/admin/report
 | Метод | Путь | Описание |
 |---|---|---|
 | `GET` | `/api/food/admin/briskly-sync/source-lines` | Source-линии ресторана (`restaurant_id`, опц. `vps_category_id`, `search_text`) |
-| `POST` | `/api/food/admin/briskly-sync/sessions` | Создать сессию: `restaurant_id`, `briskly_token` (required), опц. `vps_category_id`, `search_text` (≤120), `clarification` (≤2000) |
+| `POST` | `/api/food/admin/briskly-sync/sessions` | Создать сессию: `restaurant_id`, опц. `vps_category_id`, `search_text` (≤120), `clarification` (≤2000); Bearer захватывается на сервере через sidecar CDP (в ответе нет token) |
 | `GET` | `/api/food/admin/briskly-sync/sessions/{id}` | Мета сессии **без** token |
 | `POST` | `/api/food/admin/briskly-sync/sessions/{id}/snapshot` | Загрузить snapshot Briskly (token из cache) |
 | `POST` | `/api/food/admin/briskly-sync/sessions/{id}/match` | Cursor match + классификация 1D/2B |

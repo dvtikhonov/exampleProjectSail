@@ -37,10 +37,43 @@ export const client = axios.create({
     },
 });
 
-client.interceptors.request.use((config) => {
-    if (!authToken) {
-        authToken = sessionStorage.getItem('max_miniapp_token');
+/**
+ * Синхронизирует in-memory Bearer с sessionStorage (источник истины между HMR/вкладками).
+ *
+ * @returns {string|null}
+ */
+function syncAuthTokenFromStorage() {
+    const storageToken = sessionStorage.getItem('max_miniapp_token');
+
+    if (storageToken) {
+        authToken = storageToken;
     }
+
+    return authToken;
+}
+
+/**
+ * @param {import('axios').InternalAxiosRequestConfig|undefined} config
+ * @returns {string|null}
+ */
+function getRequestBearerToken(config) {
+    if (!config?.headers) {
+        return null;
+    }
+
+    const raw = config.headers.Authorization ?? config.headers.authorization;
+
+    if (typeof raw !== 'string') {
+        return null;
+    }
+
+    const match = raw.match(/^Bearer\s+(.+)$/i);
+
+    return match?.[1]?.trim() || null;
+}
+
+client.interceptors.request.use((config) => {
+    syncAuthTokenFromStorage();
 
     // Подставляем Bearer после authenticate(); без токена — только публичные эндпоинты
     if (authToken) {
@@ -71,6 +104,15 @@ client.interceptors.response.use(
         }
 
         config.__isAuthRetry = true;
+
+        // Запрос ушёл со старым Bearer, а токен уже обновили — retry без нового /max/auth
+        // (иначе issueToken отзовёт свежий токен и устроит stampede 401).
+        const failedBearer = getRequestBearerToken(config);
+        const currentToken = syncAuthTokenFromStorage();
+
+        if (currentToken && failedBearer && failedBearer !== currentToken) {
+            return client(config);
+        }
 
         if (!reauthPromise) {
             reauthPromise = reauthenticateFromBridge().finally(() => {

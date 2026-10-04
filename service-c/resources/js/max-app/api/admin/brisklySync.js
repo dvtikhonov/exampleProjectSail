@@ -91,28 +91,25 @@ const BASE = '/food/admin/briskly-sync';
 /**
  * @typedef {object} CreateBrisklySyncSessionParams
  * @property {number} restaurantId
- * @property {string} brisklyToken
  * @property {number|null} [vpsCategoryId]
  * @property {string|null} [searchText]
  * @property {string|null} [clarification]
  */
 
 /**
- * POST /sessions — создать сессию (токен только на сервере, в ответе нет).
+ * POST /sessions — создать сессию (токен захватывается на сервере, в ответе нет).
  *
  * @param {CreateBrisklySyncSessionParams} params
  * @returns {Promise<BrisklySyncSessionMeta>}
  */
 export async function createBrisklySyncSession({
     restaurantId,
-    brisklyToken,
     vpsCategoryId = null,
     searchText = null,
     clarification = null,
 }) {
     const payload = {
         restaurant_id: restaurantId,
-        briskly_token: brisklyToken,
     };
 
     if (vpsCategoryId !== null && vpsCategoryId !== undefined) {

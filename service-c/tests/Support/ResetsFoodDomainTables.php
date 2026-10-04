@@ -17,6 +17,7 @@ use App\Models\Food\Restaurant;
 use App\Models\Food\RestaurantCategoryDeliveryTier;
 use App\Models\Max\MaxUser;
 use App\Modules\FoodReport\Models\FoodOrderItem;
+use App\Modules\MaxIncomingRelay\Models\MaxBotDirectMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -27,6 +28,9 @@ trait ResetsFoodDomainTables
     {
         if (Schema::hasTable('max_food_order_items')) {
             FoodOrderItem::query()->delete();
+        }
+        if (Schema::hasTable('max_bot_direct_messages')) {
+            MaxBotDirectMessage::query()->delete();
         }
         FoodOrder::query()->delete();
         FoodOrderAdmin::query()->delete();

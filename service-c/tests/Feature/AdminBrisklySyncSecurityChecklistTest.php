@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
@@ -54,6 +55,10 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
     public bool $orchestratorDown = false;
 
+    public string $fakeCaptureToken = 'test-captured-briskly-token';
+
+    public ?FoodDomainException $captureFailure = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -63,6 +68,8 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
         $this->fakeMatchLines = [];
         $this->brisklyWrites = [];
         $this->orchestratorDown = false;
+        $this->fakeCaptureToken = 'test-captured-briskly-token';
+        $this->captureFailure = null;
         $this->bindFakes();
     }
 
@@ -80,7 +87,6 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
         $menu = $this->asFoodOrderAdmin($auth, FoodOrderAdminRole::MenuManager);
         $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => 1,
-            'briskly_token' => str_repeat('t', 20),
         ], $menu['headers'])->assertForbidden();
     }
 
@@ -91,7 +97,6 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $create = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('u', 24),
         ], $manager['headers'])->assertCreated();
 
         $sessionId = $create->json('session.id');
@@ -119,7 +124,6 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('o', 24),
         ], $owner['headers'])->json('session.id');
 
         $this->getJson(self::BASE.'/sessions/'.$sessionId, $other['headers'])
@@ -131,6 +135,7 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
     {
         $manager = $this->maxManagerAuth(50_004);
         $secret = 'secret-briskly-token-checklist-4b';
+        $this->fakeCaptureToken = $secret;
         $restaurant = Restaurant::factory()->create(['is_active' => true]);
         $category = MenuCategory::factory()->create([
             'restaurant_id' => $restaurant->id,
@@ -150,7 +155,6 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => $secret,
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])->assertOk();
@@ -180,7 +184,7 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Повторно введите токен Briskly.');
+            ->assertJsonPath('message', 'Токен Briskly недоступен — создайте сессию заново.');
     }
 
     public function test_client_price_prohibited_and_apply_uses_server_source_price(): void
@@ -382,18 +386,16 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('e', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->app->make(BrisklySyncTokenStoreInterface::class)->forget($sessionId);
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Повторно введите токен Briskly.');
+            ->assertJsonPath('message', 'Токен Briskly недоступен — создайте сессию заново.');
 
         $sessionId2 = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('f', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->fakeSnapshot = [new BrisklySnapshotItemDto(1, 'Суп', '90.00')];
@@ -460,7 +462,6 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('z', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers']);
@@ -497,7 +498,6 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
-            'briskly_token' => str_repeat('w', 24),
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers']);
@@ -509,6 +509,20 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
     private function bindFakes(): void
     {
         $test = $this;
+
+        $this->app->instance(BrisklySyncTokenCaptureGatewayInterface::class, new class($test) implements BrisklySyncTokenCaptureGatewayInterface
+        {
+            public function __construct(private AdminBrisklySyncSecurityChecklistTest $test) {}
+
+            public function captureToken(): string
+            {
+                if ($this->test->captureFailure !== null) {
+                    throw $this->test->captureFailure;
+                }
+
+                return $this->test->fakeCaptureToken;
+            }
+        });
 
         $this->app->instance(BrisklyCatalogGatewayInterface::class, new class($test) implements BrisklyCatalogGatewayInterface
         {
