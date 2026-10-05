@@ -90,7 +90,7 @@ class AdminBrisklySyncSessionController extends Controller
     }
 
     /**
-     * POST /sessions/{id}/match — Cursor match + классификация.
+     * POST /sessions/{id}/match — очередь Cursor match (202 + status matching).
      */
     public function match(MatchBrisklySyncSessionRequest $request, string $session): JsonResponse
     {
@@ -98,7 +98,7 @@ class AdminBrisklySyncSessionController extends Controller
 
         return response()->json([
             'session' => $record->toMetaArray(),
-        ]);
+        ], 202);
     }
 
     /**

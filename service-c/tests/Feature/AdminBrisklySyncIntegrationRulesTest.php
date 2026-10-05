@@ -180,7 +180,7 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
             ->assertOk();
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
-            ->assertOk()
+            ->assertAccepted()
             ->assertJsonPath('session.status', 'matched');
 
         $results = $this->getJson(

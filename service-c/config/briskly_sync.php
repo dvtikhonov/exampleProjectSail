@@ -62,6 +62,11 @@ return [
     /** Timeout HTTP к оркестратору (сек). */
     'orchestrator_timeout_seconds' => (int) env('BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT', 120),
 
+    /**
+     * Таймаут queue job match (сек). Должен быть больше orchestrator_timeout_seconds.
+     */
+    'match_job_timeout_seconds' => (int) env('BRISKLY_SYNC_MATCH_JOB_TIMEOUT', 180),
+
     /** Timeout HTTP к Briskly (сек). */
     'briskly_timeout_seconds' => (int) env('BRISKLY_SYNC_BRISKLY_TIMEOUT', 30),
 
