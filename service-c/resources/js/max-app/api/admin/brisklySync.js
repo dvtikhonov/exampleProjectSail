@@ -89,12 +89,59 @@ const BASE = '/food/admin/briskly-sync';
  */
 
 /**
+ * @typedef {object} BrisklySyncVpsNamedItem
+ * @property {number} id
+ * @property {string} name
+ */
+
+/**
  * @typedef {object} CreateBrisklySyncSessionParams
  * @property {number} restaurantId
  * @property {number|null} [vpsCategoryId]
  * @property {string|null} [searchText]
  * @property {string|null} [clarification]
  */
+
+/**
+ * GET /restaurants — активные рестораны source-каталога (local или remote VPS).
+ *
+ * @returns {Promise<BrisklySyncVpsNamedItem[]>}
+ */
+export async function fetchBrisklySyncRestaurants() {
+    try {
+        const { data } = await client.get(`${BASE}/restaurants`);
+        const rows = Array.isArray(data?.restaurants) ? data.restaurants : [];
+
+        return rows.map((row) => ({
+            id: Number(row?.id),
+            name: String(row?.name ?? ''),
+        })).filter((row) => Number.isFinite(row.id) && row.id >= 1);
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/**
+ * GET /vps-categories — категории меню ресторана из source-каталога.
+ *
+ * @param {number} restaurantId
+ * @returns {Promise<BrisklySyncVpsNamedItem[]>}
+ */
+export async function fetchBrisklySyncVpsCategories(restaurantId) {
+    try {
+        const { data } = await client.get(`${BASE}/vps-categories`, {
+            params: { restaurant_id: restaurantId },
+        });
+        const rows = Array.isArray(data?.categories) ? data.categories : [];
+
+        return rows.map((row) => ({
+            id: Number(row?.id),
+            name: String(row?.name ?? ''),
+        })).filter((row) => Number.isFinite(row.id) && row.id >= 1);
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
 
 /**
  * POST /sessions — создать сессию (токен захватывается на сервере, в ответе нет).

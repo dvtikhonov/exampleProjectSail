@@ -7,12 +7,14 @@ import {
     applyBrisklySyncSession,
     createBrisklySyncSession,
     fetchBrisklyCategories,
+    fetchBrisklySyncRestaurants,
     fetchBrisklySyncResults,
+    fetchBrisklySyncVpsCategories,
     loadBrisklySyncSnapshot,
     matchBrisklySyncSession,
     updateBrisklySyncApprovals,
 } from '../api/admin/brisklySync';
-import { extractErrorMessage, fetchMenu, fetchRestaurants } from '../api';
+import { extractErrorMessage } from '../api';
 
 /**
  * @typedef {import('../api/admin/brisklySync.js').BrisklySyncPriceDiffItem} BrisklySyncPriceDiffItem
@@ -173,7 +175,7 @@ export function useBrisklySync() {
         restaurantsError.value = '';
 
         try {
-            restaurants.value = await fetchRestaurants();
+            restaurants.value = await fetchBrisklySyncRestaurants();
         } catch (error) {
             restaurants.value = [];
             restaurantsError.value = extractErrorMessage(error);
@@ -202,12 +204,7 @@ export function useBrisklySync() {
         vpsCategoriesLoading.value = true;
 
         try {
-            const menu = await fetchMenu(restaurantNumericId, { includeUnavailable: true });
-            const categories = Array.isArray(menu?.categories) ? menu.categories : [];
-            vpsCategories.value = categories.map((category) => ({
-                id: Number(category.id),
-                name: String(category.name ?? ''),
-            }));
+            vpsCategories.value = await fetchBrisklySyncVpsCategories(restaurantNumericId);
         } catch (error) {
             vpsCategories.value = [];
             vpsCategoriesError.value = extractErrorMessage(error);

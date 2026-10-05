@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Shared\HttpClientInterface;
+use App\Contracts\Shared\LlmCallLoggerInterface;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
+use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\DTO\Shared\HttpResponseDto;
+use App\DTO\Shared\LlmCallExchangeDto;
 use App\Enums\Food\Menu\DailyMenuLineType;
 use App\Infrastructure\Briskly\HttpBrisklySyncMatchOrchestrator;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\AbstractLogger;
 
 /**
- * Контракт POST /match и запись исходящего LLM-промпта в max_log.
+ * Контракт POST /match к orchestrator sidecar + логирование LLM.
  */
 final class HttpBrisklySyncMatchOrchestratorTest extends TestCase
 {
-    public function test_match_logs_full_prompt_before_http_call(): void
+    public function test_match_sends_prompt_and_parses_match_lines(): void
     {
         $http = new class implements HttpClientInterface
         {
@@ -46,24 +48,20 @@ final class HttpBrisklySyncMatchOrchestratorTest extends TestCase
                                 'candidates' => [],
                             ],
                         ],
+                        'raw_text' => '{"match_lines":[]}',
                     ], JSON_THROW_ON_ERROR),
                     successful: true,
                 );
             }
         };
 
-        $logger = new class extends AbstractLogger
+        $logger = new class implements LlmCallLoggerInterface
         {
-            /** @var list<array{level: string|mixed, message: string|\Stringable, context: array<mixed>}> */
-            public array $records = [];
+            public ?LlmCallExchangeDto $last = null;
 
-            public function log($level, string|\Stringable $message, array $context = []): void
+            public function logExchange(LlmCallExchangeDto $exchange): void
             {
-                $this->records[] = [
-                    'level' => $level,
-                    'message' => (string) $message,
-                    'context' => $context,
-                ];
+                $this->last = $exchange;
             }
         };
 
@@ -96,16 +94,32 @@ final class HttpBrisklySyncMatchOrchestratorTest extends TestCase
             ),
         ];
 
-        $result = $orchestrator->match($prompt, $sourceLines, $snapshot);
+        $result = $orchestrator->match(
+            $prompt,
+            $sourceLines,
+            $snapshot,
+            new BrisklySyncLlmCallContextDto(
+                sessionId: 'sess-1',
+                restaurantId: 7,
+                createdByMaxUserId: 42,
+            ),
+        );
 
         $this->assertCount(1, $result);
-        $this->assertCount(1, $logger->records);
-        $this->assertSame('info', $logger->records[0]['level']);
-        $this->assertSame('Briskly sync LLM prompt', $logger->records[0]['message']);
-        $this->assertSame($prompt->system, $logger->records[0]['context']['system']);
-        $this->assertSame($prompt->user, $logger->records[0]['context']['user']);
-        $this->assertSame(1, $logger->records[0]['context']['source_lines_count']);
-        $this->assertSame(1, $logger->records[0]['context']['briskly_snapshot_count']);
+        $this->assertSame('src-1', $result[0]->lineKey);
         $this->assertSame($prompt->toArray(), $http->lastJsonBody['prompt'] ?? null);
+
+        $this->assertNotNull($logger->last);
+        $this->assertSame('briskly-sync', $logger->last->provider);
+        $this->assertSame('match', $logger->last->operation);
+        $this->assertSame('max_user_id=42', $logger->last->actor);
+        $this->assertStringContainsString('=== prompt.system ===', $logger->last->requestText);
+        $this->assertStringContainsString('=== source_lines (VPS) ===', $logger->last->requestText);
+        $this->assertStringContainsString('=== briskly_snapshot ===', $logger->last->requestText);
+        $this->assertStringContainsString('Салат', $logger->last->requestText);
+        $this->assertStringContainsString('=== match_lines ===', (string) $logger->last->responseText);
+        $this->assertStringContainsString('=== raw_text (LLM) ===', (string) $logger->last->responseText);
+        $this->assertSame('sess-1', $logger->last->meta['session_id'] ?? null);
+        $this->assertSame(7, $logger->last->meta['restaurant_id'] ?? null);
     }
 }
