@@ -253,6 +253,7 @@ final class HttpBrisklySyncVpsCatalogGateway implements BrisklySyncVpsCatalogPor
 
         if ($status === 422) {
             $message = $this->extractErrorMessage($response->body);
+
             return new FoodDomainException(
                 $message !== ''
                     ? $message
