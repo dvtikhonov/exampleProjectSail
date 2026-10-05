@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchClassifierInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchQueueInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSourceCollectorInterface;
@@ -48,11 +49,13 @@ use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\HttpClientInterface;
+use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\LlmCallLoggerInterface;
 use App\Infrastructure\Briskly\HttpBrisklyCatalogGateway;
 use App\Infrastructure\Briskly\HttpBrisklySyncMatchOrchestrator;
 use App\Infrastructure\Briskly\HttpBrisklySyncTokenCaptureGateway;
 use App\Infrastructure\Briskly\HttpBrisklySyncVpsCatalogGateway;
+use App\Infrastructure\Laravel\LaravelBrisklySyncMatchQueue;
 use App\Infrastructure\Laravel\LaravelMaxLogLlmCallLogger;
 use App\Infrastructure\Laravel\PhpSpreadsheetDishRowsReader;
 use App\Repositories\Food\BrisklySync\EloquentBrisklySyncSessionRepository;
@@ -240,6 +243,15 @@ class FoodMenuServiceProvider extends ServiceProvider
             },
         );
         $this->app->bind(
+            BrisklySyncMatchQueueInterface::class,
+            function ($app): LaravelBrisklySyncMatchQueue {
+                return new LaravelBrisklySyncMatchQueue(
+                    $app->make(JobDispatcherInterface::class),
+                    (int) config('briskly_sync.match_job_timeout_seconds', 180),
+                );
+            },
+        );
+        $this->app->bind(
             BrisklySyncSessionServiceInterface::class,
             function ($app): BrisklySyncSessionService {
                 return new BrisklySyncSessionService(
@@ -249,6 +261,7 @@ class FoodMenuServiceProvider extends ServiceProvider
                     $app->make(BrisklySyncVpsCatalogPortInterface::class),
                     $app->make(BrisklyCatalogGatewayInterface::class),
                     $app->make(BrisklySyncMatchOrchestratorInterface::class),
+                    $app->make(BrisklySyncMatchQueueInterface::class),
                     $app->make(BrisklySyncMatchClassifierInterface::class),
                     $app->make(ComboCatalogPromptBuilderInterface::class),
                     $app->make(CacheStoreInterface::class),

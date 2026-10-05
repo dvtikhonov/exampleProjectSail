@@ -1784,7 +1784,7 @@ UI менеджера вызывает только `/export` (`api/admin/report
 | `POST` | `/api/food/admin/briskly-sync/sessions` | Создать сессию: `restaurant_id`, опц. `vps_category_id`, `search_text` (≤120), `clarification` (≤2000); Bearer захватывается на сервере через sidecar CDP (в ответе нет token) |
 | `GET` | `/api/food/admin/briskly-sync/sessions/{id}` | Мета сессии **без** token |
 | `POST` | `/api/food/admin/briskly-sync/sessions/{id}/snapshot` | Загрузить snapshot Briskly (token из cache) |
-| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/match` | Cursor match + классификация 1D/2B |
+| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/match` | 202 + `matching`; Cursor match в очереди; UI поллит `GET .../sessions/{id}` |
 | `GET` | `/api/food/admin/briskly-sync/sessions/{id}/sync-results` | Результаты ≤25+25 + `truncated` / counts |
 | `PUT` | `/api/food/admin/briskly-sync/sessions/{id}/approvals` | Галочки UPDATE/CREATE (max 25+25); клиентский `price` **prohibited** |
 | `POST` | `/api/food/admin/briskly-sync/sessions/{id}/apply` | Запись в Briskly; статус `approved`; повтор → `409` |

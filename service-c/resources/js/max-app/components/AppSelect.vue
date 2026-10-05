@@ -130,16 +130,31 @@ function onDocumentKeydown(event) {
     }
 }
 
+/**
+ * Закрывать при скролле страницы, но не при прокрутке самого списка опций.
+ *
+ * @param {Event} event
+ */
+function onDocumentScroll(event) {
+    const target = /** @type {Node|null} */ (event.target);
+
+    if (target instanceof Node && rootRef.value?.contains(target)) {
+        return;
+    }
+
+    close();
+}
+
 onMounted(() => {
     document.addEventListener('click', onDocumentClick);
     document.addEventListener('keydown', onDocumentKeydown);
-    document.addEventListener('scroll', close, true);
+    document.addEventListener('scroll', onDocumentScroll, true);
 });
 
 onUnmounted(() => {
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('keydown', onDocumentKeydown);
-    document.removeEventListener('scroll', close, true);
+    document.removeEventListener('scroll', onDocumentScroll, true);
 });
 
 watch(

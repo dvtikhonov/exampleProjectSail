@@ -216,7 +216,7 @@ export async function loadBrisklySyncSnapshot(sessionId) {
 }
 
 /**
- * POST /sessions/{id}/match
+ * POST /sessions/{id}/match — 202, status matching; UI поллит GET /sessions/{id}.
  *
  * @param {string} sessionId
  * @param {{ rematch?: boolean }} [options]

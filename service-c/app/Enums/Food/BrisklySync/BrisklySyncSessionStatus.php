@@ -10,6 +10,7 @@ namespace App\Enums\Food\BrisklySync;
 enum BrisklySyncSessionStatus: string
 {
     case Setup = 'setup';
+    case Matching = 'matching';
     case Matched = 'matched';
     case Approved = 'approved';
     case Applied = 'applied';

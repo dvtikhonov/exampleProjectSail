@@ -7,6 +7,7 @@ namespace App\Services\Food\BrisklySync;
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchClassifierInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchQueueInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
@@ -44,6 +45,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         private readonly BrisklySyncVpsCatalogPortInterface $vpsCatalog,
         private readonly BrisklyCatalogGatewayInterface $brisklyCatalog,
         private readonly BrisklySyncMatchOrchestratorInterface $orchestrator,
+        private readonly BrisklySyncMatchQueueInterface $matchQueue,
         private readonly BrisklySyncMatchClassifierInterface $classifier,
         private readonly ComboCatalogPromptBuilderInterface $promptBuilder,
         private readonly CacheStoreInterface $cache,
@@ -131,9 +133,77 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             throw new FoodDomainException('Сессия уже применена; создайте новую.', 409);
         }
 
+        if ($session->status === BrisklySyncSessionStatus::Matching) {
+            throw new FoodDomainException('Match уже выполняется для этой сессии.', 409);
+        }
+
         if ($session->status === BrisklySyncSessionStatus::Matched && ! $rematch) {
             throw new FoodDomainException('Повторный match требует явного rematch=true.', 422);
         }
+
+        if ($session->brisklySnapshot === null) {
+            throw new FoodDomainException('Сначала загрузите snapshot Briskly.', 422);
+        }
+
+        $this->vpsCatalog->assertRestaurantActive($session->restaurantId);
+
+        $queued = $this->sessions->update($sessionId, [
+            'status' => BrisklySyncSessionStatus::Matching,
+            'proposals' => null,
+            'approvals' => null,
+            'apply_report' => null,
+        ]);
+
+        $this->matchQueue->dispatch($sessionId);
+
+        $fresh = $this->sessions->findById($sessionId);
+
+        return $fresh ?? $queued;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function performQueuedMatch(string $sessionId): void
+    {
+        $session = $this->sessions->findById($sessionId);
+        if ($session === null || $session->status !== BrisklySyncSessionStatus::Matching) {
+            return;
+        }
+
+        try {
+            $this->runMatchComputation($sessionId);
+        } catch (FoodDomainException) {
+            $this->failQueuedMatch($sessionId);
+
+            return;
+        } catch (\Throwable $exception) {
+            $this->failQueuedMatch($sessionId);
+            throw $exception;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function failQueuedMatch(string $sessionId): void
+    {
+        $session = $this->sessions->findById($sessionId);
+        if ($session === null || $session->status !== BrisklySyncSessionStatus::Matching) {
+            return;
+        }
+
+        $this->sessions->update($sessionId, [
+            'status' => BrisklySyncSessionStatus::Failed,
+        ]);
+    }
+
+    /**
+     * Orchestrator + классификация; вызывается только из очереди при status=matching.
+     */
+    private function runMatchComputation(string $sessionId): void
+    {
+        $session = $this->requireSession($sessionId);
 
         if ($session->brisklySnapshot === null) {
             throw new FoodDomainException('Сначала загрузите snapshot Briskly.', 422);
@@ -162,7 +232,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                 'sync_results' => $syncResults->toArray(),
             ];
 
-            return $this->sessions->update($sessionId, [
+            $this->sessions->update($sessionId, [
                 'source_lines_snapshot' => array_map(
                     static fn (SourceMenuLineDto $line): array => $line->toArray(),
                     $sourceLines,
@@ -172,6 +242,8 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
                 'approvals' => null,
                 'status' => BrisklySyncSessionStatus::Matched,
             ]);
+
+            return;
         }
 
         $promptDishes = [];
@@ -201,23 +273,16 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             $brisklyForPrompt,
         );
 
-        try {
-            $matchLines = $this->orchestrator->match(
-                $prompt,
-                $sourceLines,
-                $snapshot,
-                new BrisklySyncLlmCallContextDto(
-                    sessionId: $sessionId,
-                    restaurantId: $session->restaurantId,
-                    createdByMaxUserId: $session->createdByMaxUserId,
-                ),
-            );
-        } catch (FoodDomainException $exception) {
-            $this->sessions->update($sessionId, [
-                'status' => BrisklySyncSessionStatus::Failed,
-            ]);
-            throw $exception;
-        }
+        $matchLines = $this->orchestrator->match(
+            $prompt,
+            $sourceLines,
+            $snapshot,
+            new BrisklySyncLlmCallContextDto(
+                sessionId: $sessionId,
+                restaurantId: $session->restaurantId,
+                createdByMaxUserId: $session->createdByMaxUserId,
+            ),
+        );
 
         $syncResults = $this->classifier->classify(
             $sourceLines,
@@ -234,7 +299,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             'sync_results' => $syncResults->toArray(),
         ];
 
-        return $this->sessions->update($sessionId, [
+        $this->sessions->update($sessionId, [
             'source_lines_snapshot' => array_map(
                 static fn (SourceMenuLineDto $line): array => $line->toArray(),
                 $sourceLines,
@@ -270,6 +335,10 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         $session = $this->requireSession($sessionId);
         if ($session->status === BrisklySyncSessionStatus::Applied) {
             throw new FoodDomainException('Сессия уже применена.', 409);
+        }
+
+        if ($session->status === BrisklySyncSessionStatus::Matching) {
+            throw new FoodDomainException('Match ещё выполняется для этой сессии.', 409);
         }
 
         $results = $this->syncResults($sessionId);

@@ -159,7 +159,7 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
         ], $manager['headers'])->json('session.id');
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])->assertOk();
-        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])->assertOk();
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])->assertAccepted();
 
         foreach ([
             $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers']),
@@ -406,7 +406,7 @@ class AdminBrisklySyncSecurityChecklistTest extends TestCase
             ->assertOk();
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId2.'/match', [], $manager['headers'])
-            ->assertStatus(503);
+            ->assertAccepted();
 
         $this->assertSame(
             'failed',

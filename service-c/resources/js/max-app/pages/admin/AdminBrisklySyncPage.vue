@@ -1,7 +1,7 @@
 <script setup>
 /**
  * Синхронизация Briskly: поиск → результаты → «Изменить цены» / «Создать в Briskly».
- * Категория Briskly только на строках CREATE; equal не пишем.
+ * Категория Briskly — один селектор на всю группу CREATE; equal не пишем.
  */
 import { onMounted } from 'vue';
 import AppSelect from '../../components/AppSelect.vue';
@@ -33,7 +33,7 @@ const {
     equalPriceCount,
     priceUpdateChecked,
     createChecked,
-    createCategoryByLine,
+    groupBrisklyCategoryId,
     brisklyCategoriesLoading,
     brisklyCategoriesError,
     applying,
@@ -57,8 +57,8 @@ const {
     setClarification,
     setPriceUpdateChecked,
     setCreateChecked,
-    setCreateCategory,
-    isCreateCategoryMissing,
+    setGroupBrisklyCategoryId,
+    isGroupBrisklyCategoryMissing,
     isLargePriceDelta,
     runSearch,
     applyPriceUpdates,
@@ -463,6 +463,42 @@ function formatPrice(price) {
                         Загрузка категорий Briskly…
                     </p>
 
+                    <div
+                        v-if="createItems.length > 0"
+                        class="mb-3"
+                    >
+                        <label
+                            class="mb-1 block text-xs font-medium text-gray-700"
+                            for="briskly-create-group-category"
+                        >
+                            Категория Briskly
+                        </label>
+                        <div class="w-full sm:max-w-xs">
+                            <AppSelect
+                                id="briskly-create-group-category"
+                                size="sm"
+                                :model-value="groupBrisklyCategoryId"
+                                :options="brisklyCategorySelectOptions"
+                                :disabled="resultsLocked || brisklyCategoriesLoading || brisklyCategorySelectOptions.length <= 1"
+                                :invalid="isGroupBrisklyCategoryMissing()"
+                                placeholder="Категория Briskly"
+                                @update:model-value="setGroupBrisklyCategoryId"
+                            />
+                        </div>
+                        <p
+                            v-if="isGroupBrisklyCategoryMissing()"
+                            class="mt-1 text-xs text-rose-600"
+                        >
+                            Обязательна для отмеченных позиций
+                        </p>
+                        <p
+                            v-else
+                            class="mt-1 text-xs text-max-muted"
+                        >
+                            Одна категория для всей группы «Создать в Briskly».
+                        </p>
+                    </div>
+
                     <p
                         v-if="createItems.length === 0"
                         class="text-sm text-max-muted"
@@ -477,52 +513,26 @@ function formatPrice(price) {
                         <li
                             v-for="item in createItems"
                             :key="item.line_key"
-                            class="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:gap-3"
+                            class="flex gap-3 py-3 first:pt-0 last:pb-0"
                         >
-                            <div class="flex min-w-0 flex-1 gap-3">
-                                <input
-                                    :id="`briskly-create-${item.line_key}`"
-                                    type="checkbox"
-                                    class="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-max-primary focus:ring-max-primary/30 disabled:opacity-60"
-                                    :checked="createChecked[item.line_key] === true"
-                                    :disabled="resultsLocked"
-                                    @change="onCreateCheckChange(item.line_key, $event)"
-                                >
-                                <div class="min-w-0 flex-1">
-                                    <label
-                                        class="block text-sm font-medium text-gray-900"
-                                        :for="`briskly-create-${item.line_key}`"
-                                    >
-                                        {{ item.display_name }}
-                                    </label>
-                                    <p class="mt-1 text-xs text-gray-700 sm:text-sm">
-                                        Цена VPS:
-                                        <strong class="font-semibold">{{ formatPrice(item.source_price) }}</strong>
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="w-full shrink-0 sm:w-48">
+                            <input
+                                :id="`briskly-create-${item.line_key}`"
+                                type="checkbox"
+                                class="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-max-primary focus:ring-max-primary/30 disabled:opacity-60"
+                                :checked="createChecked[item.line_key] === true"
+                                :disabled="resultsLocked"
+                                @change="onCreateCheckChange(item.line_key, $event)"
+                            >
+                            <div class="min-w-0 flex-1">
                                 <label
-                                    class="mb-1 block text-xs font-medium text-gray-700 sm:sr-only"
-                                    :for="`briskly-create-cat-${item.line_key}`"
+                                    class="block text-sm font-medium text-gray-900"
+                                    :for="`briskly-create-${item.line_key}`"
                                 >
-                                    Категория Briskly
+                                    {{ item.display_name }}
                                 </label>
-                                <AppSelect
-                                    :id="`briskly-create-cat-${item.line_key}`"
-                                    size="sm"
-                                    :model-value="createCategoryByLine[item.line_key] ?? ''"
-                                    :options="brisklyCategorySelectOptions"
-                                    :disabled="resultsLocked || brisklyCategoriesLoading || brisklyCategorySelectOptions.length <= 1"
-                                    :invalid="isCreateCategoryMissing(item.line_key)"
-                                    placeholder="Категория Briskly"
-                                    @update:model-value="setCreateCategory(item.line_key, $event)"
-                                />
-                                <p
-                                    v-if="isCreateCategoryMissing(item.line_key)"
-                                    class="mt-1 text-xs text-rose-600"
-                                >
-                                    Обязательна для отмеченной строки
+                                <p class="mt-1 text-xs text-gray-700 sm:text-sm">
+                                    Цена VPS:
+                                    <strong class="font-semibold">{{ formatPrice(item.source_price) }}</strong>
                                 </p>
                             </div>
                         </li>
@@ -543,7 +553,7 @@ function formatPrice(price) {
                         <p class="text-xs text-max-muted">
                             Отмечено CREATE: {{ checkedCreateCount }}
                             <span v-if="checkedPriceUpdateCount > 0"> · UPDATE: {{ checkedPriceUpdateCount }}</span>.
-                            Категория Briskly — только здесь. Один apply на сессию.
+                            Категория задаётся сверху для всей группы. Один apply на сессию.
                         </p>
                     </div>
                 </div>

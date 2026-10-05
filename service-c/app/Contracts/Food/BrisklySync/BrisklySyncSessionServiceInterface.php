@@ -49,11 +49,21 @@ interface BrisklySyncSessionServiceInterface
     public function loadSnapshot(string $sessionId): BrisklySyncSessionRecord;
 
     /**
-     * Match через orchestrator + серверная классификация.
+     * Ставит match в очередь: статус matching, HTTP не ждёт Cursor.
      *
      * @throws FoodDomainException
      */
     public function match(string $sessionId, bool $rematch = false): BrisklySyncSessionRecord;
+
+    /**
+     * Выполняет отложенный match (job). No-op, если статус уже не matching.
+     */
+    public function performQueuedMatch(string $sessionId): void;
+
+    /**
+     * Помечает matching-сессию failed (timeout/падение job).
+     */
+    public function failQueuedMatch(string $sessionId): void;
 
     /**
      * Результаты ≤25+25 без token.

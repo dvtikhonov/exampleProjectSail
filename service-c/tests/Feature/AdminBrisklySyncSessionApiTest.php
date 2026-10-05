@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
@@ -18,12 +19,14 @@ use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
+use App\Jobs\Food\RunBrisklySyncMatchJob;
 use App\Models\Food\BrisklySyncSession;
 use App\Models\Food\Dish;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
@@ -141,7 +144,7 @@ class AdminBrisklySyncSessionApiTest extends TestCase
             ->assertJsonPath('snapshot_count', 2);
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
-            ->assertOk()
+            ->assertAccepted()
             ->assertJsonPath('session.status', 'matched');
 
         $results = $this->getJson(
@@ -346,7 +349,7 @@ class AdminBrisklySyncSessionApiTest extends TestCase
         $this->assertSame(0, BrisklySyncSession::query()->count());
     }
 
-    public function test_orchestrator_unavailable_returns_503(): void
+    public function test_orchestrator_unavailable_marks_session_failed(): void
     {
         $manager = $this->maxManagerAuth(40_006);
         $restaurant = Restaurant::factory()->create(['is_active' => true]);
@@ -374,7 +377,72 @@ class AdminBrisklySyncSessionApiTest extends TestCase
             ->assertOk();
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
-            ->assertStatus(503);
+            ->assertAccepted();
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'failed');
+    }
+
+    public function test_match_returns_202_matching_and_job_completes_via_poll(): void
+    {
+        Queue::fake();
+
+        $manager = $this->maxManagerAuth(40_009);
+        $restaurant = Restaurant::factory()->create(['is_active' => true]);
+        $category = MenuCategory::factory()->create([
+            'restaurant_id' => $restaurant->id,
+            'is_combo_available' => false,
+        ]);
+        $dish = Dish::factory()->create([
+            'menu_category_id' => $category->id,
+            'name' => 'Борщ',
+            'price' => 150,
+            'is_available' => true,
+        ]);
+
+        $this->fakeSnapshot = [
+            new BrisklySnapshotItemDto(501, 'Борщ', '140.00'),
+        ];
+        $this->fakeMatchLines = [
+            new MatchLineResultDto(
+                'single:'.$dish->id,
+                'Борщ',
+                'борщ',
+                [new MatchCandidateDto(501, 'Борщ')],
+            ),
+        ];
+
+        $sessionId = $this->postJson(self::BASE.'/sessions', [
+            'restaurant_id' => $restaurant->id,
+        ], $manager['headers'])->json('session.id');
+
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
+            ->assertOk();
+
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
+            ->assertAccepted()
+            ->assertJsonPath('session.status', 'matching');
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'matching');
+
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
+            ->assertStatus(409);
+
+        Queue::assertPushed(
+            RunBrisklySyncMatchJob::class,
+            static fn (RunBrisklySyncMatchJob $job): bool => $job->sessionId === $sessionId,
+        );
+
+        $job = new RunBrisklySyncMatchJob($sessionId, 180);
+        $job->handle($this->app->make(BrisklySyncSessionServiceInterface::class));
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'matched')
+            ->assertJsonPath('session.has_proposals', true);
     }
 
     /**

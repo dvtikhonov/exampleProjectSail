@@ -9,6 +9,7 @@ import {
     fetchBrisklyCategories,
     fetchBrisklySyncRestaurants,
     fetchBrisklySyncResults,
+    fetchBrisklySyncSession,
     fetchBrisklySyncVpsCategories,
     loadBrisklySyncSnapshot,
     matchBrisklySyncSession,
@@ -26,6 +27,12 @@ import { extractErrorMessage } from '../api';
 
 /** Порог относительной Δ цены (как на сервере: confirm_large_delta). */
 const LARGE_DELTA_RATIO = 0.5;
+
+/** Интервал опроса GET /sessions/{id} пока status=matching. */
+const MATCH_POLL_INTERVAL_MS = 2000;
+
+/** Предел ожидания match (UI); job/nginx больше не держат HTTP POST. */
+const MATCH_POLL_MAX_MS = 10 * 60 * 1000;
 
 export function useBrisklySync() {
     /** @type {import('vue').Ref<{ id: number, name: string }[]>} */
@@ -79,6 +86,8 @@ export function useBrisklySync() {
     const priceUpdateChecked = ref({});
     /** @type {import('vue').Ref<Record<string, boolean>>} */
     const createChecked = ref({});
+    /** Общая категория Briskly для всей группы CREATE */
+    const groupBrisklyCategoryId = ref('');
     /** @type {import('vue').Ref<Record<string, string>>} line_key → briskly_category_id */
     const createCategoryByLine = ref({});
 
@@ -277,27 +286,36 @@ export function useBrisklySync() {
     }
 
     /**
-     * @param {string} lineKey
+     * Задаёт категорию Briskly для всей группы CREATE (всем строкам).
+     *
      * @param {string} categoryId
      */
-    function setCreateCategory(lineKey, categoryId) {
+    function setGroupBrisklyCategoryId(categoryId) {
         if (resultsLocked.value) {
             return;
         }
 
-        createCategoryByLine.value = {
-            ...createCategoryByLine.value,
-            [lineKey]: categoryId,
-        };
+        const nextId = String(categoryId ?? '');
+        groupBrisklyCategoryId.value = nextId;
+
+        /** @type {Record<string, string>} */
+        const categories = {};
+
+        for (const item of createItems.value) {
+            categories[item.line_key] = nextId;
+        }
+
+        createCategoryByLine.value = categories;
     }
 
     /**
-     * @param {string} lineKey
+     * Есть отмеченные CREATE без выбранной групповой категории.
+     *
      * @returns {boolean}
      */
-    function isCreateCategoryMissing(lineKey) {
-        return createChecked.value[lineKey] === true
-            && String(createCategoryByLine.value[lineKey] ?? '').trim() === '';
+    function isGroupBrisklyCategoryMissing() {
+        return checkedCreateCount.value > 0
+            && String(groupBrisklyCategoryId.value ?? '').trim() === '';
     }
 
     function resetResults() {
@@ -315,6 +333,7 @@ export function useBrisklySync() {
         equalPriceCount.value = 0;
         priceUpdateChecked.value = {};
         createChecked.value = {};
+        groupBrisklyCategoryId.value = '';
         createCategoryByLine.value = {};
         brisklyCategories.value = [];
         brisklyCategoriesError.value = '';
@@ -351,6 +370,7 @@ export function useBrisklySync() {
             categories[item.line_key] = '';
         }
 
+        groupBrisklyCategoryId.value = '';
         createChecked.value = checks;
         createCategoryByLine.value = categories;
     }
@@ -436,9 +456,7 @@ export function useBrisklySync() {
      * @returns {string|null} сообщение об ошибке валидации CREATE или null
      */
     function validateCheckedCreates() {
-        const missing = createItems.value.filter((item) => isCreateCategoryMissing(item.line_key));
-
-        if (missing.length === 0) {
+        if (!isGroupBrisklyCategoryMissing()) {
             return null;
         }
 
@@ -607,8 +625,19 @@ export function useBrisklySync() {
             sessionStatus.value = snapshot.session.status;
 
             searchProgress.value = 'Сопоставление позиций…';
-            const matched = await matchBrisklySyncSession(session.id);
+            const accepted = await matchBrisklySyncSession(session.id);
+            sessionStatus.value = accepted.status;
+
+            const matched = await waitForMatchCompletion(session.id);
             sessionStatus.value = matched.status;
+
+            if (matched.status === 'failed') {
+                throw new Error('Сопоставление не удалось. Повторите поиск.');
+            }
+
+            if (matched.status !== 'matched') {
+                throw new Error(`Неожиданный статус сессии: ${matched.status}`);
+            }
 
             searchProgress.value = 'Загрузка результатов…';
             const results = await fetchBrisklySyncResults(session.id);
@@ -642,6 +671,42 @@ export function useBrisklySync() {
         }
     }
 
+    /**
+     * @param {string} id
+     * @returns {Promise<import('../api/admin/brisklySync.js').BrisklySyncSessionMeta>}
+     */
+    async function waitForMatchCompletion(id) {
+        const deadline = Date.now() + MATCH_POLL_MAX_MS;
+
+        while (Date.now() < deadline) {
+            const session = await fetchBrisklySyncSession(id);
+            sessionStatus.value = session.status;
+
+            if (session.status === 'matched' || session.status === 'failed') {
+                return session;
+            }
+
+            if (session.status !== 'matching') {
+                return session;
+            }
+
+            searchProgress.value = 'Сопоставление позиций…';
+            await delay(MATCH_POLL_INTERVAL_MS);
+        }
+
+        throw new Error('Сопоставление не завершилось вовремя. Проверьте статус сессии позже.');
+    }
+
+    /**
+     * @param {number} ms
+     * @returns {Promise<void>}
+     */
+    function delay(ms) {
+        return new Promise((resolve) => {
+            setTimeout(resolve, ms);
+        });
+    }
+
     return {
         restaurants,
         restaurantsLoading,
@@ -673,6 +738,7 @@ export function useBrisklySync() {
         equalPriceCount,
         priceUpdateChecked,
         createChecked,
+        groupBrisklyCategoryId,
         createCategoryByLine,
         brisklyCategories,
         brisklyCategoriesLoading,
@@ -698,8 +764,8 @@ export function useBrisklySync() {
         setClarification,
         setPriceUpdateChecked,
         setCreateChecked,
-        setCreateCategory,
-        isCreateCategoryMissing,
+        setGroupBrisklyCategoryId,
+        isGroupBrisklyCategoryMissing,
         isLargePriceDelta,
         runSearch,
         applyPriceUpdates,
