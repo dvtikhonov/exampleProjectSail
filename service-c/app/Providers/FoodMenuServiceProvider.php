@@ -10,6 +10,7 @@ use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSourceCollectorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncVpsCatalogPortInterface;
 use App\Contracts\Food\ComboCatalog\ComboCatalogPromptBuilderInterface;
 use App\Contracts\Food\ComboCatalog\WeightLabelCanonicalizerInterface;
 use App\Contracts\Food\Menu\DailyMenuCatalogRepositoryInterface;
@@ -47,9 +48,12 @@ use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\HttpClientInterface;
+use App\Contracts\Shared\LlmCallLoggerInterface;
 use App\Infrastructure\Briskly\HttpBrisklyCatalogGateway;
 use App\Infrastructure\Briskly\HttpBrisklySyncMatchOrchestrator;
 use App\Infrastructure\Briskly\HttpBrisklySyncTokenCaptureGateway;
+use App\Infrastructure\Briskly\HttpBrisklySyncVpsCatalogGateway;
+use App\Infrastructure\Laravel\LaravelMaxLogLlmCallLogger;
 use App\Infrastructure\Laravel\PhpSpreadsheetDishRowsReader;
 use App\Repositories\Food\BrisklySync\EloquentBrisklySyncSessionRepository;
 use App\Repositories\Food\Menu\EloquentDailyMenuCatalogRepository;
@@ -67,6 +71,7 @@ use App\Services\Food\BrisklySync\BrisklySyncMatchClassifier;
 use App\Services\Food\BrisklySync\BrisklySyncSessionService;
 use App\Services\Food\BrisklySync\BrisklySyncSourceCollector;
 use App\Services\Food\BrisklySync\CacheBrisklySyncTokenStore;
+use App\Services\Food\BrisklySync\LocalBrisklySyncVpsCatalog;
 use App\Services\Food\ComboCatalog\ComboCatalogPromptBuilder;
 use App\Services\Food\ComboCatalog\WeightLabelCanonicalizer;
 use App\Services\Food\Menu\CachingMenuAvailabilityDateResolver;
@@ -169,6 +174,25 @@ class FoodMenuServiceProvider extends ServiceProvider
         $this->app->bind(DailyMenuCatalogRepositoryInterface::class, EloquentDailyMenuCatalogRepository::class);
         $this->app->bind(DailyMenuLineCollectorInterface::class, DailyMenuLineCollector::class);
         $this->app->bind(BrisklySyncSourceCollectorInterface::class, BrisklySyncSourceCollector::class);
+        $this->app->bind(
+            BrisklySyncVpsCatalogPortInterface::class,
+            function ($app): BrisklySyncVpsCatalogPortInterface {
+                if ((bool) config('briskly_sync.source_remote')) {
+                    return new HttpBrisklySyncVpsCatalogGateway(
+                        $app->make(HttpClientInterface::class),
+                        (string) config('briskly_sync.source_base_url', ''),
+                        (string) config('phototext.agent_token', ''),
+                        (int) config('briskly_sync.source_timeout_seconds', 30),
+                    );
+                }
+
+                return new LocalBrisklySyncVpsCatalog(
+                    $app->make(RestaurantRepositoryInterface::class),
+                    $app->make(MenuCategoryReadRepositoryInterface::class),
+                    $app->make(BrisklySyncSourceCollectorInterface::class),
+                );
+            },
+        );
         $this->app->bind(WeightLabelCanonicalizerInterface::class, WeightLabelCanonicalizer::class);
         $this->app->bind(ComboCatalogPromptBuilderInterface::class, ComboCatalogPromptBuilder::class);
         $this->app->bind(BrisklySyncSessionRepositoryInterface::class, EloquentBrisklySyncSessionRepository::class);
@@ -188,13 +212,19 @@ class FoodMenuServiceProvider extends ServiceProvider
             },
         );
         $this->app->bind(
+            LlmCallLoggerInterface::class,
+            static fn (): LaravelMaxLogLlmCallLogger => new LaravelMaxLogLlmCallLogger(
+                Log::channel('max_log'),
+            ),
+        );
+        $this->app->bind(
             BrisklySyncMatchOrchestratorInterface::class,
             function ($app): HttpBrisklySyncMatchOrchestrator {
                 return new HttpBrisklySyncMatchOrchestrator(
                     $app->make(HttpClientInterface::class),
                     (string) config('briskly_sync.orchestrator_base_url'),
                     (int) config('briskly_sync.orchestrator_timeout_seconds', 120),
-                    Log::channel('max_log'),
+                    $app->make(LlmCallLoggerInterface::class),
                 );
             },
         );
@@ -216,12 +246,11 @@ class FoodMenuServiceProvider extends ServiceProvider
                     $app->make(BrisklySyncSessionRepositoryInterface::class),
                     $app->make(BrisklySyncTokenStoreInterface::class),
                     $app->make(BrisklySyncTokenCaptureGatewayInterface::class),
-                    $app->make(BrisklySyncSourceCollectorInterface::class),
+                    $app->make(BrisklySyncVpsCatalogPortInterface::class),
                     $app->make(BrisklyCatalogGatewayInterface::class),
                     $app->make(BrisklySyncMatchOrchestratorInterface::class),
                     $app->make(BrisklySyncMatchClassifierInterface::class),
                     $app->make(ComboCatalogPromptBuilderInterface::class),
-                    $app->make(RestaurantRepositoryInterface::class),
                     $app->make(CacheStoreInterface::class),
                     (int) config('briskly_sync.token_ttl_seconds', 7200),
                     (int) config('briskly_sync.section_cap', 25),

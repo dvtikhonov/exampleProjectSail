@@ -11,6 +11,7 @@ use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
+use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\MatchCandidateDto;
 use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
@@ -528,6 +529,7 @@ class AdminBrisklySyncSessionApiTest extends TestCase
                 ComboCatalogPromptDto $prompt,
                 array $sourceLines,
                 array $brisklySnapshot,
+                ?BrisklySyncLlmCallContextDto $logContext = null,
             ): array {
                 if ($this->test->orchestratorDown) {
                     throw new FoodDomainException('Orchestrator Briskly sync недоступен.', 503);

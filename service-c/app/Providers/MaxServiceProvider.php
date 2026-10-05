@@ -38,6 +38,7 @@ use App\Http\Resolvers\AuthenticatedMaxUserResolver;
 use App\Infrastructure\Laravel\LaravelFoodOrderManualCreatorNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderMaxNotifier;
 use App\Infrastructure\Laravel\LaravelMaxAdminBotTestSender;
+use App\Infrastructure\Laravel\LaravelMaxLogLlmCallLogger;
 use App\Infrastructure\Laravel\LaravelMaxMiniAppAccessLogger;
 use App\Infrastructure\Laravel\LaravelMaxMiniAppTokenIssuer;
 use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
@@ -173,6 +174,7 @@ class MaxServiceProvider extends ServiceProvider
             MaxMessengerNotificationSender::class,
             MaxWebhookSubscriptionClient::class,
             LaravelMaxMiniAppAccessLogger::class,
+            LaravelMaxLogLlmCallLogger::class,
             MaxWebhookController::class,
             LaravelOrderChatNotifier::class,
             LaravelFoodOrderMaxNotifier::class,

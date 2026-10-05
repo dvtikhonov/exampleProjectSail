@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Food\CartController;
 use App\Http\Controllers\Api\Food\DishImageController;
 use App\Http\Controllers\Api\Food\OrderChatController;
 use App\Http\Controllers\Api\Food\OrderController;
+use App\Http\Controllers\Api\Food\PhotoTextBrisklySyncController;
 use App\Http\Controllers\Api\Food\PhotoTextOrderController;
 use App\Http\Controllers\Api\Food\PhotoTextScheduleController;
 use App\Http\Controllers\Api\Food\RestaurantController;
@@ -46,6 +47,7 @@ Route::middleware(['phototext.agent.token', 'phototext.ai.access'])->prefix('foo
     Route::middleware('throttle:60,1')->group(function () {
         Route::get('/restaurants', [PhotoTextOrderController::class, 'restaurants']);
         Route::get('/catalog', [PhotoTextOrderController::class, 'catalog']);
+        Route::get('/briskly-source-lines', [PhotoTextBrisklySyncController::class, 'sourceLines']);
     });
 
     Route::middleware('throttle:30,1')->group(function () {
@@ -103,6 +105,8 @@ Route::middleware('max.miniapp.auth')->group(function () {
                 Route::post('/ai-access/toggle', [AdminAiAccessController::class, 'toggle']);
 
                 Route::prefix('briskly-sync')->group(function () {
+                    Route::get('/restaurants', [AdminBrisklySyncSourceController::class, 'restaurants']);
+                    Route::get('/vps-categories', [AdminBrisklySyncSourceController::class, 'vpsCategories']);
                     Route::get('/source-lines', [AdminBrisklySyncSourceController::class, 'sourceLines']);
 
                     Route::post('/sessions', [AdminBrisklySyncSessionController::class, 'store']);

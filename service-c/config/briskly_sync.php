@@ -2,12 +2,35 @@
 
 declare(strict_types=1);
 
+use App\Support\Briskly\BrisklySyncSourceOrigin;
+
 /**
  * Настройки модуля синхронизации Briskly (сессии, токен, sidecar, лимиты).
+ *
+ * Remote source (не-prod): origin из MAX_MINI_APP_URL; auth — PHOTOTEXT_AGENT_TOKEN
+ * (config phototext.agent_token). На prod (host APP_URL = host mini-app) — local.
  */
+$sourceBaseUrl = BrisklySyncSourceOrigin::fromMiniAppUrl((string) env('MAX_MINI_APP_URL', ''));
+
 return [
     /** TTL Bearer Briskly в кэше (не в БД plaintext). */
     'token_ttl_seconds' => (int) env('BRISKLY_SYNC_TOKEN_TTL', 7200),
+
+    /**
+     * Origin VPS source (scheme+host[+port]) из MAX_MINI_APP_URL; path /max-app отбрасывается.
+     */
+    'source_base_url' => $sourceBaseUrl,
+
+    /**
+     * Читать source с remote PhotoText, если origin задан и host ≠ host APP_URL.
+     */
+    'source_remote' => BrisklySyncSourceOrigin::isRemote(
+        $sourceBaseUrl,
+        (string) env('APP_URL', ''),
+    ),
+
+    /** Timeout HTTP к remote VPS source (сек). */
+    'source_timeout_seconds' => (int) env('BRISKLY_SYNC_SOURCE_TIMEOUT', 30),
 
     /** HTTP sidecar Node orchestrator (match). */
     'orchestrator_base_url' => (string) env(

@@ -65,6 +65,7 @@ const server = createServer(async (req, res) => {
       json(res, 200, {
         match_lines: output.matchLines,
         sync_results: output.syncResults,
+        raw_text: output.rawText,
       });
       return;
     }

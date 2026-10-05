@@ -9,15 +9,15 @@ use App\Contracts\Food\BrisklySync\BrisklySyncMatchClassifierInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
-use App\Contracts\Food\BrisklySync\BrisklySyncSourceCollectorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncVpsCatalogPortInterface;
 use App\Contracts\Food\ComboCatalog\ComboCatalogPromptBuilderInterface;
-use App\Contracts\Food\Shared\RestaurantRepositoryInterface;
 use App\Contracts\Shared\CacheStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
 use App\DTO\Food\BrisklySync\BrisklySyncApplyReportDto;
 use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
+use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\BrisklySyncSessionRecord;
 use App\DTO\Food\BrisklySync\CreateBrisklySyncSessionDto;
 use App\DTO\Food\BrisklySync\PriceDiffItemDto;
@@ -41,12 +41,11 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         private readonly BrisklySyncSessionRepositoryInterface $sessions,
         private readonly BrisklySyncTokenStoreInterface $tokenStore,
         private readonly BrisklySyncTokenCaptureGatewayInterface $tokenCapture,
-        private readonly BrisklySyncSourceCollectorInterface $sourceCollector,
+        private readonly BrisklySyncVpsCatalogPortInterface $vpsCatalog,
         private readonly BrisklyCatalogGatewayInterface $brisklyCatalog,
         private readonly BrisklySyncMatchOrchestratorInterface $orchestrator,
         private readonly BrisklySyncMatchClassifierInterface $classifier,
         private readonly ComboCatalogPromptBuilderInterface $promptBuilder,
-        private readonly RestaurantRepositoryInterface $restaurants,
         private readonly CacheStoreInterface $cache,
         private readonly int $tokenTtlSeconds,
         private readonly int $sectionCap,
@@ -59,9 +58,8 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
      */
     public function createSession(CreateBrisklySyncSessionDto $dto): BrisklySyncSessionRecord
     {
-        if ($this->restaurants->findActiveById($dto->restaurantId) === null) {
-            throw new FoodDomainException('Ресторан не найден или неактивен.', 422);
-        }
+        $this->vpsCatalog->assertRestaurantActive($dto->restaurantId);
+        $this->vpsCatalog->assertCategoryBelongs($dto->restaurantId, $dto->vpsCategoryId);
 
         $token = $this->normalizeCapturedToken($this->tokenCapture->captureToken());
 
@@ -141,9 +139,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             throw new FoodDomainException('Сначала загрузите snapshot Briskly.', 422);
         }
 
-        if ($this->restaurants->findActiveById($session->restaurantId) === null) {
-            throw new FoodDomainException('Ресторан не найден или неактивен.', 422);
-        }
+        $this->vpsCatalog->assertRestaurantActive($session->restaurantId);
 
         $sourceLines = $this->collectSourceLines($session);
         $snapshot = array_map(
@@ -151,12 +147,9 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             $session->brisklySnapshot,
         );
 
-        $exclusionNeedles = BrisklySyncClarificationExclusion::needles($session->clarification);
-        $sourceLines = BrisklySyncClarificationExclusion::filterSourceLines($sourceLines, $exclusionNeedles);
-        $snapshot = BrisklySyncClarificationExclusion::filterSnapshot($snapshot, $exclusionNeedles);
-
-        // Пустой Briskly после фильтра → все VPS-lines идут в CREATE (без LLM).
-        // Пустой source после exclusion → нечего матчить (без LLM).
+        // Пустой Briskly → все VPS-lines идут в CREATE (без LLM).
+        // Пустой source → нечего матчить (без LLM).
+        // Правила исключения/нормализации из clarification обрабатывает LLM (prompt NamingRules).
         if ($snapshot === [] || $sourceLines === []) {
             $syncResults = $this->classifier->classify(
                 $sourceLines,
@@ -209,7 +202,16 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         );
 
         try {
-            $matchLines = $this->orchestrator->match($prompt, $sourceLines, $snapshot);
+            $matchLines = $this->orchestrator->match(
+                $prompt,
+                $sourceLines,
+                $snapshot,
+                new BrisklySyncLlmCallContextDto(
+                    sessionId: $sessionId,
+                    restaurantId: $session->restaurantId,
+                    createdByMaxUserId: $session->createdByMaxUserId,
+                ),
+            );
         } catch (FoodDomainException $exception) {
             $this->sessions->update($sessionId, [
                 'status' => BrisklySyncSessionStatus::Failed,
@@ -316,9 +318,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             throw new FoodDomainException('Approvals отсутствуют.', 422);
         }
 
-        if ($this->restaurants->findActiveById($session->restaurantId) === null) {
-            throw new FoodDomainException('Ресторан не найден или неактивен.', 422);
-        }
+        $this->vpsCatalog->assertRestaurantActive($session->restaurantId);
 
         $token = $this->requireToken($sessionId);
         $lockKey = self::APPLY_LOCK_PREFIX.$sessionId;
@@ -551,7 +551,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
      */
     private function collectSourceLines(BrisklySyncSessionRecord $session): array
     {
-        return $this->sourceCollector->collectForRestaurant(
+        return $this->vpsCatalog->collectSourceLines(
             $session->restaurantId,
             $session->vpsCategoryId,
             $session->searchText,

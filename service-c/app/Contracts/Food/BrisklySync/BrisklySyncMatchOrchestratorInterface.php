@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Contracts\Food\BrisklySync;
 
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
+use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
@@ -28,5 +29,6 @@ interface BrisklySyncMatchOrchestratorInterface
         ComboCatalogPromptDto $prompt,
         array $sourceLines,
         array $brisklySnapshot,
+        ?BrisklySyncLlmCallContextDto $logContext = null,
     ): array;
 }

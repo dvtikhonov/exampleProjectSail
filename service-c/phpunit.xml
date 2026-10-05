@@ -23,6 +23,9 @@
     <php>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_KEY" value="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" force="true"/>
+        <!-- Host APP_URL = host MAX_MINI_APP_URL → briskly_sync.source_remote=false (local VPS catalog). -->
+        <env name="APP_URL" value="http://localhost" force="true"/>
+        <env name="MAX_MINI_APP_URL" value="http://localhost/max-app" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
