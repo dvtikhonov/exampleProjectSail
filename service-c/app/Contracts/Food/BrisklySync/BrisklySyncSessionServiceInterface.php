@@ -9,6 +9,7 @@ use App\DTO\Food\BrisklySync\BrisklySyncApplyReportDto;
 use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
 use App\DTO\Food\BrisklySync\BrisklySyncSessionRecord;
 use App\DTO\Food\BrisklySync\CreateBrisklySyncSessionDto;
+use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\BrisklySync\SyncResultsDto;
 use App\Exceptions\Food\FoodDomainException;
@@ -56,12 +57,31 @@ interface BrisklySyncSessionServiceInterface
     public function match(string $sessionId, bool $rematch = false): BrisklySyncSessionRecord;
 
     /**
-     * Выполняет отложенный match (job). No-op, если статус уже не matching.
+     * Handshake start-job. No-op, если статус уже не matching.
      */
     public function performQueuedMatch(string $sessionId): void;
 
     /**
-     * Помечает matching-сессию failed (timeout/падение job).
+     * Классификация + Matched после колбэка sidecar. 409, если generation stale.
+     *
+     * @param  list<MatchLineResultDto>|null  $matchLines
+     *
+     * @throws FoodDomainException
+     */
+    public function completeQueuedMatch(
+        string $sessionId,
+        string $matchGeneration,
+        ?array $matchLines,
+        ?string $error = null,
+    ): void;
+
+    /**
+     * Delayed expire: matching + тот же generation → Failed + abort.
+     */
+    public function expireQueuedMatch(string $sessionId, string $matchGeneration): void;
+
+    /**
+     * Помечает matching-сессию failed (timeout/падение job) и abort sidecar.
      */
     public function failQueuedMatch(string $sessionId): void;
 

@@ -37,4 +37,9 @@ interface BrisklySyncSessionRepositoryInterface
      * @param  array<string, mixed>  $attributes
      */
     public function update(string $sessionId, array $attributes): BrisklySyncSessionRecord;
+
+    /**
+     * matching → failed без загрузки snapshot/proposals.
+     */
+    public function markMatchingAsFailed(string $sessionId): bool;
 }

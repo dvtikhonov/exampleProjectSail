@@ -6,29 +6,35 @@ namespace App\Contracts\Food\BrisklySync;
 
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
 use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
-use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
- * Порт к Node orchestrator (Cursor match).
+ * Порт к Node orchestrator (Cursor match): handshake start + abort.
  */
 interface BrisklySyncMatchOrchestratorInterface
 {
     /**
-     * Выполняет match через sidecar; возвращает match_lines без доверия к price.
+     * Handshake: Agent.create + send на sidecar. Успех — 202 running, иначе 503.
+     * Классификация и Matched — через completeQueuedMatch после колбэка.
      *
      * @param  list<SourceMenuLineDto>  $sourceLines
      * @param  list<BrisklySnapshotItemDto>  $brisklySnapshot
-     * @return list<MatchLineResultDto>
      *
      * @throws FoodDomainException при недоступности оркестратора (503)
      */
-    public function match(
+    public function start(
         ComboCatalogPromptDto $prompt,
         array $sourceLines,
         array $brisklySnapshot,
+        string $sessionId,
+        string $matchGeneration,
         ?BrisklySyncLlmCallContextDto $logContext = null,
-    ): array;
+    ): void;
+
+    /**
+     * Best-effort отмена колбэка успеха для generation (SDK cancel нет).
+     */
+    public function abort(string $sessionId, string $matchGeneration): void;
 }

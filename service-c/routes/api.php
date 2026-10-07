@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Food\AdminAiAccessController;
 use App\Http\Controllers\Api\Food\AdminBrisklySyncSessionController;
 use App\Http\Controllers\Api\Food\AdminBrisklySyncSourceController;
+use App\Http\Controllers\Api\Food\InternalBrisklySyncMatchController;
 use App\Http\Controllers\Api\Food\AdminDishAvailabilityController;
 use App\Http\Controllers\Api\Food\AdminDishController;
 use App\Http\Controllers\Api\Food\AdminDishImportController;
@@ -41,6 +42,10 @@ Route::post('/max/auth', [MaxAuthController::class, 'store'])
 Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show'])
     ->middleware('throttle:food-dish-image')
     ->whereNumber('dish');
+
+// Колбэк sidecar Briskly sync после фонового LLM wait (секрет, без miniapp auth).
+Route::post('/food/internal/briskly-sync/match-complete', [InternalBrisklySyncMatchController::class, 'complete'])
+    ->middleware(['throttle:60,1', 'briskly.capture.secret']);
 
 // Агент Cursor: токен X-PhotoText-Token + активный AI-доступ max_manager (ai_access_until > now).
 Route::middleware(['phototext.agent.token', 'phototext.ai.access'])->prefix('food/phototext')->group(function () {

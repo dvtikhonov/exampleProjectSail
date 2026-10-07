@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureFoodOrderAdmin;
 use App\Http\Middleware\EnsurePhotoTextAiAccess;
 use App\Http\Middleware\ForbidProduction;
 use App\Http\Middleware\TrustGatewayAuth;
+use App\Http\Middleware\VerifyBrisklySyncCaptureSecret;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'trust.gateway' => TrustGatewayAuth::class,
             'max.webhook.secret' => VerifyMaxWebhookSecret::class,
+            'briskly.capture.secret' => VerifyBrisklySyncCaptureSecret::class,
             'max.miniapp.auth' => AuthenticateMaxMiniApp::class,
             'food.order.admin' => EnsureFoodOrderAdmin::class,
             'phototext.agent.token' => VerifyPhotoTextAgentToken::class,

@@ -6,6 +6,7 @@ namespace App\Infrastructure\Laravel;
 
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchQueueInterface;
 use App\Contracts\Shared\JobDispatcherInterface;
+use App\Jobs\Food\ExpireBrisklySyncMatchJob;
 use App\Jobs\Food\RunBrisklySyncMatchJob;
 
 /**
@@ -15,7 +16,8 @@ final class LaravelBrisklySyncMatchQueue implements BrisklySyncMatchQueueInterfa
 {
     public function __construct(
         private readonly JobDispatcherInterface $jobs,
-        private readonly int $timeoutSeconds,
+        private readonly int $startTimeoutSeconds,
+        private readonly int $llmTimeoutSeconds,
     ) {}
 
     /**
@@ -25,7 +27,20 @@ final class LaravelBrisklySyncMatchQueue implements BrisklySyncMatchQueueInterfa
     {
         $this->jobs->dispatch(new RunBrisklySyncMatchJob(
             sessionId: $sessionId,
-            timeoutSeconds: $this->timeoutSeconds,
+            timeoutSeconds: $this->startTimeoutSeconds,
+        ));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function dispatchExpire(string $sessionId, string $matchGeneration): void
+    {
+        $this->jobs->dispatch(new ExpireBrisklySyncMatchJob(
+            sessionId: $sessionId,
+            matchGeneration: $matchGeneration,
+            uniqueForSeconds: $this->llmTimeoutSeconds + 60,
+            delaySeconds: $this->llmTimeoutSeconds,
         ));
     }
 }

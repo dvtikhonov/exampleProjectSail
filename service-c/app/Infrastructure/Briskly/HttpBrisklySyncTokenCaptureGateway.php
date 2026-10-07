@@ -64,17 +64,21 @@ final class HttpBrisklySyncTokenCaptureGateway implements BrisklySyncTokenCaptur
             throw $this->captureFailure('capture_disabled');
         }
 
-        $response = $this->http->request(
-            'POST',
-            '/capture-token',
-            [
-                'Accept' => 'application/json',
-                self::CAPTURE_SECRET_HEADER => $secret,
-            ],
-            [],
-            rtrim($this->baseUrl, '/'),
-            $this->timeoutSeconds,
-        );
+        try {
+            $response = $this->http->request(
+                'POST',
+                '/capture-token',
+                [
+                    'Accept' => 'application/json',
+                    self::CAPTURE_SECRET_HEADER => $secret,
+                ],
+                [],
+                rtrim($this->baseUrl, '/'),
+                $this->timeoutSeconds,
+            );
+        } catch (\Throwable) {
+            throw $this->captureFailure('cdp_unavailable');
+        }
 
         $decoded = $response->json();
         $errorCode = is_array($decoded) && isset($decoded['error']) && is_string($decoded['error'])

@@ -6,19 +6,19 @@ namespace Tests\Feature;
 
 use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchRunStoreInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenStoreInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
-use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\MatchCandidateDto;
 use App\DTO\Food\BrisklySync\MatchLineResultDto;
-use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Enums\Food\Menu\DishWeightUnit;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
+use App\Jobs\Food\ExpireBrisklySyncMatchJob;
 use App\Jobs\Food\RunBrisklySyncMatchJob;
 use App\Models\Food\BrisklySyncSession;
 use App\Models\Food\Dish;
@@ -28,6 +28,7 @@ use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
+use Tests\Support\FakeBrisklySyncMatchOrchestrator;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
@@ -53,6 +54,11 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
     public bool $orchestratorDown = false;
 
+    public bool $orchestratorDeferComplete = false;
+
+    /** @var list<array{session_id: string, match_generation: string}> */
+    public array $abortedMatchRuns = [];
+
     public string $fakeCaptureToken = 'secret-briskly-token-value';
 
     public ?FoodDomainException $captureFailure = null;
@@ -66,6 +72,8 @@ class AdminBrisklySyncSessionApiTest extends TestCase
         $this->fakeMatchLines = [];
         $this->brisklyWrites = [];
         $this->orchestratorDown = false;
+        $this->orchestratorDeferComplete = false;
+        $this->abortedMatchRuns = [];
         $this->fakeCaptureToken = 'secret-briskly-token-value';
         $this->captureFailure = null;
         $this->bindFakes();
@@ -351,6 +359,9 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
     public function test_orchestrator_unavailable_marks_session_failed(): void
     {
+        Queue::fake();
+        $this->orchestratorDown = true;
+
         $manager = $this->maxManagerAuth(40_006);
         $restaurant = Restaurant::factory()->create(['is_active' => true]);
         $category = MenuCategory::factory()->create([
@@ -367,7 +378,6 @@ class AdminBrisklySyncSessionApiTest extends TestCase
         $this->fakeSnapshot = [
             new BrisklySnapshotItemDto(1, 'Суп', '90.00'),
         ];
-        $this->orchestratorDown = true;
 
         $sessionId = $this->postJson(self::BASE.'/sessions', [
             'restaurant_id' => $restaurant->id,
@@ -377,11 +387,18 @@ class AdminBrisklySyncSessionApiTest extends TestCase
             ->assertOk();
 
         $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
-            ->assertAccepted();
+            ->assertAccepted()
+            ->assertJsonPath('session.status', 'matching');
 
+        $job = new RunBrisklySyncMatchJob($sessionId, 90);
+        $job->handle($this->app->make(BrisklySyncSessionServiceInterface::class));
+
+        // Handshake 503 → Failed; expire не ставим (LLM wait не начался); complete не вызывался.
         $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
             ->assertOk()
             ->assertJsonPath('session.status', 'failed');
+        Queue::assertNotPushed(ExpireBrisklySyncMatchJob::class);
+        $this->assertNull($this->app->make(BrisklySyncMatchRunStoreInterface::class)->get($sessionId));
     }
 
     public function test_match_returns_202_matching_and_job_completes_via_poll(): void
@@ -433,16 +450,163 @@ class AdminBrisklySyncSessionApiTest extends TestCase
 
         Queue::assertPushed(
             RunBrisklySyncMatchJob::class,
-            static fn (RunBrisklySyncMatchJob $job): bool => $job->sessionId === $sessionId,
+            static fn (RunBrisklySyncMatchJob $job): bool => $job->sessionId === $sessionId
+                && $job->timeout === 90
+                && $job->uniqueFor === 150,
         );
 
-        $job = new RunBrisklySyncMatchJob($sessionId, 180);
+        $job = new RunBrisklySyncMatchJob($sessionId, 90);
         $job->handle($this->app->make(BrisklySyncSessionServiceInterface::class));
+
+        Queue::assertPushed(
+            ExpireBrisklySyncMatchJob::class,
+            static fn (ExpireBrisklySyncMatchJob $expire): bool => $expire->sessionId === $sessionId
+                && $expire->delay === 900
+                && $expire->uniqueFor === 960,
+        );
 
         $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
             ->assertOk()
             ->assertJsonPath('session.status', 'matched')
             ->assertJsonPath('session.has_proposals', true);
+    }
+
+    public function test_handshake_ok_expire_then_stale_complete_returns_409(): void
+    {
+        Queue::fake();
+        $this->orchestratorDeferComplete = true;
+
+        $manager = $this->maxManagerAuth(40_010);
+        $restaurant = Restaurant::factory()->create(['is_active' => true]);
+        $category = MenuCategory::factory()->create([
+            'restaurant_id' => $restaurant->id,
+            'is_combo_available' => false,
+        ]);
+        $dish = Dish::factory()->create([
+            'menu_category_id' => $category->id,
+            'name' => 'Борщ',
+            'price' => 150,
+            'is_available' => true,
+        ]);
+
+        $this->fakeSnapshot = [
+            new BrisklySnapshotItemDto(501, 'Борщ', '140.00'),
+        ];
+        $this->fakeMatchLines = [
+            new MatchLineResultDto(
+                'single:'.$dish->id,
+                'Борщ',
+                'борщ',
+                [new MatchCandidateDto(501, 'Борщ')],
+            ),
+        ];
+
+        $sessionId = $this->postJson(self::BASE.'/sessions', [
+            'restaurant_id' => $restaurant->id,
+        ], $manager['headers'])->json('session.id');
+
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
+            ->assertOk();
+
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
+            ->assertAccepted();
+
+        $job = new RunBrisklySyncMatchJob($sessionId, 90);
+        $job->handle($this->app->make(BrisklySyncSessionServiceInterface::class));
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'matching');
+
+        $generation = $this->app->make(BrisklySyncMatchRunStoreInterface::class)->get($sessionId);
+        $this->assertIsString($generation);
+
+        $sessions = $this->app->make(BrisklySyncSessionServiceInterface::class);
+        $sessions->expireQueuedMatch($sessionId, $generation);
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'failed');
+        $this->assertNotSame([], $this->abortedMatchRuns);
+
+        try {
+            $sessions->completeQueuedMatch($sessionId, $generation, $this->fakeMatchLines);
+            $this->fail('Ожидался 409 stale complete.');
+        } catch (FoodDomainException $exception) {
+            $this->assertSame(409, $exception->statusCode());
+        }
+    }
+
+    public function test_complete_before_expire_keeps_matched(): void
+    {
+        Queue::fake();
+        $this->orchestratorDeferComplete = true;
+
+        $manager = $this->maxManagerAuth(40_011);
+        $restaurant = Restaurant::factory()->create(['is_active' => true]);
+        $category = MenuCategory::factory()->create([
+            'restaurant_id' => $restaurant->id,
+            'is_combo_available' => false,
+        ]);
+        $dish = Dish::factory()->create([
+            'menu_category_id' => $category->id,
+            'name' => 'Борщ',
+            'price' => 150,
+            'is_available' => true,
+        ]);
+
+        $this->fakeSnapshot = [
+            new BrisklySnapshotItemDto(501, 'Борщ', '140.00'),
+        ];
+        $this->fakeMatchLines = [
+            new MatchLineResultDto(
+                'single:'.$dish->id,
+                'Борщ',
+                'борщ',
+                [new MatchCandidateDto(501, 'Борщ')],
+            ),
+        ];
+
+        $sessionId = $this->postJson(self::BASE.'/sessions', [
+            'restaurant_id' => $restaurant->id,
+        ], $manager['headers'])->json('session.id');
+
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/snapshot', [], $manager['headers'])
+            ->assertOk();
+        $this->postJson(self::BASE.'/sessions/'.$sessionId.'/match', [], $manager['headers'])
+            ->assertAccepted();
+
+        $job = new RunBrisklySyncMatchJob($sessionId, 90);
+        $job->handle($this->app->make(BrisklySyncSessionServiceInterface::class));
+
+        Queue::assertPushed(
+            ExpireBrisklySyncMatchJob::class,
+            static fn (ExpireBrisklySyncMatchJob $expire): bool => $expire->sessionId === $sessionId
+                && $expire->delay === 900
+                && $expire->uniqueFor === 960,
+        );
+
+        $generation = $this->app->make(BrisklySyncMatchRunStoreInterface::class)->get($sessionId);
+        $this->assertIsString($generation);
+
+        $sessions = $this->app->make(BrisklySyncSessionServiceInterface::class);
+
+        // «11-я минута» LLM (expire ещё через ~4 мин при delay=900): complete → Matched.
+        $this->travel(11)->minutes();
+        $sessions->completeQueuedMatch($sessionId, $generation, $this->fakeMatchLines);
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'matched');
+
+        // Позже expire с тем же generation не откатывает Matched.
+        $this->travel(5)->minutes();
+        $expire = new ExpireBrisklySyncMatchJob($sessionId, $generation, 960, 0);
+        $expire->handle($sessions);
+
+        $this->getJson(self::BASE.'/sessions/'.$sessionId, $manager['headers'])
+            ->assertOk()
+            ->assertJsonPath('session.status', 'matched');
     }
 
     /**
@@ -589,23 +753,10 @@ class AdminBrisklySyncSessionApiTest extends TestCase
             }
         });
 
-        $this->app->instance(BrisklySyncMatchOrchestratorInterface::class, new class($test) implements BrisklySyncMatchOrchestratorInterface
-        {
-            public function __construct(private AdminBrisklySyncSessionApiTest $test) {}
-
-            public function match(
-                ComboCatalogPromptDto $prompt,
-                array $sourceLines,
-                array $brisklySnapshot,
-                ?BrisklySyncLlmCallContextDto $logContext = null,
-            ): array {
-                if ($this->test->orchestratorDown) {
-                    throw new FoodDomainException('Orchestrator Briskly sync недоступен.', 503);
-                }
-
-                return $this->test->fakeMatchLines;
-            }
-        });
+        $this->app->instance(
+            BrisklySyncMatchOrchestratorInterface::class,
+            new FakeBrisklySyncMatchOrchestrator($test, $this->app),
+        );
     }
 
     /**
