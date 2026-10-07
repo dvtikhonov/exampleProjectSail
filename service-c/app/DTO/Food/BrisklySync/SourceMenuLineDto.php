@@ -25,6 +25,32 @@ readonly class SourceMenuLineDto
     ) {}
 
     /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $partDishIds = [];
+        $rawIds = $data['part_dish_ids'] ?? [];
+        if (is_array($rawIds)) {
+            foreach ($rawIds as $id) {
+                $partDishIds[] = (int) $id;
+            }
+        }
+
+        $type = DailyMenuLineType::tryFrom((string) ($data['type'] ?? ''))
+            ?? DailyMenuLineType::Single;
+
+        return new self(
+            lineKey: (string) ($data['line_key'] ?? ''),
+            type: $type,
+            displayName: (string) ($data['display_name'] ?? ''),
+            price: (string) ($data['price'] ?? '0'),
+            partDishIds: $partDishIds,
+            brisklyCreateName: (string) ($data['briskly_create_name'] ?? ''),
+        );
+    }
+
+    /**
      * Представление позиции для JSON API.
      *
      * @return array{

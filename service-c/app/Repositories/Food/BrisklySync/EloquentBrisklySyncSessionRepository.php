@@ -93,4 +93,15 @@ final class EloquentBrisklySyncSessionRepository implements BrisklySyncSessionRe
 
         return $this->mapper->toRecord($model->fresh() ?? $model);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function markMatchingAsFailed(string $sessionId): bool
+    {
+        return BrisklySyncSession::query()
+            ->where('id', $sessionId)
+            ->where('status', BrisklySyncSessionStatus::Matching->value)
+            ->update(['status' => BrisklySyncSessionStatus::Failed->value]) > 0;
+    }
 }

@@ -11,6 +11,7 @@ use App\Support\Briskly\BrisklySyncSourceOrigin;
  * (config phototext.agent_token). На prod (host APP_URL = host mini-app) — local.
  */
 $sourceBaseUrl = BrisklySyncSourceOrigin::fromMiniAppUrl((string) env('MAX_MINI_APP_URL', ''));
+$handshakeTimeout = (int) env('BRISKLY_SYNC_ORCHESTRATOR_HANDSHAKE_TIMEOUT', 60);
 
 return [
     /** TTL Bearer Briskly в кэше (не в БД plaintext). */
@@ -59,20 +60,35 @@ return [
     /** Пауза между страницами Briskly (мс). */
     'briskly_delay_ms' => (int) env('BRISKLY_SYNC_DELAY_MS', 200),
 
-    /** Timeout HTTP к оркестратору (сек). */
+    /**
+     * Timeout HTTP handshake POST /match (create+send), сек.
+     */
+    'orchestrator_handshake_timeout_seconds' => $handshakeTimeout,
+
+    /**
+     * @deprecated Alias прежнего лимита всего match. Не использовать как wait LLM.
+     */
     'orchestrator_timeout_seconds' => (int) env('BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT', 120),
 
     /**
-     * Таймаут queue job match (сек). Должен быть больше orchestrator_timeout_seconds.
+     * Лимит ожидания LLM + TTL generation + delay ExpireMatchJob (сек). Default 15 мин.
      */
-    'match_job_timeout_seconds' => (int) env('BRISKLY_SYNC_MATCH_JOB_TIMEOUT', 180),
+    'llm_timeout_seconds' => (int) env('BRISKLY_SYNC_LLM_TIMEOUT', 900),
+
+    /**
+     * Таймаут start-job match (сек): подготовка каталога + handshake. Не покрывает wait LLM.
+     */
+    'match_job_timeout_seconds' => (int) env(
+        'BRISKLY_SYNC_MATCH_JOB_TIMEOUT',
+        $handshakeTimeout + 30,
+    ),
 
     /** Timeout HTTP к Briskly (сек). */
     'briskly_timeout_seconds' => (int) env('BRISKLY_SYNC_BRISKLY_TIMEOUT', 30),
 
     /**
-     * Общий секрет sidecar ↔ service-c для POST /capture-token.
-     * Пустое значение отключает capture (503).
+     * Общий секрет sidecar ↔ service-c: POST /capture-token и колбэк match-complete
+     * (заголовок X-Briskly-Capture-Secret). Пустое значение → 401 на колбэке; capture → 503.
      */
     'capture_secret' => (string) env('BRISKLY_SYNC_CAPTURE_SECRET', ''),
 

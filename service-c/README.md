@@ -581,23 +581,71 @@ API — [PhotoText API](#phototext-api-агент-cursor).
 
 Модуль сравнения меню VPS (`dishes` / combo-линии) с каталогом **Briskly Business** и записи цен/новых позиций **только после явных галочек** в UI. Роль: **`max_manager`**. Цены всегда из source VPS; LLM/клиент цену на apply не задают.
 
-Поток: UI (`AdminBrisklySyncPage` / `useBrisklySync`) → PHP Session API → HTTP sidecar [`briskly-sync/`](../briskly-sync/) (Cursor SDK + MCP) → классификация 1D/2B на сервере → approvals → apply в Briskly. Bearer Briskly **не** вводится в admin UI: при `POST /sessions` PHP вызывает sidecar `POST /capture-token`, sidecar читает JWT из уже открытого Chrome через CDP.
+**Слои PHP:** UI (`AdminBrisklySyncPage` / `useBrisklySync` / `BrisklySyncRoot`) → Session API → `BrisklySyncSessionService` → порты (`MatchOrchestrator`, `TokenCapture`, `CatalogGateway`, `MatchClassifier`, …) → Infrastructure (`HttpBriskly*`, cache token/run-store) / Repositories. Промпт match — `ComboCatalogPromptBuilder` → `ComboCatalogPromptDto` (Node system-текст не дублирует). Классификация **1D/2B** после колбэка — на PHP (`BrisklySyncMatchClassifier`); sidecar колбэчит только `match_lines`.
+
+Bearer Briskly **не** вводится в admin UI: при `POST /sessions` PHP вызывает sidecar `POST /capture-token`, sidecar читает JWT из уже открытого Chrome через CDP → cache TTL (`BRISKLY_SYNC_TOKEN_TTL`).
+
+#### Схема взаимодействия
 
 ```mermaid
-flowchart LR
-  Chrome["Chrome CDP :9222"]
-  UI["AdminBrisklySyncPage"]
-  PHP["service-c Session API"]
-  Orch["briskly-sync sidecar :8791"]
-  Briskly["briskly.business"]
+sequenceDiagram
+  autonumber
+  actor Mgr as max_manager
+  participant UI as AdminBrisklySyncPage
+  participant PHP as service-c
+  participant Q as Queue jobs
+  participant SC as briskly-sync :8791
+  participant Chrome as Chrome CDP :9222
+  participant Cursor as Cursor SDK
+  participant Briskly as briskly.business
 
-  Chrome -->|"Authorization JWT"| Orch
-  UI -->|"restaurant, filters"| PHP
-  PHP -->|"POST /capture-token"| Orch
-  PHP -->|"match prompt DTO"| Orch
-  Orch -->|"candidates"| PHP
-  PHP -->|"UPDATE/CREATE"| Briskly
+  Note over Mgr,Briskly: Подготовка токена (один раз на сессию)
+  Mgr->>UI: Поиск (ресторан, VPS-категория, search, clarification)
+  UI->>PHP: POST /sessions
+  PHP->>SC: POST /capture-token
+  SC->>Chrome: connectOverCDP → JWT
+  Chrome-->>SC: Authorization Bearer
+  SC-->>PHP: 200 { token }
+  PHP-->>UI: session setup (token в cache, не в ответе)
+
+  Note over Mgr,Briskly: Snapshot + async match
+  UI->>PHP: POST /sessions/{id}/snapshot
+  PHP->>Briskly: get-list (paginated)
+  Briskly-->>PHP: items
+  PHP-->>UI: has_snapshot
+  UI->>PHP: POST /sessions/{id}/match
+  PHP-->>UI: 202 matching
+  PHP->>Q: RunBrisklySyncMatchJob
+  Q->>SC: POST /match (prompt DTO + source + snapshot)
+  SC->>Cursor: Agent.create + send
+  Cursor-->>SC: handshake OK
+  SC-->>Q: 202 { accepted, phase: running }
+  Q->>Q: ExpireBrisklySyncMatchJob (~900 с)
+
+  par Фон sidecar (не в PHP-job)
+    SC->>Cursor: stream + wait
+    Cursor-->>SC: LLM JSON candidates
+    SC->>PHP: POST /internal/.../match-complete
+    Note right of PHP: classify 1D/2B → matched
+  and UI poll
+    loop каждые 2 с (до ~10 мин UI)
+      UI->>PHP: GET /sessions/{id}
+      PHP-->>UI: matching | matched | failed
+    end
+  end
+
+  Note over Mgr,Briskly: Approvals → apply
+  UI->>PHP: GET /sync-results + categories
+  Mgr->>UI: галочки UPDATE/CREATE (+ категория Briskly)
+  UI->>PHP: PUT /approvals → approved
+  UI->>PHP: POST /apply
+  PHP->>Briskly: UPDATE price / CREATE item
+  PHP-->>UI: applied + report
 ```
+
+**Статусы сессии** (`BrisklySyncSessionStatus`): `setup` → `matching` → `matched` → `approved` → `applied`; при ошибке handshake/LLM/expire → `failed`.
+
+**Async match:** admin `POST .../match` → 202 `matching` + `RunBrisklySyncMatchJob`. Job ждёт sidecar **handshake** (`Agent.create`+`send`, до ~60 с): 503 → `failed` (expire не нужен); 202 → delayed `ExpireBrisklySyncMatchJob` (~900 с / 15 мин). Длинный `wait` LLM на sidecar; результат — `POST /api/food/internal/briskly-sync/match-complete` (`X-Briskly-Capture-Secret`). Abort: PHP → sidecar `POST /match/abort` (глушит success-колбэк; SDK cancel нет). Wait LLM **не** в PHP-queue job.
 
 | Правило | Поведение |
 |---|---|
@@ -605,32 +653,39 @@ flowchart LR
 | Фильтр поиска | Категория **VPS** + `search_text` + textarea **«Уточнение»** (`clarification`). Категория Briskly в фильтре **не** используется |
 | **1D** | Только в Briskly → не показывать (`skipped_briskly_only`). Только в VPS → секция **CREATE** |
 | **2B** | Жёсткий лимит **25** строк на секцию (`price_updates` / `creates`); при превышении `truncated: true` |
-| **3B** | Галочки apply **выключены** по умолчанию; apply без отмеченных → сессия остаётся `matched` |
+| **3B** | Галочки apply **выключены** по умолчанию; approvals без отмеченных → сессия остаётся `matched` |
 | Equal price | Не в UI, UPDATE не планируется (`equal_price`) |
 | Ambiguous | Не в таблицах (счётчик `ambiguous`) |
 | Bearer Briskly | Серверный CDP capture при `POST /sessions` → кэш TTL; **не** в теле API/GET, не в БД plaintext, не в git |
 | Cursor | `CURSOR_API_KEY` на хосте sidecar; фронт ключ не получает |
-| Apply | Max 25 UPDATE + 25 CREATE; цена только из server source; Δ>50% → `confirm_large_delta`; повторный apply → `409` |
+| Approvals / Apply | `PUT /approvals` → `approved`; `POST /apply` → `applied` (повтор → `409`). Max 25 UPDATE + 25 CREATE; цена только из server source; Δ>50% → `confirm_large_delta` |
+| Source origin | Local catalog или remote PhotoText (`config/briskly_sync.php` + `MAX_MINI_APP_URL` / `PHOTOTEXT_AGENT_TOKEN`) |
 
 #### Что запустить по порядку
 
-Одновременно должны работать: **Chrome CDP (Windows)** + **sidecar (WSL)** + **service-c в Docker (`main-app`)**. Env — один раз до старта.
+Одновременно должны работать: **Chrome CDP (Windows)** + **sidecar (WSL)** + **service-c в Docker (`main-app`)** + **queue worker** (для `RunBrisklySyncMatchJob` / expire). Env — один раз до старта.
 
 0. **Env (заранее)**  
-   - `briskly-sync/.env`: `BRISKLY_SYNC_CAPTURE_SECRET`, `BRISKLY_SYNC_HOST=0.0.0.0`, `CURSOR_API_KEY` (live match), опц. `BRISKLY_CDP_URL`  
+   - `briskly-sync/.env`: `BRISKLY_SYNC_CAPTURE_SECRET`, `BRISKLY_SYNC_HOST=0.0.0.0`, `CURSOR_API_KEY` (live match), `BRISKLY_SYNC_CALLBACK_URL` (колбэк на PHP с хоста sidecar), опц. `BRISKLY_CDP_URL` / handshake+LLM timeouts  
    - `service-c/.env`: тот же `BRISKLY_SYNC_CAPTURE_SECRET`, `BRISKLY_SYNC_ORCHESTRATOR_URL=http://host.docker.internal:8791`  
    - Остальное — defaults в `config/briskly_sync.php` / `.env.example`. Секреты не коммитить.
 
 1. **Windows → Chrome с CDP** (закрыть все окна Chrome; обычным ярлыком больше не открывать):
 
-```bat
-в cmd -  "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\chrome-briskly-cdp" --no-first-run https://briskly.business/items
+```powershell
+powershell -File briskly-sync\scripts\start-chrome-cdp.ps1
 ```
 
-Войти в Briskly, вкладку `/items` не закрывать. Проверка CDP на Windows:
+Либо вручную:
+
+```bat
+"%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\chrome-briskly-cdp" --no-first-run https://briskly.business/items
+```
+
+Войти в Briskly, вкладку `/items` не закрывать. Проверка CDP:
 
 ```powershell
-в cmd - powershell -Command "Invoke-WebRequest http://127.0.0.1:9222/json/version -UseBasicParsing | Select-Object -ExpandProperty Content"
+powershell -Command "Invoke-WebRequest http://127.0.0.1:9222/json/version -UseBasicParsing | Select-Object -ExpandProperty Content"
 ```
 
 Должен вернуться JSON (`Browser`, `webSocketDebuggerUrl`, …). В том же Chrome также можно открыть `http://127.0.0.1:9222/json`.
@@ -652,12 +707,11 @@ npm run sidecar
 
 Проверка: `curl -sS http://127.0.0.1:8791/health`.
 
-4. **Docker → service-c** — контейнер `main-app` уже запущен как обычно. PHP ходит на sidecar через `host.docker.internal:8791`.
+4. **Docker → service-c** — контейнер `main-app` уже запущен как обычно. PHP ходит на sidecar через `host.docker.internal:8791`. Нужен `queue:work` (если `QUEUE_CONNECTION≠sync`).
 
-5. **UI** — admin Briskly (`max_manager`): создать сессию → snapshot → match → галочки → apply. Токен сервер забирает из Chrome (шаг 1).
+5. **UI** — admin Briskly (`max_manager`): поиск = `POST /sessions` → snapshot → match → poll → галочки → `PUT /approvals` → `POST /apply`. Токен сервер забирает из Chrome (шаг 1).
 
-Подробности CDP CLI: [`briskly-sync/README.md`](../briskly-sync/README.md). API — [Food Admin API — Briskly sync](#food-admin-api--briskly-sync-max_manager).
-
+Подробности пакета Node и CDP: [`briskly-sync/README.md`](../briskly-sync/README.md). API — [Food Admin API — Briskly sync](#food-admin-api--briskly-sync-max_manager).
 ### Проверка заказа (три этапа)
 
 Реализация: единый `OrderReviewStepHandler` (approve/reject для всех этапов) + `OrderReviewAuthorizationService`, `OrderReviewUpdateFactory`, `OrderStatusResolver`, `OrderReviewCompletionService`. Конфигурация этапа (роль, поля БД, scope отклонения, проверка `pending`) — enum `OrderReviewStep`. Контроллер: `AdminOrderReviewController` (включая `PUT .../composition` → `OrderCompositionUpdateService`).
@@ -767,6 +821,8 @@ npm run sidecar
 | Menu | `Services/Food/Menu/` | `MenuQueryService`, `CachingMenuQueryService` (обёртка, TTL + bump версии), `MenuCatalogCacheInvalidator`, `MenuCategoryAdminService`, `DishAdminService` (CRUD), `DishAdminPhotoCoordinator`, `DishBulkImportWriter`, `DishAvailabilityScheduleService` (facade ISP: `DishAvailabilityGridService` + `DishAvailabilityScheduleWriter` + `DishAvailabilityScheduleWindow`), `DishAvailabilitySyncService` (порт `DishAvailabilitySyncServiceInterface`), `DishSpreadsheetImportService`, `DishSpreadsheetRowParser`, `DishDefaultImageProvider`, `DishImage*`, `DailyMenuLineCollector`, `MenuAvailabilityDateResolver`, `CachingMenuAvailabilityDateResolver` (DI на `MenuAvailabilityDateResolverInterface`: кэш успешного `resolve()` на день MSK; `resolveForCurrentWeekday()` без кэша) |
 | ManualOrder | `Services/Food/ManualOrder/` | `ManualOrderCartService`, `ManualOrderUserQueryService`, `ManualOrderQueryService`, `ManualOrderCustomerResolver`, `DraftAfterScanningOrderService` |
 | PhotoText | `Services/Food/PhotoText/` | `PhotoTextManualOrderPlacementService`, `PhotoTextSchedulePlacementService`, `PhotoTextDishLineResolver`, `PhotoTextDishNameMatcher`, `PhotoTextComboRefGrouper` (+ enum `PhotoTextMatchIssueCode`, `PhotoTextComboRefGroupKind`) |
+| BrisklySync | `Services/Food/BrisklySync/` | `BrisklySyncSessionService`, `BrisklySyncSourceCollector`, `BrisklySyncMatchClassifier`, `BrisklyCreateNameFormatter`, `CacheBrisklySyncTokenStore`, `LocalBrisklySyncVpsCatalog` (+ enum `BrisklySyncSessionStatus`); порты → `Infrastructure/Briskly/*`, `Repositories/Food/BrisklySync/` |
+| ComboCatalog | `Services/Food/ComboCatalog/` | `ComboCatalogPromptBuilder`, `WeightLabelCanonicalizer` (+ `ComboCatalogPromptDto` / `ComboCatalogPromptScenario`) — system-промпт для sidecar match |
 | Delivery | `Services/Food/Delivery/` | `DeliveryCostResolver` |
 | Shared | `Services/Food/Shared/` | `FoodMoneyFormatter`; репозиторий/DTO ресторана — `Repositories|DTO/Food/Shared/`; `FoodDomainException` — `Exceptions/Food/` |
 
@@ -788,7 +844,7 @@ npm run sidecar
 
 `OrderCustomerNotifyRecipientResolver` остаётся в Food (`Review/`) — доменное правило «кому слать», не транспорт.
 
-Контракты Food — `app/Contracts/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|PhotoText|Delivery|Shared}/` (сервисы, notifiers, репозитории: раздельные read/write заказов `FoodOrderWrite*` / `FoodOrderCustomerRead*` / `FoodOrderAdminRead*`, `DishAdmin*` → `EloquentDishAdminRepository`, `DishCatalog*` → `EloquentDishCatalogRepository`, image-интерфейсы, `PhotoTextDishNameMatcherInterface` и т.д.). Max — `app/Contracts/Max/` (`AuthenticatedMaxUserResolver`, `MaxMiniAppAuthService`, `MaxMiniAppTokenIssuer`, `MaxMessengerNotificationSender`, `MaxLoadTest*`, `MaxAiAccess`, `MaxUserDeliveryAddress`, `MaxUiStandRecipientResolver`, notifiers UI Stand / bot-test, `MaxUserRepository`, `MaxWebAppInitDataValidator`, `MaxWebhookUpdateRouter`, `MaxOrderNotificationConfigProvider`). Shared: `Contracts/Shared/{TransactionManager,Clock,JobDispatcher,FileStorage,CacheStore,HttpClient,LocalFileWriter,ApplicationConfig,ApplicationEnvironment,RequestTimingRecorder}Interface` → `Infrastructure/Laravel/*`; `Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface` → `EnvMaxBotTokenProvider`. Eloquent — `app/Repositories/Food/{поддомен}/`, `app/Repositories/Max/`, `app/Repositories/Auth/`. Модели — `app/Models/Food/*`, `app/Models/Max/MaxUser` (`User` без изменений). Привязки DI — `AppServiceProvider`. Ошибки домена — `FoodDomainException` → JSON `{ message }` с HTTP 4xx.
+Контракты Food — `app/Contracts/Food/{Cart|Order|Review|Composition|Chat|Menu|ManualOrder|PhotoText|BrisklySync|ComboCatalog|Delivery|Shared}/` (сервисы, notifiers, репозитории: раздельные read/write заказов `FoodOrderWrite*` / `FoodOrderCustomerRead*` / `FoodOrderAdminRead*`, `DishAdmin*` → `EloquentDishAdminRepository`, `DishCatalog*` → `EloquentDishCatalogRepository`, image-интерфейсы, `PhotoTextDishNameMatcherInterface`, `BrisklySyncMatchOrchestratorInterface` / `BrisklySyncTokenCaptureGatewayInterface` / `BrisklyCatalogGatewayInterface` и т.д.). Max — `app/Contracts/Max/` (`AuthenticatedMaxUserResolver`, `MaxMiniAppAuthService`, `MaxMiniAppTokenIssuer`, `MaxMessengerNotificationSender`, `MaxLoadTest*`, `MaxAiAccess`, `MaxUserDeliveryAddress`, `MaxUiStandRecipientResolver`, notifiers UI Stand / bot-test, `MaxUserRepository`, `MaxWebAppInitDataValidator`, `MaxWebhookUpdateRouter`, `MaxOrderNotificationConfigProvider`). Shared: `Contracts/Shared/{TransactionManager,Clock,JobDispatcher,FileStorage,CacheStore,HttpClient,LocalFileWriter,ApplicationConfig,ApplicationEnvironment,RequestTimingRecorder,LlmCallLogger}Interface` → `Infrastructure/Laravel/*`; `Shared\MaxMessenger\Contracts\MaxBotTokenProviderInterface` → `EnvMaxBotTokenProvider`. Briskly HTTP/cache — `app/Infrastructure/Briskly/` (`HttpBrisklySyncMatchOrchestrator`, `HttpBrisklySyncTokenCaptureGateway`, `HttpBrisklyCatalogGateway`, `HttpBrisklySyncVpsCatalogGateway`, `CacheBrisklySyncMatchRunStore`). Eloquent — `app/Repositories/Food/{поддомен}/`, `app/Repositories/Max/`, `app/Repositories/Auth/`. Модели — `app/Models/Food/*` (в т.ч. `BrisklySyncSession`), `app/Models/Max/MaxUser` (`User` без изменений). Привязки DI — `AppServiceProvider`. Ошибки домена — `FoodDomainException` → JSON `{ message }` с HTTP 4xx.
 
 ### Связки PHP ↔ JavaScript
 
@@ -1067,7 +1123,8 @@ service-c/
 │   │   ├── Auth/                   # GatewayUserResolverInterface, GatewayAuthSessionInterface,
 │   │   │                           # GatewayUserContextInterface
 │   │   ├── Food/                   # поддомены: Cart/, Order/, Review/, Composition/, Chat/,
-│   │   │   │                       # Menu/, ManualOrder/, PhotoText/, Delivery/, Shared/
+│   │   │   │                       # Menu/, ManualOrder/, PhotoText/, BrisklySync/, ComboCatalog/,
+│   │   │   │                       # Delivery/, Shared/
 │   │   │                           # (порты сервисов, репозиториев, notifiers; Food владеет
 │   │   │                           # интерфейсами MAX-уведомлений; без App\Models)
 │   │   ├── Shared/                 # TransactionManager, Clock, JobDispatcher, FileStorage,
@@ -1083,13 +1140,17 @@ service-c/
 │   │                               # MaxWebhookUpdateRouter, MaxOrderNotificationConfigProvider,
 │   │                               # MaxLoadTestService, MaxLoadTestDataRepository (*Interface)
 │   ├── DTO/
-│   │   ├── Food/                   # Cart/, Order/, Composition/, Chat/, Menu/, ManualOrder/
+│   │   ├── Food/                   # Cart/, Order/, Composition/, Chat/, Menu/, ManualOrder/,
+│   │   │                           # BrisklySync/, ComboCatalog/
 │   │   │                           # (*Dto + *Record/*Command: FoodOrderRecord,
 │   │   │                           # CartRecord, DishRecord, …; ManualOrder*Dto,
 │   │   │                           # DraftAfterScanningMoveToCartResultDto),
 │   │   │                           # PhotoText/ (PhotoTextAgentItemDto, PhotoTextPlacementResultDto,
 │   │   │                           # PhotoTextSchedule*Dto, PhotoTextMatchedLineDto,
 │   │   │                           # PhotoTextDishNameMatchResultDto, PhotoTextIssueDto, …),
+│   │   │                           # BrisklySync/ (BrisklySyncSessionRecord, SyncResultsDto,
+│   │   │                           # MatchLineResultDto, SourceMenuLineDto, …),
+│   │   │                           # ComboCatalog/ (ComboCatalogPromptDto, …),
 │   │   │                           # Delivery/, Shared/ (RestaurantSummaryDto, MaxUserIdentity,
 │   │   │                           # MaxUserDisplayDto; Menu: MenuCategoryAvailabilityOffsetDto, …)
 │   │   ├── Max/                    # MaxWebAppInitDataDto, MaxCallbackUpdateDto, MaxUserRecord,
@@ -1098,14 +1159,16 @@ service-c/
 │   │   │                           # AiAccessStatusDto, LoadTest*Dto
 │   │   ├── Shared/                 # PaginatedResultDto, UploadedFileDto, HttpResponseDto
 │   │   └── Auth/                   # GatewayUserDto, GatewayAuthCredentialsDto
-│   ├── Enums/Food/                 # Cart/, Order/, Review/, Chat/, Menu/, Delivery/, PhotoText/
+│   ├── Enums/Food/                 # Cart/, Order/, Review/, Chat/, Menu/, Delivery/, PhotoText/,
+│   │                               # BrisklySync/, ComboCatalog/
 │   │                               # (CartStatus, OrderStatus в т.ч. draft_after_scanning,
 │   │                               # FoodOrderAfterSubmitNotifyKind, OrderReviewStep,
 │   │                               # OrderReviewStatus, OrderRejectionScope, FoodOrderAdminRole,
 │   │                               # OrderMessageAuthorType, DishVatRate, DishWeightUnit,
 │   │                               # Weekday, AdminDishAvailabilityFilter, DailyMenuLineType,
 │   │                               # CustomerCategoryName, PhotoTextMatchIssueCode,
-│   │                               # PhotoTextComboRefGroupKind, …)
+│   │                               # PhotoTextComboRefGroupKind, BrisklySyncSessionStatus,
+│   │                               # ComboCatalogPromptScenario, …)
 │   ├── Exceptions/Food/            # FoodDomainException
 │   ├── Exceptions/Max/             # MaxWebAppInitDataException
 │   ├── Http/
@@ -1113,26 +1176,35 @@ service-c/
 │   │   ├── Controllers/Api/Food/   # Restaurant, Cart, Order, OrderChat, DishImage,
 │   │   │                           # AdminDish, AdminMenuCategory, AdminDishAvailability,
 │   │   │                           # AdminOrderReview, AdminManualOrder, AdminAiAccess,
-│   │   │                           # PhotoTextOrder, PhotoTextSchedule
+│   │   │                           # AdminBrisklySyncSession, AdminBrisklySyncSource,
+│   │   │                           # InternalBrisklySyncMatch, PhotoTextOrder, PhotoTextSchedule,
+│   │   │                           # PhotoTextBrisklySync
 │   │   ├── Mappers/                # MaxUserIdentityMapper (Eloquent → domain на HTTP-границе)
 │   │   ├── Resolvers/              # AuthenticatedMaxUserResolver (identity / record из Request)
 │   │   ├── Support/                # UploadedFileDtoFactory, QueryParamParser,
 │   │   │                           # MaxAppRequestContext, MaxLocalDevInitData
 │   │   ├── Middleware/             # AuthenticateMaxMiniApp, EnsureFoodOrderAdmin,
 │   │   │                           # TrustGatewayAuth, VerifyMaxWebhookSecret,
-│   │   │                           # VerifyPhotoTextAgentToken, EnsurePhotoTextAiAccess
+│   │   │                           # VerifyPhotoTextAgentToken, EnsurePhotoTextAiAccess,
+│   │   │                           # VerifyBrisklySyncCaptureSecret
 │   │   ├── Requests/Food/          # AddCartItem, UpdateCartItem, UpdateCartDeliveryAddress,
 │   │   │                           # List/SendOrderMessage, RejectOrderReview, UpdateOrderComposition
 │   │   │   ├── Admin/              # Store/UpdateDish, ImportDishesSpreadsheet, Store/UpdateMenuCategory,
 │   │   │   │                       # ValidatesMenuCategoryAvailabilityOffsets (trait),
 │   │   │   │                       # Show/SyncDishAvailabilitySchedule, BaseDishFormRequest,
 │   │   │   │                       # ManualOrder* (users, cart, items, submit),
-│   │   │   │                       # DraftAfterScanningOrderActionRequest
+│   │   │   │                       # DraftAfterScanningOrderActionRequest,
+│   │   │   │                       # Create/Match/UpdateApprovals BrisklySync*, …
+│   │   │   ├── Internal/           # CompleteBrisklySyncMatchRequest
 │   │   │   └── PhotoText/             # PhotoTextCatalogRequest, PhotoTextAgentOrderRequest,
-│   │   │                               # PhotoTextScheduleSyncRequest
+│   │   │                               # PhotoTextScheduleSyncRequest, PhotoTextBrisklySourceLinesRequest
 │   │   ├── Requests/Max/           # ValidateInitDataRequest
 │   │   └── Responses/              # GatewayUnauthorizedResponse
-│   ├── Infrastructure/Laravel/     # LaravelTransactionManager, LaravelClock, LaravelJobDispatcher,
+│   ├── Infrastructure/
+│   │   ├── Briskly/                # HttpBrisklySyncMatchOrchestrator, HttpBrisklySyncTokenCaptureGateway,
+│   │   │                           # HttpBrisklyCatalogGateway, HttpBrisklySyncVpsCatalogGateway,
+│   │   │                           # CacheBrisklySyncMatchRunStore
+│   │   └── Laravel/                # LaravelTransactionManager, LaravelClock, LaravelJobDispatcher,
 │   │                               # LaravelFileStorage, LaravelCacheStore, LaravelHttpClient,
 │   │                               # LaravelLocalFileWriter, LaravelApplicationConfig/Environment,
 │   │                               # LaravelRequestTimingRecorder, LaravelGatewayAuthSession,
@@ -1140,21 +1212,24 @@ service-c/
 │   │                               # LaravelMaxMiniAppAccessLogger, LaravelMaxUiStandRecipient*,
 │   │                               # MaxOpenAppTargetResolver, MaxOpenAppButtonFactory,
 │   │                               # LaravelFoodOrder*Notifier, LaravelOrderChatNotifier,
-│   │                               # LaravelMaxAdminBotTestSender
-│   ├── Jobs/Food/                  # NotifyFoodOrderAfterSubmitJob (UI Stand + клиент/менеджеры после submit)
+│   │                               # LaravelMaxAdminBotTestSender, LaravelBrisklySyncMatchQueue,
+│   │                               # FailBrisklySyncMatchOnQueueJobFailed, LaravelMaxLogLlmCallLogger
+│   ├── Jobs/Food/                  # NotifyFoodOrderAfterSubmitJob;
+│   │                               # RunBrisklySyncMatchJob, ExpireBrisklySyncMatchJob
 │   ├── Mappers/Max/                # MaxUserDisplayMapper (MaxUserRecord → MaxUserDisplayDto)
 │   ├── Models/
 │   │   ├── Food/                   # Restaurant, MenuCategory, MenuCategoryAvailabilityOffset,
 │   │   │                           # Dish, DishAvailabilityDate,
 │   │   │                           # Cart, CartItem, FoodOrder, FoodOrderMessage,
 │   │   │                           # FoodOrderChatRead, FoodOrderAdmin, CustomerCategory,
-│   │   │                           # RestaurantCategoryDeliveryTier
+│   │   │                           # RestaurantCategoryDeliveryTier, BrisklySyncSession
 │   │   ├── Max/                    # MaxUser
 │   │   └── User.php
 │   ├── Repositories/
-│   │   ├── Food/                   # Cart/, Order/, Chat/, Menu/, Delivery/, Shared/
+│   │   ├── Food/                   # Cart/, Order/, Chat/, Menu/, Delivery/, Shared/, BrisklySync/
 │   │   │                           # (EloquentCart, EloquentDish, EloquentFoodOrderWrite /
-│   │   │                           # CustomerRead / AdminRead, *Mapper.php — Eloquent ↔ *Record/*Command)
+│   │   │                           # CustomerRead / AdminRead, EloquentBrisklySyncSessionRepository,
+│   │   │                           # *Mapper.php — Eloquent ↔ *Record/*Command)
 │   │   ├── Max/                    # EloquentMaxUser, EloquentMaxLoadTestData, MaxUserMapper
 │   │   └── Auth/                   # EloquentGatewayUserResolver
 │   ├── Modules/
@@ -1186,6 +1261,10 @@ service-c/
 │   │   │   ├── PhotoText/             # PhotoTextManualOrderPlacementService, PhotoTextSchedulePlacementService,
 │   │   │   │                       # PhotoTextDishLineResolver, PhotoTextDishNameMatcher,
 │   │   │   │                       # PhotoTextComboRefGrouper
+│   │   │   ├── BrisklySync/        # BrisklySyncSessionService, BrisklySyncSourceCollector,
+│   │   │   │                       # BrisklySyncMatchClassifier, BrisklyCreateNameFormatter,
+│   │   │   │                       # CacheBrisklySyncTokenStore, LocalBrisklySyncVpsCatalog
+│   │   │   ├── ComboCatalog/       # ComboCatalogPromptBuilder, WeightLabelCanonicalizer
 │   │   │   ├── Delivery/           # DeliveryCostResolver
 │   │   │   └── Shared/             # FoodMoneyFormatter
 │   │   └── Max/                    # MaxWebAppInitDataValidator, MaxMiniAppAuthService,
@@ -1204,11 +1283,13 @@ service-c/
 │       │   ├── Composition/        # OrderSnapshotComboResolver
 │       │   └── Menu/               # DishPhotoAllowedExtensions (path-based; без UploadedFile)
 │       ├── Profiling/              # OrderSubmitTiming (Server-Timing на submit)
+│       ├── Briskly/                # BrisklySyncSourceOrigin (local vs remote VPS)
 │       └── Max/                    # MaxPublicAppUrl, MaxWebAppInitDataSigner, MaxLoadTestUserIds;
 │                                   # Food/Formatting/ — Max message formatters
 ├── config/max.php                  # webhook, miniapp, local_dev_*, ui_stand, order_notifications (MAX_REPORT_*)
 ├── config/food.php                 # FOOD_CATALOG_CACHE_TTL / FOOD_CATALOG_CACHE_ENABLED
 ├── config/phototext.php               # PHOTOTEXT_AGENT_TOKEN, PHOTOTEXT_WRITE_TOKEN, PHOTOTEXT_MANAGER_MAX_USER_ID
+├── config/briskly_sync.php         # sidecar URL, timeouts, section_cap, capture_secret, source origin
 ├── database/
 │   ├── factories/                  # Restaurant, MenuCategory, Dish
 │   ├── migrations/                 # max_users, food domain, review/chat/payment, soft deletes,
@@ -1216,7 +1297,8 @@ service-c/
 │   │                               # is_combo_available; created_by_max_user_id / is_manual (2026_07_21);
 │   │                               # max_menu_category_availability_offsets (2026_07_31);
 │   │                               # delivery_date в max_food_orders (2026_08_03);
-│   │                               # ai_access_until в max_users (2026_08_19)
+│   │                               # ai_access_until в max_users (2026_08_19);
+│   │                               # briskly_sync_sessions (2026_10_02)
 │   └── seeders/                    # Restaurant, CustomerCategory, FoodOrderAdmin (в т.ч. 1006 max_manager)
 │                                   # + assets/dishes/ (placeholder JPG)
 ├── resources/
@@ -1228,19 +1310,20 @@ service-c/
 │   │   │   ├── http.js, auth.js, types.js
 │   │   │   ├── cart.js, cartHelpers.js, cartTransport.js
 │   │   │   ├── orders.js, manualOrders.js, aiAccess.js
-│   │   │   ├── admin/              # categories, dishes, review, schedule
+│   │   │   ├── admin/              # categories, dishes, review, schedule, brisklySync.js
 │   │   │   └── foodClient.js       # @deprecated re-export из index.js
 │   │   ├── bridge/maxBridge.js
 │   │   ├── shells/                 # доменная навигация (не App.vue)
 │   │   │   ├── ClientAppShell.vue  # клиент: меню / корзина / мои заказы
 │   │   │   ├── AdminAppShell.vue   # разделы + AdminSectionNav
-│   │   │   └── admin/              # OrdersAdminRoot, ManualOrdersRoot, MenuAdminRoot
+│   │   │   └── admin/              # OrdersAdminRoot, ManualOrdersRoot, MenuAdminRoot,
+│   │   │                           # BrisklySyncRoot
 │   │   ├── components/             # AuthGate, DishImage, DeliveryAddressInput, OrderChat*,
 │   │   │                           # OrderStatusBadge, OrderReviewStageBadges,
 │   │   │                           # OrderSnapshotItemRow, MyOrdersButton, AppSelect, AppSearchSelect,
 │   │   │                           # ManualOrderChatModal, ConfirmDeleteModal, EmptyStateIcon
-│   │   │   ├── admin/              # AdminSectionNav («Вкл. доступ AI»), CompositionEditItemList,
-│   │   │   │                       # CompositionMenuPickerSheet
+│   │   │   ├── admin/              # AdminSectionNav («Вкл. доступ AI», раздел Briskly),
+│   │   │   │                       # CompositionEditItemList, CompositionMenuPickerSheet
 │   │   │   ├── cart/               # cartScope.js, CartHeader, CartItemList,
 │   │   │   │                       # CartSummaryFooter, CartOrderConfirmModal,
 │   │   │   │                       # CartDeliveryHint
@@ -1254,7 +1337,7 @@ service-c/
 │   │   │                           # useDishAdminFilters, useDishAvailabilitySchedule,
 │   │   │                           # useMenuCategoryAdmin, useMenuCategoryFilter,
 │   │   │                           # useClientNavigation, useRestaurantsMenu,
-│   │   │                           # useMaxBackButton, useScrollViewport
+│   │   │                           # useBrisklySync, useMaxBackButton, useScrollViewport
 │   │   ├── constants/              # views.js, dishPhoto.js, composition.js,
 │   │   │                           # dishAdmin.js (DISH_AVAILABILITY_FILTER), cart.js, orderChat.js
 │   │   ├── pages/                  # RestaurantListPage, MenuPage, CartPage,
@@ -1264,7 +1347,8 @@ service-c/
 │   │   │                           # AdminDishList/FormPage,
 │   │   │                           # AdminDishAvailabilityPage, AdminMenuCategoryList/FormPage
 │   │   │                           # (форма категории: availability_offsets),
-│   │   │                           # ConfirmCompositionSaveModal, RejectOrderModal
+│   │   │                           # AdminBrisklySyncPage, ConfirmCompositionSaveModal,
+│   │   │                           # RejectOrderModal
 │   │   └── utils/                  # orderStatus.js, orderSnapshotCombo.js, cartGroups.js,
 │   │                               # orderSnapshotGroups.js, orderChatDeepLink.js, dishWeight.js,
 │   │                               # formatCustomerName.js, formatIsoDateRu.js, pluralRu.js
@@ -1483,10 +1567,15 @@ docker compose exec -T service-c php artisan test
 | `BRISKLY_SYNC_CAPTURE_TIMEOUT` | Timeout HTTP capture-token (сек, default `30`) |
 | `BRISKLY_API_BASE_URL` | База Briskly company API |
 | `BRISKLY_SYNC_SNAPSHOT_MAX_PAGES` | Лимит страниц snapshot get-list |
-| `BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT` | Timeout HTTP к sidecar (сек) |
+| `BRISKLY_SYNC_ORCHESTRATOR_HANDSHAKE_TIMEOUT` | Timeout HTTP handshake POST /match (`create`+`send`), сек, default `60` |
+| `BRISKLY_SYNC_LLM_TIMEOUT` | Ожидание LLM / delay expire-job / TTL `match_generation`, сек, default `900` (15 мин). Wait LLM не в PHP-job (`uniqueFor` expire = llm+60) |
+| `BRISKLY_SYNC_ORCHESTRATOR_TIMEOUT` | Deprecated alias прежнего лимита всего match; не использовать как wait LLM |
+| `BRISKLY_SYNC_MATCH_JOB_TIMEOUT` | Timeout start-job (каталог + handshake), default handshake+30 (~90 с); `uniqueFor` start-job = timeout+60 |
 | `BRISKLY_SYNC_BRISKLY_TIMEOUT` | Timeout HTTP к Briskly (сек) |
 
-На хосте sidecar (не в service-c `.env`): **`CURSOR_API_KEY`**, **`BRISKLY_CDP_URL`**, **`BRISKLY_SYNC_HOST`**. Chrome CDP: команда запуска и полный процесс — [Синхронизация Briskly](#синхронизация-briskly). Пакет: [`briskly-sync/README.md`](../briskly-sync/README.md).
+`DB_QUEUE_RETRY_AFTER` / `REDIS_QUEUE_RETRY_AFTER` (default **960** с) **не** поднимать под LLM: start-job ≤ ~90 с (с запасом меньше 960), длинный `wait` держит sidecar + expire-job, не PHP-queue job. Если снова повесить wait на start-job и `llm_timeout` > `retry_after`, возможен дубль worker’а.
+
+На хосте sidecar (не в service-c `.env`): **`CURSOR_API_KEY`**, **`BRISKLY_CDP_URL`**, **`BRISKLY_SYNC_HOST`**, **`BRISKLY_SYNC_CALLBACK_URL`** (колбэк `match-complete` с хоста sidecar на PHP, напр. `http://127.0.0.1:8083/api/food/internal/briskly-sync/match-complete` — не `host.docker.internal`), те же **`BRISKLY_SYNC_CAPTURE_SECRET`** / handshake+LLM timeouts. Chrome CDP: команда запуска и полный процесс — [Синхронизация Briskly](#синхронизация-briskly). Пакет: [`briskly-sync/README.md`](../briskly-sync/README.md).
 
 ### Прочие
 
@@ -1780,18 +1869,29 @@ UI менеджера вызывает только `/export` (`api/admin/report
 
 | Метод | Путь | Описание |
 |---|---|---|
-| `GET` | `/api/food/admin/briskly-sync/source-lines` | Source-линии ресторана (`restaurant_id`, опц. `vps_category_id`, `search_text`) |
-| `POST` | `/api/food/admin/briskly-sync/sessions` | Создать сессию: `restaurant_id`, опц. `vps_category_id`, `search_text` (≤120), `clarification` (≤2000); Bearer захватывается на сервере через sidecar CDP (в ответе нет token) |
-| `GET` | `/api/food/admin/briskly-sync/sessions/{id}` | Мета сессии **без** token |
+| `GET` | `/api/food/admin/briskly-sync/restaurants` | Активные рестораны source-каталога (local / remote VPS) |
+| `GET` | `/api/food/admin/briskly-sync/vps-categories` | Категории VPS (`restaurant_id`) |
+| `GET` | `/api/food/admin/briskly-sync/source-lines` | Source-линии (`restaurant_id`, опц. `vps_category_id`, `search_text`) |
+| `POST` | `/api/food/admin/briskly-sync/sessions` | Создать сессию: `restaurant_id`, опц. `vps_category_id`, `search_text` (≤120), `clarification` (≤2000); Bearer через sidecar CDP (в ответе нет token) → `setup` |
+| `GET` | `/api/food/admin/briskly-sync/sessions/{id}` | Мета сессии **без** token (`status`, `has_snapshot`, `has_proposals`, …) |
+| `GET` | `/api/food/admin/briskly-sync/sessions/{id}/source-lines` | Source-линии, зафиксированные в сессии |
 | `POST` | `/api/food/admin/briskly-sync/sessions/{id}/snapshot` | Загрузить snapshot Briskly (token из cache) |
-| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/match` | 202 + `matching`; Cursor match в очереди; UI поллит `GET .../sessions/{id}` |
+| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/match` | 202 + `matching`; `RunBrisklySyncMatchJob` → handshake sidecar; UI поллит `GET .../sessions/{id}` до `matched` / `failed` |
 | `GET` | `/api/food/admin/briskly-sync/sessions/{id}/sync-results` | Результаты ≤25+25 + `truncated` / counts |
-| `PUT` | `/api/food/admin/briskly-sync/sessions/{id}/approvals` | Галочки UPDATE/CREATE (max 25+25); клиентский `price` **prohibited** |
-| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/apply` | Запись в Briskly; статус `approved`; повтор → `409` |
-| `GET` | `/api/food/admin/briskly-sync/briskly/categories?session_id=` | Категории Briskly **только для CREATE** |
+| `PUT` | `/api/food/admin/briskly-sync/sessions/{id}/approvals` | Галочки UPDATE/CREATE (max 25+25) → `approved`; клиентский `price` **prohibited** |
+| `POST` | `/api/food/admin/briskly-sync/sessions/{id}/apply` | Запись в Briskly; статус `applied`; повтор → `409` |
+| `GET` | `/api/food/admin/briskly-sync/sessions/{id}/briskly-categories` | Категории Briskly **только для CREATE** |
+| `GET` | `/api/food/admin/briskly-sync/briskly/categories?session_id=` | Alias того же handler (`categories`) |
 
-Валидация: Form Request на каждый endpoint. Истёкший token → `422` «Повторно введите токен Briskly.» Orchestrator недоступен → `503`.
+Внутренний колбэк sidecar (без miniapp auth; middleware `briskly.capture.secret` → `X-Briskly-Capture-Secret`):
 
+| Метод | Путь | Описание |
+|---|---|---|
+| `POST` | `/api/food/internal/briskly-sync/match-complete` | `session_id` + `match_generation` (uuid); XOR `match_lines` \| `error`; 200 / 409 stale / 401 / 422 |
+
+PhotoText (агент, отдельно от admin UI): `GET /api/food/phototext/briskly-source-lines` (`X-PhotoText-Token` + AI-доступ) — remote source для non-prod VPS.
+
+Валидация: Form Request на каждый endpoint. Истёкший token → `422`. Handshake sidecar fail (нет сети/ключа) в start-job → сессия `failed` (браузер уже получил 202). Expire ~15 мин, если колбэка нет.
 ### Food Admin API — меню (`menu_manager`)
 
 Префикс: `/api/food/admin`. Middleware: `max.miniapp.auth` + `food.order.admin:menu_manager`.
@@ -2050,7 +2150,7 @@ docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).
 | Admin order review | `tests/Feature/AdminOrderReviewApiTest.php` (approve/reject + `PUT .../composition`; `draft_after_scanning` скрыт из очереди) |
 | Ручные заказы (`max_manager`) | `tests/Feature/AdminManualOrderApiTest.php` (auth/403, users, cart CRUD, изоляция от личной корзины, submit → confirmed / `delivery_date`, уведомления); `tests/Feature/AdminManualOrderListApiTest.php` (фильтр `status` в т.ч. `draft_after_scanning`, `meta.total_amount`, `GET .../manual-orders/{id}`, `has_messages`); `tests/Feature/AdminDraftAfterScanningOrderApiTest.php` (complete / move-to-cart / delete) |
 | PhotoText (агент Cursor) | `tests/Feature/PhotoTextOrderApiTest.php` (токен 401, AI 403, catalog по `restaurant_id` в т.ч. unavailable, чужой ресторан → issue, слэш без `combo_ref` не режется, match/place combo_ref, разный qty → unresolved, клиент 0/>1, пустой matched → 422, place → `draft_after_scanning`, `delivery_date` из `order_date`, пустой адрес допустим, partial place); `tests/Feature/PhotoTextScheduleApiTest.php` (schedule match/apply, окно 7 дней, scope `category_ids`, AI 403); `tests/Feature/PhotoTextBrisklySourceLinesApiTest.php` (briskly-source-lines: token + AI, фильтры, 422); `tests/Feature/PhotoTextAgentAuthTest.php`; `tests/Unit/PhotoTextComboRefGrouperTest.php`, `PhotoTextManualOrderPlacementServiceTest.php`, `VerifyPhotoTextAgentTokenTest.php`, `EnsurePhotoTextAiAccessTest.php` |
-| Briskly sync | Feature: `AdminBrisklySyncSourceLinesApiTest`, `AdminBrisklySyncSessionApiTest`, `AdminBrisklySyncSecurityChecklistTest` (4b), `AdminBrisklySyncIntegrationRulesTest` (1D/2B/3B + фильтры, `sail_db_testing`); Unit: `BrisklySyncSourceCollectorTest`, `BrisklySyncMatchClassifierTest`; Node (`briskly-sync/`): `npm test` (classify 1D/2B, payload merge, prompt из PHP DTO) |
+| Briskly sync | Feature: `AdminBrisklySyncSourceLinesApiTest`, `AdminBrisklySyncSessionApiTest`, `AdminBrisklySyncCatalogApiTest`, `AdminBrisklySyncRemoteCatalogApiTest`, `AdminBrisklySyncSecurityChecklistTest`, `AdminBrisklySyncIntegrationRulesTest` (1D/2B/3B + фильтры), `InternalBrisklySyncMatchCompleteApiTest` (`sail_db_testing`); Unit: `BrisklySyncSourceCollectorTest`, `BrisklySyncMatchClassifierTest`, `HttpBrisklySyncMatchOrchestratorTest`, `HttpBrisklySyncTokenCaptureGatewayTest`, `HttpBrisklyCatalogGatewayTest`, `CacheBrisklySyncMatchRunStoreTest`, `BrisklySyncMatchTimeoutsConfigTest`, `ComboCatalogPromptBuilderTest`, …; Node (`briskly-sync/`): `npm test` (async handshake, classify 1D/2B, CDP token normalize, prompt из PHP DTO) |
 | AI-доступ (`max_manager`) | `tests/Feature/MaxAiAccessApiTest.php` (toggle TTL 30 мин, 409 конфликт, cleanup просрочки); `tests/Unit/EnsurePhotoTextAiAccessTest.php` |
 | Job после submit | `tests/Unit/NotifyFoodOrderAfterSubmitJobTest.php`; dispatch из submit — `tests/Feature/FoodOrderApiTest.php` (`Bus::fake`) |
 | Кэш каталога | `tests/Feature/FoodCatalogCacheApiTest.php`, `tests/Unit/CachingMenuQueryServiceTest.php` |

@@ -37,6 +37,8 @@ export interface CaptureBrisklyTokenFromCdpOptions {
   cdpUrl?: string;
   /** Таймаут ожидания Authorization, мс (default BRISKLY_CDP_CAPTURE_TIMEOUT_MS или 20000). */
   timeoutMs?: number;
+  /** Таймаут TCP/WebSocket connect к CDP, мс (default BRISKLY_CDP_CONNECT_TIMEOUT_MS или 5000). */
+  connectTimeoutMs?: number;
   /** Пауза перед reload при отсутствии трафика к /api/company/, мс. */
   idleBeforeReloadMs?: number;
   /** DI: подключение к CDP (для тестов). */
@@ -50,6 +52,7 @@ export interface CaptureBrisklyTokenFromCdpOptions {
 
 const DEFAULT_CDP_URL = 'http://127.0.0.1:9222';
 const DEFAULT_TIMEOUT_MS = 20_000;
+const DEFAULT_CONNECT_TIMEOUT_MS = 5_000;
 const DEFAULT_IDLE_BEFORE_RELOAD_MS = 1_500;
 const BRISKLY_HOST_MARKER = 'briskly.business';
 const API_PATH_MARKER = '/api/company/';
@@ -66,6 +69,10 @@ export async function captureBrisklyTokenFromCdp(
     options.timeoutMs ?? process.env.BRISKLY_CDP_CAPTURE_TIMEOUT_MS,
     DEFAULT_TIMEOUT_MS,
   );
+  const connectTimeoutMs = resolvePositiveInt(
+    options.connectTimeoutMs ?? process.env.BRISKLY_CDP_CONNECT_TIMEOUT_MS,
+    DEFAULT_CONNECT_TIMEOUT_MS,
+  );
   const idleBeforeReloadMs = resolvePositiveInt(
     options.idleBeforeReloadMs,
     DEFAULT_IDLE_BEFORE_RELOAD_MS,
@@ -76,12 +83,19 @@ export async function captureBrisklyTokenFromCdp(
   let browser: Browser | undefined;
   try {
     try {
-      browser = await connect(cdpUrl);
-    } catch (err) {
-      const error = new BrisklyTokenCaptureError(
-        'cdp_unavailable',
-        err instanceof Error ? err.message : 'CDP unavailable',
+      browser = await withTimeout(
+        connect(cdpUrl),
+        connectTimeoutMs,
+        () => new BrisklyTokenCaptureError('cdp_unavailable', `CDP connect timed out after ${connectTimeoutMs}ms`),
       );
+    } catch (err) {
+      const error =
+        err instanceof BrisklyTokenCaptureError
+          ? err
+          : new BrisklyTokenCaptureError(
+              'cdp_unavailable',
+              err instanceof Error ? err.message : 'CDP unavailable',
+            );
       log('capture_failed', {
         error: error.code,
         cdp_host: (() => {
@@ -283,5 +297,24 @@ function resolvePositiveInt(value: unknown, fallback: number): number {
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
+  });
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => Error,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(onTimeout());
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
   });
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Http\Middleware\VerifyBrisklySyncCaptureSecret;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
@@ -21,8 +22,10 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
 
     private const PHOTOTEXT_WRITE_TOKEN = 'phototext-write-test-token';
 
+    private const BRISKLY_CAPTURE_SECRET = 'briskly-capture-test-secret';
+
     /**
-     * Наборы middleware: MAX webhook, PhotoText agent и write token.
+     * Наборы middleware: MAX webhook, PhotoText, Briskly capture secret.
      *
      * @return array<string, array{
      *     middlewareClass: class-string,
@@ -58,6 +61,14 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
                 'secret' => self::PHOTOTEXT_WRITE_TOKEN,
                 'headerName' => 'X-PhotoText-Write-Token',
                 'requestUri' => '/api/food/phototext/orders',
+                'requestMethod' => 'POST',
+            ],
+            'briskly_capture' => [
+                'middlewareClass' => VerifyBrisklySyncCaptureSecret::class,
+                'configKey' => 'briskly_sync.capture_secret',
+                'secret' => self::BRISKLY_CAPTURE_SECRET,
+                'headerName' => 'X-Briskly-Capture-Secret',
+                'requestUri' => '/api/food/internal/briskly-sync/match-complete',
                 'requestMethod' => 'POST',
             ],
         ];

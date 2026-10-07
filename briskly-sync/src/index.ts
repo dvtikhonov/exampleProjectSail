@@ -38,8 +38,31 @@ export {
   VpsOnlyCreateBuilder,
   buildVpsOnlyCreateItem,
 } from './orchestrator/VpsOnlyCreateBuilder.js';
-export { runMatch } from './orchestrator/runMatch.js';
+export {
+  awaitCursorRun,
+  disposeCursorAgent,
+  runMatch,
+  startCursorRun,
+} from './orchestrator/runMatch.js';
+export type { StartedCursorRun } from './orchestrator/runMatch.js';
+export {
+  LLM_PING_EXPECTED,
+  LLM_PING_PROMPT,
+  LLM_PING_TIMEOUT_MS,
+  isLlmPingOk,
+  normalizeLlmPingReply,
+  pingLlm,
+} from './orchestrator/pingLlm.js';
+export type { PingLlmOptions } from './orchestrator/pingLlm.js';
+export { withTimeout } from './orchestrator/withTimeout.js';
 export { runApply } from './orchestrator/runApply.js';
+export {
+  handleAbortMatch,
+  handleAsyncMatch,
+  resolveAsyncMatchConfigFromEnv,
+} from './http/handleAsyncMatch.js';
+export { MatchAbortRegistry, matchAbortRegistry } from './http/matchAbortRegistry.js';
+export { postMatchComplete } from './http/postMatchComplete.js';
 export { buildMatchMcpServers } from './orchestrator/mcpConfig.js';
 export { normalizePrice, pricesEqual } from './orchestrator/price.js';
 export type {

@@ -10,10 +10,8 @@ use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
 use App\DTO\Food\BrisklySync\BrisklyCategoryDto;
 use App\DTO\Food\BrisklySync\BrisklyCreatedItemDto;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
-use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\MatchCandidateDto;
 use App\DTO\Food\BrisklySync\MatchLineResultDto;
-use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Exceptions\Food\FoodDomainException;
 use App\Models\Food\Dish;
@@ -22,6 +20,7 @@ use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
+use Tests\Support\FakeBrisklySyncMatchOrchestrator;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
@@ -442,19 +441,10 @@ class AdminBrisklySyncIntegrationRulesTest extends TestCase
             }
         });
 
-        $this->app->instance(BrisklySyncMatchOrchestratorInterface::class, new class($test) implements BrisklySyncMatchOrchestratorInterface
-        {
-            public function __construct(private AdminBrisklySyncIntegrationRulesTest $test) {}
-
-            public function match(
-                ComboCatalogPromptDto $prompt,
-                array $sourceLines,
-                array $brisklySnapshot,
-                ?BrisklySyncLlmCallContextDto $logContext = null,
-            ): array {
-                return $this->test->fakeMatchLines;
-            }
-        });
+        $this->app->instance(
+            BrisklySyncMatchOrchestratorInterface::class,
+            new FakeBrisklySyncMatchOrchestrator($test, $this->app),
+        );
     }
 
     /**

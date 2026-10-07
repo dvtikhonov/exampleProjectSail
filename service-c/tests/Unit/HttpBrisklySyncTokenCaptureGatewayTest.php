@@ -133,4 +133,41 @@ final class HttpBrisklySyncTokenCaptureGatewayTest extends TestCase
             );
         }
     }
+
+    public function test_http_timeout_maps_to_cdp_unavailable(): void
+    {
+        $http = new class implements HttpClientInterface
+        {
+            public function request(
+                string $method,
+                string $url,
+                array $headers = [],
+                ?array $jsonBody = null,
+                ?string $baseUrl = null,
+                int $timeoutSeconds = 30,
+            ): HttpResponseDto {
+                throw new \RuntimeException(
+                    'cURL error 28: Operation timed out after 30113 milliseconds with 0 bytes received',
+                );
+            }
+        };
+
+        $gateway = new HttpBrisklySyncTokenCaptureGateway(
+            $http,
+            'http://sidecar.example:8791',
+            'shared-secret',
+            30,
+        );
+
+        try {
+            $gateway->captureToken();
+            $this->fail('Ожидалось FoodDomainException');
+        } catch (FoodDomainException $exception) {
+            $this->assertSame(503, $exception->statusCode());
+            $this->assertSame(
+                'Не удалось получить токен Briskly: Chrome CDP недоступен.',
+                $exception->getMessage(),
+            );
+        }
+    }
 }

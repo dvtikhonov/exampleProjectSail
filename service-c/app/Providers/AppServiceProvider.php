@@ -3,8 +3,15 @@
 namespace App\Providers;
 
 use App\Http\Support\MaxAppRequestContext;
+use App\Infrastructure\Laravel\FailBrisklySyncMatchOnQueueJobFailed;
+use App\Infrastructure\Laravel\SafeCallQueuedHandler;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Queue\CallQueuedHandler;
+use Illuminate\Queue\Events\JobFailed;
+use Illuminate\Queue\Events\JobPopped;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -16,10 +23,37 @@ use Illuminate\Support\ServiceProvider;
 class AppServiceProvider extends ServiceProvider
 {
     /**
+     * Регистрирует безопасный CallQueuedHandler (preload + incomplete debounce).
+     */
+    public function register(): void
+    {
+        $this->app->bind(CallQueuedHandler::class, SafeCallQueuedHandler::class);
+    }
+
+    /**
      * Настраивает схему и корневой URL для HTTPS-туннеля и прокси.
      */
     public function boot(): void
     {
+        Event::listen(JobPopped::class, static function (JobPopped $event): void {
+            if ($event->job === null) {
+                return;
+            }
+            $commandName = $event->job->payload()['data']['commandName'] ?? null;
+            if (! is_string($commandName) || $commandName === '' || ! str_starts_with($commandName, 'App\\')) {
+                return;
+            }
+            // Только Composer autoload — сырой require_once ломается без trait-зависимостей.
+            class_exists($commandName);
+        });
+        Event::listen(JobProcessing::class, static function (JobProcessing $event): void {
+            $commandName = $event->job->payload()['data']['commandName'] ?? null;
+            if (is_string($commandName) && $commandName !== '') {
+                class_exists($commandName);
+            }
+        });
+        Event::listen(JobFailed::class, FailBrisklySyncMatchOnQueueJobFailed::class);
+
         RateLimiter::for('api', static function (Request $request): Limit {
             return Limit::perMinute(60)->by($request->user()?->getAuthIdentifier() ?: $request->ip());
         });

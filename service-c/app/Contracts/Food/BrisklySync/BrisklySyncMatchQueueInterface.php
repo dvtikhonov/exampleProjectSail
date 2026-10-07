@@ -10,7 +10,12 @@ namespace App\Contracts\Food\BrisklySync;
 interface BrisklySyncMatchQueueInterface
 {
     /**
-     * Ставит performQueuedMatch для сессии.
+     * Ставит performQueuedMatch для сессии (handshake start-job).
      */
     public function dispatch(string $sessionId): void;
+
+    /**
+     * Delayed ExpireBrisklySyncMatchJob (llm_timeout).
+     */
+    public function dispatchExpire(string $sessionId, string $matchGeneration): void;
 }

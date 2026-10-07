@@ -8,6 +8,7 @@ use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchClassifierInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchQueueInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchRunStoreInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncTokenCaptureGatewayInterface;
@@ -21,6 +22,7 @@ use App\DTO\Food\BrisklySync\BrisklySyncApprovalsDto;
 use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
 use App\DTO\Food\BrisklySync\BrisklySyncSessionRecord;
 use App\DTO\Food\BrisklySync\CreateBrisklySyncSessionDto;
+use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\BrisklySync\PriceDiffItemDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\BrisklySync\SyncResultsDto;
@@ -46,6 +48,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         private readonly BrisklyCatalogGatewayInterface $brisklyCatalog,
         private readonly BrisklySyncMatchOrchestratorInterface $orchestrator,
         private readonly BrisklySyncMatchQueueInterface $matchQueue,
+        private readonly BrisklySyncMatchRunStoreInterface $matchRuns,
         private readonly BrisklySyncMatchClassifierInterface $classifier,
         private readonly ComboCatalogPromptBuilderInterface $promptBuilder,
         private readonly CacheStoreInterface $cache,
@@ -53,6 +56,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         private readonly int $sectionCap,
         private readonly float $largeDeltaRatio,
         private readonly int $applyLockTtlSeconds,
+        private readonly int $matchGenerationTtlSeconds,
     ) {}
 
     /**
@@ -172,7 +176,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         }
 
         try {
-            $this->runMatchComputation($sessionId);
+            $this->runMatchHandshake($sessionId);
         } catch (FoodDomainException) {
             $this->failQueuedMatch($sessionId);
 
@@ -186,22 +190,89 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
     /**
      * {@inheritDoc}
      */
-    public function failQueuedMatch(string $sessionId): void
+    public function completeQueuedMatch(
+        string $sessionId,
+        string $matchGeneration,
+        ?array $matchLines,
+        ?string $error = null,
+    ): void {
+        if (! $this->matchRuns->matches($sessionId, $matchGeneration)) {
+            throw new FoodDomainException('Устаревший callback match.', 409);
+        }
+
+        $session = $this->sessions->findById($sessionId);
+        if ($session === null || $session->status !== BrisklySyncSessionStatus::Matching) {
+            throw new FoodDomainException('Устаревший callback match.', 409);
+        }
+
+        $errorText = is_string($error) ? trim($error) : '';
+        $hasError = $errorText !== '';
+        $hasLines = $matchLines !== null;
+        if ($hasError === $hasLines) {
+            throw new FoodDomainException('Нужны либо match_lines, либо error.', 422);
+        }
+
+        if ($hasError) {
+            $this->failQueuedMatch($sessionId);
+
+            return;
+        }
+
+        $sourceRaw = $session->sourceLinesSnapshot;
+        if (! is_array($sourceRaw) || $session->brisklySnapshot === null) {
+            throw new FoodDomainException('Устаревший callback match.', 409);
+        }
+
+        $sourceLines = [];
+        foreach ($sourceRaw as $row) {
+            if (is_array($row)) {
+                $sourceLines[] = SourceMenuLineDto::fromArray($row);
+            }
+        }
+
+        $snapshot = array_map(
+            static fn (array $row): BrisklySnapshotItemDto => BrisklySnapshotItemDto::fromArray($row),
+            $session->brisklySnapshot,
+        );
+
+        $this->persistMatched($sessionId, $sourceLines, $snapshot, $matchLines);
+        $this->matchRuns->forget($sessionId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function expireQueuedMatch(string $sessionId, string $matchGeneration): void
     {
+        if (! $this->matchRuns->matches($sessionId, $matchGeneration)) {
+            return;
+        }
+
         $session = $this->sessions->findById($sessionId);
         if ($session === null || $session->status !== BrisklySyncSessionStatus::Matching) {
             return;
         }
 
-        $this->sessions->update($sessionId, [
-            'status' => BrisklySyncSessionStatus::Failed,
-        ]);
+        $this->failQueuedMatch($sessionId);
     }
 
     /**
-     * Orchestrator + классификация; вызывается только из очереди при status=matching.
+     * {@inheritDoc}
      */
-    private function runMatchComputation(string $sessionId): void
+    public function failQueuedMatch(string $sessionId): void
+    {
+        $generation = $this->matchRuns->get($sessionId);
+        $this->sessions->markMatchingAsFailed($sessionId);
+        if ($generation !== null) {
+            $this->orchestrator->abort($sessionId, $generation);
+        }
+        $this->matchRuns->forget($sessionId);
+    }
+
+    /**
+     * Handshake sidecar + expire job; вызывается только из очереди при status=matching.
+     */
+    private function runMatchHandshake(string $sessionId): void
     {
         $session = $this->requireSession($sessionId);
 
@@ -221,30 +292,25 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         // Пустой source → нечего матчить (без LLM).
         // Правила исключения/нормализации из clarification обрабатывает LLM (prompt NamingRules).
         if ($snapshot === [] || $sourceLines === []) {
-            $syncResults = $this->classifier->classify(
-                $sourceLines,
-                $snapshot === [] ? [] : $snapshot,
-                [],
-                $this->sectionCap,
-            );
-            $proposals = [
-                'match_lines' => [],
-                'sync_results' => $syncResults->toArray(),
-            ];
-
-            $this->sessions->update($sessionId, [
-                'source_lines_snapshot' => array_map(
-                    static fn (SourceMenuLineDto $line): array => $line->toArray(),
-                    $sourceLines,
-                ),
-                'source_price_hash' => BrisklySyncPrice::hashSourcePrices($sourceLines),
-                'proposals' => $proposals,
-                'approvals' => null,
-                'status' => BrisklySyncSessionStatus::Matched,
-            ]);
+            $this->persistMatched($sessionId, $sourceLines, $snapshot, []);
 
             return;
         }
+
+        $previous = $this->matchRuns->get($sessionId);
+        if ($previous !== null) {
+            $this->orchestrator->abort($sessionId, $previous);
+        }
+
+        $generation = $this->matchRuns->allocate($sessionId, $this->matchGenerationTtlSeconds);
+
+        $this->sessions->update($sessionId, [
+            'source_lines_snapshot' => array_map(
+                static fn (SourceMenuLineDto $line): array => $line->toArray(),
+                $sourceLines,
+            ),
+            'source_price_hash' => BrisklySyncPrice::hashSourcePrices($sourceLines),
+        ]);
 
         $promptDishes = [];
         foreach ($sourceLines as $index => $line) {
@@ -273,10 +339,12 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             $brisklyForPrompt,
         );
 
-        $matchLines = $this->orchestrator->match(
+        $this->orchestrator->start(
             $prompt,
             $sourceLines,
             $snapshot,
+            $sessionId,
+            $generation,
             new BrisklySyncLlmCallContextDto(
                 sessionId: $sessionId,
                 restaurantId: $session->restaurantId,
@@ -284,6 +352,20 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
             ),
         );
 
+        $this->matchQueue->dispatchExpire($sessionId, $generation);
+    }
+
+    /**
+     * @param  list<SourceMenuLineDto>  $sourceLines
+     * @param  list<BrisklySnapshotItemDto>  $snapshot
+     * @param  list<MatchLineResultDto>  $matchLines
+     */
+    private function persistMatched(
+        string $sessionId,
+        array $sourceLines,
+        array $snapshot,
+        array $matchLines,
+    ): void {
         $syncResults = $this->classifier->classify(
             $sourceLines,
             $snapshot,
@@ -293,7 +375,7 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
 
         $proposals = [
             'match_lines' => array_map(
-                static fn ($line): array => $line->toArray(),
+                static fn (MatchLineResultDto $line): array => $line->toArray(),
                 $matchLines,
             ),
             'sync_results' => $syncResults->toArray(),
@@ -661,6 +743,13 @@ final class BrisklySyncSessionService implements BrisklySyncSessionServiceInterf
         if ($token === '' || strlen($token) < 10 || strlen($token) > 4096) {
             throw new FoodDomainException(
                 'Не удалось получить токен Briskly: некорректная длина токена.',
+                422,
+            );
+        }
+
+        if (BrisklySyncBearerToken::isExpired($token)) {
+            throw new FoodDomainException(
+                'Токен Briskly истёк. Обновите вкладку кабинета (вход) и повторите поиск.',
                 422,
             );
         }

@@ -6,6 +6,7 @@ use App\Contracts\Food\BrisklySync\BrisklyCatalogGatewayInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchClassifierInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchQueueInterface;
+use App\Contracts\Food\BrisklySync\BrisklySyncMatchRunStoreInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionRepositoryInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSourceCollectorInterface;
@@ -51,6 +52,7 @@ use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\HttpClientInterface;
 use App\Contracts\Shared\JobDispatcherInterface;
 use App\Contracts\Shared\LlmCallLoggerInterface;
+use App\Infrastructure\Briskly\CacheBrisklySyncMatchRunStore;
 use App\Infrastructure\Briskly\HttpBrisklyCatalogGateway;
 use App\Infrastructure\Briskly\HttpBrisklySyncMatchOrchestrator;
 use App\Infrastructure\Briskly\HttpBrisklySyncTokenCaptureGateway;
@@ -188,6 +190,7 @@ class FoodMenuServiceProvider extends ServiceProvider
                         (int) config('briskly_sync.source_timeout_seconds', 30),
                     );
                 }
+                dump('Local catalog ');
 
                 return new LocalBrisklySyncVpsCatalog(
                     $app->make(RestaurantRepositoryInterface::class),
@@ -226,8 +229,16 @@ class FoodMenuServiceProvider extends ServiceProvider
                 return new HttpBrisklySyncMatchOrchestrator(
                     $app->make(HttpClientInterface::class),
                     (string) config('briskly_sync.orchestrator_base_url'),
-                    (int) config('briskly_sync.orchestrator_timeout_seconds', 120),
+                    (int) config('briskly_sync.orchestrator_handshake_timeout_seconds', 60),
                     $app->make(LlmCallLoggerInterface::class),
+                );
+            },
+        );
+        $this->app->bind(
+            BrisklySyncMatchRunStoreInterface::class,
+            function ($app): CacheBrisklySyncMatchRunStore {
+                return new CacheBrisklySyncMatchRunStore(
+                    $app->make(CacheStoreInterface::class),
                 );
             },
         );
@@ -247,7 +258,8 @@ class FoodMenuServiceProvider extends ServiceProvider
             function ($app): LaravelBrisklySyncMatchQueue {
                 return new LaravelBrisklySyncMatchQueue(
                     $app->make(JobDispatcherInterface::class),
-                    (int) config('briskly_sync.match_job_timeout_seconds', 180),
+                    (int) config('briskly_sync.match_job_timeout_seconds', 90),
+                    (int) config('briskly_sync.llm_timeout_seconds', 900),
                 );
             },
         );
@@ -262,6 +274,7 @@ class FoodMenuServiceProvider extends ServiceProvider
                     $app->make(BrisklyCatalogGatewayInterface::class),
                     $app->make(BrisklySyncMatchOrchestratorInterface::class),
                     $app->make(BrisklySyncMatchQueueInterface::class),
+                    $app->make(BrisklySyncMatchRunStoreInterface::class),
                     $app->make(BrisklySyncMatchClassifierInterface::class),
                     $app->make(ComboCatalogPromptBuilderInterface::class),
                     $app->make(CacheStoreInterface::class),
@@ -269,6 +282,7 @@ class FoodMenuServiceProvider extends ServiceProvider
                     (int) config('briskly_sync.section_cap', 25),
                     (float) config('briskly_sync.large_delta_ratio', 0.5),
                     (int) config('briskly_sync.apply_lock_ttl_seconds', 120),
+                    (int) config('briskly_sync.llm_timeout_seconds', 900) + 60,
                 );
             },
         );

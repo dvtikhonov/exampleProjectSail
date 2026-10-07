@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 /**
- * Минимальный HTTP sidecar для PHP (match / health / capture-token).
+ * Минимальный HTTP sidecar для PHP (match handshake / abort / health / capture-token).
  * Порт: BRISKLY_SYNC_PORT (default 8791).
  *
- * POST /match  body: { prompt, source_lines, briskly_snapshot, use_fixture_response? }
+ * POST /match       — handshake create+send → 202; wait/stream в фоне → callback
+ * POST /match/abort — глушит success-колбэк generation (SDK cancel нет)
  * POST /capture-token  header: X-Briskly-Capture-Secret
  * GET  /health
  */
 
 import { createServer } from 'node:http';
 import { loadPackageEnv } from '../cli/loadEnv.js';
-import { runMatch } from '../orchestrator/runMatch.js';
-import type {
-  BrisklySnapshotItem,
-  ComboCatalogPromptDto,
-  SourceMenuLine,
-} from '../orchestrator/types.js';
+import {
+  handleAbortMatch,
+  handleAsyncMatch,
+  resolveAsyncMatchConfigFromEnv,
+} from './handleAsyncMatch.js';
+import { matchAbortRegistry } from './matchAbortRegistry.js';
 import {
   BrisklyTokenCaptureError,
   captureBrisklyTokenFromCdp,
@@ -28,6 +29,14 @@ const port = Number(process.env.BRISKLY_SYNC_PORT ?? 8791);
 /** 127.0.0.1 — только локально; 0.0.0.0 — доступ из Docker (host.docker.internal). */
 const host = process.env.BRISKLY_SYNC_HOST ?? '127.0.0.1';
 const CAPTURE_SECRET_HEADER = 'x-briskly-capture-secret';
+
+const asyncMatchConfig = {
+  ...resolveAsyncMatchConfigFromEnv(),
+  abortRegistry: matchAbortRegistry,
+  log: (message: string, meta?: Record<string, unknown>) => {
+    console.error(JSON.stringify({ event: message, ...meta }));
+  },
+};
 
 const server = createServer(async (req, res) => {
   try {
@@ -43,30 +52,17 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && req.url === '/match') {
       const body = await readBody(req);
-      const payload = JSON.parse(body) as {
-        prompt: ComboCatalogPromptDto;
-        source_lines: SourceMenuLine[];
-        briskly_snapshot: BrisklySnapshotItem[];
-        /** Offline: готовый ответ LLM (для тестов/без Cursor). */
-        llm_response?: string;
-        enable_mcp?: boolean;
-      };
+      const payload = JSON.parse(body) as Record<string, unknown>;
+      const result = await handleAsyncMatch(payload, asyncMatchConfig);
+      json(res, result.status, result.body);
+      return;
+    }
 
-      const output = await runMatch({
-        prompt: payload.prompt,
-        sourceLines: payload.source_lines ?? [],
-        brisklySnapshot: payload.briskly_snapshot ?? [],
-        enableMcp: Boolean(payload.enable_mcp),
-        matcher: payload.llm_response
-          ? async () => payload.llm_response!
-          : undefined,
-      });
-
-      json(res, 200, {
-        match_lines: output.matchLines,
-        sync_results: output.syncResults,
-        raw_text: output.rawText,
-      });
+    if (req.method === 'POST' && req.url === '/match/abort') {
+      const body = await readBody(req);
+      const payload = JSON.parse(body) as { session_id?: unknown; match_generation?: unknown };
+      const result = handleAbortMatch(payload, matchAbortRegistry);
+      json(res, result.status, result.body);
       return;
     }
 

@@ -29,4 +29,12 @@ final class BrisklySyncBearerTokenTest extends TestCase
             'empty' => ['   ', ''],
         ];
     }
+
+    public function test_is_expired_detects_past_exp(): void
+    {
+        $payload = rtrim(strtr(base64_encode('{"exp":1000}'), '+/', '-_'), '=');
+        $jwt = 'eyJhbGciOiJIUzI1NiJ9.'.$payload.'.sig';
+        $this->assertTrue(BrisklySyncBearerToken::isExpired($jwt, 2000));
+        $this->assertFalse(BrisklySyncBearerToken::isExpired($jwt, 500));
+    }
 }

@@ -9,14 +9,13 @@ use App\Contracts\Shared\HttpClientInterface;
 use App\Contracts\Shared\LlmCallLoggerInterface;
 use App\DTO\Food\BrisklySync\BrisklySnapshotItemDto;
 use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
-use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\BrisklySync\SourceMenuLineDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\DTO\Shared\LlmCallExchangeDto;
 use App\Exceptions\Food\FoodDomainException;
 
 /**
- * HTTP-клиент к Node sidecar briskly-sync (POST /match).
+ * HTTP-клиент к Node sidecar briskly-sync (POST /match handshake, POST /match/abort).
  */
 final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestratorInterface
 {
@@ -25,18 +24,23 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
         private readonly string $baseUrl,
         private readonly int $timeoutSeconds,
         private readonly LlmCallLoggerInterface $llmCallLogger,
+        private readonly int $abortTimeoutSeconds = 10,
     ) {}
 
     /**
      * {@inheritDoc}
      */
-    public function match(
+    public function start(
         ComboCatalogPromptDto $prompt,
         array $sourceLines,
         array $brisklySnapshot,
+        string $sessionId,
+        string $matchGeneration,
         ?BrisklySyncLlmCallContextDto $logContext = null,
-    ): array {
+    ): void {
         $payload = [
+            'session_id' => $sessionId,
+            'match_generation' => $matchGeneration,
             'prompt' => $prompt->toArray(),
             'source_lines' => array_map(
                 static fn (SourceMenuLineDto $line): array => $line->toArray(),
@@ -49,7 +53,7 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
         ];
 
         $actor = $logContext?->actorLabel() ?? 'max_user_id=неизвестно';
-        $meta = $this->metaFromContext($logContext);
+        $meta = $this->metaFromContext($logContext, $matchGeneration);
 
         try {
             $response = $this->http->request(
@@ -72,7 +76,7 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
             throw $exception;
         }
 
-        if (! $response->successful) {
+        if ($response->status !== 202) {
             $detail = $this->orchestratorErrorDetail($response->body);
             $this->llmCallLogger->logExchange(new LlmCallExchangeDto(
                 provider: 'briskly-sync',
@@ -90,40 +94,21 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
         }
 
         $decoded = $response->json();
-        if (! is_array($decoded)) {
+        $accepted = is_array($decoded) && ($decoded['accepted'] ?? false) === true;
+        $phase = is_array($decoded) && isset($decoded['phase']) && is_string($decoded['phase'])
+            ? $decoded['phase']
+            : '';
+        if (! $accepted || $phase !== 'running') {
             $this->llmCallLogger->logExchange(new LlmCallExchangeDto(
                 provider: 'briskly-sync',
                 operation: 'match',
                 actor: $actor,
                 requestText: $this->formatRequestText($payload),
                 responseText: $this->bodyToText($response->body),
-                errorText: 'Некорректный ответ orchestrator.',
+                errorText: 'Некорректный ответ handshake orchestrator.',
                 meta: $meta,
             ));
             throw new FoodDomainException('Некорректный ответ orchestrator.', 503);
-        }
-
-        $matchLinesRaw = $decoded['match_lines'] ?? [];
-        if (! is_array($matchLinesRaw)) {
-            $this->llmCallLogger->logExchange(new LlmCallExchangeDto(
-                provider: 'briskly-sync',
-                operation: 'match',
-                actor: $actor,
-                requestText: $this->formatRequestText($payload),
-                responseText: $this->encodeAsText($decoded),
-                errorText: 'Orchestrator не вернул match_lines.',
-                meta: $meta,
-            ));
-            throw new FoodDomainException('Orchestrator не вернул match_lines.', 503);
-        }
-
-        $result = [];
-        foreach ($matchLinesRaw as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-            // Любой price от LLM отбрасывается на уровне fromArray (не читаем).
-            $result[] = MatchLineResultDto::fromArray($row);
         }
 
         $this->llmCallLogger->logExchange(new LlmCallExchangeDto(
@@ -131,23 +116,45 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
             operation: 'match',
             actor: $actor,
             requestText: $this->formatRequestText($payload),
-            responseText: $this->formatResponseText($decoded, $result),
+            responseText: $this->formatHandshakeResponseText($decoded),
             meta: $meta,
         ));
+    }
 
-        return $result;
+    /**
+     * {@inheritDoc}
+     */
+    public function abort(string $sessionId, string $matchGeneration): void
+    {
+        try {
+            $this->http->request(
+                'POST',
+                '/match/abort',
+                ['Accept' => 'application/json'],
+                [
+                    'session_id' => $sessionId,
+                    'match_generation' => $matchGeneration,
+                ],
+                rtrim($this->baseUrl, '/'),
+                max(1, $this->abortTimeoutSeconds),
+            );
+        } catch (\Throwable) {
+            // best-effort
+        }
     }
 
     /**
      * @return array<string, string|int|null>
      */
-    private function metaFromContext(?BrisklySyncLlmCallContextDto $logContext): array
+    private function metaFromContext(?BrisklySyncLlmCallContextDto $logContext, string $matchGeneration): array
     {
+        $meta = ['match_generation' => $matchGeneration];
         if ($logContext === null) {
-            return [];
+            return $meta;
         }
 
         return [
+            ...$meta,
             'session_id' => $logContext->sessionId,
             'restaurant_id' => $logContext->restaurantId,
             'created_by_max_user_id' => $logContext->createdByMaxUserId,
@@ -156,6 +163,8 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
 
     /**
      * @param  array{
+     *     session_id: string,
+     *     match_generation: string,
      *     prompt: array<string, mixed>,
      *     source_lines: list<array<string, mixed>>,
      *     briskly_snapshot: list<array<string, mixed>>
@@ -181,29 +190,13 @@ final class HttpBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
 
     /**
      * @param  array<string, mixed>  $decoded
-     * @param  list<MatchLineResultDto>  $result
      */
-    private function formatResponseText(array $decoded, array $result): string
+    private function formatHandshakeResponseText(array $decoded): string
     {
-        $sections = [
-            '=== match_lines ===',
-            $this->encodeAsText(array_map(
-                static fn (MatchLineResultDto $line): array => $line->toArray(),
-                $result,
-            )),
-        ];
-
-        if (isset($decoded['raw_text']) && is_string($decoded['raw_text']) && $decoded['raw_text'] !== '') {
-            $sections[] = '=== raw_text (LLM) ===';
-            $sections[] = $decoded['raw_text'];
-        }
-
-        if (isset($decoded['sync_results'])) {
-            $sections[] = '=== sync_results ===';
-            $sections[] = $this->encodeAsText($decoded['sync_results']);
-        }
-
-        return implode("\n", $sections);
+        return implode("\n", [
+            '=== handshake ===',
+            $this->encodeAsText($decoded),
+        ]);
     }
 
     private function bodyToText(string $body): string

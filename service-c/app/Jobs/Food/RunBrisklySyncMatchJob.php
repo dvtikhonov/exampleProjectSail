@@ -11,7 +11,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
 
 /**
- * Фоновый Cursor match + классификация сессии Briskly sync.
+ * Handshake start Cursor match (каталог + POST /match); LLM wait не в этом job.
  */
 class RunBrisklySyncMatchJob implements ShouldBeUnique, ShouldQueue
 {
