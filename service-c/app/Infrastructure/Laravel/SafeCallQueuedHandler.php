@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Laravel;
 
+use __PHP_Incomplete_Class;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\CallQueuedHandler;
-use __PHP_Incomplete_Class;
 
 /**
  * Laravel 13 вызывает {@see CallQueuedHandler::commandShouldBeDebounced()} до проверки

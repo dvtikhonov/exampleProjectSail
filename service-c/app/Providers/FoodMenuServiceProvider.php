@@ -190,7 +190,7 @@ class FoodMenuServiceProvider extends ServiceProvider
                         (int) config('briskly_sync.source_timeout_seconds', 30),
                     );
                 }
-                dump ('Local catalog ');
+                dump('Local catalog ');
 
                 return new LocalBrisklySyncVpsCatalog(
                     $app->make(RestaurantRepositoryInterface::class),

@@ -7,6 +7,7 @@ namespace Tests\Support;
 use App\Contracts\Food\BrisklySync\BrisklySyncMatchOrchestratorInterface;
 use App\Contracts\Food\BrisklySync\BrisklySyncSessionServiceInterface;
 use App\DTO\Food\BrisklySync\BrisklySyncLlmCallContextDto;
+use App\DTO\Food\BrisklySync\MatchLineResultDto;
 use App\DTO\Food\ComboCatalog\ComboCatalogPromptDto;
 use App\Exceptions\Food\FoodDomainException;
 use Illuminate\Contracts\Container\Container;
@@ -41,7 +42,7 @@ final class FakeBrisklySyncMatchOrchestrator implements BrisklySyncMatchOrchestr
             return;
         }
 
-        /** @var list<\App\DTO\Food\BrisklySync\MatchLineResultDto> $lines */
+        /** @var list<MatchLineResultDto> $lines */
         $lines = $this->test->fakeMatchLines ?? [];
 
         $this->app->make(BrisklySyncSessionServiceInterface::class)->completeQueuedMatch(
