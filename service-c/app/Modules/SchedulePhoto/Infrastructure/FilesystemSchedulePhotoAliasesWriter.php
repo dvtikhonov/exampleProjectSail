@@ -145,6 +145,7 @@ final class FilesystemSchedulePhotoAliasesWriter implements SchedulePhotoAliases
 
             if (! is_file($trimmed)) {
                 $parts[] = $trimmed.'[missing]';
+
                 continue;
             }
 
