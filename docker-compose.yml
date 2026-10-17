@@ -270,6 +270,8 @@ services:
       - ./service-c/.env:/var/www/html/.env:ro
       - ./service-c/.env.testing:/var/www/html/.env.testing:ro
       - ./service-c/docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+      # SchedulePhoto aliases: только каталог .cursor/commands (single-file bind md часто Permission denied).
+      - ./.cursor/commands:/var/www/.cursor/commands
       - ./shared:/var/www/shared
     networks:
       - internal
@@ -310,6 +312,7 @@ services:
       - ./service-c/composer.lock:/var/www/html/composer.lock:ro
       - ./service-c/.env:/var/www/html/.env:ro
       - ./service-c/.env.testing:/var/www/html/.env.testing:ro
+      - ./.cursor/commands:/var/www/.cursor/commands
       - ./shared:/var/www/shared
     networks:
       - internal

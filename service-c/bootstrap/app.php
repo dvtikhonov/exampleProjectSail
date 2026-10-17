@@ -13,6 +13,7 @@ use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
 use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
+use App\Modules\SchedulePhoto\Http\Middleware\VerifySchedulePhotoCaptureSecret;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'trust.gateway' => TrustGatewayAuth::class,
             'max.webhook.secret' => VerifyMaxWebhookSecret::class,
             'briskly.capture.secret' => VerifyBrisklySyncCaptureSecret::class,
+            'schedule-photo.capture.secret' => VerifySchedulePhotoCaptureSecret::class,
             'max.miniapp.auth' => AuthenticateMaxMiniApp::class,
             'food.order.admin' => EnsureFoodOrderAdmin::class,
             'phototext.agent.token' => VerifyPhotoTextAgentToken::class,

@@ -276,7 +276,7 @@ class MaxWebhookControllerTest extends TestCase
         );
 
         $this->assertNotNull($route);
-        $this->assertContains('throttle:60,1', $route->gatherMiddleware());
+        $this->assertContains('throttle:60,1,max-webhook', $route->gatherMiddleware());
         $this->assertContains('max.webhook.secret', $route->gatherMiddleware());
     }
 

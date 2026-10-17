@@ -33,10 +33,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/webhooks/max', MaxWebhookController::class)
-    ->middleware(['throttle:60,1', 'max.webhook.secret']);
+    ->middleware(['throttle:60,1,max-webhook', 'max.webhook.secret']);
 
 Route::post('/max/auth', [MaxAuthController::class, 'store'])
-    ->middleware('throttle:20,1');
+    ->middleware('throttle:20,1,max-auth');
 
 // Публичный same-origin URL для <img> (без Bearer — WebView MAX не шлёт Authorization на картинки).
 Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show'])
@@ -45,17 +45,17 @@ Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show'])
 
 // Колбэк sidecar Briskly sync после фонового LLM wait (секрет, без miniapp auth).
 Route::post('/food/internal/briskly-sync/match-complete', [InternalBrisklySyncMatchController::class, 'complete'])
-    ->middleware(['throttle:60,1', 'briskly.capture.secret']);
+    ->middleware(['throttle:60,1,briskly-capture', 'briskly.capture.secret']);
 
 // Агент Cursor: токен X-PhotoText-Token + активный AI-доступ max_manager (ai_access_until > now).
 Route::middleware(['phototext.agent.token', 'phototext.ai.access'])->prefix('food/phototext')->group(function () {
-    Route::middleware('throttle:60,1')->group(function () {
+    Route::middleware('throttle:60,1,phototext-read')->group(function () {
         Route::get('/restaurants', [PhotoTextOrderController::class, 'restaurants']);
         Route::get('/catalog', [PhotoTextOrderController::class, 'catalog']);
         Route::get('/briskly-source-lines', [PhotoTextBrisklySyncController::class, 'sourceLines']);
     });
 
-    Route::middleware('throttle:30,1')->group(function () {
+    Route::middleware('throttle:30,1,phototext-write')->group(function () {
         Route::post('/match', [PhotoTextOrderController::class, 'match']);
         Route::post('/schedule/match', [PhotoTextScheduleController::class, 'match']);
         Route::post('/orders', [PhotoTextOrderController::class, 'store'])
@@ -87,14 +87,14 @@ Route::middleware('max.miniapp.auth')->group(function () {
             ->whereNumber('item');
 
         Route::post('/orders/submit', [OrderController::class, 'submit'])
-            ->middleware('throttle:10,1');
+            ->middleware('throttle:10,1,food-order-submit');
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{order}', [OrderController::class, 'show'])
             ->whereNumber('order');
         Route::get('/orders/{order}/messages', [OrderChatController::class, 'index'])
             ->whereNumber('order');
         Route::post('/orders/{order}/messages', [OrderChatController::class, 'store'])
-            ->middleware('throttle:30,1')
+            ->middleware('throttle:30,1,food-order-chat')
             ->whereNumber('order');
 
         Route::prefix('admin')->group(function () {
@@ -226,7 +226,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
                     Route::get('/{maxUserId}/messages', [AdminBotDmController::class, 'index'])
                         ->whereNumber('maxUserId');
                     Route::post('/{maxUserId}/messages', [AdminBotDmController::class, 'store'])
-                        ->middleware('throttle:30,1')
+                        ->middleware('throttle:30,1,bot-dm-message')
                         ->whereNumber('maxUserId');
                 });
         });

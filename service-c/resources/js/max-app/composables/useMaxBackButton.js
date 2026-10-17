@@ -217,6 +217,7 @@ export function useMaxBackButton({
                 if (
                     (dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
                         || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule
+                        || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedulePhoto
                         || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.categoryList)
                     && getPlatform() === 'desktop'
                 ) {
@@ -228,6 +229,7 @@ export function useMaxBackButton({
                 if (
                     dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.list
                     || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedule
+                    || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.schedulePhoto
                     || dishAdmin.dishAdminView.value === ADMIN_DISH_VIEWS.categoryList
                 ) {
                     hideBackButton();

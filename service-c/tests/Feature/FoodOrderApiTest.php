@@ -65,7 +65,7 @@ class FoodOrderApiTest extends TestCase
 
         $this->assertNotNull($route);
         $middleware = $route->gatherMiddleware();
-        $this->assertContains('throttle:10,1', $middleware);
+        $this->assertContains('throttle:10,1,food-order-submit', $middleware);
         $this->assertContains('max.miniapp.auth', $middleware);
         $this->assertContains('throttle:api', app('router')->getMiddlewareGroups()['api']);
     }

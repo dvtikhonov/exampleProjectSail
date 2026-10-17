@@ -213,6 +213,10 @@ export function useDishAdmin({ filters }) {
         dishAdminView.value = ADMIN_DISH_VIEWS.schedule;
     }
 
+    function openDishSchedulePhotoView() {
+        dishAdminView.value = ADMIN_DISH_VIEWS.schedulePhoto;
+    }
+
     /**
      * @param {object} dish
      */
@@ -468,6 +472,7 @@ export function useDishAdmin({ filters }) {
         openEditForm,
         openDishListView,
         openDishScheduleView,
+        openDishSchedulePhotoView,
         closeDishForm,
         handleFormRestaurantChange,
         submitDishForm,

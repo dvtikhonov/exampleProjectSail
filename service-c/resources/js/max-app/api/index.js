@@ -116,6 +116,13 @@ export {
 } from './admin/brisklySync';
 
 export {
+    applySchedulePhotoRun,
+    checkSchedulePhotoReadiness,
+    fetchSchedulePhotoRun,
+    startSchedulePhotoRun,
+} from './admin/schedulePhoto';
+
+export {
     fetchBotDmMessages,
     fetchBotDmUsers,
     sendBotDmMessage,
