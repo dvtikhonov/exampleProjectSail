@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Раздел управления меню: блюда, категории, график доступности.
+ * Раздел управления меню: блюда, категории, график доступности, фото графика.
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import ConfirmDeleteModal from '../../components/ConfirmDeleteModal.vue';
@@ -17,6 +17,7 @@ import AdminDishFormPage from '../../pages/admin/AdminDishFormPage.vue';
 import AdminDishListPage from '../../pages/admin/AdminDishListPage.vue';
 import AdminMenuCategoryFormPage from '../../pages/admin/AdminMenuCategoryFormPage.vue';
 import AdminMenuCategoryListPage from '../../pages/admin/AdminMenuCategoryListPage.vue';
+import AdminSchedulePhotoPage from '../../pages/admin/AdminSchedulePhotoPage.vue';
 
 const {
     adminSection,
@@ -71,6 +72,7 @@ const {
     openEditForm,
     openDishListView,
     openDishScheduleView,
+    openDishSchedulePhotoView,
     closeDishForm,
     handleFormRestaurantChange,
     submitDishForm,
@@ -221,6 +223,15 @@ function handleOpenDishScheduleView() {
     back.setupBackButton();
 }
 
+function handleOpenDishSchedulePhotoView() {
+    if (dishAdminView.value === ADMIN_DISH_VIEWS.schedulePhoto) {
+        return;
+    }
+
+    openDishSchedulePhotoView();
+    back.setupBackButton();
+}
+
 /**
  * @param {number} dishId
  * @param {string} date
@@ -295,6 +306,18 @@ onUnmounted(() => {
                     @click="handleOpenDishScheduleView"
                 >
                     График
+                </button>
+                <button
+                    type="button"
+                    class="flex-1 border-b-2 px-4 py-2.5 text-sm font-medium transition"
+                    :class="
+                        dishAdminView === ADMIN_DISH_VIEWS.schedulePhoto
+                            ? 'border-max-primary text-max-primary'
+                            : 'border-transparent text-max-muted hover:text-gray-700'
+                    "
+                    @click="handleOpenDishSchedulePhotoView"
+                >
+                    Фото графика
                 </button>
             </div>
         </nav>
@@ -409,6 +432,11 @@ onUnmounted(() => {
             @toggle="handleScheduleToggle"
             @save="saveSchedule"
             @refresh="loadSchedule"
+        />
+
+        <AdminSchedulePhotoPage
+            v-if="dishAdminView === ADMIN_DISH_VIEWS.schedulePhoto"
+            class="min-h-0 flex-1"
         />
 
         <ConfirmDeleteModal

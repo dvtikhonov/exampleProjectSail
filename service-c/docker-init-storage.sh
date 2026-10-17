@@ -19,3 +19,14 @@ done
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
 chmod g+s storage/logs 2>/dev/null || true
+
+# SchedulePhoto resolve-discarded: FPM (www-data) дописывает словарь алиасов.
+# Bind-mount с хоста часто 644/uid=1000 — без a+w is_writable() = false и пара не сохраняется.
+for aliases_file in \
+    /var/www/.cursor/commands/phototext-dish-aliases.md \
+    /var/www/html/phototext-dish-aliases.md
+do
+    if [ -f "$aliases_file" ]; then
+        chmod a+w "$aliases_file" 2>/dev/null || true
+    fi
+done

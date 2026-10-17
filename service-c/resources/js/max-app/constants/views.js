@@ -85,6 +85,8 @@ export const ADMIN_DISH_VIEWS = {
     list: 'dishList',
     form: 'dishForm',
     schedule: 'dishSchedule',
+    /** Фото графика → OCR / match / confirm apply */
+    schedulePhoto: 'dishSchedulePhoto',
     categoryList: 'categoryList',
     categoryForm: 'categoryForm',
 };

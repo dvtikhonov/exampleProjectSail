@@ -60,7 +60,7 @@ class OrderChatApiTest extends TestCase
 
         $this->assertNotNull($route);
         $middleware = $route->gatherMiddleware();
-        $this->assertContains('throttle:30,1', $middleware);
+        $this->assertContains('throttle:30,1,food-order-chat', $middleware);
         $this->assertContains('max.miniapp.auth', $middleware);
         $this->assertContains('throttle:api', app('router')->getMiddlewareGroups()['api']);
     }

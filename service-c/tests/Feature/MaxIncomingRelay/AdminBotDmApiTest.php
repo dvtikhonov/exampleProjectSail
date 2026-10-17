@@ -216,7 +216,7 @@ class AdminBotDmApiTest extends TestCase
 
         $this->assertNotNull($route);
         $middleware = $route->gatherMiddleware();
-        $this->assertContains('throttle:30,1', $middleware);
+        $this->assertContains('throttle:30,1,bot-dm-message', $middleware);
         $this->assertContains('max.miniapp.auth', $middleware);
         $this->assertContains('food.order.admin:max_manager', $middleware);
     }
