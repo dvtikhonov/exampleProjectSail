@@ -76,16 +76,135 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
         $result = $this->checker(
             ai: new AiAccessStatusDto(true, 1006, '2026-10-13T12:30:00+00:00'),
             hasMaxManager: true,
-            photoText: new SchedulePhotoProbeResultDto(false, 'VPS PhotoText: неверный токен (401).'),
+            photoText: new SchedulePhotoProbeResultDto(false, 'Локальный PhotoText: неверный токен (401).', 401),
             sidecar: new SchedulePhotoProbeResultDto(false, 'URL sidecar не настроен.'),
-        )->check('http://dead.example');
+        )->check('http://localhost:8083');
 
         $this->assertFalse($result->ok);
         $this->assertTrue($result->aiAccessOk);
         $this->assertFalse($result->photoTextOk);
         $this->assertFalse($result->sidecarOk);
-        $this->assertSame('VPS PhotoText: неверный токен (401).', $result->photoTextMessage);
+        $this->assertSame('Локальный PhotoText: неверный токен (401).', $result->photoTextMessage);
         $this->assertSame('URL sidecar не настроен.', $result->sidecarMessage);
+    }
+
+    public function test_docker_host_still_uses_local_ai_flag(): void
+    {
+        $result = $this->checker(
+            ai: new AiAccessStatusDto(false, null, null),
+            hasMaxManager: false,
+            photoText: new SchedulePhotoProbeResultDto(true, 'Локальный PhotoText доступен.', 200),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://host.docker.internal:8083');
+
+        $this->assertFalse($result->ok);
+        $this->assertFalse($result->aiAccessOk);
+        $this->assertStringContainsString('Вкл. доступ AI', $result->aiAccessMessage);
+        $this->assertTrue($result->photoTextOk);
+    }
+
+    public function test_remote_probe_200_confirms_ai_without_local_flag(): void
+    {
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(true, 'VPS PhotoText доступен.', 200),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertTrue($result->ok);
+        $this->assertTrue($result->aiAccessOk);
+        $this->assertSame('AI-доступ активен.', $result->aiAccessMessage);
+        $this->assertTrue($result->photoTextOk);
+        $this->assertTrue($result->sidecarOk);
+    }
+
+    public function test_remote_probe_200_with_phototext_error_still_confirms_ai(): void
+    {
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(false, 'VPS PhotoText: пустой список ресторанов.', 200),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertTrue($result->aiAccessOk);
+        $this->assertFalse($result->photoTextOk);
+        $this->assertSame('VPS PhotoText: пустой список ресторанов.', $result->photoTextMessage);
+    }
+
+    public function test_remote_probe_403_denies_only_ai_access(): void
+    {
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(false, 'Доступ AI к базе не разрешён.', 403),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertFalse($result->aiAccessOk);
+        $this->assertSame('Доступ AI к базе не разрешён.', $result->aiAccessMessage);
+        $this->assertTrue($result->photoTextOk);
+        $this->assertSame('VPS PhotoText доступен.', $result->photoTextMessage);
+        $this->assertTrue($result->sidecarOk);
+    }
+
+    public function test_remote_probe_403_unknown_message_confirms_neither_ai_nor_phototext(): void
+    {
+        $foreign = 'WAF blocked /internal stack trace';
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(false, $foreign, 403),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertFalse($result->aiAccessOk);
+        $this->assertSame('Флаг AI на выбранном сервере не проверен.', $result->aiAccessMessage);
+        $this->assertFalse($result->photoTextOk);
+        $this->assertSame($foreign, $result->photoTextMessage);
+        $this->assertStringNotContainsString($foreign, $result->aiAccessMessage);
+        $this->assertTrue($result->sidecarOk);
+    }
+
+    public function test_remote_probe_failure_does_not_confirm_ai_flag(): void
+    {
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(false, 'VPS PhotoText: неверный токен (401).', 401),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertFalse($result->aiAccessOk);
+        $this->assertSame('Флаг AI на выбранном сервере не проверен.', $result->aiAccessMessage);
+        $this->assertFalse($result->photoTextOk);
+        $this->assertSame('VPS PhotoText: неверный токен (401).', $result->photoTextMessage);
+        $this->assertTrue($result->sidecarOk);
+    }
+
+    public function test_remote_probe_redirect_does_not_confirm_ai_flag(): void
+    {
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(false, 'VPS PhotoText: HTTP 302.', 302),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertFalse($result->aiAccessOk);
+        $this->assertSame('Флаг AI на выбранном сервере не проверен.', $result->aiAccessMessage);
+        $this->assertFalse($result->photoTextOk);
+        $this->assertSame('VPS PhotoText: HTTP 302.', $result->photoTextMessage);
+        $this->assertTrue($result->sidecarOk);
+    }
+
+    public function test_remote_probe_non_json_does_not_confirm_ai_flag(): void
+    {
+        $result = $this->remoteChecker(
+            photoText: new SchedulePhotoProbeResultDto(false, 'VPS PhotoText: пустой или неверный JSON.', 0),
+            sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
+        )->check('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertFalse($result->aiAccessOk);
+        $this->assertSame('Флаг AI на выбранном сервере не проверен.', $result->aiAccessMessage);
+        $this->assertFalse($result->photoTextOk);
+        $this->assertSame('VPS PhotoText: пустой или неверный JSON.', $result->photoTextMessage);
+        $this->assertTrue($result->sidecarOk);
     }
 
     private function checker(
@@ -119,6 +238,39 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
         $photoTextProbe->expects($this->once())
             ->method('probe')
             ->with($this->isString())
+            ->willReturn($photoText);
+
+        $sidecarProbe = $this->createMock(SchedulePhotoSidecarHealthProbeInterface::class);
+        $sidecarProbe->expects($this->once())
+            ->method('checkHealth')
+            ->willReturn($sidecar);
+
+        return new SchedulePhotoReadinessChecker(
+            $aiAccess,
+            $admins,
+            $clock,
+            $photoTextProbe,
+            $sidecarProbe,
+        );
+    }
+
+    private function remoteChecker(
+        SchedulePhotoProbeResultDto $photoText,
+        SchedulePhotoProbeResultDto $sidecar,
+    ): SchedulePhotoReadinessChecker {
+        $clock = $this->createMock(ClockInterface::class);
+        $clock->expects($this->never())->method('now');
+
+        $aiAccess = $this->createMock(MaxAiAccessServiceInterface::class);
+        $aiAccess->expects($this->never())->method('getStatus');
+
+        $admins = $this->createMock(FoodOrderAdminRepositoryInterface::class);
+        $admins->expects($this->never())->method('hasActiveRole');
+
+        $photoTextProbe = $this->createMock(SchedulePhotoPhotoTextProbeInterface::class);
+        $photoTextProbe->expects($this->once())
+            ->method('probe')
+            ->with('http://vps.example')
             ->willReturn($photoText);
 
         $sidecarProbe = $this->createMock(SchedulePhotoSidecarHealthProbeInterface::class);

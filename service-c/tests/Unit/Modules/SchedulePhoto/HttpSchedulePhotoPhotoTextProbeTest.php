@@ -32,6 +32,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
         $result = $this->probe($http)->probe('http://localhost:8083/');
 
         $this->assertTrue($result->ok);
+        $this->assertSame(200, $result->status);
         $this->assertSame('Локальный PhotoText доступен.', $result->message);
         $this->assertStringNotContainsString('VPS', $result->message);
         $this->assertSame('GET', $http->lastMethod);
@@ -39,6 +40,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
         $this->assertSame('http://localhost:8083', $http->lastBaseUrl);
         $this->assertSame('agent-token-test', $http->lastHeaders['X-PhotoText-Token'] ?? null);
         $this->assertSame(10, $http->lastTimeout);
+        $this->assertFalse($http->lastFollowRedirects);
     }
 
     public function test_probe_local_docker_origin_is_not_called_vps(): void
@@ -68,6 +70,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
         $result = $this->probe($http)->probe('   ');
 
         $this->assertFalse($result->ok);
+        $this->assertSame(0, $result->status);
         $this->assertSame('BASE_URL пуст.', $result->message);
         $this->assertSame(0, $http->callCount);
     }
@@ -97,7 +100,79 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
         $result = $this->probe($http)->probe('http://vps.example');
 
         $this->assertFalse($result->ok);
+        $this->assertSame(401, $result->status);
         $this->assertSame('VPS PhotoText: неверный токен (401).', $result->message);
+    }
+
+    public function test_probe_403_known_ai_denial_passes_fixed_phrase(): void
+    {
+        $http = $this->recordingHttpClient([
+            '/api/food/phototext/restaurants' => [
+                'status' => 403,
+                'body' => ['message' => '  Доступ AI к базе не разрешён.  '],
+                'successful' => false,
+            ],
+        ]);
+
+        $result = $this->probe($http)->probe('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertSame(403, $result->status);
+        $this->assertSame('Доступ AI к базе не разрешён.', $result->message);
+    }
+
+    public function test_probe_403_arbitrary_body_message_is_not_reflected(): void
+    {
+        $foreign = 'WAF blocked /internal stack trace APP_DEBUG';
+        $http = $this->recordingHttpClient([
+            '/api/food/phototext/restaurants' => [
+                'status' => 403,
+                'body' => ['message' => $foreign],
+                'successful' => false,
+            ],
+        ]);
+
+        $result = $this->probe($http)->probe('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertSame(403, $result->status);
+        $this->assertSame('VPS PhotoText: HTTP 403.', $result->message);
+        $this->assertStringNotContainsString($foreign, $result->message);
+    }
+
+    public function test_probe_403_local_origin_arbitrary_body_is_not_called_vps(): void
+    {
+        $http = $this->recordingHttpClient([
+            '/api/food/phototext/restaurants' => [
+                'status' => 403,
+                'body' => ['message' => 'debug dump of local config'],
+                'successful' => false,
+            ],
+        ]);
+
+        $result = $this->probe($http)->probe('http://localhost:8083');
+
+        $this->assertFalse($result->ok);
+        $this->assertSame('Локальный PhotoText: HTTP 403.', $result->message);
+        $this->assertStringNotContainsString('VPS', $result->message);
+        $this->assertStringNotContainsString('debug dump', $result->message);
+    }
+
+    public function test_probe_403_without_body_message_keeps_http_status(): void
+    {
+        $http = $this->recordingHttpClient([
+            '/api/food/phototext/restaurants' => [
+                'status' => 403,
+                'body' => 'not-json',
+                'successful' => false,
+            ],
+        ]);
+
+        $result = $this->probe($http)->probe('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertSame(403, $result->status);
+        $this->assertSame('VPS PhotoText: HTTP 403.', $result->message);
     }
 
     public function test_probe_fails_on_empty_restaurants(): void
@@ -112,7 +187,44 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
         $result = $this->probe($http)->probe('http://vps.example');
 
         $this->assertFalse($result->ok);
+        $this->assertSame(200, $result->status);
         $this->assertSame('VPS PhotoText: пустой список ресторанов.', $result->message);
+    }
+
+    public function test_probe_redirect_keeps_redirect_status_and_does_not_follow(): void
+    {
+        foreach ([301, 302] as $status) {
+            $http = $this->recordingHttpClient([
+                '/api/food/phototext/restaurants' => [
+                    'status' => $status,
+                    'body' => '',
+                    'successful' => false,
+                ],
+            ]);
+
+            $result = $this->probe($http)->probe('http://vps.example');
+
+            $this->assertFalse($result->ok);
+            $this->assertSame($status, $result->status);
+            $this->assertSame('VPS PhotoText: HTTP '.$status.'.', $result->message);
+            $this->assertFalse($http->lastFollowRedirects);
+        }
+    }
+
+    public function test_probe_non_json_200_reports_no_phototext_status(): void
+    {
+        $http = $this->recordingHttpClient([
+            '/api/food/phototext/restaurants' => [
+                'status' => 200,
+                'body' => '<html>login</html>',
+            ],
+        ]);
+
+        $result = $this->probe($http)->probe('http://vps.example');
+
+        $this->assertFalse($result->ok);
+        $this->assertSame(0, $result->status);
+        $this->assertSame('VPS PhotoText: пустой или неверный JSON.', $result->message);
     }
 
     public function test_probe_fails_on_network_error(): void
@@ -126,6 +238,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 throw new RuntimeException('Connection refused');
             }
@@ -145,6 +258,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
      *     lastHeaders: array<string, string>,
      *     lastBaseUrl: ?string,
      *     lastTimeout: int,
+     *     lastFollowRedirects: bool,
      *     callCount: int
      * }&HttpClientInterface  $http
      */
@@ -161,6 +275,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
      *     lastHeaders: array<string, string>,
      *     lastBaseUrl: ?string,
      *     lastTimeout: int,
+     *     lastFollowRedirects: bool,
      *     callCount: int
      * }&HttpClientInterface
      */
@@ -179,6 +294,8 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
 
             public int $lastTimeout = 0;
 
+            public bool $lastFollowRedirects = true;
+
             public int $callCount = 0;
 
             /**
@@ -193,6 +310,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->callCount++;
                 $this->lastMethod = $method;
@@ -200,6 +318,7 @@ final class HttpSchedulePhotoPhotoTextProbeTest extends TestCase
                 $this->lastHeaders = $headers;
                 $this->lastBaseUrl = $baseUrl;
                 $this->lastTimeout = $timeoutSeconds;
+                $this->lastFollowRedirects = $followRedirects;
 
                 $route = $this->routes[$url] ?? null;
                 if ($route === null) {

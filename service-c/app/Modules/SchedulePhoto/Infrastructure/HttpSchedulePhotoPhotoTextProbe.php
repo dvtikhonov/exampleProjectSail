@@ -5,17 +5,26 @@ declare(strict_types=1);
 namespace App\Modules\SchedulePhoto\Infrastructure;
 
 use App\Contracts\Shared\HttpClientInterface;
+use App\DTO\Shared\HttpResponseDto;
 use App\Modules\SchedulePhoto\Contracts\SchedulePhotoPhotoTextProbeInterface;
 use App\Modules\SchedulePhoto\DTO\SchedulePhotoProbeResultDto;
+use App\Modules\SchedulePhoto\Support\SchedulePhotoLocalHosts;
 
 /**
  * HTTP probe PhotoText выбранного origin: GET /api/food/phototext/restaurants + X-PhotoText-Token.
  *
+ * Редиректы не следуются: 301/302 остаётся ответом allow-listed origin.
+ * Не-JSON при успешном HTTP не считается ответом PhotoText (статус 0).
  * Локальный Docker и loopback в тексте готовности не называются VPS.
  */
 final class HttpSchedulePhotoPhotoTextProbe implements SchedulePhotoPhotoTextProbeInterface
 {
     private const string AGENT_TOKEN_HEADER = 'X-PhotoText-Token';
+
+    /**
+     * Фиксированная фраза EnsurePhotoTextAiAccess. Другой текст 403 в готовность не копируется.
+     */
+    private const string AI_REMOTE_DENIED = 'Доступ AI к базе не разрешён.';
 
     public function __construct(
         private readonly HttpClientInterface $http,
@@ -30,16 +39,13 @@ final class HttpSchedulePhotoPhotoTextProbe implements SchedulePhotoPhotoTextPro
     {
         $origin = rtrim(trim($baseUrl), '/');
         if ($origin === '') {
-            return new SchedulePhotoProbeResultDto(false, 'BASE_URL пуст.');
+            return $this->result(false, 'BASE_URL пуст.');
         }
 
         $subject = $this->subject($origin);
 
         if ($this->agentToken === '') {
-            return new SchedulePhotoProbeResultDto(
-                false,
-                'PhotoText agent token не настроен на сервере.',
-            );
+            return $this->result(false, 'PhotoText agent token не настроен на сервере.');
         }
 
         try {
@@ -53,39 +59,46 @@ final class HttpSchedulePhotoPhotoTextProbe implements SchedulePhotoPhotoTextPro
                 null,
                 $origin,
                 $this->timeoutSeconds,
+                followRedirects: false,
             );
         } catch (\Throwable $exception) {
-            return new SchedulePhotoProbeResultDto(
+            return $this->result(
                 false,
                 $subject.' недоступен: '.$exception->getMessage(),
             );
         }
 
         if ($response->status === 401) {
-            return new SchedulePhotoProbeResultDto(false, $subject.': неверный токен (401).');
+            return $this->result(false, $subject.': неверный токен (401).', $response->status);
+        }
+
+        if ($response->status === 403) {
+            return $this->result(false, $this->forbiddenMessage($response, $subject), $response->status);
         }
 
         if (! $response->successful) {
-            return new SchedulePhotoProbeResultDto(
+            return $this->result(
                 false,
                 $subject.': HTTP '.$response->status.'.',
+                $response->status,
             );
         }
 
         $json = $response->json();
         if (! is_array($json)) {
-            return new SchedulePhotoProbeResultDto(false, $subject.': пустой или неверный JSON.');
+            return $this->result(false, $subject.': пустой или неверный JSON.', 0);
         }
 
         $restaurants = $json['restaurants'] ?? null;
         if (! is_array($restaurants) || $restaurants === []) {
-            return new SchedulePhotoProbeResultDto(
+            return $this->result(
                 false,
                 $subject.': пустой список ресторанов.',
+                $response->status,
             );
         }
 
-        return new SchedulePhotoProbeResultDto(true, $subject.' доступен.');
+        return $this->result(true, $subject.' доступен.', $response->status);
     }
 
     /**
@@ -93,12 +106,30 @@ final class HttpSchedulePhotoPhotoTextProbe implements SchedulePhotoPhotoTextPro
      */
     private function subject(string $origin): string
     {
-        $host = strtolower((string) (parse_url($origin, PHP_URL_HOST) ?: ''));
-
-        if (in_array($host, ['localhost', '127.0.0.1', 'host.docker.internal'], true)) {
+        if (SchedulePhotoLocalHosts::isLocalOrigin($origin)) {
             return 'Локальный PhotoText';
         }
 
         return 'VPS PhotoText';
+    }
+
+    /**
+     * Текст 403: известная фраза отказа AI, иначе короткая подпись HTTP-статуса.
+     * Произвольное тело ответа в готовность не копируется.
+     */
+    private function forbiddenMessage(HttpResponseDto $response, string $subject): string
+    {
+        $json = $response->json();
+        $message = is_array($json) ? ($json['message'] ?? null) : null;
+        if (is_string($message) && trim($message) === self::AI_REMOTE_DENIED) {
+            return self::AI_REMOTE_DENIED;
+        }
+
+        return $subject.': HTTP 403.';
+    }
+
+    private function result(bool $ok, string $message, int $status = 0): SchedulePhotoProbeResultDto
+    {
+        return new SchedulePhotoProbeResultDto($ok, $message, $status);
     }
 }

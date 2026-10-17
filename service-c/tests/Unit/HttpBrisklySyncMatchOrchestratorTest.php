@@ -37,6 +37,7 @@ final class HttpBrisklySyncMatchOrchestratorTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->lastUrl = $url;
                 $this->lastJsonBody = $jsonBody;
@@ -131,6 +132,7 @@ final class HttpBrisklySyncMatchOrchestratorTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 return new HttpResponseDto(
                     status: 503,
@@ -189,6 +191,7 @@ final class HttpBrisklySyncMatchOrchestratorTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->lastUrl = $url;
                 $this->lastJsonBody = $jsonBody;

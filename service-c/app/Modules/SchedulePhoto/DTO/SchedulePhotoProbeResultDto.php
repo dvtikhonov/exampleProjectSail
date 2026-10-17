@@ -12,6 +12,11 @@ readonly class SchedulePhotoProbeResultDto
     public function __construct(
         public bool $ok,
         public string $message,
+        /**
+         * HTTP-статус ответа origin. 0 — ответа PhotoText не было
+         * (запрос не выполнен или тело не JSON).
+         */
+        public int $status = 0,
     ) {}
 
     /**

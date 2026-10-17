@@ -16,6 +16,7 @@ interface HttpClientInterface
      *
      * @param  array<string, string>  $headers
      * @param  array<string, mixed>|null  $jsonBody  JSON-тело; null — без тела
+     * @param  bool  $followRedirects  false — вернуть 301/302, не переходить по Location
      */
     public function request(
         string $method,
@@ -24,5 +25,6 @@ interface HttpClientInterface
         ?array $jsonBody = null,
         ?string $baseUrl = null,
         int $timeoutSeconds = 30,
+        bool $followRedirects = true,
     ): HttpResponseDto;
 }

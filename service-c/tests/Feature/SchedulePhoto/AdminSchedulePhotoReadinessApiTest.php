@@ -172,7 +172,7 @@ class AdminSchedulePhotoReadinessApiTest extends TestCase
         );
     }
 
-    public function test_unprocessable_when_phototext_token_rejected(): void
+    public function test_unprocessable_when_local_phototext_token_rejected(): void
     {
         $this->enableAiAccessForMaxManager(61_011);
         $this->bindProbeHttp([
@@ -190,13 +190,215 @@ class AdminSchedulePhotoReadinessApiTest extends TestCase
         $menu = $this->menuManagerAuth(61_005);
 
         $this->postJson(self::ENDPOINT, [
-            'base_url' => 'http://vps.example',
+            'base_url' => 'http://localhost:8083',
         ], $menu['headers'])
             ->assertUnprocessable()
             ->assertJsonPath('ok', false)
             ->assertJsonPath('ai_access.ok', true)
             ->assertJsonPath('phototext.ok', false)
+            ->assertJsonPath('phototext.message', 'Локальный PhotoText: неверный токен (401).')
+            ->assertJsonPath('sidecar.ok', true);
+    }
+
+    public function test_remote_origin_probe_200_confirms_ai_without_local_flag(): void
+    {
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 200,
+                'body' => [
+                    'restaurants' => [
+                        ['id' => 1, 'name' => 'Столовая'],
+                    ],
+                ],
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_030);
+
+        $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('ai_access.ok', true)
+            ->assertJsonPath('ai_access.message', 'AI-доступ активен.')
+            ->assertJsonPath('phototext.ok', true)
+            ->assertJsonPath('sidecar.ok', true);
+    }
+
+    public function test_remote_origin_probe_403_denies_only_ai_access(): void
+    {
+        $this->enableAiAccessForMaxManager(61_031);
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 403,
+                'body' => ['message' => 'Доступ AI к базе не разрешён.'],
+                'successful' => false,
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_032);
+
+        $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('ai_access.ok', false)
+            ->assertJsonPath('ai_access.message', 'Доступ AI к базе не разрешён.')
+            ->assertJsonPath('phototext.ok', true)
+            ->assertJsonPath('phototext.message', 'VPS PhotoText доступен.')
+            ->assertJsonPath('sidecar.ok', true);
+    }
+
+    public function test_remote_origin_probe_403_unknown_body_does_not_confirm_ai_or_phototext(): void
+    {
+        $foreign = 'WAF blocked /internal stack trace APP_DEBUG';
+        $this->enableAiAccessForMaxManager(61_035);
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 403,
+                'body' => ['message' => $foreign],
+                'successful' => false,
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_036);
+
+        $response = $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('ai_access.ok', false)
+            ->assertJsonPath('ai_access.message', 'Флаг AI на выбранном сервере не проверен.')
+            ->assertJsonPath('phototext.ok', false)
+            ->assertJsonPath('phototext.message', 'VPS PhotoText: HTTP 403.')
+            ->assertJsonPath('sidecar.ok', true);
+
+        $this->assertStringNotContainsString($foreign, (string) $response->getContent());
+    }
+
+    public function test_remote_probe_failure_does_not_confirm_ai_flag(): void
+    {
+        $this->enableAiAccessForMaxManager(61_033);
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 401,
+                'body' => ['message' => 'unauthorized'],
+                'successful' => false,
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_034);
+
+        $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('ai_access.ok', false)
+            ->assertJsonPath('ai_access.message', 'Флаг AI на выбранном сервере не проверен.')
+            ->assertJsonPath('phototext.ok', false)
             ->assertJsonPath('phototext.message', 'VPS PhotoText: неверный токен (401).')
+            ->assertJsonPath('sidecar.ok', true);
+    }
+
+    public function test_remote_redirect_does_not_confirm_ai_flag(): void
+    {
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 302,
+                'body' => '',
+                'successful' => false,
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_040);
+
+        $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('ai_access.ok', false)
+            ->assertJsonPath('ai_access.message', 'Флаг AI на выбранном сервере не проверен.')
+            ->assertJsonPath('phototext.ok', false)
+            ->assertJsonPath('phototext.message', 'VPS PhotoText: HTTP 302.')
+            ->assertJsonPath('sidecar.ok', true);
+    }
+
+    public function test_remote_non_json_200_does_not_confirm_ai_flag(): void
+    {
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 200,
+                'body' => '<html>login</html>',
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_041);
+
+        $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('ai_access.ok', false)
+            ->assertJsonPath('ai_access.message', 'Флаг AI на выбранном сервере не проверен.')
+            ->assertJsonPath('phototext.ok', false)
+            ->assertJsonPath('phototext.message', 'VPS PhotoText: пустой или неверный JSON.')
+            ->assertJsonPath('sidecar.ok', true);
+    }
+
+    public function test_remote_empty_restaurants_json_200_confirms_ai_only(): void
+    {
+        $this->bindProbeHttp([
+            '/api/food/phototext/restaurants' => [
+                'status' => 200,
+                'body' => ['restaurants' => []],
+            ],
+            '/health' => [
+                'status' => 200,
+                'body' => ['ok' => true],
+            ],
+        ]);
+
+        $menu = $this->menuManagerAuth(61_042);
+
+        $this->postJson(self::ENDPOINT, [
+            'base_url' => 'http://vps.example',
+        ], $menu['headers'])
+            ->assertUnprocessable()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('ai_access.ok', true)
+            ->assertJsonPath('ai_access.message', 'AI-доступ активен.')
+            ->assertJsonPath('phototext.ok', false)
+            ->assertJsonPath('phototext.message', 'VPS PhotoText: пустой список ресторанов.')
             ->assertJsonPath('sidecar.ok', true);
     }
 
@@ -249,6 +451,7 @@ class AdminSchedulePhotoReadinessApiTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $route = $this->routes[$url] ?? null;
                 if ($route === null) {

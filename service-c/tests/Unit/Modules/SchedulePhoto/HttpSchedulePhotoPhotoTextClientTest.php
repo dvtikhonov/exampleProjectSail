@@ -336,6 +336,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 throw new RuntimeException('Connection refused');
             }
@@ -452,6 +453,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->callCount++;
                 $this->lastMethod = $method;

@@ -7,12 +7,13 @@ namespace App\Modules\SchedulePhoto\Contracts;
 use App\Modules\SchedulePhoto\DTO\SchedulePhotoReadinessResultDto;
 
 /**
- * Проверка готовности перед запуском LLM OCR (AI + VPS PhotoText + sidecar).
+ * Проверка готовности перед запуском LLM OCR (AI + PhotoText + sidecar).
  */
 interface SchedulePhotoReadinessCheckerInterface
 {
     /**
-     * Проверяет AI-доступ, probe PhotoText BASE_URL и health sidecar.
+     * Проверяет флаг AI (местная база для локального хоста, ответ probe для удалённого origin),
+     * probe PhotoText BASE_URL и health sidecar.
      */
     public function check(string $baseUrl): SchedulePhotoReadinessResultDto;
 }

@@ -35,6 +35,7 @@ final class HttpBrisklySyncTokenCaptureGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->lastMethod = $method;
                 $this->lastUrl = $url;
@@ -76,6 +77,7 @@ final class HttpBrisklySyncTokenCaptureGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 self::fail('HTTP не должен вызываться без secret');
             }
@@ -106,6 +108,7 @@ final class HttpBrisklySyncTokenCaptureGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 return new HttpResponseDto(
                     status: 422,
@@ -145,6 +148,7 @@ final class HttpBrisklySyncTokenCaptureGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 throw new \RuntimeException(
                     'cURL error 28: Operation timed out after 30113 milliseconds with 0 bytes received',
