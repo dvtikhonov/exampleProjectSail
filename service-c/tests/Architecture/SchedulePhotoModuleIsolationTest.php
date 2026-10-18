@@ -11,21 +11,28 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * Architecture guard: SchedulePhoto Contracts/Services must not import Illuminate\*
- * or App\Models\*, and must not call Laravel helpers/facades.
+ * Architecture guard: SchedulePhoto Domain/ and Application/ (scanned recursively)
+ * must not import Illuminate\* or App\Models\*, must not call Laravel helpers/facades,
+ * and must not depend on Food/Max application types.
+ * Infrastructure / Interface / Providers are adapters — not scanned.
  */
 final class SchedulePhotoModuleIsolationTest extends TestCase
 {
     /** @var list<string> */
     private const SCAN_DIRS = [
-        'app/Modules/SchedulePhoto/Contracts',
-        'app/Modules/SchedulePhoto/Services',
+        'app/Modules/SchedulePhoto/Domain',
+        'app/Modules/SchedulePhoto/Application',
     ];
 
     /** @var list<string> */
     private const FORBIDDEN_NEEDLES = [
         'Illuminate\\',
         'App\\Models\\',
+        'App\\Exceptions\\Food\\',
+        'App\\DTO\\Food\\',
+        'App\\Enums\\Food\\',
+        'App\\Contracts\\Food\\',
+        'App\\Contracts\\Max\\',
     ];
 
     /**
@@ -41,7 +48,7 @@ final class SchedulePhotoModuleIsolationTest extends TestCase
     ];
 
     #[Test]
-    public function schedule_photo_contracts_and_services_have_no_framework_leaks(): void
+    public function schedule_photo_domain_dirs_have_no_framework_or_food_max_leaks(): void
     {
         $root = dirname(__DIR__, 2);
         $leaks = $this->collectLeaks($root);
@@ -49,9 +56,9 @@ final class SchedulePhotoModuleIsolationTest extends TestCase
         $this->assertSame(
             [],
             $leaks,
-            "Illuminate\\ / App\\Models\\ / helper+facade leaks in SchedulePhoto Contracts/Services:\n  "
+            "Illuminate\\ / App\\Models\\ / Food\\Max / helper+facade leaks in SchedulePhoto Domain/Application:\n  "
             .implode("\n  ", $leaks)
-            ."\nKeep Eloquent in Repositories/Models; Services depend on module contracts only.",
+            ."\nKeep Eloquent and Food/Max in Infrastructure; Domain/Application depend on module ports only.",
         );
     }
 

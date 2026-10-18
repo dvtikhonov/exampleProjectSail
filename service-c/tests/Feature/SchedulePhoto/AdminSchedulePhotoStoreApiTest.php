@@ -6,11 +6,13 @@ namespace Tests\Feature\SchedulePhoto;
 
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoCatalogScopeBuilderInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoOcrQueueInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoReadinessCheckerInterface;
-use App\Modules\SchedulePhoto\DTO\SchedulePhotoReadinessResultDto;
-use App\Modules\SchedulePhoto\Models\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoOcrQueueInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoReadinessCheckerInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoReadinessResultDto;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Testing\TestResponse;
@@ -146,12 +148,12 @@ class AdminSchedulePhotoStoreApiTest extends TestCase
         });
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 1,
-                    'name' => 'Пюре',
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 1,
+                    name: 'Пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
         $this->mock(SchedulePhotoOcrQueueInterface::class, function ($mock) use (&$dispatchedRunId): void {
@@ -194,6 +196,63 @@ class AdminSchedulePhotoStoreApiTest extends TestCase
         $photoPath = SchedulePhotoRun::query()->find($runId)?->photo_path;
         if (is_string($photoPath) && is_file($photoPath)) {
             unlink($photoPath);
+        }
+    }
+
+    public function test_queue_dispatch_failure_marks_run_failed_and_keeps_photo(): void
+    {
+        $menu = $this->menuManagerAuth(81_011);
+
+        $this->mock(SchedulePhotoReadinessCheckerInterface::class, function ($mock): void {
+            $mock->shouldReceive('check')->once()->andReturn(new SchedulePhotoReadinessResultDto(
+                ok: true,
+                aiAccessOk: true,
+                aiAccessMessage: 'ok',
+                photoTextOk: true,
+                photoTextMessage: 'ok',
+                sidecarOk: true,
+                sidecarMessage: 'ok',
+            ));
+        });
+        $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
+            $mock->shouldReceive('build')->andReturn([
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 1,
+                    name: 'Пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
+            ]);
+        });
+        $this->mock(SchedulePhotoOcrQueueInterface::class, function ($mock): void {
+            $mock->shouldReceive('dispatch')->once()->andThrow(new \RuntimeException('queue down'));
+        });
+
+        $photoPath = null;
+
+        try {
+            $this->postRun($this->validFields([
+                'photo' => $this->jpegUpload(),
+            ]), $menu['headers'])
+                ->assertStatus(503)
+                ->assertJsonPath('message', 'queue down');
+
+            $this->assertDatabaseCount('schedule_photo_runs', 1);
+            $run = SchedulePhotoRun::query()->first();
+            $this->assertNotNull($run);
+            $this->assertSame(SchedulePhotoRunStatus::Failed, $run->status);
+            $this->assertSame('queue down', $run->error_message);
+            $this->assertDatabaseMissing('schedule_photo_runs', [
+                'status' => 'pending',
+            ]);
+
+            $photoPath = $run->photo_path;
+            $this->assertIsString($photoPath);
+            $this->assertFileExists($photoPath);
+        } finally {
+            if (is_string($photoPath) && is_file($photoPath)) {
+                unlink($photoPath);
+            }
         }
     }
 

@@ -3,6 +3,7 @@ import { composeAgentPrompt, assertPhpPromptDto } from './buildMatchPrompt.js';
 import { classifyMatchResults } from './classifyMatchResults.js';
 import { buildMatchMcpServers } from './mcpConfig.js';
 import { parseMatchJson } from './parseMatchJson.js';
+import { resolveCursorModel } from './resolveCursorModel.js';
 import { resolveLocalAgentStore } from './resolveLocalAgentStore.js';
 import type { MatchRunInput, MatchRunOutput } from './types.js';
 
@@ -52,7 +53,10 @@ export async function startCursorRun(
     throw new Error('CURSOR_API_KEY is required for live match (or pass matcher for fixture mode)');
   }
 
-  const modelId = input.modelId ?? process.env.CURSOR_MODEL ?? 'composer-2.5';
+  const model = resolveCursorModel({
+    modelId: input.modelId,
+    optimizeFor: input.optimizeFor,
+  });
   const cwd = input.cwd ?? process.cwd();
   const mcpServers = input.enableMcp ? buildMatchMcpServers(input.mcp) : undefined;
 
@@ -62,7 +66,7 @@ export async function startCursorRun(
   try {
     agent = await Agent.create({
       apiKey,
-      model: { id: modelId },
+      model,
       local: localStore ? { cwd, store: localStore } : { cwd },
       ...(mcpServers ? { mcpServers } : {}),
     });
@@ -92,7 +96,7 @@ export async function awaitCursorRun(run: Run): Promise<string> {
 
   const result = await run.wait();
   if (result.status === 'error') {
-    throw new Error(`Cursor match run failed: ${result.id}`);
+    throw new Error(formatCursorRunFailure(result));
   }
 
   const fromResult =
@@ -108,6 +112,21 @@ export async function awaitCursorRun(run: Run): Promise<string> {
     throw new Error('Cursor match returned empty assistant text');
   }
   return text;
+}
+
+/**
+ * Включает result.error.message/code из SDK — иначе UI видит только opaque run id.
+ */
+export function formatCursorRunFailure(result: {
+  id: string;
+  error?: { message?: string; code?: string } | null;
+}): string {
+  const detail = [result.error?.code, result.error?.message]
+    .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+    .join(': ');
+  return detail
+    ? `Cursor match run failed: ${result.id} — ${detail}`
+    : `Cursor match run failed: ${result.id}`;
 }
 
 export async function disposeCursorAgent(agent: SDKAgent): Promise<void> {

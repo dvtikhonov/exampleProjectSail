@@ -6,7 +6,7 @@ namespace Tests\Unit\Modules\SchedulePhoto;
 
 use App\Contracts\Shared\HttpClientInterface;
 use App\DTO\Shared\HttpResponseDto;
-use App\Modules\SchedulePhoto\Infrastructure\HttpSchedulePhotoSidecarHealthProbe;
+use App\Modules\SchedulePhoto\Infrastructure\Http\HttpSchedulePhotoSidecarHealthProbe;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -32,6 +32,7 @@ final class HttpSchedulePhotoSidecarHealthProbeTest extends TestCase
         $this->assertSame('/health', $http->lastUrl);
         $this->assertSame('http://127.0.0.1:8791', $http->lastBaseUrl);
         $this->assertSame(5, $http->lastTimeout);
+        $this->assertFalse($http->lastFollowRedirects);
     }
 
     public function test_health_fails_when_orchestrator_url_empty(): void
@@ -77,6 +78,30 @@ final class HttpSchedulePhotoSidecarHealthProbeTest extends TestCase
         $this->assertSame('Sidecar LLM: HTTP 503.', $result->message);
     }
 
+    public function test_health_redirect_does_not_confirm_ok(): void
+    {
+        $location = 'http://169.254.169.254/health';
+        foreach ([301, 302] as $status) {
+            $http = $this->recordingHttpClient([
+                '/health' => [
+                    'status' => $status,
+                    'body' => 'Location: '.$location,
+                    'successful' => false,
+                    'location' => $location,
+                ],
+            ]);
+
+            $result = $this->probe($http)->checkHealth();
+
+            $this->assertFalse($result->ok);
+            $this->assertSame('Sidecar LLM: HTTP '.$status.'.', $result->message);
+            $this->assertStringNotContainsString('169.254.169.254', $result->message);
+            $this->assertSame(1, $http->callCount);
+            $this->assertFalse($http->lastFollowRedirects);
+            $this->assertSame('/health', $http->lastUrl);
+        }
+    }
+
     public function test_health_fails_on_network_error(): void
     {
         $http = new class implements HttpClientInterface
@@ -107,6 +132,7 @@ final class HttpSchedulePhotoSidecarHealthProbeTest extends TestCase
      *     lastUrl: string,
      *     lastBaseUrl: ?string,
      *     lastTimeout: int,
+     *     lastFollowRedirects: bool,
      *     callCount: int
      * }&HttpClientInterface  $http
      */
@@ -116,12 +142,13 @@ final class HttpSchedulePhotoSidecarHealthProbeTest extends TestCase
     }
 
     /**
-     * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool}>  $routes
+     * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool, location?: string}>  $routes
      * @return object{
      *     lastMethod: string,
      *     lastUrl: string,
      *     lastBaseUrl: ?string,
      *     lastTimeout: int,
+     *     lastFollowRedirects: bool,
      *     callCount: int
      * }&HttpClientInterface
      */
@@ -137,10 +164,12 @@ final class HttpSchedulePhotoSidecarHealthProbeTest extends TestCase
 
             public int $lastTimeout = 0;
 
+            public bool $lastFollowRedirects = true;
+
             public int $callCount = 0;
 
             /**
-             * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool}>  $routes
+             * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool, location?: string}>  $routes
              */
             public function __construct(private readonly array $routes) {}
 
@@ -158,10 +187,23 @@ final class HttpSchedulePhotoSidecarHealthProbeTest extends TestCase
                 $this->lastUrl = $url;
                 $this->lastBaseUrl = $baseUrl;
                 $this->lastTimeout = $timeoutSeconds;
+                $this->lastFollowRedirects = $followRedirects;
 
                 $route = $this->routes[$url] ?? null;
                 if ($route === null) {
                     return new HttpResponseDto(status: 404, body: '{"message":"not stubbed"}', successful: false);
+                }
+
+                $location = $route['location'] ?? null;
+                if ($followRedirects && is_string($location) && $location !== '') {
+                    $this->callCount++;
+                    $this->lastUrl = $location;
+
+                    return new HttpResponseDto(
+                        status: 200,
+                        body: json_encode(['ok' => true], JSON_THROW_ON_ERROR),
+                        successful: true,
+                    );
                 }
 
                 $status = $route['status'];

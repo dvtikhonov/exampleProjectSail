@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Infrastructure\FilesystemSchedulePhotoAliasesReader;
-use App\Modules\SchedulePhoto\Infrastructure\FilesystemSchedulePhotoAliasesWriter;
-use App\Modules\SchedulePhoto\Infrastructure\MarkdownSchedulePhotoAliasDictionary;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Filesystem\FilesystemSchedulePhotoAliasesReader;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Filesystem\FilesystemSchedulePhotoAliasesWriter;
+use App\Modules\SchedulePhoto\Infrastructure\Dictionary\MarkdownSchedulePhotoAliasDictionary;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Throwable;
 
 final class FilesystemSchedulePhotoAliasesWriterTest extends TestCase
 {
@@ -28,7 +29,7 @@ MD);
         try {
             $reader = new FilesystemSchedulePhotoAliasesReader([$path]);
             $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
-            $writer = new FilesystemSchedulePhotoAliasesWriter([$path], $dict);
+            $writer = new FilesystemSchedulePhotoAliasesWriter([$path], $dict, $dict);
 
             $this->assertTrue($writer->appendPairIfMissing('Ветчинный', 'Салат с ветчиной'));
             $this->assertFalse($writer->appendPairIfMissing('ветчинный', 'Другое'));
@@ -49,32 +50,86 @@ MD);
         $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
         $writer = new FilesystemSchedulePhotoAliasesWriter([
             '/tmp/definitely-missing-aliases-'.uniqid('', true).'.md',
-        ], $dict);
+        ], $dict, $dict);
 
         $this->expectException(RuntimeException::class);
         $writer->appendPairIfMissing('а', 'б');
     }
 
     #[Test]
-    public function succeeds_when_one_of_two_paths_is_writable(): void
+    public function writes_every_existing_copy_and_skips_missing_path(): void
     {
-        $good = sys_get_temp_dir().'/schedule-photo-aliases-good-'.uniqid('', true).'.md';
-        $bad = sys_get_temp_dir().'/schedule-photo-aliases-bad-'.uniqid('', true).'.md';
-        file_put_contents($good, "| OCR / бланк | Канон каталога |\n|-------------|----------------|\n");
-        file_put_contents($bad, "| OCR / бланк | Канон каталога |\n|-------------|----------------|\n");
-        chmod($bad, 0444);
+        $first = sys_get_temp_dir().'/schedule-photo-aliases-a-'.uniqid('', true).'.md';
+        $second = sys_get_temp_dir().'/schedule-photo-aliases-b-'.uniqid('', true).'.md';
+        $missing = sys_get_temp_dir().'/schedule-photo-aliases-missing-'.uniqid('', true).'.md';
+        $header = "| OCR / бланк | Канон каталога |\n|-------------|----------------|\n";
+        file_put_contents($first, $header);
+        file_put_contents($second, $header);
 
         try {
-            $reader = new FilesystemSchedulePhotoAliasesReader([$good, $bad]);
+            $reader = new FilesystemSchedulePhotoAliasesReader([$first, $second]);
             $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
-            $writer = new FilesystemSchedulePhotoAliasesWriter([$good, $bad], $dict);
+            $writer = new FilesystemSchedulePhotoAliasesWriter([$first, $missing, $second], $dict, $dict);
 
             $this->assertTrue($writer->appendPairIfMissing('Овощной тест', 'Салат Овощной'));
-            $this->assertStringContainsString('| Овощной тест | Салат Овощной |', (string) file_get_contents($good));
+            $this->assertStringContainsString('| Овощной тест | Салат Овощной |', (string) file_get_contents($first));
+            $this->assertStringContainsString('| Овощной тест | Салат Овощной |', (string) file_get_contents($second));
+            $this->assertFileDoesNotExist($missing);
         } finally {
-            chmod($bad, 0644);
+            @unlink($first);
+            @unlink($second);
+        }
+    }
+
+    #[Test]
+    public function throws_and_rolls_back_when_an_existing_copy_is_not_writable(): void
+    {
+        $good = sys_get_temp_dir().'/schedule-photo-aliases-good-'.uniqid('', true).'.md';
+        $readonly = '/proc/version';
+        if (! is_file($readonly) || ! is_readable($readonly)) {
+            $this->markTestSkipped('Нет read-only файла '.$readonly);
+        }
+
+        $header = "| OCR / бланк | Канон каталога |\n|-------------|----------------|\n";
+        file_put_contents($good, $header);
+
+        try {
+            $reader = new FilesystemSchedulePhotoAliasesReader([$good]);
+            $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
+            $writer = new FilesystemSchedulePhotoAliasesWriter([$good, $readonly], $dict, $dict);
+
+            try {
+                $writer->appendPairIfMissing('Овощной тест', 'Салат Овощной');
+                $this->fail('Ожидалась ошибка записи во все копии');
+            } catch (Throwable $e) {
+                $this->assertStringContainsString($readonly, $e->getMessage());
+            }
+
+            $this->assertStringNotContainsString('Овощной тест', (string) file_get_contents($good));
+        } finally {
             @unlink($good);
-            @unlink($bad);
+        }
+    }
+
+    #[Test]
+    public function writes_same_inode_once(): void
+    {
+        $path = sys_get_temp_dir().'/schedule-photo-aliases-inode-'.uniqid('', true).'.md';
+        $link = $path.'.link';
+        file_put_contents($path, "| OCR / бланк | Канон каталога |\n|-------------|----------------|\n");
+        symlink($path, $link);
+
+        try {
+            $reader = new FilesystemSchedulePhotoAliasesReader([$path]);
+            $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
+            $writer = new FilesystemSchedulePhotoAliasesWriter([$path, $link], $dict, $dict);
+
+            $this->assertTrue($writer->appendPairIfMissing('Овощной тест', 'Салат Овощной'));
+            $md = (string) file_get_contents($path);
+            $this->assertSame(1, substr_count($md, 'Овощной тест'));
+        } finally {
+            @unlink($link);
+            @unlink($path);
         }
     }
 
@@ -93,7 +148,7 @@ MD);
         try {
             $reader = new FilesystemSchedulePhotoAliasesReader([$path]);
             $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
-            $writer = new FilesystemSchedulePhotoAliasesWriter([$path], $dict);
+            $writer = new FilesystemSchedulePhotoAliasesWriter([$path], $dict, $dict);
 
             $newCanon = 'Салат с курицей и черносливом';
             $this->assertTrue($writer->upsertPair('Курица с черносливом', $newCanon));
@@ -127,7 +182,7 @@ MD);
         try {
             $reader = new FilesystemSchedulePhotoAliasesReader([$path]);
             $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
-            $writer = new FilesystemSchedulePhotoAliasesWriter([$path], $dict);
+            $writer = new FilesystemSchedulePhotoAliasesWriter([$path], $dict, $dict);
 
             $this->assertTrue($writer->appendPairIfMissing($rawTitle, $canon));
 

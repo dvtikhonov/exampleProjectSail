@@ -6,7 +6,7 @@ namespace Tests\Unit\Modules\SchedulePhoto;
 
 use App\Contracts\Shared\HttpClientInterface;
 use App\DTO\Shared\HttpResponseDto;
-use App\Modules\SchedulePhoto\Infrastructure\HttpSchedulePhotoPhotoTextProbe;
+use App\Modules\SchedulePhoto\Infrastructure\Http\HttpSchedulePhotoPhotoTextProbe;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

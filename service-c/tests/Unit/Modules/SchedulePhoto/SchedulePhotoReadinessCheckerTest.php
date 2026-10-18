@@ -4,16 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
-use App\Contracts\Max\MaxAiAccessServiceInterface;
-use App\Contracts\Shared\ClockInterface;
-use App\DTO\Max\AiAccessStatusDto;
-use App\Enums\Food\Review\FoodOrderAdminRole;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoPhotoTextProbeInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoSidecarHealthProbeInterface;
-use App\Modules\SchedulePhoto\DTO\SchedulePhotoProbeResultDto;
-use App\Modules\SchedulePhoto\Services\SchedulePhotoReadinessChecker;
-use DateTimeImmutable;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoLocalAiAccessInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextProbeInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoSidecarHealthProbeInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoProbeResultDto;
+use App\Modules\SchedulePhoto\Application\UseCase\Readiness\SchedulePhotoReadinessChecker;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -24,8 +19,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
     public function test_ok_when_all_checks_pass(): void
     {
         $result = $this->checker(
-            ai: new AiAccessStatusDto(true, 1006, '2026-10-13T12:30:00+00:00'),
-            hasMaxManager: true,
+            localAiGranted: true,
             photoText: new SchedulePhotoProbeResultDto(true, 'VPS PhotoText доступен.'),
             sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
         )->check('http://localhost:8083');
@@ -45,8 +39,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
     public function test_fails_when_ai_disabled(): void
     {
         $result = $this->checker(
-            ai: new AiAccessStatusDto(false, null, null),
-            hasMaxManager: false,
+            localAiGranted: false,
             photoText: new SchedulePhotoProbeResultDto(true, 'VPS PhotoText доступен.'),
             sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
         )->check('http://localhost:8083');
@@ -61,8 +54,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
     public function test_fails_when_active_user_is_not_max_manager(): void
     {
         $result = $this->checker(
-            ai: new AiAccessStatusDto(true, 1006, '2026-10-13T12:30:00+00:00'),
-            hasMaxManager: false,
+            localAiGranted: false,
             photoText: new SchedulePhotoProbeResultDto(true, 'ok'),
             sidecar: new SchedulePhotoProbeResultDto(true, 'ok'),
         )->check('http://localhost:8083');
@@ -74,8 +66,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
     public function test_fails_when_phototext_or_sidecar_fail(): void
     {
         $result = $this->checker(
-            ai: new AiAccessStatusDto(true, 1006, '2026-10-13T12:30:00+00:00'),
-            hasMaxManager: true,
+            localAiGranted: true,
             photoText: new SchedulePhotoProbeResultDto(false, 'Локальный PhotoText: неверный токен (401).', 401),
             sidecar: new SchedulePhotoProbeResultDto(false, 'URL sidecar не настроен.'),
         )->check('http://localhost:8083');
@@ -91,8 +82,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
     public function test_docker_host_still_uses_local_ai_flag(): void
     {
         $result = $this->checker(
-            ai: new AiAccessStatusDto(false, null, null),
-            hasMaxManager: false,
+            localAiGranted: false,
             photoText: new SchedulePhotoProbeResultDto(true, 'Локальный PhotoText доступен.', 200),
             sidecar: new SchedulePhotoProbeResultDto(true, 'Sidecar LLM доступен.'),
         )->check('http://host.docker.internal:8083');
@@ -208,31 +198,14 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
     }
 
     private function checker(
-        AiAccessStatusDto $ai,
-        bool $hasMaxManager,
+        bool $localAiGranted,
         SchedulePhotoProbeResultDto $photoText,
         SchedulePhotoProbeResultDto $sidecar,
     ): SchedulePhotoReadinessChecker {
-        $now = new DateTimeImmutable('2026-10-13T12:00:00+00:00');
-
-        $clock = $this->createMock(ClockInterface::class);
-        $clock->expects($this->once())->method('now')->willReturn($now);
-
-        $aiAccess = $this->createMock(MaxAiAccessServiceInterface::class);
-        $aiAccess->expects($this->once())
-            ->method('getStatus')
-            ->with($now)
-            ->willReturn($ai);
-
-        $admins = $this->createMock(FoodOrderAdminRepositoryInterface::class);
-        if ($ai->enabled && $ai->activeMaxUserId !== null) {
-            $admins->expects($this->once())
-                ->method('hasActiveRole')
-                ->with($ai->activeMaxUserId, FoodOrderAdminRole::MaxManager)
-                ->willReturn($hasMaxManager);
-        } else {
-            $admins->expects($this->never())->method('hasActiveRole');
-        }
+        $localAi = $this->createMock(SchedulePhotoLocalAiAccessInterface::class);
+        $localAi->expects($this->once())
+            ->method('isGranted')
+            ->willReturn($localAiGranted);
 
         $photoTextProbe = $this->createMock(SchedulePhotoPhotoTextProbeInterface::class);
         $photoTextProbe->expects($this->once())
@@ -246,9 +219,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
             ->willReturn($sidecar);
 
         return new SchedulePhotoReadinessChecker(
-            $aiAccess,
-            $admins,
-            $clock,
+            $localAi,
             $photoTextProbe,
             $sidecarProbe,
         );
@@ -258,14 +229,8 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
         SchedulePhotoProbeResultDto $photoText,
         SchedulePhotoProbeResultDto $sidecar,
     ): SchedulePhotoReadinessChecker {
-        $clock = $this->createMock(ClockInterface::class);
-        $clock->expects($this->never())->method('now');
-
-        $aiAccess = $this->createMock(MaxAiAccessServiceInterface::class);
-        $aiAccess->expects($this->never())->method('getStatus');
-
-        $admins = $this->createMock(FoodOrderAdminRepositoryInterface::class);
-        $admins->expects($this->never())->method('hasActiveRole');
+        $localAi = $this->createMock(SchedulePhotoLocalAiAccessInterface::class);
+        $localAi->expects($this->never())->method('isGranted');
 
         $photoTextProbe = $this->createMock(SchedulePhotoPhotoTextProbeInterface::class);
         $photoTextProbe->expects($this->once())
@@ -279,9 +244,7 @@ final class SchedulePhotoReadinessCheckerTest extends TestCase
             ->willReturn($sidecar);
 
         return new SchedulePhotoReadinessChecker(
-            $aiAccess,
-            $admins,
-            $clock,
+            $localAi,
             $photoTextProbe,
             $sidecarProbe,
         );

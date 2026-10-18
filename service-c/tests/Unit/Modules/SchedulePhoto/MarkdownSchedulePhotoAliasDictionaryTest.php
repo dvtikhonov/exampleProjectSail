@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoAliasesReaderInterface;
-use App\Modules\SchedulePhoto\Infrastructure\MarkdownSchedulePhotoAliasDictionary;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesReaderInterface;
+use App\Modules\SchedulePhoto\Infrastructure\Dictionary\MarkdownSchedulePhotoAliasDictionary;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -45,5 +45,23 @@ MD);
 
         $this->assertSame('салат овощной', $dict->normalizeKey('Салат «Овощной»'));
         $this->assertSame('пюре', $dict->normalizeKey('Пюрё'));
+    }
+
+    #[Test]
+    public function clear_cache_rereads_markdown_on_next_resolve(): void
+    {
+        $markdown = <<<'MD'
+| OCR / бланк | Канон каталога |
+|-------------|----------------|
+| пюре | Картофельное пюре |
+MD;
+        $reader = $this->createMock(SchedulePhotoAliasesReaderInterface::class);
+        $reader->expects($this->exactly(2))->method('readMarkdown')->willReturn($markdown);
+
+        $dict = new MarkdownSchedulePhotoAliasDictionary($reader);
+
+        $this->assertSame('Картофельное пюре', $dict->resolveCanon('пюре'));
+        $dict->clearCache();
+        $this->assertSame('Картофельное пюре', $dict->resolveCanon('пюре'));
     }
 }

@@ -13,7 +13,8 @@ use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
 use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
-use App\Modules\SchedulePhoto\Http\Middleware\VerifySchedulePhotoCaptureSecret;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Interface\Http\Middleware\VerifySchedulePhotoCaptureSecret;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -57,6 +58,12 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (BotDmDomainException $exception, Request $request): JsonResponse {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $exception->statusCode());
+        });
+
+        $exceptions->render(function (SchedulePhotoDomainException $exception, Request $request): JsonResponse {
             return response()->json([
                 'message' => $exception->getMessage(),
             ], $exception->statusCode());

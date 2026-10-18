@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Exceptions\Food\FoodDomainException;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoPhotoTextClientInterface;
-use App\Modules\SchedulePhoto\DTO\SchedulePhotoRemoteCatalogCategoryDto;
-use App\Modules\SchedulePhoto\DTO\SchedulePhotoRemoteCatalogDishDto;
-use App\Modules\SchedulePhoto\DTO\SchedulePhotoRemoteCatalogDto;
-use App\Modules\SchedulePhoto\Services\SchedulePhotoCatalogScopeBuilder;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogCategoryDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogDishDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogDto;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Application\UseCase\Catalog\SchedulePhotoCatalogScopeBuilder;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -30,10 +31,11 @@ final class SchedulePhotoCatalogScopeBuilderTest extends TestCase
         $scope = $builder->build(self::BASE_URL, 1, [2]);
 
         $this->assertCount(1, $scope);
-        $this->assertSame(20, $scope[0]['id']);
-        $this->assertSame('Пюре', $scope[0]['name']);
-        $this->assertSame(2, $scope[0]['category_id']);
-        $this->assertSame('Гарнир', $scope[0]['category_name']);
+        $this->assertInstanceOf(SchedulePhotoCatalogScopeDishDto::class, $scope[0]);
+        $this->assertSame(20, $scope[0]->id);
+        $this->assertSame('Пюре', $scope[0]->name);
+        $this->assertSame(2, $scope[0]->categoryId);
+        $this->assertSame('Гарнир', $scope[0]->categoryName);
     }
 
     #[Test]
@@ -44,7 +46,7 @@ final class SchedulePhotoCatalogScopeBuilderTest extends TestCase
 
         $builder = new SchedulePhotoCatalogScopeBuilder($photoText);
 
-        $this->expectException(FoodDomainException::class);
+        $this->expectException(SchedulePhotoDomainException::class);
         $builder->build(self::BASE_URL, 1, [99]);
     }
 
@@ -64,7 +66,7 @@ final class SchedulePhotoCatalogScopeBuilderTest extends TestCase
 
         $builder = new SchedulePhotoCatalogScopeBuilder($photoText);
 
-        $this->expectException(FoodDomainException::class);
+        $this->expectException(SchedulePhotoDomainException::class);
         $this->expectExceptionMessage('Ресторан не найден на выбранном сервере.');
         $builder->build(self::BASE_URL, 1, [2]);
     }

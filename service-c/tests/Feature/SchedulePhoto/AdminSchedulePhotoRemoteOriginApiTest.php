@@ -12,8 +12,8 @@ use App\Models\Food\DishAvailabilityDate;
 use App\Models\Food\MenuCategory;
 use App\Models\Food\Restaurant;
 use App\Models\Max\MaxUser;
-use App\Modules\SchedulePhoto\Enums\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Models\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -172,7 +172,7 @@ class AdminSchedulePhotoRemoteOriginApiTest extends TestCase
         ]);
         $this->assertSame($menuBefore, $this->localMenuSnapshot());
 
-        $this->postJson('/api/food/admin/schedule-photo/runs/'.$runId.'/apply', [], $menu['headers'])
+        $applyResponse = $this->postJson('/api/food/admin/schedule-photo/runs/'.$runId.'/apply', [], $menu['headers'])
             ->assertOk()
             ->assertJsonPath('status', 'applied')
             ->assertJsonPath('base_url', self::REMOTE_ORIGIN)
@@ -180,7 +180,9 @@ class AdminSchedulePhotoRemoteOriginApiTest extends TestCase
             ->assertJsonPath('match_result.matched_count', 1)
             ->assertJsonPath('match_result.categories_applied', [self::REMOTE_CATEGORY_ID])
             ->assertJsonPath('catalog_scope.0.id', self::REMOTE_DISH_ID)
-            ->assertJsonPath('catalog_scope.0.name', 'Удалённый борщ');
+            ->assertJsonPath('catalog_scope.0.name', 'Удалённый борщ')
+            ->assertJsonPath('catalog_error', null);
+        $this->assertArrayHasKey('catalog_error', $applyResponse->json());
 
         $applyCall = $http->calls[1] ?? null;
         $catalogCall = $http->calls[2] ?? null;

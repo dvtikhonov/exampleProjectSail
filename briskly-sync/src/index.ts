@@ -46,6 +46,21 @@ export {
 } from './orchestrator/runMatch.js';
 export type { StartedCursorRun } from './orchestrator/runMatch.js';
 export {
+  CURSOR_AUTO_MODEL_ID,
+  CURSOR_DEFAULT_AUTO_MODEL_ID,
+  CURSOR_ROUTER_MODEL_ID,
+  DEFAULT_CURSOR_MODEL_ID,
+  DEFAULT_CURSOR_OPTIMIZE_FOR,
+  isCursorAutoModel,
+  isCursorRouterModel,
+  normalizeCursorModelId,
+  resolveCursorModel,
+} from './orchestrator/resolveCursorModel.js';
+export type {
+  CursorOptimizeFor,
+  ResolveCursorModelInput,
+} from './orchestrator/resolveCursorModel.js';
+export {
   LLM_PING_EXPECTED,
   LLM_PING_PROMPT,
   LLM_PING_TIMEOUT_MS,

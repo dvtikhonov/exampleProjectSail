@@ -52,6 +52,7 @@ describe('startScheduleOcrRun', () => {
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
         apiKey: 'test-key',
+        model: { id: 'composer-2.5' },
         tools: [],
         local: expect.objectContaining({
           cwd,
@@ -64,4 +65,39 @@ describe('startScheduleOcrRun', () => {
       images: [{ data: 'aGVsbG8=', mimeType: 'image/jpeg' }],
     });
   });
+
+  it('по умолчанию передаёт model default (Auto)', async () => {
+    const cwd = await mkdtemp(path.join(tmpdir(), 'schedule-ocr-auto-'));
+    const prevModel = process.env.CURSOR_MODEL;
+    const prevOpt = process.env.CURSOR_OPTIMIZE_FOR;
+    delete process.env.CURSOR_MODEL;
+    delete process.env.CURSOR_OPTIMIZE_FOR;
+    try {
+      await startScheduleOcrRun({
+        promptText: 'ocr',
+        image: { data: 'aGVsbG8=', mimeType: 'image/jpeg' },
+        cursorApiKey: 'test-key',
+        cwd,
+      });
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+      if (prevModel === undefined) {
+        delete process.env.CURSOR_MODEL;
+      } else {
+        process.env.CURSOR_MODEL = prevModel;
+      }
+      if (prevOpt === undefined) {
+        delete process.env.CURSOR_OPTIMIZE_FOR;
+      } else {
+        process.env.CURSOR_OPTIMIZE_FOR = prevOpt;
+      }
+    }
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { id: 'default' },
+      }),
+    );
+  });
 });
+

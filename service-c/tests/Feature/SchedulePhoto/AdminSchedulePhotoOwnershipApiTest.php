@@ -6,12 +6,13 @@ namespace Tests\Feature\SchedulePhoto;
 
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoAliasDictionaryInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoAliasesWriterInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoCatalogScopeBuilderInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoPhotoTextClientInterface;
-use App\Modules\SchedulePhoto\Enums\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Models\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasDictionaryInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesWriterInterface;
+use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -97,12 +98,12 @@ class AdminSchedulePhotoOwnershipApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
             $mock->shouldReceive('build')->zeroOrMoreTimes()->andReturn([
-                [
-                    'id' => 10,
-                    'name' => 'Пюре',
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: 'Пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
 

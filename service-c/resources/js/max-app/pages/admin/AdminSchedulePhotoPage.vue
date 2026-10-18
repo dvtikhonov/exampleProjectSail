@@ -27,7 +27,9 @@ const {
     running,
     runProgress,
     runError,
-    applying,
+    pollPaused,
+    hasOpenOcrRun,
+    scheduleApplying,
     applyError,
     applied,
     restaurantSelectOptions,
@@ -43,6 +45,7 @@ const {
     issuesAmbiguous,
     issuesOther,
     discarded,
+    runCatalogError,
     catalogScopeSelectOptions,
     windowDates,
     datesOnPhoto,
@@ -70,6 +73,8 @@ const {
     setPhotoFile,
     checkReadiness,
     startRun,
+    stopOcrPoll,
+    resumeOcrPoll,
     confirmApply,
     cancelMatch,
     resetForNewRun,
@@ -220,8 +225,17 @@ function onResetForNewRun() {
                 <div
                     v-if="runProgress"
                     class="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800"
+                    role="status"
                 >
                     {{ runProgress }}
+                </div>
+
+                <div
+                    v-if="pollPaused"
+                    class="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900"
+                    role="status"
+                >
+                    Опрос остановлен. Прогон сохранён — распознавание на сервере может ещё идти.
                 </div>
 
                 <div class="space-y-3">
@@ -446,12 +460,37 @@ function onResetForNewRun() {
                         {{ readinessLoading ? 'Проверка…' : 'Проверить готовность' }}
                     </button>
                     <button
+                        v-if="!hasOpenOcrRun"
                         type="button"
                         class="rounded-xl bg-max-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                         :disabled="!canStart"
                         @click="startRun"
                     >
                         {{ running ? 'Запуск…' : 'Запустить' }}
+                    </button>
+                    <button
+                        v-if="running"
+                        type="button"
+                        class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-50"
+                        @click="stopOcrPoll"
+                    >
+                        Остановить
+                    </button>
+                    <button
+                        v-if="hasOpenOcrRun && !running"
+                        type="button"
+                        class="rounded-xl bg-max-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+                        @click="resumeOcrPoll"
+                    >
+                        Продолжить опрос
+                    </button>
+                    <button
+                        v-if="hasOpenOcrRun && !running"
+                        type="button"
+                        class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-50"
+                        @click="cancelMatch"
+                    >
+                        Отменить прогон
                     </button>
                     <button
                         v-if="applied"
@@ -606,8 +645,8 @@ function onResetForNewRun() {
                     </h3>
                     <ul class="divide-y divide-gray-100 rounded-xl border border-rose-100 bg-rose-50/30">
                         <li
-                            v-for="(issue, index) in issuesNotFound"
-                            :key="`not-found-${index}-${issue.raw_title}`"
+                            v-for="issue in issuesNotFound"
+                            :key="`not-found-${issue.raw_title}-${issue.code}-${(issue.dates || []).join(',')}`"
                             class="px-3 py-2.5 text-sm"
                         >
                             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -643,8 +682,8 @@ function onResetForNewRun() {
                     </h3>
                     <ul class="divide-y divide-gray-100 rounded-xl border border-amber-100 bg-amber-50/30">
                         <li
-                            v-for="(issue, index) in issuesAmbiguous"
-                            :key="`ambiguous-${index}-${issue.raw_title}`"
+                            v-for="issue in issuesAmbiguous"
+                            :key="`ambiguous-${issue.raw_title}-${issue.code}-${(issue.dates || []).join(',')}`"
                             class="px-3 py-2.5 text-sm"
                         >
                             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -680,8 +719,8 @@ function onResetForNewRun() {
                     </h3>
                     <ul class="divide-y divide-gray-100 rounded-xl border border-gray-100">
                         <li
-                            v-for="(issue, index) in issuesOther"
-                            :key="`other-${index}-${issue.raw_title}`"
+                            v-for="issue in issuesOther"
+                            :key="`other-${issue.raw_title}-${issue.code}-${(issue.dates || []).join(',')}`"
                             class="px-3 py-2.5 text-sm"
                         >
                             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -711,9 +750,18 @@ function onResetForNewRun() {
                     </h3>
                     <p class="mb-2 text-xs text-max-muted">
                         OCR/агент не включил строку в entries (0 или &gt;1 кандидат до POST).
-                        Можно выбрать канон по алиасу или вручную из каталога.
+                        <template v-if="!runCatalogError">
+                            Можно выбрать канон по алиасу или вручную из каталога.
+                            При ручном выборе новая пара сохранится в phototext-dish-aliases.md.
+                        </template>
                         В график попадают только дни с фото, не всё окно прогона.
-                        При ручном выборе новая пара сохранится в phototext-dish-aliases.md.
+                    </p>
+                    <p
+                        v-if="runCatalogError"
+                        class="mb-2 text-xs text-red-700"
+                        role="alert"
+                    >
+                        {{ runCatalogError }}
                     </p>
                     <p
                         v-if="resolveDiscardedError"
@@ -724,8 +772,8 @@ function onResetForNewRun() {
                     </p>
                     <ul class="divide-y divide-gray-100 rounded-xl border border-slate-100 bg-slate-50/40">
                         <li
-                            v-for="(row, index) in discarded"
-                            :key="`discarded-${index}-${row.raw_title}`"
+                            v-for="row in discarded"
+                            :key="`discarded-${row.raw_title}-${row.reason}-${(row.dates || []).join(',')}`"
                             class="px-3 py-2.5 text-sm"
                         >
                             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -746,7 +794,10 @@ function onResetForNewRun() {
                             >
                                 reason: {{ row.reason }}
                             </p>
-                            <p class="mt-1.5 text-xs text-slate-700">
+                            <p
+                                v-if="aliasHintLine(row)"
+                                class="mt-1.5 text-xs text-slate-700"
+                            >
                                 {{ aliasHintLine(row) }}
                             </p>
                             <p
@@ -757,7 +808,7 @@ function onResetForNewRun() {
                             </p>
 
                             <div
-                                v-if="!applied && hasMatchResult"
+                                v-if="!applied && hasMatchResult && !runCatalogError"
                                 class="mt-2 space-y-2"
                             >
                                 <div v-if="datesOnPhoto(row).length === 0">
@@ -877,12 +928,12 @@ function onResetForNewRun() {
                         :disabled="!canApply"
                         @click="confirmApply"
                     >
-                        {{ applying ? 'Запись…' : 'Записать график' }}
+                        {{ scheduleApplying ? 'Запись…' : 'Записать график' }}
                     </button>
                     <button
                         type="button"
                         class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-900 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="applying || running"
+                        :disabled="scheduleApplying || running"
                         @click="cancelMatch"
                     >
                         {{ isZeroMatchStop ? 'Закрыть результат' : 'Отмена' }}

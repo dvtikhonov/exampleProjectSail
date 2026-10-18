@@ -4,6 +4,7 @@
 
 import { Agent, CursorAgentError, type Run, type SDKAgent } from '@cursor/sdk';
 import { awaitCursorRun, disposeCursorAgent } from '../orchestrator/runMatch.js';
+import { resolveCursorModel } from '../orchestrator/resolveCursorModel.js';
 import { resolveLocalAgentStore } from '../orchestrator/resolveLocalAgentStore.js';
 
 export interface ScheduleOcrImage {
@@ -21,6 +22,8 @@ export interface StartScheduleOcrOptions {
   image: ScheduleOcrImage;
   cursorApiKey?: string;
   modelId?: string;
+  /** Cursor Router optimize_for (только для auto-smart). */
+  optimizeFor?: string;
   cwd?: string;
 }
 
@@ -35,7 +38,10 @@ export async function startScheduleOcrRun(
     throw new Error('CURSOR_API_KEY is required for live schedule OCR (or pass llm_response fixture)');
   }
 
-  const modelId = options.modelId ?? process.env.CURSOR_MODEL ?? 'composer-2.5';
+  const model = resolveCursorModel({
+    modelId: options.modelId,
+    optimizeFor: options.optimizeFor,
+  });
   const cwd = options.cwd ?? process.cwd();
   const localStore = await resolveLocalAgentStore(cwd);
 
@@ -45,7 +51,7 @@ export async function startScheduleOcrRun(
     // settingSources: [] не подхватывает .cursor/mcp.json и правила проекта.
     agent = await Agent.create({
       apiKey,
-      model: { id: modelId },
+      model,
       tools: [],
       local: localStore
         ? { cwd, store: localStore, settingSources: [] }

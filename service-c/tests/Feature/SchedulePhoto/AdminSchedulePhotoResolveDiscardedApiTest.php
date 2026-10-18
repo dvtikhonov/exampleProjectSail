@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Feature\SchedulePhoto;
 
-use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
-use App\DTO\Food\PhotoText\PhotoTextScheduleMatchedDto;
-use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleEntryDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleMatchedDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleResultDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoAliasDictionaryInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoAliasesWriterInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoCatalogScopeBuilderInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoPhotoTextClientInterface;
-use App\Modules\SchedulePhoto\Enums\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Models\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasDictionaryInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesWriterInterface;
+use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -78,20 +80,20 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock) use ($canon): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 10,
-                    'name' => $canon,
-                    'category_id' => 2,
-                    'category_name' => 'Салаты',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: $canon,
+                    categoryId: 2,
+                    categoryName: 'Салаты',
+                ),
             ]);
         });
 
         $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock) use ($canon): void {
-            $mock->shouldReceive('match')->once()->andReturn(new PhotoTextScheduleResultDto(
+            $mock->shouldReceive('match')->once()->andReturn(new SchedulePhotoScheduleResultDto(
                 matchedCount: 1,
                 matched: [
-                    new PhotoTextScheduleMatchedDto(
+                    new SchedulePhotoScheduleMatchedDto(
                         rawTitle: $canon,
                         dishId: 10,
                         dishName: $canon,
@@ -154,12 +156,12 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 10,
-                    'name' => 'Пюре',
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: 'Пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
 
@@ -211,7 +213,6 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
             $mock->shouldReceive('normalizeKey')->andReturnUsing(
                 static fn (string $v): string => mb_strtolower(trim($v), 'UTF-8'),
             );
-            $mock->shouldReceive('clearCache')->zeroOrMoreTimes();
         });
 
         $this->mock(SchedulePhotoAliasesWriterInterface::class, function ($mock) use ($canon): void {
@@ -223,20 +224,20 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock) use ($canon): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 10,
-                    'name' => $canon,
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: $canon,
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
 
         $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock) use ($canon): void {
-            $mock->shouldReceive('match')->once()->andReturn(new PhotoTextScheduleResultDto(
+            $mock->shouldReceive('match')->once()->andReturn(new SchedulePhotoScheduleResultDto(
                 matchedCount: 1,
                 matched: [
-                    new PhotoTextScheduleMatchedDto(
+                    new SchedulePhotoScheduleMatchedDto(
                         rawTitle: $canon,
                         dishId: 10,
                         dishName: $canon,
@@ -298,7 +299,6 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
             $mock->shouldReceive('normalizeKey')->andReturnUsing(
                 static fn (string $v): string => mb_strtolower(trim($v), 'UTF-8'),
             );
-            $mock->shouldReceive('clearCache')->zeroOrMoreTimes();
         });
 
         $this->mock(SchedulePhotoAliasesWriterInterface::class, function ($mock) use ($ocr, $newCanon): void {
@@ -310,20 +310,20 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock) use ($newCanon): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 20,
-                    'name' => $newCanon,
-                    'category_id' => 2,
-                    'category_name' => 'Салаты',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 20,
+                    name: $newCanon,
+                    categoryId: 2,
+                    categoryName: 'Салаты',
+                ),
             ]);
         });
 
         $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock) use ($newCanon): void {
-            $mock->shouldReceive('match')->once()->andReturn(new PhotoTextScheduleResultDto(
+            $mock->shouldReceive('match')->once()->andReturn(new SchedulePhotoScheduleResultDto(
                 matchedCount: 1,
                 matched: [
-                    new PhotoTextScheduleMatchedDto(
+                    new SchedulePhotoScheduleMatchedDto(
                         rawTitle: $newCanon,
                         dishId: 20,
                         dishName: $newCanon,
@@ -385,12 +385,12 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 10,
-                    'name' => 'Пюре',
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: 'Пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
 
@@ -455,7 +455,6 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
             $mock->shouldReceive('normalizeKey')->andReturnUsing(
                 static fn (string $v): string => mb_strtolower(trim($v), 'UTF-8'),
             );
-            $mock->shouldReceive('clearCache')->zeroOrMoreTimes();
         });
 
         $this->mock(SchedulePhotoAliasesWriterInterface::class, function ($mock) use ($canon): void {
@@ -467,12 +466,12 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock) use ($canon): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 10,
-                    'name' => $canon,
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: $canon,
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
 
@@ -489,16 +488,16 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
                 ): bool {
                     $this->assertSame('http://localhost:8083', $baseUrl);
                     unset($restaurantId, $categoryIds, $dateFrom, $dateTo);
-                    if (count($entries) !== 1 || ! $entries[0] instanceof PhotoTextScheduleEntryDto) {
+                    if (count($entries) !== 1 || ! $entries[0] instanceof SchedulePhotoScheduleEntryDto) {
                         return false;
                     }
 
                     return $entries[0]->dates === ['2026-08-15'];
                 })
-                ->andReturn(new PhotoTextScheduleResultDto(
+                ->andReturn(new SchedulePhotoScheduleResultDto(
                     matchedCount: 1,
                     matched: [
-                        new PhotoTextScheduleMatchedDto(
+                        new SchedulePhotoScheduleMatchedDto(
                             rawTitle: $canon,
                             dishId: 10,
                             dishName: $canon,
@@ -528,6 +527,168 @@ class AdminSchedulePhotoResolveDiscardedApiTest extends TestCase
         ], $menu['headers'])
             ->assertOk()
             ->assertJsonPath('match_result.matched.0.dates', ['2026-08-15']);
+    }
+
+    public function test_soft_fails_alias_writer_and_returns_alias_persist_error(): void
+    {
+        $menu = $this->menuManagerAuth(71_027);
+        $runId = (string) Str::uuid();
+        $canon = 'Пюре';
+
+        SchedulePhotoRun::query()->create([
+            'id' => $runId,
+            'status' => SchedulePhotoRunStatus::Matched,
+            'base_url' => 'http://localhost:8083',
+            'date_from' => '2026-08-13',
+            'date_to' => '2026-08-19',
+            'restaurant_id' => 1,
+            'category_ids' => [2],
+            'created_by_max_user_id' => 71_027,
+            'photo_path' => '/tmp/photo.jpg',
+            'match_result' => [
+                'matched_count' => 0,
+                'matched' => [],
+                'issues' => [],
+                'date_from' => '2026-08-13',
+                'date_to' => '2026-08-19',
+                'applied' => false,
+                'categories_applied' => [],
+            ],
+            'discarded' => [
+                ['raw_title' => 'пюрэшка', 'reason' => 'dish_not_found', 'dates' => ['2026-08-13']],
+            ],
+        ]);
+
+        $this->mock(SchedulePhotoAliasDictionaryInterface::class, function ($mock): void {
+            $mock->shouldReceive('resolveCanon')->andReturn(null);
+            $mock->shouldReceive('normalizeKey')->andReturnUsing(
+                static fn (string $v): string => mb_strtolower(trim($v), 'UTF-8'),
+            );
+        });
+
+        $this->mock(SchedulePhotoAliasesWriterInterface::class, function ($mock) use ($canon): void {
+            $mock->shouldReceive('upsertPair')
+                ->once()
+                ->with('пюрэшка', $canon)
+                ->andThrow(new \RuntimeException('disk full'));
+        });
+
+        $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock) use ($canon): void {
+            $mock->shouldReceive('build')->andReturn([
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: $canon,
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
+            ]);
+        });
+
+        $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock) use ($canon): void {
+            $mock->shouldReceive('match')->once()->andReturn(new SchedulePhotoScheduleResultDto(
+                matchedCount: 1,
+                matched: [
+                    new SchedulePhotoScheduleMatchedDto(
+                        rawTitle: $canon,
+                        dishId: 10,
+                        dishName: $canon,
+                        categoryId: 2,
+                        categoryName: 'Гарнир',
+                        dates: ['2026-08-13'],
+                    ),
+                ],
+                issues: [],
+                dateFrom: '2026-08-13',
+                dateTo: '2026-08-19',
+            ));
+        });
+
+        $this->postJson("/api/food/admin/schedule-photo/runs/{$runId}/resolve-discarded", [
+            'raw_title' => 'пюрэшка',
+            'dates' => ['2026-08-13'],
+            'dish_name' => $canon,
+        ], $menu['headers'])
+            ->assertOk()
+            ->assertJsonPath('status', 'matched')
+            ->assertJsonPath('discarded', [])
+            ->assertJsonPath('alias_persist_error', fn ($message): bool => is_string($message)
+                && str_contains($message, 'не удалось сохранить пару')
+                && str_contains($message, 'disk full'));
+
+        $run = SchedulePhotoRun::query()->findOrFail($runId);
+        $this->assertSame(SchedulePhotoRunStatus::Matched, $run->status);
+        $this->assertSame([], $run->discarded ?? []);
+    }
+
+    public function test_does_not_write_alias_when_match_fails(): void
+    {
+        $menu = $this->menuManagerAuth(71_026);
+        $runId = (string) Str::uuid();
+        $canon = 'Пюре';
+
+        SchedulePhotoRun::query()->create([
+            'id' => $runId,
+            'status' => SchedulePhotoRunStatus::Matched,
+            'base_url' => 'http://localhost:8083',
+            'date_from' => '2026-08-13',
+            'date_to' => '2026-08-19',
+            'restaurant_id' => 1,
+            'category_ids' => [2],
+            'created_by_max_user_id' => 71_026,
+            'photo_path' => '/tmp/photo.jpg',
+            'match_result' => [
+                'matched_count' => 0,
+                'matched' => [],
+                'issues' => [],
+                'date_from' => '2026-08-13',
+                'date_to' => '2026-08-19',
+                'applied' => false,
+                'categories_applied' => [],
+            ],
+            'discarded' => [
+                ['raw_title' => 'пюрэшка', 'reason' => 'dish_not_found', 'dates' => ['2026-08-13']],
+            ],
+        ]);
+
+        $this->mock(SchedulePhotoAliasDictionaryInterface::class, function ($mock): void {
+            $mock->shouldReceive('resolveCanon')->andReturn(null);
+            $mock->shouldReceive('normalizeKey')->andReturnUsing(
+                static fn (string $v): string => mb_strtolower(trim($v), 'UTF-8'),
+            );
+        });
+
+        $this->mock(SchedulePhotoAliasesWriterInterface::class, function ($mock): void {
+            $mock->shouldReceive('upsertPair')->never();
+        });
+
+        $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock) use ($canon): void {
+            $mock->shouldReceive('build')->andReturn([
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: $canon,
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
+            ]);
+        });
+
+        $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock): void {
+            $mock->shouldReceive('match')
+                ->once()
+                ->andThrow(new SchedulePhotoDomainException('Сверка графика недоступна.', 503));
+        });
+
+        $this->postJson("/api/food/admin/schedule-photo/runs/{$runId}/resolve-discarded", [
+            'raw_title' => 'пюрэшка',
+            'dates' => ['2026-08-13'],
+            'dish_name' => $canon,
+        ], $menu['headers'])
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'Сверка графика недоступна.');
+
+        $run = SchedulePhotoRun::query()->findOrFail($runId);
+        $this->assertSame(SchedulePhotoRunStatus::Matched, $run->status);
+        $this->assertSame('пюрэшка', $run->discarded[0]['raw_title'] ?? null);
     }
 
     /**

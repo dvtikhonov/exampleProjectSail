@@ -70,7 +70,7 @@ const BASE = '/food/admin/schedule-photo';
 /**
  * @typedef {object} SchedulePhotoRun
  * @property {string} id
- * @property {string} status
+ * @property {'pending'|'ocr_running'|'matched'|'applying'|'applied'|'failed'} status
  * @property {string} base_url
  * @property {string} date_from
  * @property {string} date_to
@@ -79,7 +79,8 @@ const BASE = '/food/admin/schedule-photo';
  * @property {number} created_by_max_user_id
  * @property {SchedulePhotoMatchResult|null} match_result
  * @property {SchedulePhotoDiscarded[]} discarded
- * @property {SchedulePhotoCatalogScopeDish[]} [catalog_scope]
+ * @property {SchedulePhotoCatalogScopeDish[]|null} [catalog_scope] null — каталог не собран
+ * @property {string|null} [catalog_error] текст сбоя каталога; null — scope собран
  * @property {string|null} error_message
  */
 
@@ -255,6 +256,7 @@ export async function applySchedulePhotoRun(runId) {
 /**
  * POST /api/food/admin/schedule-photo/runs/{runId}/resolve-discarded
  * Канон из алиаса (dish_name пусто) или явный dish_name + даты → rematch.
+ * При soft-fail записи словаря — 200 + опциональное alias_persist_error.
  *
  * @param {string} runId
  * @param {{
@@ -262,7 +264,7 @@ export async function applySchedulePhotoRun(runId) {
  *   dates: string[],
  *   dishName?: string|null,
  * }} params
- * @returns {Promise<SchedulePhotoRun>}
+ * @returns {Promise<SchedulePhotoRun & { alias_persist_error?: string }>}
  */
 export async function resolveSchedulePhotoDiscarded(runId, { rawTitle, dates, dishName = null }) {
     /** @type {Record<string, unknown>} */
