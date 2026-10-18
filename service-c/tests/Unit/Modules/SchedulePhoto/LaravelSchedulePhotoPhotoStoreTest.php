@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Modules\SchedulePhoto;
 
 use App\Contracts\Shared\FileStorageInterface;
-use App\Exceptions\Food\FoodDomainException;
-use App\Modules\SchedulePhoto\Infrastructure\LaravelSchedulePhotoPhotoStore;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Infrastructure\Laravel\LaravelSchedulePhotoPhotoStore;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -46,8 +46,8 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
 
         try {
             $this->store($this->root)->relativeKey($outside);
-            $this->fail('Expected FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
         } finally {
             @unlink($outside);
@@ -70,8 +70,8 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
 
         try {
             $this->store($this->root)->relativeKey($link);
-            $this->fail('Expected FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
         } finally {
             $this->removeTree($outsideDir);
@@ -87,8 +87,8 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
 
         try {
             $this->store($this->root)->relativeKey($this->root.'/../'.basename($outside));
-            $this->fail('Expected FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
         } finally {
             @unlink($outside);
@@ -113,6 +113,80 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
     }
 
     #[Test]
+    public function mime_type_follows_extension_of_stored_file(): void
+    {
+        $this->root = $this->makeRoot();
+        $store = $this->store($this->root);
+        $dir = $this->root.'/schedule-photo';
+
+        $this->assertSame('image/jpeg', $store->mimeType($dir.'/run.jpg'));
+        $this->assertSame('image/jpeg', $store->mimeType($dir.'/run.jpeg'));
+        $this->assertSame('image/png', $store->mimeType($dir.'/run.png'));
+        $this->assertSame('image/webp', $store->mimeType($dir.'/run.webp'));
+        $this->assertSame('image/jpeg', $store->mimeType($dir.'/run.bmp'));
+    }
+
+    #[Test]
+    public function delete_removes_file_inside_disk_root(): void
+    {
+        $this->root = $this->makeRoot();
+        $dir = $this->root.'/schedule-photo';
+        mkdir($dir);
+        $file = $dir.'/run.jpg';
+        file_put_contents($file, 'img');
+
+        $this->store($this->root)->delete($file);
+
+        $this->assertFileDoesNotExist($file);
+    }
+
+    #[Test]
+    public function delete_missing_file_is_success(): void
+    {
+        $this->root = $this->makeRoot();
+
+        $this->store($this->root)->delete($this->root.'/schedule-photo/missing.jpg');
+
+        $this->addToAssertionCount(1);
+    }
+
+    #[Test]
+    public function delete_rejects_path_outside_disk_root(): void
+    {
+        $this->root = $this->makeRoot();
+        $outside = sys_get_temp_dir().'/schedule-photo-delete-out-'.uniqid('', true).'.jpg';
+        file_put_contents($outside, 'secret');
+
+        try {
+            $this->store($this->root)->delete($outside);
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
+            $this->assertSame(422, $exception->statusCode());
+            $this->assertFileExists($outside);
+        } finally {
+            @unlink($outside);
+        }
+    }
+
+    #[Test]
+    public function delete_throws_when_storage_keeps_the_file(): void
+    {
+        $this->root = $this->makeRoot();
+        $dir = $this->root.'/schedule-photo';
+        mkdir($dir);
+        $file = $dir.'/run.jpg';
+        file_put_contents($file, 'img');
+
+        try {
+            $this->store($this->root, false)->delete($file);
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
+            $this->assertSame(500, $exception->statusCode());
+            $this->assertFileExists($file);
+        }
+    }
+
+    #[Test]
     public function rejects_bmp_without_writing_a_file(): void
     {
         $this->root = $this->makeRoot();
@@ -120,8 +194,8 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
 
         try {
             $this->store($this->root)->storeFromLocalPath('run-bmp', $source);
-            $this->fail('Expected FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
         } finally {
             @unlink($source);
@@ -141,18 +215,21 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
 
         try {
             $store->relativeKey('/tmp/photo.jpg');
-            $this->fail('Expected FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(503, $exception->statusCode());
         }
     }
 
-    private function store(string $root): LaravelSchedulePhotoPhotoStore
+    private function store(string $root, bool $allowDelete = true): LaravelSchedulePhotoPhotoStore
     {
         return new LaravelSchedulePhotoPhotoStore(
-            files: new class($root) implements FileStorageInterface
+            files: new class($root, $allowDelete) implements FileStorageInterface
             {
-                public function __construct(private readonly string $root) {}
+                public function __construct(
+                    private readonly string $root,
+                    private readonly bool $allowDelete = true,
+                ) {}
 
                 public function makeDirectory(string $path, string $disk = 'public'): bool
                 {
@@ -204,7 +281,16 @@ final class LaravelSchedulePhotoPhotoStoreTest extends TestCase
 
                 public function delete(string $path, string $disk = 'public'): bool
                 {
-                    return false;
+                    if ($this->root === '' || ! $this->allowDelete) {
+                        return false;
+                    }
+
+                    $absolute = $this->path($path, $disk);
+                    if (! is_file($absolute)) {
+                        return false;
+                    }
+
+                    return unlink($absolute);
                 }
 
                 public function path(string $path, string $disk = 'public'): string

@@ -23,11 +23,16 @@ class LaravelHttpClient implements HttpClientInterface
         ?array $jsonBody = null,
         ?string $baseUrl = null,
         int $timeoutSeconds = 30,
+        bool $followRedirects = true,
     ): HttpResponseDto {
         $pending = Http::withHeaders($headers)
             ->acceptJson()
             ->asJson()
             ->timeout($timeoutSeconds);
+
+        if (! $followRedirects) {
+            $pending = $pending->withoutRedirecting();
+        }
 
         if ($baseUrl !== null && $baseUrl !== '') {
             $pending = $pending->baseUrl($baseUrl);

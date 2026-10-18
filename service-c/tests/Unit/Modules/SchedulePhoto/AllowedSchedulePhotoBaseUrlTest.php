@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Http\Rules\AllowedSchedulePhotoBaseUrl;
+use App\Modules\SchedulePhoto\Interface\Http\Rules\AllowedSchedulePhotoBaseUrl;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -79,6 +79,8 @@ final class AllowedSchedulePhotoBaseUrlTest extends TestCase
         return [
             ['http://169.254.169.254'],
             ['http://169.254.169.254/latest/meta-data/'],
+            ['http://[fe80::1]'],
+            ['http://metadata.google.internal'],
             ['http://127.0.0.1:8083'],
             ['http://evil.example'],
             ['https://max-dev.94-228-117-27.sslip.io/evil'],

@@ -140,7 +140,8 @@ npm run cli                 # BrisklyHttpClient CLI
 | Переменная | Назначение |
 |---|---|
 | `CURSOR_API_KEY` | Live match (Node ≥ 22.13 через `scripts/run-with-node22.sh` / `.nvmrc`; без `node:sqlite` — fallback `JsonlLocalAgentStore`) |
-| `CURSOR_MODEL` | Модель Cursor (default `composer-2.5`) |
+| `CURSOR_MODEL` | Модель Cursor (default `default` = Auto; alias `auto`; Router Teams: `auto-smart`; фикс например `composer-2.5`) |
+| `CURSOR_OPTIMIZE_FOR` | Только для `auto-smart`: `cost` / `balanced` / `intelligence` (default `balanced`) |
 | `FOOD_SOURCE_BASE_URL` / `FOOD_SOURCE_AUTH_TOKEN` | MCP food-source → service-c |
 | `BRISKLY_TOKEN` / `BRISKLY_BASE_URL` | CLI/MCP/apply (admin UI токен берёт через CDP, не из этого env) |
 | `BRISKLY_SYNC_PORT` / `BRISKLY_SYNC_HOST` | Sidecar (default `8791` / `127.0.0.1`; для Docker PHP — `HOST=0.0.0.0`) |

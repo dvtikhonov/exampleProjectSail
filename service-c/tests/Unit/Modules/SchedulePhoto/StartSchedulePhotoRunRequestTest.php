@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Http\Requests\StartSchedulePhotoRunRequest;
+use App\Modules\SchedulePhoto\Interface\Http\Requests\StartSchedulePhotoRunRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use PHPUnit\Framework\Attributes\DataProvider;

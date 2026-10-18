@@ -24,6 +24,7 @@ export {
 export interface PingLlmOptions {
   cursorApiKey?: string;
   modelId?: string;
+  optimizeFor?: string;
   cwd?: string;
   /** Общий лимит create+send+wait, мс. */
   timeoutMs?: number;
@@ -46,6 +47,7 @@ export async function pingLlm(options: PingLlmOptions = {}): Promise<string> {
     brisklySnapshot: [],
     cursorApiKey: apiKey,
     modelId: options.modelId,
+    optimizeFor: options.optimizeFor,
     cwd: options.cwd,
     enableMcp: false,
   };

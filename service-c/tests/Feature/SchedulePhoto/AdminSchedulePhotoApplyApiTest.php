@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\SchedulePhoto;
 
-use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
-use App\DTO\Food\PhotoText\PhotoTextScheduleResultDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoCatalogScopeBuilderInterface;
-use App\Modules\SchedulePhoto\Contracts\SchedulePhotoPhotoTextClientInterface;
-use App\Modules\SchedulePhoto\Enums\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Models\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleEntryDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleResultDto;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Support\AuthenticatesMaxMiniAppUser;
@@ -61,12 +62,12 @@ class AdminSchedulePhotoApplyApiTest extends TestCase
 
         $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
             $mock->shouldReceive('build')->andReturn([
-                [
-                    'id' => 10,
-                    'name' => 'Картофельное пюре',
-                    'category_id' => 2,
-                    'category_name' => 'Гарнир',
-                ],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 10,
+                    name: 'Картофельное пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ]);
         });
 
@@ -87,11 +88,11 @@ class AdminSchedulePhotoApplyApiTest extends TestCase
                     $this->assertSame('2026-08-13', $dateFrom);
                     $this->assertSame('2026-08-19', $dateTo);
                     $this->assertNotEmpty($entries);
-                    $this->assertContainsOnlyInstancesOf(PhotoTextScheduleEntryDto::class, $entries);
+                    $this->assertContainsOnlyInstancesOf(SchedulePhotoScheduleEntryDto::class, $entries);
 
                     return true;
                 })
-                ->andReturn(new PhotoTextScheduleResultDto(
+                ->andReturn(new SchedulePhotoScheduleResultDto(
                     matchedCount: 1,
                     matched: [],
                     issues: [],
@@ -160,6 +161,114 @@ class AdminSchedulePhotoApplyApiTest extends TestCase
             ->assertStatus(409);
     }
 
+    public function test_second_apply_does_not_call_phototext_again(): void
+    {
+        $menu = $this->menuManagerAuth(71_013);
+        $runId = $this->createMatchedRun(matchedCount: 1, createdByMaxUserId: 71_013);
+
+        $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
+            $mock->shouldReceive('build')->andReturn([]);
+        });
+
+        $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock): void {
+            $mock->shouldReceive('apply')->once()->andReturn(new SchedulePhotoScheduleResultDto(
+                matchedCount: 1,
+                matched: [],
+                issues: [],
+                dateFrom: '2026-08-13',
+                dateTo: '2026-08-19',
+                applied: true,
+                categoriesApplied: [2],
+            ));
+        });
+
+        $this->postJson($this->endpoint($runId), [], $menu['headers'])
+            ->assertOk()
+            ->assertJsonPath('status', 'applied');
+
+        $this->postJson($this->endpoint($runId), [], $menu['headers'])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'График этого прогона уже записан.');
+
+        $this->assertDatabaseHas('schedule_photo_runs', [
+            'id' => $runId,
+            'status' => 'applied',
+        ]);
+    }
+
+    public function test_apply_while_applying_does_not_call_phototext(): void
+    {
+        $menu = $this->menuManagerAuth(71_014);
+        $runId = $this->createMatchedRun(
+            matchedCount: 1,
+            createdByMaxUserId: 71_014,
+            status: SchedulePhotoRunStatus::Applying,
+        );
+
+        $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock): void {
+            $mock->shouldReceive('apply')->never();
+        });
+
+        $this->postJson($this->endpoint($runId), [], $menu['headers'])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Запись графика уже выполняется.');
+
+        $this->assertDatabaseHas('schedule_photo_runs', [
+            'id' => $runId,
+            'status' => 'applying',
+        ]);
+    }
+
+    public function test_apply_rolls_back_to_matched_when_phototext_throws(): void
+    {
+        $menu = $this->menuManagerAuth(71_015);
+        $runId = $this->createMatchedRun(matchedCount: 1, createdByMaxUserId: 71_015);
+
+        $this->mock(SchedulePhotoCatalogScopeBuilderInterface::class, function ($mock): void {
+            $mock->shouldReceive('build')->andReturn([]);
+        });
+
+        $this->mock(SchedulePhotoPhotoTextClientInterface::class, function ($mock): void {
+            $mock->shouldReceive('apply')
+                ->twice()
+                ->andReturnUsing(function () {
+                    static $calls = 0;
+                    $calls++;
+                    if ($calls === 1) {
+                        throw new \RuntimeException('PhotoText apply failed');
+                    }
+
+                    return new SchedulePhotoScheduleResultDto(
+                        matchedCount: 1,
+                        matched: [],
+                        issues: [],
+                        dateFrom: '2026-08-13',
+                        dateTo: '2026-08-19',
+                        applied: true,
+                        categoriesApplied: [2],
+                    );
+                });
+        });
+
+        $this->postJson($this->endpoint($runId), [], $menu['headers'])
+            ->assertStatus(500);
+
+        $this->assertDatabaseHas('schedule_photo_runs', [
+            'id' => $runId,
+            'status' => 'matched',
+            'error_message' => 'PhotoText apply failed',
+        ]);
+
+        $this->postJson($this->endpoint($runId), [], $menu['headers'])
+            ->assertOk()
+            ->assertJsonPath('status', 'applied');
+
+        $this->assertDatabaseHas('schedule_photo_runs', [
+            'id' => $runId,
+            'status' => 'applied',
+        ]);
+    }
+
     private function endpoint(string $runId): string
     {
         return '/api/food/admin/schedule-photo/runs/'.$runId.'/apply';
@@ -179,8 +288,11 @@ class AdminSchedulePhotoApplyApiTest extends TestCase
         );
     }
 
-    private function createMatchedRun(int $matchedCount, int $createdByMaxUserId): string
-    {
+    private function createMatchedRun(
+        int $matchedCount,
+        int $createdByMaxUserId,
+        SchedulePhotoRunStatus $status = SchedulePhotoRunStatus::Matched,
+    ): string {
         $runId = (string) Str::uuid();
         $matched = $matchedCount > 0
             ? [[
@@ -195,7 +307,7 @@ class AdminSchedulePhotoApplyApiTest extends TestCase
 
         SchedulePhotoRun::query()->create([
             'id' => $runId,
-            'status' => SchedulePhotoRunStatus::Matched,
+            'status' => $status,
             'base_url' => 'http://localhost:8083',
             'date_from' => '2026-08-13',
             'date_to' => '2026-08-19',

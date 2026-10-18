@@ -128,6 +128,31 @@ class SharedInfrastructurePortsTest extends TestCase
         $this->assertTrue($response->json('ok'));
     }
 
+    public function test_http_client_does_not_follow_redirects_when_disabled(): void
+    {
+        /** @var mixed $allowRedirects */
+        $allowRedirects = 'unset';
+
+        Http::fake(function ($request, array $options) use (&$allowRedirects) {
+            $allowRedirects = $options['allow_redirects'] ?? 'unset';
+
+            return Http::response('', 302, ['Location' => 'https://evil.test/steal']);
+        });
+
+        $response = $this->app->make(HttpClientInterface::class)->request(
+            method: 'GET',
+            url: '/api/food/phototext/restaurants',
+            headers: ['X-PhotoText-Token' => 'secret'],
+            baseUrl: 'https://allowed.test',
+            followRedirects: false,
+        );
+
+        $this->assertFalse($allowRedirects);
+        $this->assertSame(302, $response->status);
+        $this->assertFalse($response->successful);
+        Http::assertSentCount(1);
+    }
+
     public function test_paginated_result_dto(): void
     {
         $page = new PaginatedResultDto(

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Modules\SchedulePhoto;
 
 use App\Contracts\Shared\HttpClientInterface;
-use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
 use App\DTO\Shared\HttpResponseDto;
-use App\Enums\Food\PhotoText\PhotoTextMatchIssueCode;
-use App\Exceptions\Food\FoodDomainException;
-use App\Modules\SchedulePhoto\Infrastructure\HttpSchedulePhotoPhotoTextClient;
-use App\Modules\SchedulePhoto\Support\SchedulePhotoOriginAllowList;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleEntryDto;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoMatchIssueCode;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Domain\Support\SchedulePhotoOriginAllowList;
+use App\Modules\SchedulePhoto\Infrastructure\Http\HttpSchedulePhotoPhotoTextClient;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -52,6 +52,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
         $this->assertSame('application/json', $http->lastHeaders['Accept'] ?? null);
         $this->assertSame('agent-token-test', $http->lastHeaders['X-PhotoText-Token'] ?? null);
         $this->assertArrayNotHasKey('X-PhotoText-Write-Token', $http->lastHeaders);
+        $this->assertFalse($http->lastFollowRedirects);
     }
 
     public function test_get_catalog_sends_restaurant_id_and_maps_categories(): void
@@ -84,6 +85,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
         $this->assertSame('GET', $http->lastMethod);
         $this->assertSame('/api/food/phototext/catalog?restaurant_id=7', $http->lastUrl);
         $this->assertSame(self::LOCAL_ORIGIN, $http->lastBaseUrl);
+        $this->assertFalse($http->lastFollowRedirects);
         $this->assertArrayNotHasKey('X-PhotoText-Write-Token', $http->lastHeaders);
         $this->assertSame(7, $catalog->restaurantId);
         $this->assertSame('Столовая', $catalog->restaurantName);
@@ -110,7 +112,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
             [5, 3],
             '2026-08-13',
             '2026-08-19',
-            [new PhotoTextScheduleEntryDto('Борщ', ['2026-08-13'])],
+            [new SchedulePhotoScheduleEntryDto('Борщ', ['2026-08-13'])],
         );
 
         $this->assertSame('POST', $http->lastMethod);
@@ -118,6 +120,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
         $this->assertSame(self::REMOTE_ORIGIN, $http->lastBaseUrl);
         $this->assertSame('agent-token-test', $http->lastHeaders['X-PhotoText-Token'] ?? null);
         $this->assertArrayNotHasKey('X-PhotoText-Write-Token', $http->lastHeaders);
+        $this->assertFalse($http->lastFollowRedirects);
         $this->assertSame([
             'restaurant_id' => 7,
             'date_from' => '2026-08-13',
@@ -138,7 +141,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
         $this->assertSame(21, $result->matched[0]->categoryId);
         $this->assertSame('Супы', $result->matched[0]->categoryName);
         $this->assertSame(['2026-08-13'], $result->matched[0]->dates);
-        $this->assertSame(PhotoTextMatchIssueCode::DishNotFound, $result->issues[0]->code);
+        $this->assertSame(SchedulePhotoMatchIssueCode::DishNotFound, $result->issues[0]->code);
         $this->assertSame('нет в каталоге', $result->issues[0]->message);
         $this->assertSame('Котлета', $result->issues[0]->rawTitle);
     }
@@ -158,12 +161,13 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
             [21],
             '2026-08-13',
             '2026-08-19',
-            [new PhotoTextScheduleEntryDto('Борщ', ['2026-08-13'])],
+            [new SchedulePhotoScheduleEntryDto('Борщ', ['2026-08-13'])],
         );
 
         $this->assertSame('/api/food/phototext/schedule/apply', $http->lastUrl);
         $this->assertSame('agent-token-test', $http->lastHeaders['X-PhotoText-Token'] ?? null);
         $this->assertSame('write-token-test', $http->lastHeaders['X-PhotoText-Write-Token'] ?? null);
+        $this->assertFalse($http->lastFollowRedirects);
         $this->assertTrue($result->applied);
         $this->assertSame([21], $result->categoriesApplied);
     }
@@ -174,8 +178,8 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
         try {
             $this->client($http)->listRestaurants('   ');
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
             $this->assertSame('BASE_URL пуст.', $exception->getMessage());
             $this->assertSame(0, $http->callCount);
@@ -188,8 +192,8 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
         try {
             $this->client($http)->getCatalog('http://169.254.169.254/latest/meta-data', 7);
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
             $this->assertSame(SchedulePhotoOriginAllowList::REJECTION_MESSAGE, $exception->getMessage());
             $this->assertSame(0, $http->callCount);
@@ -208,8 +212,8 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
         try {
             $this->client($http)->listRestaurants(self::LOCAL_ORIGIN);
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(401, $exception->statusCode());
             $this->assertSame('PhotoText: неверный токен (401).', $exception->getMessage());
         }
@@ -232,10 +236,10 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                 [21],
                 '2026-08-13',
                 '2026-08-14',
-                [new PhotoTextScheduleEntryDto('Борщ', ['2026-08-13'])],
+                [new SchedulePhotoScheduleEntryDto('Борщ', ['2026-08-13'])],
             );
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(422, $exception->statusCode());
             $this->assertSame('Диапазон графика должен быть ровно 7 дней.', $exception->getMessage());
         }
@@ -252,8 +256,8 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
         try {
             $this->client($http)->listRestaurants(self::LOCAL_ORIGIN);
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(502, $exception->statusCode());
             $this->assertSame('PhotoText: пустой или неверный JSON.', $exception->getMessage());
         }
@@ -272,8 +276,8 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
         try {
             $client->listRestaurants(self::LOCAL_ORIGIN);
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(503, $exception->statusCode());
             $this->assertStringContainsString('agent token', $exception->getMessage());
             $this->assertSame(0, $http->callCount);
@@ -302,7 +306,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
             null,
             '2026-08-13',
             '2026-08-19',
-            [new PhotoTextScheduleEntryDto('Борщ', ['2026-08-13'])],
+            [new SchedulePhotoScheduleEntryDto('Борщ', ['2026-08-13'])],
         );
         $this->assertSame(1, $matched->matchedCount);
         $this->assertArrayNotHasKey('category_ids', $http->lastJsonBody ?? []);
@@ -315,13 +319,83 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                 [21],
                 '2026-08-13',
                 '2026-08-19',
-                [new PhotoTextScheduleEntryDto('Борщ', ['2026-08-13'])],
+                [new SchedulePhotoScheduleEntryDto('Борщ', ['2026-08-13'])],
             );
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(503, $exception->statusCode());
             $this->assertStringContainsString('write token', $exception->getMessage());
             $this->assertSame(1, $http->callCount);
+        }
+    }
+
+    public function test_redirect_does_not_follow_location_or_repeat_token_headers(): void
+    {
+        $location = 'http://169.254.169.254/latest/meta-data';
+        $cases = [
+            ['op' => 'match', 'path' => '/api/food/phototext/schedule/match', 'status' => 301],
+            ['op' => 'match', 'path' => '/api/food/phototext/schedule/match', 'status' => 302],
+            ['op' => 'apply', 'path' => '/api/food/phototext/schedule/apply', 'status' => 301],
+            ['op' => 'apply', 'path' => '/api/food/phototext/schedule/apply', 'status' => 302],
+        ];
+
+        foreach ($cases as $case) {
+            $http = $this->recordingHttpClient([
+                $case['path'] => [
+                    'status' => $case['status'],
+                    'body' => 'Location: '.$location,
+                    'successful' => false,
+                    'location' => $location,
+                ],
+            ]);
+
+            $entries = [new SchedulePhotoScheduleEntryDto('Борщ', ['2026-08-13'])];
+
+            try {
+                if ($case['op'] === 'match') {
+                    $this->client($http)->match(
+                        self::REMOTE_ORIGIN,
+                        7,
+                        [5],
+                        '2026-08-13',
+                        '2026-08-19',
+                        $entries,
+                    );
+                } else {
+                    $this->client($http)->apply(
+                        self::REMOTE_ORIGIN,
+                        7,
+                        [5],
+                        '2026-08-13',
+                        '2026-08-19',
+                        $entries,
+                    );
+                }
+
+                $this->fail('Ожидался SchedulePhotoDomainException');
+            } catch (SchedulePhotoDomainException $exception) {
+                $this->assertSame(502, $exception->statusCode());
+                $this->assertSame(
+                    'PhotoText: редирект ('.$case['status'].') отклонён, origin не подтверждён.',
+                    $exception->getMessage(),
+                );
+                $this->assertStringNotContainsString('169.254.169.254', $exception->getMessage());
+                $this->assertStringNotContainsString($location, $exception->getMessage());
+            }
+
+            $this->assertSame(1, $http->callCount, $case['op'].' '.$case['status']);
+            $this->assertFalse($http->lastFollowRedirects);
+            $this->assertSame($case['path'], $http->lastUrl);
+            $this->assertCount(1, $http->calls);
+            $this->assertSame($case['path'], $http->calls[0]['url']);
+            $this->assertSame(self::REMOTE_ORIGIN, $http->calls[0]['baseUrl']);
+            $this->assertSame('agent-token-test', $http->calls[0]['headers']['X-PhotoText-Token'] ?? null);
+            if ($case['op'] === 'apply') {
+                $this->assertSame('write-token-test', $http->calls[0]['headers']['X-PhotoText-Write-Token'] ?? null);
+            } else {
+                $this->assertArrayNotHasKey('X-PhotoText-Write-Token', $http->calls[0]['headers']);
+            }
+            $this->assertStringNotContainsString('169.254.169.254', $http->calls[0]['url']);
         }
     }
 
@@ -336,6 +410,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 throw new RuntimeException('Connection refused');
             }
@@ -343,8 +418,8 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
         try {
             $this->client($http)->listRestaurants(self::LOCAL_ORIGIN);
-            $this->fail('Ожидался FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Ожидался SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(503, $exception->statusCode());
             $this->assertStringContainsString('Connection refused', $exception->getMessage());
         }
@@ -409,7 +484,7 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
     }
 
     /**
-     * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool}>  $routes
+     * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool, location?: string}>  $routes
      * @return object{
      *     lastMethod: string,
      *     lastUrl: string,
@@ -417,7 +492,9 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
      *     lastJsonBody: array<string, mixed>|null,
      *     lastBaseUrl: ?string,
      *     lastTimeout: int,
-     *     callCount: int
+     *     lastFollowRedirects: bool,
+     *     callCount: int,
+     *     calls: list<array{url: string, headers: array<string, string>, baseUrl: ?string}>
      * }&HttpClientInterface
      */
     private function recordingHttpClient(array $routes): HttpClientInterface
@@ -438,10 +515,15 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
 
             public int $lastTimeout = 0;
 
+            public bool $lastFollowRedirects = true;
+
             public int $callCount = 0;
 
+            /** @var list<array{url: string, headers: array<string, string>, baseUrl: ?string}> */
+            public array $calls = [];
+
             /**
-             * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool}>  $routes
+             * @param  array<string, array{status: int, body: array<string, mixed>|string, successful?: bool, location?: string}>  $routes
              */
             public function __construct(private readonly array $routes) {}
 
@@ -452,18 +534,20 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
-                $this->callCount++;
-                $this->lastMethod = $method;
-                $this->lastUrl = $url;
-                $this->lastHeaders = $headers;
-                $this->lastJsonBody = $jsonBody;
-                $this->lastBaseUrl = $baseUrl;
-                $this->lastTimeout = $timeoutSeconds;
+                $this->recordCall($method, $url, $headers, $jsonBody, $baseUrl, $timeoutSeconds, $followRedirects);
 
                 $route = $this->routes[$url] ?? null;
                 if ($route === null) {
                     return new HttpResponseDto(status: 404, body: '{"message":"not stubbed"}', successful: false);
+                }
+
+                $location = $route['location'] ?? null;
+                if ($followRedirects && is_string($location) && $location !== '') {
+                    $this->recordCall($method, $location, $headers, $jsonBody, $baseUrl, $timeoutSeconds, $followRedirects);
+
+                    return new HttpResponseDto(status: 200, body: '{"followed":true}', successful: true);
                 }
 
                 $status = $route['status'];
@@ -474,6 +558,34 @@ final class HttpSchedulePhotoPhotoTextClientTest extends TestCase
                     : json_encode($body, JSON_THROW_ON_ERROR);
 
                 return new HttpResponseDto(status: $status, body: $encoded, successful: $successful);
+            }
+
+            /**
+             * @param  array<string, string>  $headers
+             * @param  array<string, mixed>|null  $jsonBody
+             */
+            private function recordCall(
+                string $method,
+                string $url,
+                array $headers,
+                ?array $jsonBody,
+                ?string $baseUrl,
+                int $timeoutSeconds,
+                bool $followRedirects,
+            ): void {
+                $this->callCount++;
+                $this->lastMethod = $method;
+                $this->lastUrl = $url;
+                $this->lastHeaders = $headers;
+                $this->lastJsonBody = $jsonBody;
+                $this->lastBaseUrl = $baseUrl;
+                $this->lastTimeout = $timeoutSeconds;
+                $this->lastFollowRedirects = $followRedirects;
+                $this->calls[] = [
+                    'url' => $url,
+                    'headers' => $headers,
+                    'baseUrl' => $baseUrl,
+                ];
             }
         };
     }

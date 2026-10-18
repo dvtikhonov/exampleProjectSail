@@ -123,7 +123,7 @@ flowchart TB
 |---|---|---|---|
 | HTTP / Jobs | `Http/`, `Jobs/` | `$request->user()`, Eloquent для загрузки сущности на входе; сразу маппинг в domain-типы | Бизнес-правила без сервисов |
 | Application | `Services/Food/`, `Contracts/Food/` | `*Record`, `*Dto`, `*Command`, Enum, порты (`*Interface`), `Psr\Log\LoggerInterface` | `App\Models\*`, `DB::`, Laravel Facades |
-| Feature-модуль | `app/Modules/FoodReport/`, `app/Modules/MaxIncomingRelay/`, `app/Modules/SchedulePhoto/` | Contracts/Services модуля — те же запреты, что у Food Application; Eloquent только в `Repositories/` (+ `Models/` у FoodReport/SchedulePhoto) | `App\Models\*` / Facades / `Illuminate\*` в Contracts/Services — CI: `scripts/check-food-report-module-isolation.sh`, `scripts/check-schedule-photo-module-isolation.sh`, Architecture tests `FoodReportModuleIsolationTest` / `SchedulePhotoModuleIsolationTest` |
+| Feature-модуль | `app/Modules/FoodReport/`, `app/Modules/MaxIncomingRelay/`, `app/Modules/SchedulePhoto/` | FoodReport/MaxIncomingRelay: Contracts/Services модуля; SchedulePhoto: Domain/Application — те же запреты, что у Food Application; Eloquent только в Repositories/Infrastructure (+ `Models/` у FoodReport/SchedulePhoto) | `App\Models\*` / Facades / `Illuminate\*` в Contracts/Services (FoodReport) и Domain/Application (SchedulePhoto) — CI: `scripts/check-food-report-module-isolation.sh`, `scripts/check-schedule-photo-module-isolation.sh`, Architecture tests `FoodReportModuleIsolationTest` / `SchedulePhotoModuleIsolationTest` |
 | Core | `Services/**`, `Contracts/**` (+ цель: `DTO/`, `Enums/`, `Exceptions/`) | порты, DTO, Enum, PSR-3 | `Illuminate\*`, `App\Models\*`, Facades, helpers (`config`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-core-layer-isolation.sh`, `tests/Architecture/CoreLayerIsolationTest`; **baseline пуст** (end-state для Services/Contracts достигнут) |
 | Support | `app/Support/` | чистые helpers (formatters, combo resolver, initData signer, `MaxPublicAppUrl`, …) | `Illuminate\*`, Facades, helpers (`config`/`request`/`event`/`DB::`/`Log::`/`Storage::`/`Cache::`) — CI: `scripts/check-support-layer-isolation.sh`, `tests/Architecture/SupportLayerIsolationTest` |
 | Infrastructure | `Repositories/{Food,Max,Auth}/`, `Infrastructure/Laravel/`, `Services/Max/` (builders, UI Stand; notifiers — в `Infrastructure/Laravel`) | Eloquent, `DB::transaction`, Storage, Cache, MAX HTTP | Доменные правила без портов |
@@ -1234,7 +1234,8 @@ service-c/
 │   │   └── Auth/                   # EloquentGatewayUserResolver
 │   ├── Modules/
 │   │   ├── FoodReport/             # отчёты выручка/топ блюд (Contracts/Services/Repositories)
-│   │   └── MaxIncomingRelay/       # message_created → Home_chat + max_log (Handlers/Services/DTO)
+│   │   ├── MaxIncomingRelay/       # message_created → Home_chat + max_log (Handlers/Services/DTO)
+│   │   └── SchedulePhoto/          # фото→расписание (Domain/Application/Infrastructure/Interface)
 │   ├── Providers/                  # SharedInfrastructureProvider, FoodServiceProvider,
 │   │                               # MaxServiceProvider, MaxIncomingRelayServiceProvider (DI);
 │   │                               # AppServiceProvider (URL/HTTPS туннель)

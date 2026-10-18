@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Modules\SchedulePhoto\Http\Controllers\AdminSchedulePhotoController;
-use App\Modules\SchedulePhoto\Http\Controllers\InternalSchedulePhotoOcrController;
+use App\Modules\SchedulePhoto\Interface\Http\Controllers\AdminSchedulePhotoController;
+use App\Modules\SchedulePhoto\Interface\Http\Controllers\InternalSchedulePhotoOcrController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +28,7 @@ Route::middleware('max.miniapp.auth')->prefix('food/admin/schedule-photo')->grou
         Route::post('/runs', [AdminSchedulePhotoController::class, 'store'])
             ->middleware('throttle:10,1,schedule-photo-runs');
         Route::get('/runs/{runId}', [AdminSchedulePhotoController::class, 'show'])
+            ->middleware('throttle:60,1,schedule-photo-show')
             ->whereUuid('runId');
         Route::post('/runs/{runId}/apply', [AdminSchedulePhotoController::class, 'apply'])
             ->middleware('throttle:10,1,schedule-photo-apply')

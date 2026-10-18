@@ -94,7 +94,11 @@ return [
      */
     'aliases_path' => (string) env('SCHEDULE_PHOTO_ALIASES_PATH', ''),
 
-    /** Диск Laravel для временных фото OCR. */
+    /**
+     * Диск Laravel для временных фото OCR.
+     * Один инстанс и sidecar на том же хосте — local.
+     * Второй инстанс подключает этот каталог общим volume, не вторым локальным диском.
+     */
     'photo_disk' => (string) env('SCHEDULE_PHOTO_PHOTO_DISK', 'local'),
 
     /** Каталог на диске для фото прогонов. */

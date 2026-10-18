@@ -6,9 +6,10 @@ namespace Tests\Unit\Modules\SchedulePhoto;
 
 use App\Contracts\Shared\HttpClientInterface;
 use App\DTO\Shared\HttpResponseDto;
-use App\Exceptions\Food\FoodDomainException;
-use App\Modules\SchedulePhoto\DTO\SchedulePhotoOcrStartDto;
-use App\Modules\SchedulePhoto\Infrastructure\HttpSchedulePhotoOcrOrchestrator;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoOcrStartDto;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Infrastructure\Http\HttpSchedulePhotoOcrOrchestrator;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -53,8 +54,8 @@ final class HttpSchedulePhotoOcrOrchestratorTest extends TestCase
 
         try {
             $orchestrator->start($this->dto());
-            $this->fail('Expected FoodDomainException');
-        } catch (FoodDomainException $exception) {
+            $this->fail('Expected SchedulePhotoDomainException');
+        } catch (SchedulePhotoDomainException $exception) {
             $this->assertSame(503, $exception->statusCode());
         }
     }
@@ -71,7 +72,7 @@ final class HttpSchedulePhotoOcrOrchestratorTest extends TestCase
 
         $orchestrator = new HttpSchedulePhotoOcrOrchestrator($http, 'http://sidecar.test', 30, 'secret');
 
-        $this->expectException(FoodDomainException::class);
+        $this->expectException(SchedulePhotoDomainException::class);
         $orchestrator->start($this->dto());
     }
 
@@ -85,7 +86,12 @@ final class HttpSchedulePhotoOcrOrchestratorTest extends TestCase
             restaurantId: 1,
             categoryIds: [2],
             catalogScope: [
-                ['id' => 1, 'name' => 'Пюре', 'category_id' => 2, 'category_name' => 'Гарнир'],
+                new SchedulePhotoCatalogScopeDishDto(
+                    id: 1,
+                    name: 'Пюре',
+                    categoryId: 2,
+                    categoryName: 'Гарнир',
+                ),
             ],
             aliasesMarkdown: '| пюре | Картофельное пюре |',
             photoMimeType: 'image/jpeg',

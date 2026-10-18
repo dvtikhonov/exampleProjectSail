@@ -34,6 +34,7 @@ final class HttpBrisklyCatalogGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->lastMethod = $method;
                 $this->lastUrl = $url;
@@ -100,6 +101,7 @@ final class HttpBrisklyCatalogGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 return new HttpResponseDto(
                     status: 200,
@@ -138,6 +140,7 @@ final class HttpBrisklyCatalogGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 return new HttpResponseDto(
                     status: 400,

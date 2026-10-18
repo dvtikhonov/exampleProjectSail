@@ -1,5 +1,6 @@
 /**
- * Фото графика: форма → readiness → OCR/match (poll) → сводка/Issues → confirm apply.
+ * Фото графика: форма → readiness → OCR/match (poll до matched|failed|applied) → сводка/Issues → confirm apply.
+ * Клиентский дедлайн не обрывает прогон: «Остановить» сохраняет id, «Продолжить опрос» читает тот же run.
  */
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import { extractErrorMessage } from '../api';
@@ -22,11 +23,18 @@ import {
 /** Fallback до ответа GET /config (PHP в Docker → host.docker.internal). */
 const FALLBACK_BASE_URL = 'http://host.docker.internal:8083';
 const OCR_POLL_INTERVAL_MS = 2000;
-const OCR_POLL_MAX_MS = 10 * 60 * 1000;
+/** Опрос крутится, пока статус не один из этих. applying — фаза confirm, не OCR. */
+const OCR_TERMINAL_STATUSES = new Set(['matched', 'failed', 'applied']);
 
 /** Превью и файл формы: только эти MIME. Пустой и чужой type отсекаются до createObjectURL. */
 const ALLOWED_PHOTO_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PHOTO_TYPE_ERROR = 'Допустимы только JPEG, PNG и WebP.';
+
+/**
+ * Зеркало PhotoTextScheduleWindow::END_OFFSET_DAYS (service-c).
+ * Менять вместе с PHP SoT — иначе рассинхрон превью окна до ответа сервера.
+ */
+const SCHEDULE_WINDOW_END_OFFSET_DAYS = 6;
 
 /**
  * @returns {string} YYYY-MM-DD (локальная дата)
@@ -52,7 +60,7 @@ function dateToFrom(dateFrom) {
     }
 
     const date = new Date(parts[0], parts[1] - 1, parts[2]);
-    date.setDate(date.getDate() + 6);
+    date.setDate(date.getDate() + SCHEDULE_WINDOW_END_OFFSET_DAYS);
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
@@ -195,6 +203,30 @@ function isPollAborted(error) {
         || candidate.code === 'ERR_CANCELED';
 }
 
+/**
+ * @param {string|undefined|null} status
+ * @returns {boolean}
+ */
+function isTerminalOcrStatus(status) {
+    return OCR_TERMINAL_STATUSES.has(String(status ?? ''));
+}
+
+/**
+ * @param {string|undefined|null} status
+ * @returns {string}
+ */
+function progressForOcrStatus(status) {
+    if (status === 'ocr_running') {
+        return 'Распознавание фото (LLM)…';
+    }
+
+    if (status === 'pending') {
+        return 'Ожидание очереди OCR…';
+    }
+
+    return `Статус: ${status || 'неизвестен'}`;
+}
+
 export function useSchedulePhoto() {
     const baseUrl = ref(FALLBACK_BASE_URL);
     /** @type {import('vue').Ref<SchedulePhotoBaseUrlOption[]>} */
@@ -223,6 +255,8 @@ export function useSchedulePhoto() {
     const categoriesError = ref('');
     let restaurantsRequestSeq = 0;
     let categoriesRequestSeq = 0;
+    /** Поколение проверки готовности: ответ старого base_url не включает «Готовность OK». */
+    let readinessRequestSeq = 0;
     /** Смена BASE_URL из GET /config не должна грузить рестораны дважды. */
     let skipBaseUrlRestaurantReload = 0;
 
@@ -235,9 +269,13 @@ export function useSchedulePhoto() {
     const running = ref(false);
     const runProgress = ref('');
     const runError = ref('');
+    /** Опрос остановлен пользователем. id прогона на месте, это не ошибка OCR. */
+    const pollPaused = ref(false);
     let disposed = false;
     /** @type {AbortController|null} */
     let pollAbortController = null;
+    /** «Остановить»: прервать цикл, не затирая run. */
+    let pollStopRequested = false;
 
     /** @type {import('vue').Ref<SchedulePhotoRun|null>} */
     const run = ref(null);
@@ -307,7 +345,18 @@ export function useSchedulePhoto() {
 
     const discarded = computed(() => run.value?.discarded ?? []);
 
-    const catalogScope = computed(() => run.value?.catalog_scope ?? []);
+    const catalogScope = computed(() => (
+        Array.isArray(run.value?.catalog_scope) ? run.value.catalog_scope : []
+    ));
+
+    /**
+     * Текст сбоя каталога прогона. Пустая строка — scope собран, селектор блюд настоящий.
+     */
+    const runCatalogError = computed(() => {
+        const message = run.value?.catalog_error;
+
+        return typeof message === 'string' ? message.trim() : '';
+    });
 
     const catalogScopeSelectOptions = computed(() => [
         { value: '', label: 'Выберите блюдо из каталога', disabled: true },
@@ -348,7 +397,7 @@ export function useSchedulePhoto() {
 
     const hasMatchResult = computed(() => (
         run.value !== null
-        && (run.value.status === 'matched' || run.value.status === 'applied')
+        && (run.value.status === 'matched' || run.value.status === 'applying' || run.value.status === 'applied')
         && matchResult.value !== null
     ));
 
@@ -365,9 +414,21 @@ export function useSchedulePhoto() {
         && hasUnresolvedRows.value
     ));
 
+    /**
+     * OCR ещё не в matched / failed / applied.
+     * Новый «Запустить» не должен затирать id: повтор только через продолжение опроса.
+     */
+    const hasOpenOcrRun = computed(() => (
+        run.value !== null
+        && run.value.status !== 'applying'
+        && !isTerminalOcrStatus(run.value.status)
+    ));
+
     const canStart = computed(() => (
         readinessOk.value
         && !running.value
+        && !pollPaused.value
+        && !hasOpenOcrRun.value
         && !applying.value
         && !applied.value
         && baseUrl.value.trim() !== ''
@@ -397,10 +458,22 @@ export function useSchedulePhoto() {
 
     const formLocked = computed(() => (
         running.value
+        || pollPaused.value
+        || hasOpenOcrRun.value
         || applying.value
         || resolvingDiscarded.value
         || applied.value
-        || (run.value !== null && (run.value.status === 'matched' || run.value.status === 'pending' || run.value.status === 'ocr_running'))
+        || (run.value !== null && (
+            run.value.status === 'matched'
+            || run.value.status === 'applying'
+            || run.value.status === 'pending'
+            || run.value.status === 'ocr_running'
+        ))
+    ));
+
+    /** Локальный POST или серверный захват applying: повторный confirm не уходит. */
+    const scheduleApplying = computed(() => (
+        applying.value || run.value?.status === 'applying'
     ));
 
     function revokePhotoPreview() {
@@ -443,9 +516,11 @@ export function useSchedulePhoto() {
     }
 
     function invalidateReadiness() {
+        readinessRequestSeq += 1;
         readinessOk.value = false;
         readiness.value = null;
         readinessError.value = '';
+        readinessLoading.value = false;
     }
 
     watch(baseUrl, () => {
@@ -692,7 +767,8 @@ export function useSchedulePhoto() {
             return;
         }
 
-        const url = baseUrl.value.trim();
+        const requestId = ++readinessRequestSeq;
+        const url = normalizeBaseUrl(baseUrl.value);
 
         if (url === '') {
             readinessError.value = 'Укажите BASE_URL.';
@@ -708,6 +784,11 @@ export function useSchedulePhoto() {
 
         try {
             const result = await checkSchedulePhotoReadiness(url);
+
+            if (requestId !== readinessRequestSeq || normalizeBaseUrl(baseUrl.value) !== url) {
+                return;
+            }
+
             readiness.value = result;
             readinessOk.value = result.ok === true;
 
@@ -715,11 +796,17 @@ export function useSchedulePhoto() {
                 readinessError.value = buildReadinessFailureMessage(result);
             }
         } catch (error) {
+            if (requestId !== readinessRequestSeq || normalizeBaseUrl(baseUrl.value) !== url) {
+                return;
+            }
+
             readinessOk.value = false;
             readiness.value = null;
             readinessError.value = extractErrorMessage(error);
         } finally {
-            readinessLoading.value = false;
+            if (requestId === readinessRequestSeq) {
+                readinessLoading.value = false;
+            }
         }
     }
 
@@ -749,12 +836,46 @@ export function useSchedulePhoto() {
         return parts.join(' · ') || 'Проверка готовности не пройдена.';
     }
 
+    /**
+     * @param {SchedulePhotoRun} finished
+     */
+    function acceptFinishedRun(finished) {
+        run.value = finished;
+        pollPaused.value = false;
+
+        if (finished.status === 'failed') {
+            throw new Error(finished.error_message || 'OCR/match не удалось.');
+        }
+
+        if (finished.status === 'applied') {
+            applied.value = true;
+            runProgress.value = '';
+
+            return;
+        }
+
+        if (finished.status !== 'matched') {
+            throw new Error(`Неожиданный статус прогона: ${finished.status}`);
+        }
+
+        runProgress.value = '';
+    }
+
+    /** Остановка опроса без ошибки и без сброса id. */
+    function pauseOcrPollKeepingRun() {
+        pollPaused.value = true;
+        runError.value = '';
+        runProgress.value = '';
+    }
+
     async function startRun() {
         if (!canStart.value || photoFile.value === null) {
             return;
         }
 
         running.value = true;
+        pollPaused.value = false;
+        pollStopRequested = false;
         runError.value = '';
         applyError.value = '';
         applied.value = false;
@@ -770,21 +891,26 @@ export function useSchedulePhoto() {
                 photo: photoFile.value,
             });
 
+            if (disposed) {
+                return;
+            }
+
             run.value = created;
-            runProgress.value = 'Распознавание фото…';
 
-            const finished = await waitForRunCompletion(created.id);
-            run.value = finished;
+            if (isTerminalOcrStatus(created.status)) {
+                acceptFinishedRun(created);
 
-            if (finished.status === 'failed') {
-                throw new Error(finished.error_message || 'OCR/match не удалось.');
+                return;
             }
 
-            if (finished.status !== 'matched') {
-                throw new Error(`Неожиданный статус прогона: ${finished.status}`);
+            if (pollStopRequested) {
+                pauseOcrPollKeepingRun();
+
+                return;
             }
 
-            runProgress.value = '';
+            runProgress.value = progressForOcrStatus(created.status);
+            await pollRunUntilTerminal(created.id);
         } catch (error) {
             if (disposed || isPollAborted(error)) {
                 return;
@@ -794,6 +920,37 @@ export function useSchedulePhoto() {
             runProgress.value = '';
         } finally {
             running.value = false;
+            pollStopRequested = false;
+        }
+    }
+
+    /**
+     * Крутит GET прогона, пока статус не matched / failed / applied.
+     * «Остановить» прерывает цикл и оставляет id.
+     *
+     * @param {string} runId
+     */
+    async function pollRunUntilTerminal(runId) {
+        running.value = true;
+        pollPaused.value = false;
+
+        try {
+            const finished = await waitForRunCompletion(runId);
+            acceptFinishedRun(finished);
+        } catch (error) {
+            if (disposed || isPollAborted(error)) {
+                if (!disposed && pollStopRequested && !isTerminalOcrStatus(run.value?.status)) {
+                    pauseOcrPollKeepingRun();
+                }
+
+                return;
+            }
+
+            runError.value = extractErrorMessage(error);
+            runProgress.value = '';
+        } finally {
+            running.value = false;
+            pollStopRequested = false;
         }
     }
 
@@ -802,7 +959,6 @@ export function useSchedulePhoto() {
      * @returns {Promise<SchedulePhotoRun>}
      */
     async function waitForRunCompletion(runId) {
-        const deadline = Date.now() + OCR_POLL_MAX_MS;
         const controller = new AbortController();
         pollAbortController = controller;
 
@@ -811,29 +967,26 @@ export function useSchedulePhoto() {
         }
 
         try {
-            while (!disposed && !controller.signal.aborted && Date.now() < deadline) {
+            while (!disposed && !controller.signal.aborted) {
                 const current = await fetchSchedulePhotoRun(runId, {
                     signal: controller.signal,
                 });
 
-                if (disposed || controller.signal.aborted) {
+                if (disposed) {
                     throw pollAbortError();
                 }
 
                 run.value = current;
 
-                if (current.status === 'matched' || current.status === 'failed' || current.status === 'applied') {
+                if (isTerminalOcrStatus(current.status)) {
                     return current;
                 }
 
-                if (current.status === 'ocr_running') {
-                    runProgress.value = 'Распознавание фото (LLM)…';
-                } else if (current.status === 'pending') {
-                    runProgress.value = 'Ожидание очереди OCR…';
-                } else {
-                    runProgress.value = `Статус: ${current.status}`;
+                if (controller.signal.aborted) {
+                    throw pollAbortError();
                 }
 
+                runProgress.value = progressForOcrStatus(current.status);
                 await delay(OCR_POLL_INTERVAL_MS, controller.signal);
             }
         } finally {
@@ -842,11 +995,38 @@ export function useSchedulePhoto() {
             }
         }
 
-        if (disposed || controller.signal.aborted) {
-            throw pollAbortError();
+        throw pollAbortError();
+    }
+
+    /** Прервать опрос. Прогон на сервере и ссылка `run.id` остаются. */
+    function stopOcrPoll() {
+        if (!running.value) {
+            return;
         }
 
-        throw new Error('OCR не завершился вовремя. Проверьте статус позже.');
+        pollStopRequested = true;
+        abortOcrPoll();
+    }
+
+    /** Снова читать тот же прогон, пока статус не терминальный. */
+    async function resumeOcrPoll() {
+        const current = run.value;
+
+        if (
+            current === null
+            || running.value
+            || applying.value
+            || resolvingDiscarded.value
+            || isTerminalOcrStatus(current.status)
+        ) {
+            return;
+        }
+
+        pollStopRequested = false;
+        runError.value = '';
+        applyError.value = '';
+        runProgress.value = progressForOcrStatus(current.status);
+        await pollRunUntilTerminal(current.id);
     }
 
     async function confirmApply() {
@@ -864,16 +1044,32 @@ export function useSchedulePhoto() {
                 || result.match_result?.applied === true;
         } catch (error) {
             applyError.value = extractErrorMessage(error);
+            if (run.value?.id) {
+                try {
+                    const current = await fetchSchedulePhotoRun(run.value.id);
+                    run.value = current;
+                    applied.value = current.status === 'applied'
+                        || current.match_result?.applied === true;
+                } catch {
+                    // Исходная ошибка apply уже показана; refresh упал — статус на экране может врать.
+                    const refreshWarning = 'Не удалось обновить статус.';
+                    applyError.value = applyError.value
+                        ? `${applyError.value} ${refreshWarning}`
+                        : refreshWarning;
+                }
+            }
         } finally {
             applying.value = false;
         }
     }
 
     function cancelMatch() {
-        if (applying.value || running.value || resolvingDiscarded.value) {
+        if (scheduleApplying.value || running.value || resolvingDiscarded.value) {
             return;
         }
 
+        pollStopRequested = false;
+        pollPaused.value = false;
         run.value = null;
         runError.value = '';
         applyError.value = '';
@@ -900,6 +1096,14 @@ export function useSchedulePhoto() {
      * @returns {string}
      */
     function aliasHintLine(row) {
+        if (runCatalogError.value !== '') {
+            if (row.suggested_canon) {
+                return `В словаре: ${row.suggested_canon}`;
+            }
+
+            return '';
+        }
+
         if (row.suggested_canon && row.suggested_in_scope) {
             return `По алиасу: ${row.suggested_canon}`;
         }
@@ -1015,6 +1219,12 @@ export function useSchedulePhoto() {
             return;
         }
 
+        if (runCatalogError.value !== '') {
+            resolveDiscardedError.value = runCatalogError.value;
+
+            return;
+        }
+
         const dates = datesForResolve(row);
 
         if (dates.length === 0) {
@@ -1042,6 +1252,9 @@ export function useSchedulePhoto() {
                 dates,
                 dishName: row.suggested_in_scope ? null : dishName,
             });
+            const aliasPersistError = typeof result.alias_persist_error === 'string'
+                ? result.alias_persist_error.trim()
+                : '';
             run.value = result;
 
             const nextDishes = { ...discardedResolveDishName.value };
@@ -1051,6 +1264,11 @@ export function useSchedulePhoto() {
             const nextDates = { ...discardedResolveDates.value };
             delete nextDates[row.raw_title];
             discardedResolveDates.value = nextDates;
+
+            // Soft-fail словаря: строка уже resolved, показываем warning без отката.
+            if (aliasPersistError !== '') {
+                resolveDiscardedError.value = aliasPersistError;
+            }
         } catch (error) {
             resolveDiscardedError.value = extractErrorMessage(error);
         } finally {
@@ -1151,8 +1369,11 @@ export function useSchedulePhoto() {
         running,
         runProgress,
         runError,
+        pollPaused,
+        hasOpenOcrRun,
         run,
         applying,
+        scheduleApplying,
         applyError,
         applied,
         restaurantSelectOptions,
@@ -1170,6 +1391,7 @@ export function useSchedulePhoto() {
         issuesOther,
         discarded,
         catalogScope,
+        runCatalogError,
         catalogScopeSelectOptions,
         windowDates,
         datesOnPhoto,
@@ -1197,6 +1419,8 @@ export function useSchedulePhoto() {
         setPhotoFile,
         checkReadiness,
         startRun,
+        stopOcrPoll,
+        resumeOcrPoll,
         confirmApply,
         cancelMatch,
         resetForNewRun,

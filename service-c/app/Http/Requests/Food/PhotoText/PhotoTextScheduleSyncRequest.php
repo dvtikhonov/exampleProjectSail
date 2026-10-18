@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Food\PhotoText;
 
 use App\DTO\Food\PhotoText\PhotoTextScheduleEntryDto;
-use Carbon\CarbonImmutable;
+use App\Services\Food\PhotoText\PhotoTextScheduleWindow;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -53,13 +53,13 @@ class PhotoTextScheduleSyncRequest extends PhotoTextAgentFormRequest
             'date_to' => ['required', 'date_format:Y-m-d'],
             'entries' => ['required', 'array', 'min:1', 'max:500'],
             'entries.*.name' => ['required', 'string', 'max:255'],
-            'entries.*.dates' => ['required', 'array', 'min:1', 'max:7'],
+            'entries.*.dates' => ['required', 'array', 'min:1', 'max:'.PhotoTextScheduleWindow::LENGTH_DAYS],
             'entries.*.dates.*' => ['required', 'date_format:Y-m-d'],
         ];
     }
 
     /**
-     * Доп. проверки: date_to = date_from + 6; даты entries внутри диапазона;
+     * Доп. проверки: каноническое окно PhotoText; даты entries внутри диапазона;
      * category_id и category_ids не конфликтуют.
      */
     public function withValidator(Validator $validator): void
@@ -83,20 +83,13 @@ class PhotoTextScheduleSyncRequest extends PhotoTextAgentFormRequest
 
             $dateFrom = (string) $this->input('date_from');
             $dateTo = (string) $this->input('date_to');
-            $from = CarbonImmutable::createFromFormat('Y-m-d', $dateFrom);
 
-            if ($from === false) {
-                $validator->errors()->add('date_from', 'Некорректная дата начала графика.');
-
-                return;
-            }
-
-            $expectedTo = $from->startOfDay()->addDays(6)->toDateString();
-
-            if ($dateTo !== $expectedTo) {
+            if (! PhotoTextScheduleWindow::matches($dateFrom, $dateTo)) {
+                $offset = PhotoTextScheduleWindow::END_OFFSET_DAYS;
+                $length = PhotoTextScheduleWindow::LENGTH_DAYS;
                 $validator->errors()->add(
                     'date_to',
-                    'Диапазон графика должен быть ровно 7 дней (date_to = date_from + 6 дней).',
+                    "Диапазон графика должен быть ровно {$length} дней (date_to = date_from + {$offset} дней).",
                 );
 
                 return;
@@ -187,7 +180,7 @@ class PhotoTextScheduleSyncRequest extends PhotoTextAgentFormRequest
     }
 
     /**
-     * Конец окна графика (Y-m-d), ровно date_from + 6.
+     * Конец окна графика (Y-m-d), канон {@see PhotoTextScheduleWindow}.
      */
     public function dateTo(): string
     {

@@ -94,6 +94,8 @@ export interface MatchRunInput {
   matcher?: (prompt: ComboCatalogPromptDto) => Promise<string>;
   cursorApiKey?: string;
   modelId?: string;
+  /** Cursor Router optimize_for (только для auto-smart). */
+  optimizeFor?: string;
   cwd?: string;
   /** Подключить MCP food-source + briskly-target к Agent. */
   enableMcp?: boolean;

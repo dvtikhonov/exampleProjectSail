@@ -292,6 +292,7 @@ final class HttpBrisklySyncVpsCatalogGatewayTest extends TestCase
                 ?array $jsonBody = null,
                 ?string $baseUrl = null,
                 int $timeoutSeconds = 30,
+                bool $followRedirects = true,
             ): HttpResponseDto {
                 $this->callCount++;
                 $this->lastMethod = $method;

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Fail if Eloquent models, Laravel helpers/facades, or Illuminate imports
-# leak into SchedulePhoto Contracts or Services.
+# Fail if Eloquent models, Laravel helpers/facades, Illuminate imports,
+# or Food/Max application types leak into SchedulePhoto Domain/Application
+# (scanned recursively).
+# Infrastructure / Interface / Providers are adapters — not scanned.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,15 +39,21 @@ check_dir() {
     check_pattern "$dir" "$label" '\bStorage::' 'Storage:: facade'
     check_pattern "$dir" "$label" '\bCache::' 'Cache:: facade'
     check_pattern "$dir" "$label" 'use Illuminate\\' 'use Illuminate\'
+    # Food/Max stay in Infrastructure adapters; domain dirs use module ports and DTOs.
+    check_pattern "$dir" "$label" 'App\\Exceptions\\Food\\' 'App\Exceptions\Food\'
+    check_pattern "$dir" "$label" 'App\\DTO\\Food\\' 'App\DTO\Food\'
+    check_pattern "$dir" "$label" 'App\\Enums\\Food\\' 'App\Enums\Food\'
+    check_pattern "$dir" "$label" 'App\\Contracts\\Food\\' 'App\Contracts\Food\'
+    check_pattern "$dir" "$label" 'App\\Contracts\\Max\\' 'App\Contracts\Max\'
 }
 
-check_dir "app/Modules/SchedulePhoto/Contracts" "app/Modules/SchedulePhoto/Contracts"
-check_dir "app/Modules/SchedulePhoto/Services" "app/Modules/SchedulePhoto/Services"
+check_dir "app/Modules/SchedulePhoto/Domain" "app/Modules/SchedulePhoto/Domain"
+check_dir "app/Modules/SchedulePhoto/Application" "app/Modules/SchedulePhoto/Application"
 
 if [[ "$violations" -gt 0 ]]; then
     echo ""
     echo "SchedulePhoto module isolation check failed: ${violations} violation(s)."
-    echo "Move Eloquent/Facades/helpers out of SchedulePhoto Contracts/Services; use ports and Repositories/Models."
+    echo "Move Eloquent/Facades/helpers/Food/Max out of SchedulePhoto Domain/Application; use ports and Infrastructure/Interface adapters."
     exit 1
 fi
 
