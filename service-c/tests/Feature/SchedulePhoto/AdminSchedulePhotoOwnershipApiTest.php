@@ -6,11 +6,11 @@ namespace Tests\Feature\SchedulePhoto;
 
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use App\Models\Max\MaxUser;
+use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
 use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasDictionaryInterface;
 use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesWriterInterface;
-use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
 use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
-use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
 use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;

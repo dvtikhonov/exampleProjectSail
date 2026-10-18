@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\SchedulePhoto\Application\Contract;
 
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunPatchDto;
-use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
 use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 
 /**
  * Общий доступ к прогону: владелец и CAS-запись.

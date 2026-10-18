@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
+use App\Modules\SchedulePhoto\Infrastructure\Dictionary\MarkdownSchedulePhotoAliasDictionary;
 use App\Modules\SchedulePhoto\Infrastructure\Persistence\Filesystem\FilesystemSchedulePhotoAliasesReader;
 use App\Modules\SchedulePhoto\Infrastructure\Persistence\Filesystem\FilesystemSchedulePhotoAliasesWriter;
-use App\Modules\SchedulePhoto\Infrastructure\Dictionary\MarkdownSchedulePhotoAliasDictionary;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\SchedulePhoto\Domain\Service;
 
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasDictionaryInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasDictionaryInterface;
 
 /**
  * Поиск канонического имени блюда в catalog scope (та же нормализация ключа, что у словаря).

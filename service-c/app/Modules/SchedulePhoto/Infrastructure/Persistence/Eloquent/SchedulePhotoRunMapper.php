@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent;
 
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoDiscardedRowDto;
-use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleIssueDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleMatchedDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleResultDto;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoMatchIssueCode;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 
 /**
  * Eloquent → {@see SchedulePhotoRunRecord}.

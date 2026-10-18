@@ -6,8 +6,8 @@ namespace App\Modules\SchedulePhoto\Infrastructure\Http;
 
 use App\Contracts\Shared\HttpClientInterface;
 use App\DTO\Shared\HttpResponseDto;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextProbeInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoProbeResultDto;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextProbeInterface;
 use App\Modules\SchedulePhoto\Domain\Support\SchedulePhotoLocalHosts;
 
 /**

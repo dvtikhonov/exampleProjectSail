@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
+use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoProbeResultDto;
 use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoLocalAiAccessInterface;
 use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextProbeInterface;
 use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoSidecarHealthProbeInterface;
-use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoProbeResultDto;
 use App\Modules\SchedulePhoto\Application\UseCase\Readiness\SchedulePhotoReadinessChecker;
 use PHPUnit\Framework\TestCase;
 

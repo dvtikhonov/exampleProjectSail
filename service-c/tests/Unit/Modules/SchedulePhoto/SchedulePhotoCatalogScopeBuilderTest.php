@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogCategoryDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogDishDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogDto;
-use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Application\UseCase\Catalog\SchedulePhotoCatalogScopeBuilder;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

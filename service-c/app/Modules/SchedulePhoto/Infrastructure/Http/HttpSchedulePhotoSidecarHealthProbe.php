@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\SchedulePhoto\Infrastructure\Http;
 
 use App\Contracts\Shared\HttpClientInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoSidecarHealthProbeInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoProbeResultDto;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoSidecarHealthProbeInterface;
 
 /**
  * GET {orchestrator_base_url}/health → ожидается JSON {ok:true}.

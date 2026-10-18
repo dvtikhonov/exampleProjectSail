@@ -11,9 +11,7 @@ use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesReaderInterfa
 /**
  * Парсит markdown-таблицу | OCR | Канон | в map нормализованный ключ → канон.
  */
-final class MarkdownSchedulePhotoAliasDictionary implements
-    SchedulePhotoAliasDictionaryInterface,
-    SchedulePhotoAliasDictionaryCacheInterface
+final class MarkdownSchedulePhotoAliasDictionary implements SchedulePhotoAliasDictionaryCacheInterface, SchedulePhotoAliasDictionaryInterface
 {
     /** @var array<string, string>|null */
     private ?array $map = null;

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\SchedulePhoto\Application\UseCase\Catalog;
 
 use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
 
 /**

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Domain\Repository\SchedulePhotoRunRepositoryInterface;
 use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoOcrJobInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunPatchDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleResultDto;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Domain\Repository\SchedulePhotoRunRepositoryInterface;
 use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;

@@ -9,8 +9,8 @@ use App\DTO\Shared\HttpResponseDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleEntryDto;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoMatchIssueCode;
 use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
-use App\Modules\SchedulePhoto\Infrastructure\Http\HttpSchedulePhotoPhotoTextClient;
 use App\Modules\SchedulePhoto\Domain\Support\SchedulePhotoOriginAllowList;
+use App\Modules\SchedulePhoto\Infrastructure\Http\HttpSchedulePhotoPhotoTextClient;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

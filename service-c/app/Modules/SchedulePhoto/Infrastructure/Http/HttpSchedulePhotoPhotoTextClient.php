@@ -6,7 +6,6 @@ namespace App\Modules\SchedulePhoto\Infrastructure\Http;
 
 use App\Contracts\Shared\HttpClientInterface;
 use App\DTO\Shared\HttpResponseDto;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogCategoryDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogDishDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRemoteCatalogDto;
@@ -15,6 +14,7 @@ use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleEntryDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleIssueDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleMatchedDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleResultDto;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoMatchIssueCode;
 use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
 use App\Modules\SchedulePhoto\Domain\Support\SchedulePhotoOriginAllowList;

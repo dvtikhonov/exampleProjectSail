@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent;
 
-use App\Modules\SchedulePhoto\Domain\Repository\SchedulePhotoRunRepositoryInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoDiscardedRowDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunCreateDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunPatchDto;
-use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Infrastructure\Persistence\Eloquent\SchedulePhotoRun;
+use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
+use App\Modules\SchedulePhoto\Domain\Repository\SchedulePhotoRunRepositoryInterface;
 use InvalidArgumentException;
 
 /**

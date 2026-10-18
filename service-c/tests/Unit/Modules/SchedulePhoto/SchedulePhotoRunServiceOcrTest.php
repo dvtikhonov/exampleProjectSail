@@ -4,15 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\SchedulePhoto;
 
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesReaderInterface;
 use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoCatalogScopeBuilderInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoIdGeneratorInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoOcrOrchestratorInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoOcrQueueInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoStoreInterface;
-use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
 use App\Modules\SchedulePhoto\Application\Contract\SchedulePhotoReadinessCheckerInterface;
-use App\Modules\SchedulePhoto\Domain\Repository\SchedulePhotoRunRepositoryInterface;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoCatalogScopeDishDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoDiscardedRowDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoOcrCallbackDto;
@@ -20,19 +13,26 @@ use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoOcrStartDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoReadinessResultDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunCreateDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunPatchDto;
-use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleIssueDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleMatchedDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoScheduleResultDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoStartRunDto;
-use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoMatchIssueCode;
-use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
-use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoAliasesReaderInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoIdGeneratorInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoOcrOrchestratorInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoOcrQueueInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoStoreInterface;
+use App\Modules\SchedulePhoto\Application\Port\SchedulePhotoPhotoTextClientInterface;
+use App\Modules\SchedulePhoto\Application\UseCase\Apply\SchedulePhotoRunApplier;
 use App\Modules\SchedulePhoto\Application\UseCase\Ocr\SchedulePhotoOcrCompleter;
 use App\Modules\SchedulePhoto\Application\UseCase\Ocr\SchedulePhotoOcrJobHandler;
 use App\Modules\SchedulePhoto\Application\UseCase\Start\SchedulePhotoRunAccess;
-use App\Modules\SchedulePhoto\Application\UseCase\Apply\SchedulePhotoRunApplier;
 use App\Modules\SchedulePhoto\Application\UseCase\Start\SchedulePhotoRunStarter;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoMatchIssueCode;
+use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Domain\Exception\SchedulePhotoDomainException;
+use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
+use App\Modules\SchedulePhoto\Domain\Repository\SchedulePhotoRunRepositoryInterface;
 use App\Modules\SchedulePhoto\Domain\Service\SchedulePhotoStoredMatchEntries;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -997,7 +997,7 @@ final class SchedulePhotoRunServiceOcrTest extends TestCase
             runs: $runs,
             access: $access,
             photoText: $photoText,
-            storedMatchEntries: new SchedulePhotoStoredMatchEntries(),
+            storedMatchEntries: new SchedulePhotoStoredMatchEntries,
         );
         $completer = new SchedulePhotoOcrCompleter(
             runs: $runs,
@@ -1012,7 +1012,8 @@ final class SchedulePhotoRunServiceOcrTest extends TestCase
             catalogScope: $catalogScope,
         );
 
-        return new class ($starter, $applier, $completer, $jobs) {
+        return new class($starter, $applier, $completer, $jobs)
+        {
             public function __construct(
                 private readonly SchedulePhotoRunStarter $starter,
                 private readonly SchedulePhotoRunApplier $applier,

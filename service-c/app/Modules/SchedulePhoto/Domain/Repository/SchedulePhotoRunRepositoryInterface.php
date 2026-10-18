@@ -6,8 +6,8 @@ namespace App\Modules\SchedulePhoto\Domain\Repository;
 
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunCreateDto;
 use App\Modules\SchedulePhoto\Application\Dto\SchedulePhotoRunPatchDto;
-use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 use App\Modules\SchedulePhoto\Domain\Enum\SchedulePhotoRunStatus;
+use App\Modules\SchedulePhoto\Domain\Record\SchedulePhotoRunRecord;
 
 /**
  * Хранение прогонов SchedulePhoto (Eloquent — только в реализации).
