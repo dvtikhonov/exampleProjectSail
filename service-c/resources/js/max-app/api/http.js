@@ -213,8 +213,15 @@ export function extractErrorMessage(error) {
         }
 
         const apiMessage = error.response?.data?.message;
+        const debugReason = error.response?.data?.debug_reason;
 
         if (typeof apiMessage === 'string' && apiMessage.trim() !== '') {
+            // #region agent log
+            if (typeof debugReason === 'string' && debugReason.trim() !== '') {
+                return `${apiMessage} [${debugReason}]`;
+            }
+            // #endregion
+
             return apiMessage;
         }
 
