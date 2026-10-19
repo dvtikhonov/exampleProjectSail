@@ -37,4 +37,31 @@ class TelegramBridgeWindowedDesktopTest extends TestCase
         $this->assertStringContainsString('exitFullscreen', $bridge);
         $this->assertStringContainsString('isMobileTelegramPlatform', $bridge);
     }
+
+    #[Test]
+    public function test_tg_app_blade_applies_content_safe_area_css_vars(): void
+    {
+        $blade = file_get_contents(resource_path('views/tg-app.blade.php'));
+
+        $this->assertNotFalse($blade);
+        $this->assertStringContainsString('contentSafeAreaInset', $blade);
+        $this->assertStringContainsString('--tg-content-safe-area-inset-top', $blade);
+        $this->assertStringContainsString('contentSafeAreaChanged', $blade);
+    }
+
+    #[Test]
+    public function test_telegram_bridge_syncs_safe_area_insets(): void
+    {
+        $bridge = file_get_contents(resource_path('js/max-app/bridge/telegramBridge.js'));
+        $facade = file_get_contents(resource_path('js/max-app/bridge/index.js'));
+        $css = file_get_contents(resource_path('css/max-app.css'));
+
+        $this->assertNotFalse($bridge);
+        $this->assertNotFalse($facade);
+        $this->assertNotFalse($css);
+        $this->assertStringContainsString('export function syncTelegramSafeAreaInsets', $bridge);
+        $this->assertStringContainsString('--tg-content-safe-area-inset-top', $bridge);
+        $this->assertStringContainsString('export function syncSafeAreaInsets', $facade);
+        $this->assertStringContainsString('--tg-content-safe-area-inset-top', $css);
+    }
 }

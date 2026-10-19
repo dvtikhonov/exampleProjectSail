@@ -64,4 +64,18 @@ export function ensureWindowedDesktop() {
     return telegramBridge.ensureWindowedDesktop();
 }
 
+/**
+ * Telegram: синхронизация safe-area / content-safe-area CSS vars.
+ * На MAX — no-op (достаточно env(safe-area-inset-*)).
+ *
+ * @returns {() => void}
+ */
+export function syncSafeAreaInsets() {
+    if (!isTelegramChannel()) {
+        return () => {};
+    }
+
+    return telegramBridge.syncTelegramSafeAreaInsets();
+}
+
 export { getMessengerChannel, isTelegramChannel } from './messengerChannel';

@@ -125,6 +125,79 @@ export function disableVerticalSwipes() {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {number}
+ */
+function insetPx(value) {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/**
+ * Пишет --tg-safe-area-* / --tg-content-safe-area-* на :root из WebApp API.
+ * Нужно, чтобы шапка (Корзина / Заказы) не уезжала под «Закрыть».
+ *
+ * @param {object} webApp
+ */
+export function applyTelegramSafeAreaCssVars(webApp) {
+    if (!webApp || typeof document === 'undefined') {
+        return;
+    }
+
+    const root = document.documentElement;
+    const safe = webApp.safeAreaInset;
+    const content = webApp.contentSafeAreaInset;
+
+    if (safe && typeof safe === 'object') {
+        root.style.setProperty('--tg-safe-area-inset-top', `${insetPx(safe.top)}px`);
+        root.style.setProperty('--tg-safe-area-inset-bottom', `${insetPx(safe.bottom)}px`);
+        root.style.setProperty('--tg-safe-area-inset-left', `${insetPx(safe.left)}px`);
+        root.style.setProperty('--tg-safe-area-inset-right', `${insetPx(safe.right)}px`);
+    }
+
+    if (content && typeof content === 'object') {
+        root.style.setProperty('--tg-content-safe-area-inset-top', `${insetPx(content.top)}px`);
+        root.style.setProperty('--tg-content-safe-area-inset-bottom', `${insetPx(content.bottom)}px`);
+        root.style.setProperty('--tg-content-safe-area-inset-left', `${insetPx(content.left)}px`);
+        root.style.setProperty('--tg-content-safe-area-inset-right', `${insetPx(content.right)}px`);
+    }
+}
+
+/**
+ * Синхронизирует safe-area CSS-переменные и подписывается на изменения.
+ *
+ * @returns {() => void} cleanup
+ */
+export function syncTelegramSafeAreaInsets() {
+    const webApp = getWebApp();
+
+    if (!webApp) {
+        return () => {};
+    }
+
+    const apply = () => {
+        applyTelegramSafeAreaCssVars(webApp);
+    };
+
+    apply();
+
+    if (typeof webApp.onEvent !== 'function') {
+        return () => {};
+    }
+
+    webApp.onEvent('safeAreaChanged', apply);
+    webApp.onEvent('contentSafeAreaChanged', apply);
+    webApp.onEvent('fullscreenChanged', apply);
+
+    return () => {
+        if (typeof webApp.offEvent === 'function') {
+            webApp.offEvent('safeAreaChanged', apply);
+            webApp.offEvent('contentSafeAreaChanged', apply);
+            webApp.offEvent('fullscreenChanged', apply);
+        }
+    };
+}
+
+/**
  * Мобильные платформы Telegram WebApp (bottom sheet / expand).
  *
  * @param {string} platform

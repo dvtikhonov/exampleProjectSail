@@ -53,12 +53,23 @@ body.max-app-body {
     border-spacing: 0;
 }
 
+/**
+ * Верхний/нижний отступ под notch (env / --tg-safe-area-*) и под
+ * системный UI Telegram: «Закрыть», меню ( --tg-content-safe-area-* ).
+ * @see https://core.telegram.org/bots/webapps#safeareainset
+ */
 .safe-area-top {
-    padding-top: env(safe-area-inset-top, 0);
+    padding-top: calc(
+        max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px))
+        + var(--tg-content-safe-area-inset-top, 0px)
+    );
 }
 
 .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: calc(
+        max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px))
+        + var(--tg-content-safe-area-inset-bottom, 0px)
+    );
 }
 
 /** Нижняя панель в пределах ширины shell (как max-w-lg в App.vue) */

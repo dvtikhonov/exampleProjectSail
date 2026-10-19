@@ -6,7 +6,12 @@
  * Доменная логика — в shells/*.
  */
 import { onMounted, onUnmounted } from 'vue';
-import { disableVerticalSwipes, ensureWindowedDesktop, isTelegramChannel } from './bridge';
+import {
+    disableVerticalSwipes,
+    ensureWindowedDesktop,
+    isTelegramChannel,
+    syncSafeAreaInsets,
+} from './bridge';
 import AuthGate from './components/AuthGate.vue';
 import { useAuth } from './composables/useAuth';
 import AdminAppShell from './shells/AdminAppShell.vue';
@@ -23,8 +28,11 @@ const {
 
 /** @type {(() => void) | null} */
 let disposeWindowedDesktop = null;
+/** @type {(() => void) | null} */
+let disposeSafeAreaSync = null;
 
 onMounted(async () => {
+    disposeSafeAreaSync = syncSafeAreaInsets();
     disposeWindowedDesktop = ensureWindowedDesktop();
 
     await initAuth();
@@ -35,6 +43,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    disposeSafeAreaSync?.();
+    disposeSafeAreaSync = null;
     disposeWindowedDesktop?.();
     disposeWindowedDesktop = null;
 });
