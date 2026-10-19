@@ -115,6 +115,10 @@ async function initAuth() {
     try {
         const initData = getInitData();
 
+        // #region agent log
+        fetch('http://127.0.0.1:7407/ingest/f0ac76d6-9a52-46cc-8907-e183ecaefa5d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'058a74'},body:JSON.stringify({sessionId:'058a74',runId:'pre-fix',hypothesisId:'D-E',location:'useAuth.js:initAuth',message:'initAuth getInitData',data:{channel:getMessengerChannel(),hasInitData:Boolean(initData),initDataLength:initData?initData.length:0,hasTelegramWebApp:Boolean(window.Telegram?.WebApp),webAppInitDataLength:(window.Telegram?.WebApp?.initData??'').length,hasDevInitData:typeof window.__TELEGRAM_DEV_INIT_DATA__==='string'&&window.__TELEGRAM_DEV_INIT_DATA__!=='',hrefPath:window.location?.pathname??null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+
         if (!initData) {
             const channelLabel = getMessengerChannel() === 'telegram' ? 'Telegram' : 'MAX';
 

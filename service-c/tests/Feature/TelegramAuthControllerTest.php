@@ -83,9 +83,10 @@ class TelegramAuthControllerTest extends TestCase
             'init_data' => 'auth_date=1&user=%7B%7D&hash=deadbeef',
         ]);
 
-        $response
-            ->assertUnauthorized()
-            ->assertJsonPath('message', 'Invalid Telegram initData.');
+        $response->assertUnauthorized();
+        $message = (string) $response->json('message');
+        $this->assertStringStartsWith('Invalid Telegram initData.', $message);
+        $this->assertNotEmpty($response->json('debug_reason'));
     }
 
     /** Store валидирует обязательное поле init_data. */
