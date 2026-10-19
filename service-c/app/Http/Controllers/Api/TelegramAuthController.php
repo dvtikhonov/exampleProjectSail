@@ -33,29 +33,16 @@ class TelegramAuthController extends Controller
             $initData = $this->initDataValidator->validate($rawInitData);
         } catch (TelegramWebAppInitDataException $e) {
             // #region agent log
-            $params = [];
-            parse_str($rawInitData, $params);
-            $authDate = isset($params['auth_date']) && ctype_digit((string) $params['auth_date'])
-                ? (int) $params['auth_date']
-                : null;
+            $diag = $this->debugHashDiagnosis($rawInitData);
             $payload = [
                 'sessionId' => '058a74',
-                'runId' => 'pre-fix',
-                'hypothesisId' => 'A-B-C',
+                'runId' => 'pre-fix-2',
+                'hypothesisId' => 'A-sig-token',
                 'location' => 'TelegramAuthController.php:store',
                 'message' => 'telegram auth validate failed',
-                'data' => [
+                'data' => array_merge([
                     'reason' => $e->getMessage(),
-                    'init_data_length' => strlen($rawInitData),
-                    'param_keys' => array_keys($params),
-                    'has_hash' => isset($params['hash']),
-                    'has_signature' => isset($params['signature']),
-                    'has_user' => isset($params['user']),
-                    'auth_date' => $authDate,
-                    'auth_age_seconds' => $authDate !== null ? (time() - $authDate) : null,
-                    'server_time' => time(),
-                    'bot_token_len' => strlen((string) config('telegram.bot_token')),
-                ],
+                ], $diag),
                 'timestamp' => (int) round(microtime(true) * 1000),
             ];
             $line = json_encode($payload, JSON_UNESCAPED_UNICODE)."\n";
@@ -63,18 +50,20 @@ class TelegramAuthController extends Controller
             @file_put_contents('/home/ddd/exampleProjectSail/.cursor/debug-058a74.log', $line, FILE_APPEND);
             // #endregion
 
+            $diagSummary = sprintf(
+                'sig=%s excl_sig=%s incl_sig=%s bot_id=%s keys=%s',
+                $diag['has_signature'] ? '1' : '0',
+                $diag['match_exclude_signature'] ? '1' : '0',
+                $diag['match_include_signature'] ? '1' : '0',
+                (string) ($diag['bot_id'] ?? ''),
+                implode(',', $diag['param_keys'] ?? []),
+            );
+
             return response()->json([
-                // debug: reason in message so UI shows it even without new frontend build
-                'message' => 'Invalid Telegram initData. ['.$e->getMessage().']',
+                // debug: reason + dual-hash diagnosis visible in AuthGate
+                'message' => 'Invalid Telegram initData. ['.$e->getMessage().'] {'.$diagSummary.'}',
                 'debug_reason' => $e->getMessage(),
-                'debug_meta' => [
-                    'init_data_length' => strlen($rawInitData),
-                    'param_keys' => array_keys($params),
-                    'has_hash' => isset($params['hash']),
-                    'has_signature' => isset($params['signature']),
-                    'auth_age_seconds' => $authDate !== null ? (time() - $authDate) : null,
-                    'bot_token_len' => strlen((string) config('telegram.bot_token')),
-                ],
+                'debug_meta' => $diag,
             ], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -96,5 +85,75 @@ class TelegramAuthController extends Controller
         // #endregion
 
         return response()->json($this->authService->issueToken($initData));
+    }
+
+    /**
+     * Debug-only: сравнить HMAC при исключении signature и при его включении.
+     *
+     * @return array<string, mixed>
+     */
+    private function debugHashDiagnosis(string $rawInitData): array
+    {
+        $botToken = trim((string) config('telegram.bot_token'));
+        $botId = explode(':', $botToken, 2)[0] ?? '';
+        $pairs = [];
+        $receivedHash = null;
+
+        foreach (explode('&', trim($rawInitData)) as $chunk) {
+            if ($chunk === '') {
+                continue;
+            }
+            $parts = explode('=', $chunk, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+            [$key, $value] = $parts;
+            $decoded = rawurldecode($value);
+            if ($key === 'hash') {
+                $receivedHash = $decoded;
+                continue;
+            }
+            $pairs[$key] = $decoded;
+        }
+
+        ksort($pairs);
+        $secretKey = hash_hmac('sha256', $botToken, 'WebAppData', true);
+
+        $withoutSig = $pairs;
+        unset($withoutSig['signature']);
+        ksort($withoutSig);
+        $checkExclude = implode("\n", array_map(
+            static fn (string $k, string $v): string => $k.'='.$v,
+            array_keys($withoutSig),
+            array_values($withoutSig),
+        ));
+        $hashExclude = hash_hmac('sha256', $checkExclude, $secretKey);
+
+        $checkInclude = implode("\n", array_map(
+            static fn (string $k, string $v): string => $k.'='.$v,
+            array_keys($pairs),
+            array_values($pairs),
+        ));
+        $hashInclude = hash_hmac('sha256', $checkInclude, $secretKey);
+
+        $authDate = isset($pairs['auth_date']) && ctype_digit($pairs['auth_date'])
+            ? (int) $pairs['auth_date']
+            : null;
+
+        return [
+            'init_data_length' => strlen($rawInitData),
+            'param_keys' => array_keys($pairs + ($receivedHash !== null ? ['hash' => true] : [])),
+            'has_hash' => is_string($receivedHash) && $receivedHash !== '',
+            'has_signature' => isset($pairs['signature']),
+            'has_user' => isset($pairs['user']),
+            'auth_date' => $authDate,
+            'auth_age_seconds' => $authDate !== null ? (time() - $authDate) : null,
+            'server_time' => time(),
+            'bot_token_len' => strlen($botToken),
+            'bot_id' => $botId,
+            'match_exclude_signature' => is_string($receivedHash) && hash_equals($receivedHash, $hashExclude),
+            'match_include_signature' => is_string($receivedHash) && hash_equals($receivedHash, $hashInclude),
+            'received_hash_prefix' => is_string($receivedHash) ? substr($receivedHash, 0, 8) : null,
+        ];
     }
 }
