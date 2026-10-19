@@ -50,4 +50,18 @@ export function disableVerticalSwipes() {
     impl().disableVerticalSwipes();
 }
 
+/**
+ * Telegram desktop: выйти из fullscreen (movable SeparatePanel).
+ * На MAX — no-op.
+ *
+ * @returns {() => void}
+ */
+export function ensureWindowedDesktop() {
+    if (!isTelegramChannel()) {
+        return () => {};
+    }
+
+    return telegramBridge.ensureWindowedDesktop();
+}
+
 export { getMessengerChannel, isTelegramChannel } from './messengerChannel';

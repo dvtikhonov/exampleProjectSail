@@ -26,12 +26,37 @@
                     tg.ready();
                 }
 
-                if (typeof tg.expand === 'function') {
-                    tg.expand();
-                }
-
                 if (typeof tg.disableVerticalSwipes === 'function') {
                     tg.disableVerticalSwipes();
+                }
+
+                var platform = String(tg.platform || '').toLowerCase();
+                var isMobile = platform === 'ios'
+                    || platform === 'android'
+                    || platform === 'android_x';
+
+                // Mobile: expand bottom sheet to full height.
+                // Desktop/web: keep a windowed SeparatePanel (title bar, drag).
+                // Fullscreen on Telegram Desktop can pin the panel to the right
+                // edge without a movable chrome (Windows SeparatePanel bug).
+                if (isMobile) {
+                    if (typeof tg.expand === 'function') {
+                        tg.expand();
+                    }
+
+                    return;
+                }
+
+                function leaveFullscreen() {
+                    if (tg.isFullscreen && typeof tg.exitFullscreen === 'function') {
+                        tg.exitFullscreen();
+                    }
+                }
+
+                leaveFullscreen();
+
+                if (typeof tg.onEvent === 'function') {
+                    tg.onEvent('fullscreenChanged', leaveFullscreen);
                 }
             })();
         </script>

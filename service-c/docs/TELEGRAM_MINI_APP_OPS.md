@@ -17,8 +17,11 @@
 1. **Bot Settings → Menu Button** (или **/setmenubutton**): тип **Web App**.
 2. URL Web App: `https://94-228-117-27.sslip.io/tg-app` (тот же, что `TELEGRAM_MINI_APP_URL`).
 3. Токен бота (`/token` или существующий) сохранить для шага 2 — **не коммитить**.
+4. **Main Mini App / Configure Mini App → Mode:** **Default** (не **Fullscreen**).  
+   Fullscreen на Telegram Desktop (Windows) часто прижимает панель к правому краю экрана без title bar — окно нельзя перетащить. Клиентский код на desktop сам вызывает `exitFullscreen()`, но режим в BotFather тоже должен быть Default.
 
-Проверка: в Telegram открыть бота → Menu Button открывает Mini App по HTTPS на `/tg-app`.
+Проверка: в Telegram открыть бота → Menu Button открывает Mini App по HTTPS на `/tg-app`.  
+На Desktop: отдельная панель с заголовком (можно перемещать), не «прилипшая» к правому краю монитора.
 
 ## 2. VPS: переменные и деплой
 

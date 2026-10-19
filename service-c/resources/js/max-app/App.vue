@@ -5,8 +5,8 @@
  * Auth + выбор режима (client / admin). Telegram — только клиент.
  * Доменная логика — в shells/*.
  */
-import { onMounted } from 'vue';
-import { disableVerticalSwipes, isTelegramChannel } from './bridge';
+import { onMounted, onUnmounted } from 'vue';
+import { disableVerticalSwipes, ensureWindowedDesktop, isTelegramChannel } from './bridge';
 import AuthGate from './components/AuthGate.vue';
 import { useAuth } from './composables/useAuth';
 import AdminAppShell from './shells/AdminAppShell.vue';
@@ -21,12 +21,22 @@ const {
     initAuth,
 } = useAuth();
 
+/** @type {(() => void) | null} */
+let disposeWindowedDesktop = null;
+
 onMounted(async () => {
+    disposeWindowedDesktop = ensureWindowedDesktop();
+
     await initAuth();
 
     if (!authError.value) {
         disableVerticalSwipes();
     }
+});
+
+onUnmounted(() => {
+    disposeWindowedDesktop?.();
+    disposeWindowedDesktop = null;
 });
 </script>
 

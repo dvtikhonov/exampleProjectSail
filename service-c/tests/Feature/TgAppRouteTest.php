@@ -22,6 +22,8 @@ class TgAppRouteTest extends TestCase
         $this->assertStringContainsString('text/html', (string) $response->headers->get('Content-Type'));
         $response->assertSee('window.__MESSENGER_CHANNEL__ = \'telegram\'', false);
         $response->assertSee('telegram.org/js/telegram-web-app.js', false);
+        $response->assertSee('exitFullscreen', false);
+        $response->assertSee('leaveFullscreen', false);
         $this->assertTrue(
             str_contains($response->getContent(), 'id="tg-app"')
             || str_contains($response->getContent(), 'Фронтенд не собран'),

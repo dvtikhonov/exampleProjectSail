@@ -28,8 +28,10 @@ body.max-app-body {
     overscroll-behavior-y: contain;
 }
 
-#max-app {
+#max-app,
+#tg-app {
     min-height: 100dvh;
+    width: 100%;
 }
 
 .max-app-scroll-viewport {

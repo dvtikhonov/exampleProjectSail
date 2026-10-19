@@ -123,3 +123,50 @@ export function disableVerticalSwipes() {
         webApp.disableVerticalSwipes();
     }
 }
+
+/**
+ * Мобильные платформы Telegram WebApp (bottom sheet / expand).
+ *
+ * @param {string} platform
+ * @returns {boolean}
+ */
+export function isMobileTelegramPlatform(platform) {
+    const value = String(platform || '').toLowerCase();
+
+    return value === 'ios' || value === 'android' || value === 'android_x';
+}
+
+/**
+ * На desktop/web выходит из fullscreen, чтобы SeparatePanel оставался
+ * обычным окном с title bar (можно перемещать). Fullscreen на tdesktop
+ * часто прижимает панель к правому краю экрана без drag-handle.
+ *
+ * @returns {() => void} cleanup подписки fullscreenChanged
+ */
+export function ensureWindowedDesktop() {
+    const webApp = getWebApp();
+
+    if (!webApp || isMobileTelegramPlatform(webApp.platform)) {
+        return () => {};
+    }
+
+    const leaveFullscreen = () => {
+        if (webApp.isFullscreen && typeof webApp.exitFullscreen === 'function') {
+            webApp.exitFullscreen();
+        }
+    };
+
+    leaveFullscreen();
+
+    if (typeof webApp.onEvent === 'function') {
+        webApp.onEvent('fullscreenChanged', leaveFullscreen);
+
+        return () => {
+            if (typeof webApp.offEvent === 'function') {
+                webApp.offEvent('fullscreenChanged', leaveFullscreen);
+            }
+        };
+    }
+
+    return () => {};
+}
