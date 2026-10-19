@@ -7,6 +7,4 @@ namespace App\Exceptions\Telegram;
 /**
  * Ошибка ответа Telegram Bot API (HTTP или ok=false).
  */
-class TelegramMessengerRequestException extends TelegramMessengerException
-{
-}
+class TelegramMessengerRequestException extends TelegramMessengerException {}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Food\Chat\FoodOrderChatMaxMessageBuilderInterface;
+use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Infrastructure\Laravel\TelegramWebAppButtonFactory;
 use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
@@ -48,7 +49,7 @@ class TelegramWebAppButtonFactoryTest extends TestCase
         Config::set('telegram.bot_username', 'obedov_bot');
 
         $factory = new TelegramWebAppButtonFactory(
-            $this->app->make(\App\Contracts\Shared\ApplicationConfigInterface::class),
+            $this->app->make(ApplicationConfigInterface::class),
             $this->app->make(FoodOrderChatMaxMessageBuilderInterface::class),
         );
 
