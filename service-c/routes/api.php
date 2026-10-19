@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Food\PhotoTextScheduleController;
 use App\Http\Controllers\Api\Food\RestaurantController;
 use App\Http\Controllers\Api\MaxAuthController;
 use App\Http\Controllers\Api\MaxWebhookController;
+use App\Http\Controllers\Api\TelegramAuthController;
 use App\Modules\FoodReport\Http\Controllers\AdminFoodReportExportController;
 use App\Modules\FoodReport\Http\Controllers\AdminFoodReportQueryController;
 use App\Modules\MaxIncomingRelay\Http\Controllers\AdminBotDmController;
@@ -37,6 +38,9 @@ Route::post('/webhooks/max', MaxWebhookController::class)
 
 Route::post('/max/auth', [MaxAuthController::class, 'store'])
     ->middleware('throttle:20,1,max-auth');
+
+Route::post('/telegram/auth', [TelegramAuthController::class, 'store'])
+    ->middleware('throttle:20,1,telegram-auth');
 
 // Публичный same-origin URL для <img> (без Bearer — WebView MAX не шлёт Authorization на картинки).
 Route::get('/food/dishes/{dish}/image', [DishImageController::class, 'show'])
@@ -97,7 +101,7 @@ Route::middleware('max.miniapp.auth')->group(function () {
             ->middleware('throttle:30,1,food-order-chat')
             ->whereNumber('order');
 
-        Route::prefix('admin')->group(function () {
+        Route::prefix('admin')->middleware('forbid.telegram.miniapp')->group(function () {
             Route::get('/me', [AdminOrderReviewQueryController::class, 'me']);
             Route::get('/orders', [AdminOrderReviewQueryController::class, 'index'])
                 ->middleware('food.order.admin:address_reviewer,composition_reviewer');

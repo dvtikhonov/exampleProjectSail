@@ -69,6 +69,10 @@ docker compose up -d mysql redis main-app service-a service-b service-c service-
 
 Подробности: [service-c/README.md](../service-c/README.md) → «VPS hybrid».
 
+## Telegram Mini App (ops)
+
+BotFather Menu Button, `TELEGRAM_BOT_TOKEN` / `TELEGRAM_MINI_APP_URL` на VPS, smoke `/tg-app`, migrate `max_users` **только после согласия**: [service-c/docs/TELEGRAM_MINI_APP_OPS.md](../service-c/docs/TELEGRAM_MINI_APP_OPS.md).
+
 ## MAX mini-app: fxTunnel (локальная разработка)
 
 | Файл | Назначение |

@@ -6,6 +6,7 @@ namespace Tests\Unit\Modules\MaxIncomingRelay;
 
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\DTO\Max\MaxUserRecord;
+use App\Enums\MessengerChannel;
 use App\Modules\MaxIncomingRelay\Contracts\BotDmMessageRepositoryInterface;
 use App\Modules\MaxIncomingRelay\Contracts\CustomerLastOrderRepositoryInterface;
 use App\Modules\MaxIncomingRelay\Contracts\IncomingMessageRelayServiceInterface;
@@ -288,6 +289,8 @@ final class IncomingMessageRelayServiceTest extends TestCase
     {
         return new MaxUserRecord(
             maxUserId: $maxUserId,
+            messenger: MessengerChannel::Max,
+            externalUserId: $maxUserId,
             firstName: 'Иван',
             lastName: 'Петров',
             username: null,

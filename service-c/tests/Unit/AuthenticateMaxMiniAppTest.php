@@ -51,6 +51,36 @@ class AuthenticateMaxMiniAppTest extends TestCase
         $this->assertSame('{"max_user_id":12345}', $response->getContent());
     }
 
+    /** Пропускает запрос с валидным токеном Telegram мини-приложения. */
+    public function test_passes_request_with_valid_telegram_miniapp_token(): void
+    {
+        $maxUser = MaxUser::query()->create([
+            'max_user_id' => 1_000_000_000_000_777,
+            'messenger' => 'telegram',
+            'external_user_id' => 777,
+            'first_name' => 'Tg',
+        ]);
+
+        $plainTextToken = $maxUser->createToken(
+            'telegram-miniapp',
+            ['telegram-miniapp'],
+            now()->addHour(),
+        )->plainTextToken;
+
+        $middleware = new AuthenticateMaxMiniApp;
+        $request = Request::create('/api/max/me', 'GET');
+        $request->headers->set('Authorization', 'Bearer '.$plainTextToken);
+
+        $response = $middleware->handle($request, function (Request $req) {
+            return response()->json([
+                'max_user_id' => $req->user()?->max_user_id,
+            ]);
+        });
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $this->assertSame('{"max_user_id":1000000000000777}', $response->getContent());
+    }
+
     /** Возвращает 401 за истёкший токен. */
     public function test_returns_unauthorized_for_expired_token(): void
     {

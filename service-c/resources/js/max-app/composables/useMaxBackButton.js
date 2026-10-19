@@ -5,7 +5,7 @@
  * (client / orders / manual / menu), без полного набора refs из App.vue.
  */
 import { onScopeDispose, watch } from 'vue';
-import { bindBackButton, closeMaxApp, getPlatform, hideBackButton } from '../bridge/maxBridge';
+import { bindBackButton, closeMaxApp, getPlatform, hideBackButton } from '../bridge';
 import { ADMIN_DISH_VIEWS, ADMIN_SECTIONS, ADMIN_VIEWS, VIEWS } from '../constants/views';
 
 /**

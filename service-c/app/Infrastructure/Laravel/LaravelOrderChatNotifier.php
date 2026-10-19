@@ -6,7 +6,6 @@ namespace App\Infrastructure\Laravel;
 
 use App\Contracts\Food\Chat\FoodOrderChatMaxMessageBuilderInterface;
 use App\Contracts\Food\Chat\OrderChatNotifierInterface;
-use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
 use App\DTO\Food\Chat\OrderMessageDto;
@@ -16,10 +15,10 @@ use Psr\Log\LoggerInterface;
 use Shared\MaxMessenger\DTO\MaxInlineKeyboardButtonDto;
 
 /**
- * Отправка push-уведомлений MAX о новых сообщениях в чате заказа.
+ * Отправка push-уведомлений о новых сообщениях в чате заказа.
  *
- * Клиенту — короткое уведомление (без своего же сообщения).
- * В MAX_UI_STAND_* — уведомление с текстом сообщения.
+ * Клиенту — короткое уведомление (MAX / Telegram по каналу).
+ * В MAX_UI_STAND_* — уведомление с текстом сообщения (только MAX).
  */
 class LaravelOrderChatNotifier implements OrderChatNotifierInterface
 {
@@ -27,7 +26,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
         private readonly FoodOrderChatMaxMessageBuilderInterface $messageBuilder,
         private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
         private readonly MaxOpenAppButtonFactory $openAppButtonFactory,
-        private readonly OrderCustomerNotifyRecipientResolverInterface $customerRecipientResolver,
+        private readonly FoodOrderCustomerMessengerDispatchHelper $customerDispatchHelper,
         private readonly MaxMessengerNotificationSenderInterface $notificationSender,
         private readonly LoggerInterface $logger,
     ) {}
@@ -50,23 +49,17 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     private function notifyCustomer(FoodOrderRecord $order, OrderMessageDto $message): void
     {
         $text = $this->messageBuilder->buildOrderChatCustomerNotification($order);
-        $buttonRows = $this->buildOpenAppButtonRows($order->id);
-        $recipientUserIds = $this->customerRecipientResolver->resolveMaxUserIds($order);
 
-        foreach ($recipientUserIds as $userId) {
-            $this->notificationSender->send(
-                text: $text,
-                userId: $userId,
-                buttonRows: $buttonRows,
-                failureLogMessage: 'MAX order chat notification send failed',
-                logContext: [
-                    'order_id' => $order->id,
-                    'message_id' => $message->id,
-                    'chat_id' => null,
-                    'max_user_id' => $userId,
-                ],
-            );
-        }
+        $this->customerDispatchHelper->trySendMessage(
+            text: $text,
+            order: $order,
+            withOpenAppButton: true,
+            maxFailureLogMessage: 'MAX order chat notification send failed',
+            telegramFailureLogMessage: 'Telegram order chat notification send failed',
+            extraLogContext: [
+                'message_id' => $message->id,
+            ],
+        );
     }
 
     /**
@@ -122,7 +115,7 @@ class LaravelOrderChatNotifier implements OrderChatNotifierInterface
     }
 
     /**
-     * Строит ряды кнопок открытия mini-app для уведомления.
+     * Строит ряды кнопок открытия mini-app для уведомления UI Stand.
      *
      * @return array<int, array<int, MaxInlineKeyboardButtonDto>>
      */

@@ -9,17 +9,24 @@ use App\Contracts\Food\Review\FoodOrderCustomerMaxMessageBuilderInterface;
 use App\Contracts\Food\Review\OrderCustomerNotifyRecipientResolverInterface;
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
+use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
+use App\Contracts\Telegram\TelegramMessengerClientInterface;
+use App\Contracts\Telegram\TelegramMessengerNotificationSenderInterface;
 use App\DTO\Food\Order\FoodOrderRecord;
+use App\DTO\Max\MessengerUserIdentity;
 use App\Enums\Food\Order\OrderStatus;
 use App\Enums\Food\Review\OrderRejectionScope;
 use App\Enums\Food\Review\OrderReviewStatus;
-use App\Infrastructure\Laravel\FoodOrderCustomerMaxDispatchHelper;
+use App\Enums\MessengerChannel;
+use App\Infrastructure\Laravel\FoodOrderCustomerMessengerDispatchHelper;
 use App\Infrastructure\Laravel\LaravelFoodOrderCompositionNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderCustomerNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderManualCreatorNotifier;
 use App\Infrastructure\Laravel\LaravelFoodOrderStatusNotifier;
 use App\Infrastructure\Laravel\MaxOpenAppButtonFactory;
+use App\Infrastructure\Laravel\TelegramWebAppButtonFactory;
 use App\Services\Max\MaxMessengerNotificationSender;
+use App\Services\Telegram\TelegramMessengerNotificationSender;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
@@ -679,18 +686,249 @@ TEXT,
         $this->assertSame('User blocked bot', $log->context['error']);
     }
 
-    /** Создаёт composition-notifier с подставным MAX-клиентом. */
+    /** Telegram-пользователь: notifySubmitted → sendMessage с chat_id=external_user_id и кнопкой startapp. */
+    public function test_notify_submitted_for_telegram_user_uses_telegram_client_not_max(): void
+    {
+        Config::set('telegram.mini_app_url', 'https://94-228-117-27.sslip.io/tg-app');
+        Config::set('telegram.bot_username', 'obedov_bot');
+
+        $internalId = MessengerChannel::Telegram->toInternalMaxUserId(777);
+        $identityRepository = $this->createMock(MaxUserIdentityRepositoryInterface::class);
+        $identityRepository
+            ->expects($this->once())
+            ->method('resolveMessengerIdentity')
+            ->with($internalId)
+            ->willReturn(new MessengerUserIdentity(
+                maxUserId: $internalId,
+                messenger: MessengerChannel::Telegram,
+                externalUserId: 777,
+            ));
+
+        $telegramChatId = null;
+        $telegramText = null;
+        $telegramButtons = null;
+        $telegramClient = $this->createMock(TelegramMessengerClientInterface::class);
+        $telegramClient
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (int $chatId, string $text, array $buttonRows) use (&$telegramChatId, &$telegramText, &$telegramButtons): void {
+                $telegramChatId = $chatId;
+                $telegramText = $text;
+                $telegramButtons = $buttonRows;
+            });
+
+        $maxClient = $this->createMock(MaxMessengerClientInterface::class);
+        $maxClient->expects($this->never())->method('sendMessage');
+        $maxClient->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $notifier = $this->makeNotifier($maxClient, identityRepository: $identityRepository, telegramClient: $telegramClient);
+
+        $notifier->notifySubmitted($this->makeOrder(id: 33, maxUserId: $internalId));
+
+        $this->assertSame(777, $telegramChatId);
+        $this->assertSame(
+            'Заказ №33 принят на рассмотрение. В чате заказа можете сделать уточнения к заказу',
+            $telegramText,
+        );
+        $this->assertSame('Открыть заказ №33', $telegramButtons[0][0]->text);
+        $this->assertSame('https://t.me/obedov_bot?startapp=order_33_chat', $telegramButtons[0][0]->url);
+        $this->assertNull($telegramButtons[0][0]->webAppUrl);
+    }
+
+    /** Telegram-пользователь: confirm/reject — только текст, без кнопки. */
+    public function test_notify_confirmed_for_telegram_user_sends_plain_text_without_button(): void
+    {
+        $internalId = MessengerChannel::Telegram->toInternalMaxUserId(888);
+        $identityRepository = $this->createMock(MaxUserIdentityRepositoryInterface::class);
+        $identityRepository
+            ->method('resolveMessengerIdentity')
+            ->willReturn(new MessengerUserIdentity(
+                maxUserId: $internalId,
+                messenger: MessengerChannel::Telegram,
+                externalUserId: 888,
+            ));
+
+        $telegramButtons = null;
+        $telegramClient = $this->createMock(TelegramMessengerClientInterface::class);
+        $telegramClient
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (int $chatId, string $text, array $buttonRows) use (&$telegramButtons): void {
+                $telegramButtons = $buttonRows;
+            });
+
+        $maxClient = $this->createMock(MaxMessengerClientInterface::class);
+        $maxClient->expects($this->never())->method('sendMessage');
+        $maxClient->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $notifier = $this->makeNotifier($maxClient, identityRepository: $identityRepository, telegramClient: $telegramClient);
+
+        $notifier->notifyConfirmed($this->makeOrder(id: 42, maxUserId: $internalId));
+
+        $this->assertSame([], $telegramButtons);
+    }
+
+    /** MAX-пользователь с identity — по-прежнему MAX client, не Telegram. */
+    public function test_notify_confirmed_for_max_user_does_not_call_telegram_client(): void
+    {
+        $identityRepository = $this->createMock(MaxUserIdentityRepositoryInterface::class);
+        $identityRepository
+            ->method('resolveMessengerIdentity')
+            ->with(1002)
+            ->willReturn(new MessengerUserIdentity(
+                maxUserId: 1002,
+                messenger: MessengerChannel::Max,
+                externalUserId: 1002,
+            ));
+
+        $telegramClient = $this->createMock(TelegramMessengerClientInterface::class);
+        $telegramClient->expects($this->never())->method('sendMessage');
+
+        $sentMessage = null;
+        $maxClient = $this->createMock(MaxMessengerClientInterface::class);
+        $maxClient
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (MaxMessageDto $message) use (&$sentMessage): void {
+                $sentMessage = $message;
+            });
+
+        $notifier = $this->makeNotifier($maxClient, identityRepository: $identityRepository, telegramClient: $telegramClient);
+
+        $notifier->notifyConfirmed($this->makeOrder(id: 42, maxUserId: 1002));
+
+        $this->assertSame(1002, $sentMessage->userId);
+        $this->assertSame('Заявка №42 принята к исполнению', $sentMessage->text);
+    }
+
+    /** Telegram-пользователь: notifyRejected — только текст, без кнопки и без MAX client. */
+    public function test_notify_rejected_for_telegram_user_sends_plain_text_without_button(): void
+    {
+        $internalId = MessengerChannel::Telegram->toInternalMaxUserId(901);
+        $identityRepository = $this->createMock(MaxUserIdentityRepositoryInterface::class);
+        $identityRepository
+            ->method('resolveMessengerIdentity')
+            ->willReturn(new MessengerUserIdentity(
+                maxUserId: $internalId,
+                messenger: MessengerChannel::Telegram,
+                externalUserId: 901,
+            ));
+
+        $telegramChatId = null;
+        $telegramText = null;
+        $telegramButtons = null;
+        $telegramClient = $this->createMock(TelegramMessengerClientInterface::class);
+        $telegramClient
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (int $chatId, string $text, array $buttonRows) use (&$telegramChatId, &$telegramText, &$telegramButtons): void {
+                $telegramChatId = $chatId;
+                $telegramText = $text;
+                $telegramButtons = $buttonRows;
+            });
+
+        $maxClient = $this->createMock(MaxMessengerClientInterface::class);
+        $maxClient->expects($this->never())->method('sendMessage');
+        $maxClient->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $notifier = $this->makeNotifier($maxClient, identityRepository: $identityRepository, telegramClient: $telegramClient);
+
+        $order = $this->makeOrder(
+            id: 7,
+            maxUserId: $internalId,
+            compositionRejectionComment: 'Нет ингредиентов',
+        );
+
+        $notifier->notifyRejected($order, OrderRejectionScope::Composition);
+
+        $this->assertSame(901, $telegramChatId);
+        $this->assertStringContainsString('Заявка №7 отклонена', $telegramText);
+        $this->assertStringContainsString('Проверка: состав заказа', $telegramText);
+        $this->assertStringContainsString('Причина: Нет ингредиентов', $telegramText);
+        $this->assertSame([], $telegramButtons);
+    }
+
+    /** Telegram-пользователь: notifyCompositionChanged → кнопка startapp, не MAX. */
+    public function test_notify_composition_changed_for_telegram_user_uses_telegram_client_with_button(): void
+    {
+        Config::set('telegram.mini_app_url', 'https://94-228-117-27.sslip.io/tg-app');
+        Config::set('telegram.bot_username', 'obedov_bot');
+
+        $internalId = MessengerChannel::Telegram->toInternalMaxUserId(555);
+        $identityRepository = $this->createMock(MaxUserIdentityRepositoryInterface::class);
+        $identityRepository
+            ->method('resolveMessengerIdentity')
+            ->willReturn(new MessengerUserIdentity(
+                maxUserId: $internalId,
+                messenger: MessengerChannel::Telegram,
+                externalUserId: 555,
+            ));
+
+        $telegramChatId = null;
+        $telegramText = null;
+        $telegramButtons = null;
+        $telegramClient = $this->createMock(TelegramMessengerClientInterface::class);
+        $telegramClient
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (int $chatId, string $text, array $buttonRows) use (&$telegramChatId, &$telegramText, &$telegramButtons): void {
+                $telegramChatId = $chatId;
+                $telegramText = $text;
+                $telegramButtons = $buttonRows;
+            });
+
+        $maxClient = $this->createMock(MaxMessengerClientInterface::class);
+        $maxClient->expects($this->never())->method('sendMessage');
+        $maxClient->expects($this->never())->method('sendInlineKeyboardMessage');
+
+        $notifier = $this->makeNotifier($maxClient, identityRepository: $identityRepository, telegramClient: $telegramClient);
+
+        $order = $this->makeOrder(
+            id: 55,
+            maxUserId: $internalId,
+            restaurantName: 'Пиццерия',
+            itemsTotal: '500.00',
+            total: '500.00',
+            itemsSnapshot: [
+                [
+                    'dish_id' => 1,
+                    'dish_name' => 'Суп',
+                    'quantity' => 1,
+                    'line_total' => '500.00',
+                ],
+            ],
+        );
+
+        $notifier->notifyCompositionChanged($order);
+
+        $this->assertSame(555, $telegramChatId);
+        $this->assertStringContainsString('Заказ изменен по вашему согласованию', $telegramText);
+        $this->assertStringContainsString('• Суп × 1 — 500.00 ₽', $telegramText);
+        $this->assertSame('Открыть заказ №55', $telegramButtons[0][0]->text);
+        $this->assertSame('https://t.me/obedov_bot?startapp=order_55_chat', $telegramButtons[0][0]->url);
+        $this->assertNull($telegramButtons[0][0]->webAppUrl);
+    }
+
+    /** Создаёт composition-notifier с подставным MAX/Telegram-клиентом. */
     private function makeNotifier(
         MaxMessengerClientInterface $client,
         ?OrderCustomerNotifyRecipientResolverInterface $recipientResolver = null,
         ?MaxUiStandRecipientResolverInterface $uiStandRecipientResolver = null,
+        ?MaxUserIdentityRepositoryInterface $identityRepository = null,
+        ?TelegramMessengerClientInterface $telegramClient = null,
     ): LaravelFoodOrderCustomerNotifier {
-        $dispatchHelper = new FoodOrderCustomerMaxDispatchHelper(
+        $dispatchHelper = new FoodOrderCustomerMessengerDispatchHelper(
             chatMessageBuilder: $this->app->make(FoodOrderChatMaxMessageBuilderInterface::class),
-            openAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
+            maxOpenAppButtonFactory: $this->app->make(MaxOpenAppButtonFactory::class),
+            telegramWebAppButtonFactory: $this->app->make(TelegramWebAppButtonFactory::class),
             recipientResolver: $recipientResolver
                 ?? $this->app->make(OrderCustomerNotifyRecipientResolverInterface::class),
-            notificationSender: $this->makeNotificationSender($client),
+            identityRepository: $identityRepository
+                ?? $this->app->make(MaxUserIdentityRepositoryInterface::class),
+            maxNotificationSender: $this->makeNotificationSender($client),
+            telegramNotificationSender: $this->makeTelegramNotificationSender(
+                $telegramClient ?? $this->createMock(TelegramMessengerClientInterface::class),
+            ),
         );
 
         $manualCreatorNotifier = new LaravelFoodOrderManualCreatorNotifier(
@@ -725,6 +963,16 @@ TEXT,
         return new MaxMessengerNotificationSender(
             $client,
             $this->app->make(MaxUiStandRecipientResolverInterface::class),
+            Log::channel('max_log'),
+        );
+    }
+
+    /** Создаёт sender с подставным Telegram-клиентом. */
+    private function makeTelegramNotificationSender(
+        TelegramMessengerClientInterface $client,
+    ): TelegramMessengerNotificationSenderInterface {
+        return new TelegramMessengerNotificationSender(
+            $client,
             Log::channel('max_log'),
         );
     }

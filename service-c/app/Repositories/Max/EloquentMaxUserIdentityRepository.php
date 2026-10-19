@@ -7,10 +7,14 @@ namespace App\Repositories\Max;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\DTO\Max\MaxUserRecord;
 use App\DTO\Max\MaxWebAppInitDataDto;
+use App\DTO\Max\MessengerUserIdentity;
+use App\DTO\Telegram\TelegramWebAppInitDataDto;
+use App\Enums\MessengerChannel;
 use App\Models\Max\MaxUser;
+use RuntimeException;
 
 /**
- * Eloquent-реализация identity-порта пользователей MAX.
+ * Eloquent-реализация identity-порта пользователей MAX / Telegram.
  */
 class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInterface
 {
@@ -31,18 +35,120 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
     /**
      * {@inheritDoc}
      */
+    public function findByMessengerAndExternalUserId(
+        MessengerChannel $messenger,
+        int $externalUserId,
+    ): ?MaxUserRecord {
+        $model = MaxUser::query()
+            ->where('messenger', $messenger->value)
+            ->where('external_user_id', $externalUserId)
+            ->first();
+
+        return $model !== null ? $this->mapper->toRecord($model) : null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function resolveMessengerIdentity(int $maxUserId): ?MessengerUserIdentity
+    {
+        $model = MaxUser::query()->find($maxUserId);
+        if ($model === null) {
+            return null;
+        }
+
+        $messenger = $model->messenger instanceof MessengerChannel
+            ? $model->messenger
+            : MessengerChannel::from((string) ($model->messenger ?? MessengerChannel::Max->value));
+
+        $externalUserId = $model->external_user_id !== null
+            ? (int) $model->external_user_id
+            : $messenger->externalUserIdFromInternal((int) $model->max_user_id);
+
+        return new MessengerUserIdentity(
+            maxUserId: (int) $model->max_user_id,
+            messenger: $messenger,
+            externalUserId: $externalUserId,
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function upsertFromInitData(
         MaxWebAppInitDataDto $initData,
         ?int $defaultCustomerCategoryId,
     ): MaxUserRecord {
-        $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $initData->maxUserId]);
+        return $this->upsertMessengerUser(
+            messenger: MessengerChannel::Max,
+            externalUserId: $initData->maxUserId,
+            firstName: $initData->firstName,
+            lastName: $initData->lastName,
+            username: $initData->username,
+            languageCode: $initData->languageCode,
+            photoUrl: $initData->photoUrl,
+            defaultCustomerCategoryId: $defaultCustomerCategoryId,
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function upsertFromTelegramInitData(
+        TelegramWebAppInitDataDto $initData,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        return $this->upsertMessengerUser(
+            messenger: MessengerChannel::Telegram,
+            externalUserId: $initData->telegramUserId,
+            firstName: $initData->firstName,
+            lastName: $initData->lastName,
+            username: $initData->username,
+            languageCode: $initData->languageCode,
+            photoUrl: $initData->photoUrl,
+            defaultCustomerCategoryId: $defaultCustomerCategoryId,
+        );
+    }
+
+    /**
+     * Общий upsert по каналу мессенджера и внешнему id.
+     */
+    private function upsertMessengerUser(
+        MessengerChannel $messenger,
+        int $externalUserId,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?string $photoUrl,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        $internalMaxUserId = $messenger->toInternalMaxUserId($externalUserId);
+
+        $maxUser = MaxUser::query()->firstOrNew([
+            'messenger' => $messenger->value,
+            'external_user_id' => $externalUserId,
+        ]);
+
+        if (! $maxUser->exists) {
+            $conflicting = MaxUser::query()->find($internalMaxUserId);
+            if ($conflicting !== null && $conflicting->messenger !== $messenger) {
+                throw new RuntimeException(
+                    "Anomaly: max_user_id={$internalMaxUserId} already occupied by messenger={$conflicting->messenger->value}.",
+                );
+            }
+
+            $maxUser->max_user_id = $internalMaxUserId;
+            $maxUser->messenger = $messenger;
+            $maxUser->external_user_id = $externalUserId;
+        }
 
         $maxUser->fill([
-            'first_name' => $initData->firstName,
-            'last_name' => $initData->lastName,
-            'username' => $initData->username,
-            'language_code' => $initData->languageCode,
-            'photo_url' => $initData->photoUrl,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'username' => $username,
+            'language_code' => $languageCode,
+            'photo_url' => $photoUrl,
         ]);
 
         if ($maxUser->customer_category_id === null && $defaultCustomerCategoryId !== null) {

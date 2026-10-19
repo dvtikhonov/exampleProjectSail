@@ -7,7 +7,7 @@ import AdminSectionNav from '../components/admin/AdminSectionNav.vue';
 import { useAdminChrome } from '../composables/useAdminChrome';
 import { useAuth } from '../composables/useAuth';
 import { ADMIN_SECTIONS } from '../constants/views';
-import { getStartParam } from '../bridge/maxBridge';
+import { getStartParam } from '../bridge';
 import { resolveOrderChatDeepLinkOrderId } from '../utils/orderChatDeepLink';
 import BotChatRoot from './admin/BotChatRoot.vue';
 import BrisklySyncRoot from './admin/BrisklySyncRoot.vue';

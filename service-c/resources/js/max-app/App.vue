@@ -1,15 +1,18 @@
 <script setup>
 /**
- * Корневой shell MAX mini-app.
+ * Корневой shell mini-app (MAX / Telegram).
  *
- * Auth + выбор режима (client / admin). Доменная логика — в shells/*.
+ * Auth + выбор режима (client / admin). Telegram — только клиент.
+ * Доменная логика — в shells/*.
  */
 import { onMounted } from 'vue';
-import { disableVerticalSwipes } from './bridge/maxBridge';
+import { disableVerticalSwipes, isTelegramChannel } from './bridge';
 import AuthGate from './components/AuthGate.vue';
 import { useAuth } from './composables/useAuth';
 import AdminAppShell from './shells/AdminAppShell.vue';
 import ClientAppShell from './shells/ClientAppShell.vue';
+
+const forceClientOnly = isTelegramChannel();
 
 const {
     authLoading,
@@ -32,7 +35,7 @@ onMounted(async () => {
         :loading="authLoading"
         :error="authError"
     >
-        <AdminAppShell v-if="hasAdminRoles" />
-        <ClientAppShell v-else />
+        <ClientAppShell v-if="forceClientOnly || !hasAdminRoles" />
+        <AdminAppShell v-else />
     </AuthGate>
 </template>

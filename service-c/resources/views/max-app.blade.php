@@ -7,6 +7,8 @@
 
         <title>Заказ еды</title>
 
+        <script>window.__MESSENGER_CHANNEL__ = 'max';</script>
+
         @if (! empty($localDevInitData))
             <script>window.__MAX_DEV_INIT_DATA__ = @json($localDevInitData);</script>
         @endif

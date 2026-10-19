@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Exceptions\Food\FoodDomainException;
 use App\Http\Middleware\AuthenticateMaxMiniApp;
 use App\Http\Middleware\EnsureFoodOrderAdmin;
+use App\Http\Middleware\ForbidTelegramMiniApp;
 use App\Http\Middleware\EnsurePhotoTextAiAccess;
 use App\Http\Middleware\ForbidProduction;
 use App\Http\Middleware\TrustGatewayAuth;
@@ -43,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'briskly.capture.secret' => VerifyBrisklySyncCaptureSecret::class,
             'schedule-photo.capture.secret' => VerifySchedulePhotoCaptureSecret::class,
             'max.miniapp.auth' => AuthenticateMaxMiniApp::class,
+            'forbid.telegram.miniapp' => ForbidTelegramMiniApp::class,
             'food.order.admin' => EnsureFoodOrderAdmin::class,
             'phototext.agent.token' => VerifyPhotoTextAgentToken::class,
             'phototext.write.token' => VerifyPhotoTextWriteToken::class,

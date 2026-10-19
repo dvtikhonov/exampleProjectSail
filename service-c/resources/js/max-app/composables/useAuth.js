@@ -1,11 +1,11 @@
 /**
- * Авторизация MAX mini-app через initData из Bridge.
+ * Авторизация mini-app через initData из Bridge (MAX / Telegram).
  * Определяет режим UI: клиент или админ (по admin_roles).
  * Состояние общее для всех вызовов useAuth() (singleton).
  */
 import { computed, ref } from 'vue';
 import { authenticate, extractErrorMessage } from '../api';
-import { getInitData } from '../bridge/maxBridge';
+import { getInitData, getMessengerChannel } from '../bridge';
 import {
     ADMIN_SCOPES,
     ADMIN_SECTIONS,
@@ -116,7 +116,11 @@ async function initAuth() {
         const initData = getInitData();
 
         if (!initData) {
-            throw new Error('Не удалось получить initData от MAX. Откройте приложение через MAX.');
+            const channelLabel = getMessengerChannel() === 'telegram' ? 'Telegram' : 'MAX';
+
+            throw new Error(
+                `Не удалось получить initData от ${channelLabel}. Откройте приложение через ${channelLabel}.`,
+            );
         }
 
         const authData = await authenticate(initData);

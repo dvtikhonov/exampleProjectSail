@@ -7,6 +7,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\FoodServiceProvider;
 use App\Providers\MaxServiceProvider;
 use App\Providers\SharedInfrastructureProvider;
+use App\Providers\TelegramServiceProvider;
 
 return [
     SharedInfrastructureProvider::class,
@@ -15,5 +16,6 @@ return [
     MaxIncomingRelayServiceProvider::class,
     SchedulePhotoServiceProvider::class,
     MaxServiceProvider::class,
+    TelegramServiceProvider::class,
     AppServiceProvider::class,
 ];

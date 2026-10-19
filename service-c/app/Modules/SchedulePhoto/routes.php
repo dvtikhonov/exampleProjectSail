@@ -15,7 +15,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/food/internal/schedule-photo/ocr-complete', [InternalSchedulePhotoOcrController::class, 'complete'])
     ->middleware(['throttle:60,1,schedule-photo-ocr-complete', 'schedule-photo.capture.secret']);
 
-Route::middleware('max.miniapp.auth')->prefix('food/admin/schedule-photo')->group(function (): void {
+Route::middleware(['max.miniapp.auth', 'forbid.telegram.miniapp'])
+    ->prefix('food/admin/schedule-photo')
+    ->group(function (): void {
     Route::middleware('food.order.admin:menu_manager')->group(function (): void {
         Route::get('/config', [AdminSchedulePhotoController::class, 'config'])
             ->middleware('throttle:60,1,schedule-photo-config');

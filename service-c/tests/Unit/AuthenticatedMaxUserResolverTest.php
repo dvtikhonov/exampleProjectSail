@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Contracts\Shared\CurrentHttpRequestInterface;
 use App\DTO\Food\Shared\MaxUserIdentity;
 use App\DTO\Max\MaxUserRecord;
+use App\Enums\MessengerChannel;
 use App\Http\Mappers\MaxUserIdentityMapper;
 use App\Http\Resolvers\AuthenticatedMaxUserResolver;
 use App\Models\Max\MaxUser;
@@ -63,6 +64,8 @@ class AuthenticatedMaxUserResolverTest extends TestCase
         ]);
         $record = new MaxUserRecord(
             maxUserId: 42_002,
+            messenger: MessengerChannel::Max,
+            externalUserId: 42_002,
             firstName: 'User',
             lastName: null,
             username: null,

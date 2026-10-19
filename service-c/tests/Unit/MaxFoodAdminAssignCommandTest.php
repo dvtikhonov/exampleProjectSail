@@ -8,6 +8,7 @@ use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\DTO\Max\MaxUserRecord;
 use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\MessengerChannel;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
@@ -24,6 +25,8 @@ class MaxFoodAdminAssignCommandTest extends TestCase
             ->with($maxUserId)
             ->willReturn(new MaxUserRecord(
                 maxUserId: $maxUserId,
+                messenger: MessengerChannel::Max,
+                externalUserId: $maxUserId,
                 firstName: 'Test',
                 lastName: null,
                 username: null,

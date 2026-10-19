@@ -11,11 +11,15 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Аутентификация запросов MAX mini-app по Sanctum Bearer-токену.
+ * Аутентификация запросов client mini-app по Sanctum Bearer-токену.
+ *
+ * Принимает ability max-miniapp или telegram-miniapp.
  */
 class AuthenticateMaxMiniApp
 {
-    private const TOKEN_ABILITY = 'max-miniapp';
+    private const MAX_TOKEN_ABILITY = 'max-miniapp';
+
+    private const TELEGRAM_TOKEN_ABILITY = 'telegram-miniapp';
 
     /**
      * Минимальный интервал обновления last_used_at (сек).
@@ -23,7 +27,7 @@ class AuthenticateMaxMiniApp
     private const LAST_USED_AT_THROTTLE_SECONDS = 60;
 
     /**
-     * Аутентифицирует запрос MAX mini-app по Bearer-токену.
+     * Аутентифицирует запрос mini-app по Bearer-токену (MAX или Telegram).
      *
      * @param  Closure(Request): (Response)  $next
      */
@@ -45,7 +49,10 @@ class AuthenticateMaxMiniApp
             return $this->unauthorized();
         }
 
-        if (! $accessToken->can(self::TOKEN_ABILITY)) {
+        $hasClientAbility = $accessToken->can(self::MAX_TOKEN_ABILITY)
+            || $accessToken->can(self::TELEGRAM_TOKEN_ABILITY);
+
+        if (! $hasClientAbility) {
             return $this->unauthorized();
         }
 

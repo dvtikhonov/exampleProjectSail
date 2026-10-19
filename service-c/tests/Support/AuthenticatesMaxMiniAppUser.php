@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\MessengerChannel;
 use App\Models\Food\FoodOrderAdmin;
 use App\Models\Max\MaxUser;
 
@@ -19,6 +20,33 @@ trait AuthenticatesMaxMiniAppUser
         ]);
 
         $token = $maxUser->createToken('max-miniapp', ['max-miniapp'], now()->addHour())->plainTextToken;
+
+        return [
+            'user' => $maxUser,
+            'token' => $token,
+            'headers' => [
+                'Authorization' => 'Bearer '.$token,
+            ],
+        ];
+    }
+
+    /**
+     * Аутентифицирует пользователя Telegram мини-приложения.
+     *
+     * @param  int|null  $externalUserId  внешний Telegram user id (по умолчанию 77_001)
+     */
+    protected function authenticateTelegramUser(?MaxUser $maxUser = null, ?int $externalUserId = null): array
+    {
+        $externalId = $externalUserId ?? ($maxUser?->external_user_id ?? 77_001);
+
+        $maxUser ??= MaxUser::query()->create([
+            'max_user_id' => MessengerChannel::Telegram->toInternalMaxUserId($externalId),
+            'messenger' => MessengerChannel::Telegram,
+            'external_user_id' => $externalId,
+            'first_name' => 'TgFoodTester',
+        ]);
+
+        $token = $maxUser->createToken('telegram-miniapp', ['telegram-miniapp'], now()->addHour())->plainTextToken;
 
         return [
             'user' => $maxUser,

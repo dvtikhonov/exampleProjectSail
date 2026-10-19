@@ -1,7 +1,7 @@
 /**
  * Клиентская навигация без vue-router: currentView и переходы между экранами.
  */
-import { getStartParam } from '../bridge/maxBridge';
+import { getStartParam } from '../bridge';
 import { VIEWS } from '../constants/views';
 import { resolveOrderChatDeepLinkOrderId } from '../utils/orderChatDeepLink';
 

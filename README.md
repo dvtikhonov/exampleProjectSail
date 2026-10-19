@@ -634,6 +634,7 @@ Workflow `.github/workflows/deploy.yml` — ручной запуск `workflow_
 |---|---|
 | `main-app` | `https://94-228-117-27.sslip.io/` |
 | `service-c` (MAX mini-app) | `https://94-228-117-27.sslip.io/max-app` |
+| `service-c` (Telegram Mini App) | `https://94-228-117-27.sslip.io/tg-app` |
 | `service-c` (webhook) | `https://94-228-117-27.sslip.io/api/webhooks/max` |
 | `service-d` | `https://yandexmaps.94-228-117-27.sslip.io/` |
 | `service-f` | `https://urlshort.94-228-117-27.sslip.io/` |

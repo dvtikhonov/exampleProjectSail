@@ -68,6 +68,8 @@ class MaxAuthControllerTest extends TestCase
 
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 67_890,
+            'messenger' => 'max',
+            'external_user_id' => 67_890,
             'first_name' => 'Max',
             'customer_category_id' => CustomerCategory::query()
                 ->where('name', CustomerCategoryName::Standard->value)
@@ -148,6 +150,8 @@ class MaxAuthControllerTest extends TestCase
 
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 67_890,
+            'messenger' => 'max',
+            'external_user_id' => 67_890,
             'first_name' => 'Max',
             'customer_category_id' => CustomerCategory::query()
                 ->where('name', CustomerCategoryName::Standard->value)
@@ -180,6 +184,8 @@ class MaxAuthControllerTest extends TestCase
 
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 67_890,
+            'messenger' => 'max',
+            'external_user_id' => 67_890,
             'first_name' => 'Max',
             'customer_category_id' => $vipCategory->id,
         ]);

@@ -6,6 +6,7 @@ Backend (Laravel 13, PHP 8.4) и Vue 3 SPA (shells + composables, без vue-rou
 |---|---|
 | [корневой README](../README.md) | Docker, gateway, общая инфраструктура |
 | [docs/scripts.md](../docs/scripts.md) | Каталог скриптов: туннели MAX, тесты, VPS |
+| [docs/TELEGRAM_MINI_APP_OPS.md](docs/TELEGRAM_MINI_APP_OPS.md) | Ops: BotFather, `TELEGRAM_*` на VPS, migrate только после согласия |
 | [shared/max-messenger](../shared/max-messenger/) | Общий HTTP-клиент MAX Bot API |
 | [Архитектурные принципы](#архитектурные-принципы) | SOLID, DTO/Enum, Service/Repository, DI, валидация, тесты |
 | [AI Cursor](#ai-cursor) | Правила `.cursor/rules`, slash-команды `/phototext-order` / `/phototext-schedule`, словарь `phototext-dish-aliases`, примеры промптов |
@@ -293,16 +294,18 @@ BASE_URL=http://localhost:8083
 | Путь | Куда | Авторизация |
 |---|---|---|
 | `http://localhost:8083/` | Welcome-страница Laravel | Публичный |
-| `http://localhost:8083/max-app` | Vue SPA (прямой доступ) | Публичный |
+| `http://localhost:8083/max-app` | Vue SPA MAX (прямой доступ) | Публичный |
+| `http://localhost:8083/tg-app` | Vue SPA Telegram Mini App | Публичный |
 | `http://localhost:8083/up` | Health check | Публичный |
 | `http://localhost:8083/api/webhooks/max` | Webhook MAX | `X-Max-Bot-Api-Secret` |
-| `http://localhost:8083/api/max/auth` | Валидация `initData` → Bearer token | Публичный |
-| `http://localhost:8083/api/food/*` | Food API mini-app | Bearer (`max.miniapp.auth`) |
+| `http://localhost:8083/api/max/auth` | Валидация MAX `initData` → Bearer token | Публичный |
+| `http://localhost:8083/api/telegram/auth` | Валидация Telegram `initData` → Bearer (`telegram-miniapp`) | Публичный |
+| `http://localhost:8083/api/food/*` | Food API mini-app | Bearer (`max.miniapp.auth` или `telegram-miniapp`) |
 | `http://localhost:8083/api/food/phototext/*` | API агента Cursor (PhotoText) | `X-PhotoText-Token` + активный AI-доступ `max_manager`; place/apply ещё `X-PhotoText-Write-Token` (без mini-app Bearer) |
 | `http://localhost:8080/api/c/...` | Через nginx-gateway (префикс `/api/c`) | Gateway auth (`X-User-Id`) |
 | `http://localhost:8080/api/c/webhooks/max` | Webhook через gateway | **Без** gateway auth |
 
-**Важно:** MAX на **том же домене**, что и `main-app` (`94-228-117-27.sslip.io`), идёт через `nginx-gateway` → `service-c` по путям **без** префикса `/api/c`: `/max-app`, `/max-build/`, `/api/webhooks/max`, `/api/max/`, `/api/food/`. Location `/api/food/` **без** Passport: им пользуются mini-app (свой Bearer) и агент PhotoText (`X-PhotoText-Token`; на place/apply ещё `X-PhotoText-Write-Token`). Ассеты mini-app в каталоге **`/max-build/`** (не `/build/`), чтобы не пересекаться с Vite `main-app`.
+**Важно:** MAX и Telegram Mini App на **том же домене**, что и `main-app` (`94-228-117-27.sslip.io`), идут через `nginx-gateway` → `service-c` по путям **без** префикса `/api/c`: `/max-app`, `/tg-app`, `/max-build/`, `/api/webhooks/max`, `/api/max/`, `/api/telegram/`, `/api/food/`. Location `/api/food/` **без** Passport: им пользуются mini-app (свой Bearer) и агент PhotoText (`X-PhotoText-Token`; на place/apply ещё `X-PhotoText-Write-Token`). Ассеты SPA в каталоге **`/max-build/`** (не `/build/`), чтобы не пересекаться с Vite `main-app`. Ops Telegram: [docs/TELEGRAM_MINI_APP_OPS.md](docs/TELEGRAM_MINI_APP_OPS.md).
 
 Префикс `/api/c/` остаётся для отладки gateway auth и единообразия с `service-a` / `service-b`.
 
@@ -1522,6 +1525,20 @@ docker compose exec -T service-c php artisan test
 
 ## Переменные окружения
 
+### Telegram Mini App
+
+| Переменная | Назначение |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Токен `@obedov_bot` (BotFather): валидация `initData` + исходящие `sendMessage` |
+| `TELEGRAM_BOT_USERNAME` | Username без `@` (default `obedov_bot`) — кнопки `startapp` |
+| `TELEGRAM_MINI_APP_URL` | Публичный URL Mini App, prod: `https://94-228-117-27.sslip.io/tg-app` |
+| `TELEGRAM_MINIAPP_AUTH_DATE_MAX_AGE_SECONDS` | Допустимый возраст `auth_date` в initData (по умолчанию 3600) |
+| `TELEGRAM_MINIAPP_TOKEN_TTL_SECONDS` | TTL Bearer Sanctum ability `telegram-miniapp` (по умолчанию 3600) |
+| `TELEGRAM_LOCAL_DEV_INIT_DATA` | Подписанная заглушка initData на `localhost:8083/tg-app` (только `local`/`testing`) |
+| `TELEGRAM_LOCAL_DEV_USER_ID` | Демо Telegram user id для локальной заглушки (`.env.example` → `777001`) |
+
+Выкат BotFather + VPS + migrate: [docs/TELEGRAM_MINI_APP_OPS.md](docs/TELEGRAM_MINI_APP_OPS.md). Миграция `max_users.messenger` / `external_user_id` на shared/prod — **только после согласия**.
+
 ### MAX
 
 | Переменная | Назначение |
@@ -1706,14 +1723,16 @@ docker compose exec -T service-c php artisan max:miniapp:verify
 
 В `nginx-gateway/nginx.conf` маршруты service-c разделены на два уровня.
 
-**Публичные пути на общем домене** (без gateway Bearer — для MAX mini-app и webhook на VPS):
+**Публичные пути на общем домене** (без gateway Bearer — для MAX / Telegram mini-app и webhook на VPS):
 
 ```nginx
 location = /api/webhooks/max { proxy_pass http://service-c:8000/api/webhooks/max; }
 location ^~ /api/food/       { proxy_pass http://service-c:8000; }
 location ^~ /api/max/        { proxy_pass http://service-c:8000; }
+location ^~ /api/telegram/   { proxy_pass http://service-c:8000; }
 location ^~ /max-build/      { proxy_pass http://service-c:8000; }
 location ^~ /max-app         { proxy_pass http://service-c:8000; }
+location ^~ /tg-app          { proxy_pass http://service-c:8000; }
 ```
 
 **Префикс `/api/c/`** — для отладки с gateway auth; webhook вынесен отдельно **без** `auth_request`:
@@ -1740,7 +1759,8 @@ location /api/c/ {
 |---|---|---|
 | `POST` | `/api/webhooks/max` | Входящие события MAX (`message_callback`, `bot_started`, `message_created`) |
 | `POST` | `/api/max/auth` | `{ "init_data": "..." }` → `{ token, token_type, expires_in, user }` |
-| `GET` | `/api/food/dishes/{id}/image` | Изображение блюда с локального `public` disk (**без** Bearer — для `<img>` в WebView MAX); throttle `food-dish-image` 30/min per IP |
+| `POST` | `/api/telegram/auth` | `{ "init_data": "..." }` → Bearer ability `telegram-miniapp` (throttle) |
+| `GET` | `/api/food/dishes/{id}/image` | Изображение блюда с локального `public` disk (**без** Bearer — для `<img>` в WebView MAX/TG); throttle `food-dish-image` 30/min per IP |
 
 ### PhotoText API (агент Cursor)
 

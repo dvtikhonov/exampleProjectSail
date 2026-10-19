@@ -6,6 +6,7 @@ namespace App\Repositories\Max;
 
 use App\Contracts\Max\MaxLoadTestUserRepositoryInterface;
 use App\DTO\Max\MaxUserRecord;
+use App\Enums\MessengerChannel;
 use App\Models\Max\MaxUser;
 
 /**
@@ -26,9 +27,16 @@ class EloquentMaxLoadTestUserRepository implements MaxLoadTestUserRepositoryInte
         string $username,
         ?int $defaultCustomerCategoryId,
     ): MaxUserRecord {
-        $maxUser = MaxUser::query()->firstOrNew(['max_user_id' => $maxUserId]);
+        $messenger = MessengerChannel::Max;
+        $maxUser = MaxUser::query()->firstOrNew([
+            'messenger' => $messenger->value,
+            'external_user_id' => $maxUserId,
+        ]);
 
         if (! $maxUser->exists) {
+            $maxUser->max_user_id = $maxUserId;
+            $maxUser->messenger = $messenger;
+            $maxUser->external_user_id = $maxUserId;
             $maxUser->fill([
                 'first_name' => $firstName,
                 'username' => $username,

@@ -11,14 +11,14 @@ use App\DTO\Food\Order\FoodOrderRecord;
 use Psr\Log\LoggerInterface;
 
 /**
- * Уведомление менеджеру, оформившему ручной заказ, через MAX.
+ * Уведомление менеджеру, оформившему ручной заказ, через MAX / канал пользователя.
  */
 class LaravelFoodOrderManualCreatorNotifier implements FoodOrderManualCreatorNotifierInterface
 {
     public function __construct(
         private readonly FoodOrderManualCreatorMaxMessageBuilderInterface $manualCreatorMessageBuilder,
         private readonly MaxUiStandRecipientResolverInterface $uiStandRecipientResolver,
-        private readonly FoodOrderCustomerMaxDispatchHelper $dispatchHelper,
+        private readonly FoodOrderCustomerMessengerDispatchHelper $dispatchHelper,
         private readonly LoggerInterface $logger,
     ) {}
 

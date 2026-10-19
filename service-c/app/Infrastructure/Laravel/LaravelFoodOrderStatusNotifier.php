@@ -11,13 +11,13 @@ use App\DTO\Food\Order\FoodOrderRecord;
 use App\Enums\Food\Review\OrderRejectionScope;
 
 /**
- * Уведомления клиента о статусе заявки через MAX.
+ * Уведомления клиента о статусе заявки (MAX / Telegram по каналу пользователя).
  */
 class LaravelFoodOrderStatusNotifier implements FoodOrderStatusNotifierInterface
 {
     public function __construct(
         private readonly FoodOrderCustomerStatusMaxMessageBuilderInterface $statusMessageBuilder,
-        private readonly FoodOrderCustomerMaxDispatchHelper $dispatchHelper,
+        private readonly FoodOrderCustomerMessengerDispatchHelper $dispatchHelper,
         private readonly FoodOrderManualCreatorNotifierInterface $manualCreatorNotifier,
     ) {}
 
@@ -27,9 +27,8 @@ class LaravelFoodOrderStatusNotifier implements FoodOrderStatusNotifierInterface
     public function notifySubmitted(FoodOrderRecord $order): void
     {
         $text = $this->statusMessageBuilder->buildCustomerSubmitted($order);
-        $buttonRows = $this->dispatchHelper->buildOpenAppButtonRows($order->id);
 
-        $this->dispatchHelper->trySendMessage($text, $order, $buttonRows);
+        $this->dispatchHelper->trySendMessage($text, $order, withOpenAppButton: true);
     }
 
     /**

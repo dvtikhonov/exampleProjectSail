@@ -1,9 +1,14 @@
 /**
- * Точка входа MAX mini-app (заказ еды в мессенджере).
- * Монтирует корневой компонент App.vue в #max-app.
+ * Точка входа mini-app (MAX / Telegram).
+ * Монтирует App.vue в #tg-app или #max-app.
  */
 import '../../css/max-app.css';
 import { createApp } from 'vue';
 import App from './App.vue';
 
-createApp(App).mount('#max-app');
+const mountEl = document.getElementById('tg-app')
+    ?? document.getElementById('max-app');
+
+if (mountEl) {
+    createApp(App).mount(mountEl);
+}

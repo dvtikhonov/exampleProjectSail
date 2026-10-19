@@ -14,6 +14,7 @@ use App\Contracts\Shared\ApplicationEnvironmentInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\Contracts\Shared\LocalFileWriterInterface;
 use App\DTO\Max\MaxUserRecord;
+use App\Enums\MessengerChannel;
 use App\Services\Max\MaxLoadTestService;
 use App\Support\Max\MaxLoadTestUserIds;
 use DateTimeImmutable;
@@ -91,6 +92,8 @@ class MaxLoadTestServiceTest extends TestCase
 
                 return new MaxUserRecord(
                     maxUserId: $maxUserId,
+                    messenger: MessengerChannel::Max,
+                    externalUserId: $maxUserId,
                     firstName: $firstName,
                     lastName: null,
                     username: $username,

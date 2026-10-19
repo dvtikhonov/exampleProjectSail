@@ -3,7 +3,7 @@
  * Раздел «Заказы»: вкладки проверки (address/composition) и отчётов (max_manager).
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { getStartParam } from '../../bridge/maxBridge';
+import { getStartParam } from '../../bridge';
 import { useAdminChrome } from '../../composables/useAdminChrome';
 import { useAdminFlow } from '../../composables/useAdminFlow';
 import { useAuth } from '../../composables/useAuth';

@@ -3,16 +3,34 @@
  * 401 → повторная авторизация через handler из auth.js (без циклического импорта).
  */
 import axios from 'axios';
-import { getInitData } from '../bridge/maxBridge';
+import { getInitData, getMessengerChannel } from '../bridge';
 
 /**
- * Bearer в sessionStorage — ограничение MAX mini-app (нет надёжного httpOnly cookie
+ * Bearer в sessionStorage — ограничение mini-app WebView (нет надёжного httpOnly cookie
  * между WebView и API). Mitigations: не кладём токен в DOM / v-html / Blade `{!! !!}`;
- * короткий TTL (`MAX_MINIAPP_TOKEN_TTL_SECONDS`); токен не логировать.
+ * короткий TTL; токен не логировать.
  *
- * @type {string|null} Токен авторизации после POST /max/auth
+ * Ключ: `max_miniapp_token` или `telegram_miniapp_token` по каналу.
+ *
+ * @returns {string}
  */
-let authToken = sessionStorage.getItem('max_miniapp_token');
+function authTokenStorageKey() {
+    return getMessengerChannel() === 'telegram'
+        ? 'telegram_miniapp_token'
+        : 'max_miniapp_token';
+}
+
+/**
+ * @returns {string}
+ */
+function sessionExpiredMessage() {
+    const channelLabel = getMessengerChannel() === 'telegram' ? 'Telegram' : 'MAX';
+
+    return `Сессия истекла. Перезапустите mini-app в ${channelLabel}.`;
+}
+
+/** @type {string|null} Токен авторизации после POST /max/auth или /telegram/auth */
+let authToken = sessionStorage.getItem(authTokenStorageKey());
 
 /** @type {Promise<unknown>|null} */
 let reauthPromise = null;
@@ -43,7 +61,7 @@ export const client = axios.create({
  * @returns {string|null}
  */
 function syncAuthTokenFromStorage() {
-    const storageToken = sessionStorage.getItem('max_miniapp_token');
+    const storageToken = sessionStorage.getItem(authTokenStorageKey());
 
     if (storageToken) {
         authToken = storageToken;
@@ -72,6 +90,14 @@ function getRequestBearerToken(config) {
     return match?.[1]?.trim() || null;
 }
 
+/**
+ * @param {string|undefined} url
+ * @returns {boolean}
+ */
+function isAuthRequestUrl(url) {
+    return url === '/max/auth' || url === '/telegram/auth';
+}
+
 client.interceptors.request.use((config) => {
     syncAuthTokenFromStorage();
 
@@ -97,7 +123,7 @@ client.interceptors.response.use(
             !axios.isAxiosError(error)
             || error.response?.status !== 401
             || !config
-            || config.url === '/max/auth'
+            || isAuthRequestUrl(config.url)
             || config.__isAuthRetry
         ) {
             return Promise.reject(error);
@@ -105,7 +131,7 @@ client.interceptors.response.use(
 
         config.__isAuthRetry = true;
 
-        // Запрос ушёл со старым Bearer, а токен уже обновили — retry без нового /max/auth
+        // Запрос ушёл со старым Bearer, а токен уже обновили — retry без нового auth
         // (иначе issueToken отзовёт свежий токен и устроит stampede 401).
         const failedBearer = getRequestBearerToken(config);
         const currentToken = syncAuthTokenFromStorage();
@@ -131,19 +157,19 @@ client.interceptors.response.use(
 );
 
 /**
- * Повторная авторизация по initData из MAX Bridge (после 401).
+ * Повторная авторизация по initData из Bridge (после 401).
  */
 async function reauthenticateFromBridge() {
     const initData = getInitData();
 
     if (!initData) {
         clearAuthToken();
-        throw new Error('Сессия истекла. Перезапустите mini-app в MAX.');
+        throw new Error(sessionExpiredMessage());
     }
 
     if (typeof authenticateHandler !== 'function') {
         clearAuthToken();
-        throw new Error('Сессия истекла. Перезапустите mini-app в MAX.');
+        throw new Error(sessionExpiredMessage());
     }
 
     await authenticateHandler(initData);
@@ -154,7 +180,7 @@ async function reauthenticateFromBridge() {
  */
 export function setAuthToken(token) {
     authToken = token;
-    sessionStorage.setItem('max_miniapp_token', token);
+    sessionStorage.setItem(authTokenStorageKey(), token);
 }
 
 /**
@@ -162,7 +188,7 @@ export function setAuthToken(token) {
  */
 export function clearAuthToken() {
     authToken = null;
-    sessionStorage.removeItem('max_miniapp_token');
+    sessionStorage.removeItem(authTokenStorageKey());
 }
 
 /**

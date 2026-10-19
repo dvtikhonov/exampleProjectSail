@@ -9,13 +9,13 @@ use App\Contracts\Food\Review\FoodOrderCustomerCompositionMaxMessageBuilderInter
 use App\DTO\Food\Order\FoodOrderRecord;
 
 /**
- * Уведомления клиента об изменении состава заказа через MAX.
+ * Уведомления клиента об изменении состава заказа (MAX / Telegram по каналу).
  */
 class LaravelFoodOrderCompositionNotifier implements FoodOrderCompositionNotifierInterface
 {
     public function __construct(
         private readonly FoodOrderCustomerCompositionMaxMessageBuilderInterface $compositionMessageBuilder,
-        private readonly FoodOrderCustomerMaxDispatchHelper $dispatchHelper,
+        private readonly FoodOrderCustomerMessengerDispatchHelper $dispatchHelper,
     ) {}
 
     /**
@@ -24,8 +24,7 @@ class LaravelFoodOrderCompositionNotifier implements FoodOrderCompositionNotifie
     public function notifyCompositionChanged(FoodOrderRecord $order): void
     {
         $text = $this->compositionMessageBuilder->buildCustomerCompositionChanged($order);
-        $buttonRows = $this->dispatchHelper->buildOpenAppButtonRows($order->id);
 
-        $this->dispatchHelper->trySendMessage($text, $order, $buttonRows);
+        $this->dispatchHelper->trySendMessage($text, $order, withOpenAppButton: true);
     }
 }

@@ -1,9 +1,9 @@
 /**
- * Deep link на чат заказа из уведомления MAX.
+ * Deep link на чат заказа из уведомления MAX / Telegram.
  *
  * Источники (по приоритету):
- * 1) start_param кнопки open_app: order_{id}_chat
- * 2) query локального браузера: ?order_id=N&view=chat
+ * 1) start_param кнопки open_app / startapp: order_{id}_chat
+ * 2) query локального браузера / web_app url: ?order_id=N&view=chat
  */
 
 /**

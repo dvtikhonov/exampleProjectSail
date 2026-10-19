@@ -12,7 +12,9 @@ use App\Contracts\Max\MaxUserManualOrderQueryRepositoryInterface;
 use App\Contracts\Max\MaxUserRepositoryInterface;
 use App\DTO\Max\MaxUserRecord;
 use App\DTO\Max\MaxWebAppInitDataDto;
+use App\DTO\Max\MessengerUserIdentity;
 use App\DTO\Shared\PaginatedResultDto;
+use App\Enums\MessengerChannel;
 use DateTimeInterface;
 
 /**
@@ -43,6 +45,24 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
     public function findByMaxUserId(int $maxUserId): ?MaxUserRecord
     {
         return $this->identityRepository->findByMaxUserId($maxUserId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findByMessengerAndExternalUserId(
+        MessengerChannel $messenger,
+        int $externalUserId,
+    ): ?MaxUserRecord {
+        return $this->identityRepository->findByMessengerAndExternalUserId($messenger, $externalUserId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function resolveMessengerIdentity(int $maxUserId): ?MessengerUserIdentity
+    {
+        return $this->identityRepository->resolveMessengerIdentity($maxUserId);
     }
 
     /**

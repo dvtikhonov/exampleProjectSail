@@ -3,7 +3,7 @@
  * Раздел синхронизации Briskly (роль max_manager).
  */
 import { onMounted, onUnmounted } from 'vue';
-import { bindBackButton, closeMaxApp, getPlatform, hideBackButton } from '../../bridge/maxBridge';
+import { bindBackButton, closeMaxApp, getPlatform, hideBackButton } from '../../bridge';
 import { useAdminChrome } from '../../composables/useAdminChrome';
 import AdminBrisklySyncPage from '../../pages/admin/AdminBrisklySyncPage.vue';
 
