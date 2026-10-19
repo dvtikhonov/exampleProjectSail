@@ -44,15 +44,30 @@ class TelegramWebAppInitDataValidatorTest extends TestCase
         $this->assertSame('ru', $dto->languageCode);
     }
 
-    /** Игнорирует signature при проверке hash (Telegram Web Apps). */
-    public function test_accepts_init_data_with_signature_excluded_from_check_string(): void
+    /** Signature входит в HMAC: подпись после добавления signature должна совпадать. */
+    public function test_accepts_init_data_when_signature_is_included_in_hmac(): void
+    {
+        $fixture = TelegramInitDataFixtureBuilder::build(self::BOT_TOKEN, [
+            'signature' => 'telegram-ed25519-placeholder',
+            'chat_instance' => '8134722200314281151',
+            'chat_type' => 'private',
+        ]);
+
+        $dto = $this->validator->validate($fixture);
+
+        $this->assertSame(67_890, $dto->telegramUserId);
+    }
+
+    /** Подделка: signature, добавленный после подписи, ломает hash. */
+    public function test_rejects_signature_appended_after_hash_was_computed(): void
     {
         $fixture = TelegramInitDataFixtureBuilder::build(self::BOT_TOKEN);
         $withSignature = $fixture.'&signature='.rawurlencode('not-part-of-hmac-check');
 
-        $dto = $this->validator->validate($withSignature);
+        $this->expectException(TelegramWebAppInitDataException::class);
+        $this->expectExceptionMessage('hash mismatch');
 
-        $this->assertSame(67_890, $dto->telegramUserId);
+        $this->validator->validate($withSignature);
     }
 
     /** Отклоняет подделанный hash. */

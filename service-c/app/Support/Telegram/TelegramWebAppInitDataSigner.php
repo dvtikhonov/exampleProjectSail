@@ -7,18 +7,19 @@ namespace App\Support\Telegram;
 /**
  * Подпись initData для Telegram WebApp (HMAC-SHA256, secret = HMAC(botToken, WebAppData)).
  *
- * Параметр signature в data-check-string не участвует — его добавляют отдельно после подписи.
+ * Параметр hash в data-check-string не участвует. Поле signature (если передано)
+ * входит в HMAC — как у реального Telegram WebApp.
  */
 final class TelegramWebAppInitDataSigner
 {
     /**
      * Подписывает строку initData WebApp Telegram.
      *
-     * @param  array<string, string>  $params  Параметры с декодированными значениями (без hash и signature).
+     * @param  array<string, string>  $params  Параметры с декодированными значениями (без hash).
      */
     public static function sign(string $botToken, array $params): string
     {
-        unset($params['hash'], $params['signature']);
+        unset($params['hash']);
         ksort($params);
 
         $dataCheckString = implode("\n", array_map(

@@ -36,7 +36,7 @@ class TelegramAuthController extends Controller
             $diag = $this->debugHashDiagnosis($rawInitData);
             $payload = [
                 'sessionId' => '058a74',
-                'runId' => 'pre-fix-2',
+                'runId' => 'post-fix',
                 'hypothesisId' => 'A-sig-token',
                 'location' => 'TelegramAuthController.php:store',
                 'message' => 'telegram auth validate failed',
@@ -70,8 +70,8 @@ class TelegramAuthController extends Controller
         // #region agent log
         $okLine = json_encode([
             'sessionId' => '058a74',
-            'runId' => 'pre-fix',
-            'hypothesisId' => 'A-B-C',
+            'runId' => 'post-fix',
+            'hypothesisId' => 'A-sig-token',
             'location' => 'TelegramAuthController.php:store',
             'message' => 'telegram auth validate ok',
             'data' => [

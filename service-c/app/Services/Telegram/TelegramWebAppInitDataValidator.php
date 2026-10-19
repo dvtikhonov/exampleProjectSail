@@ -12,16 +12,17 @@ use App\Exceptions\Telegram\TelegramWebAppInitDataException;
 /**
  * Валидация подписи и срока действия initData Telegram WebApp.
  *
- * Из data-check-string исключаются hash и signature (см. Telegram Bot API Web Apps).
+ * Из data-check-string исключается только hash. Поле signature (Bot API 8+)
+ * входит в HMAC — подтверждено runtime (real Telegram initData).
  */
 class TelegramWebAppInitDataValidator implements TelegramWebAppInitDataValidatorInterface
 {
     /**
-     * Ключи, не входящие в data-check-string.
+     * Ключи, не входящие в data-check-string для bot-token HMAC.
      *
      * @var list<string>
      */
-    private const EXCLUDED_FROM_CHECK_STRING = ['hash', 'signature'];
+    private const EXCLUDED_FROM_CHECK_STRING = ['hash'];
 
     public function __construct(
         private readonly ApplicationConfigInterface $config,
