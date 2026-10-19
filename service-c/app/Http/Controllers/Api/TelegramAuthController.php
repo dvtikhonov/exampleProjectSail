@@ -111,6 +111,7 @@ class TelegramAuthController extends Controller
             $decoded = rawurldecode($value);
             if ($key === 'hash') {
                 $receivedHash = $decoded;
+
                 continue;
             }
             $pairs[$key] = $decoded;
