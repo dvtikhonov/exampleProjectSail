@@ -215,10 +215,6 @@ export function extractErrorMessage(error) {
         const apiMessage = error.response?.data?.message;
 
         if (typeof apiMessage === 'string' && apiMessage.trim() !== '') {
-            // #region agent log
-            // reason уже в message с сервера — не дублировать debug_reason
-            // #endregion
-
             return apiMessage;
         }
 
