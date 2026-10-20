@@ -138,8 +138,8 @@ TEXT,
         $this->assertStringNotContainsString('Доставка:', $text);
     }
 
-    /** Обрезает длинный список позиций с суффиксом числа оставшихся. */
-    public function test_truncates_long_item_list_with_remaining_count_suffix(): void
+    /** Длинный список позиций и полные названия блюд не усекаются. */
+    public function test_keeps_full_dish_names_without_truncation(): void
     {
         $itemsSnapshot = [];
 
@@ -171,12 +171,13 @@ TEXT,
 
         $text = $this->builder->build($order, $maxUser, maxTextLength: 4000);
 
-        $this->assertLessThanOrEqual(4000, mb_strlen($text));
-        $this->assertStringContainsString('…и ещё ', $text);
-        $this->assertStringContainsString(' позиций', $text);
+        $this->assertStringNotContainsString('…и ещё ', $text);
         $this->assertStringContainsString('Новая заявка №99', $text);
         $this->assertStringContainsString('Итого: 120298.80 ₽', $text);
-        $this->assertLessThan(120, substr_count($text, '• '));
+        $this->assertSame(120, substr_count($text, '• '));
+        $this->assertStringContainsString('Блюдо с очень длинным названием номер 001', $text);
+        $this->assertStringContainsString('Блюдо с очень длинным названием номер 120', $text);
+        $this->assertGreaterThan(4000, mb_strlen($text));
     }
 
     /** Форматирует клиента без username через имя и id. */
@@ -249,8 +250,8 @@ TEXT,
 
         $text = $this->builder->build($order, $maxUser);
 
-        $this->assertStringContainsString("• Бургер × 3 — 960.00 ₽\n  Входит в комбо: Картофель фри", $text);
-        $this->assertStringContainsString("• Картофель фри × 3 — 540.00 ₽\n  Входит в комбо: Бургер", $text);
+        $this->assertStringContainsString('• Бургер / Картофель фри × 3 — 1500.00 ₽', $text);
+        $this->assertStringNotContainsString('Входит в комбо', $text);
     }
 
     /** Собирает клиентское уведомление об изменении состава с финальным вариантом заказа. */
@@ -333,8 +334,8 @@ TEXT,
 
         $this->assertStringContainsString('Заказ изменен по вашему согласованию', $text);
         $this->assertStringContainsString('Заказ №16', $text);
-        $this->assertStringContainsString("• Бургер × 1 — 960.00 ₽\n  Входит в комбо: Картофель фри", $text);
-        $this->assertStringContainsString("• Картофель фри × 1 — 540.00 ₽\n  Входит в комбо: Бургер", $text);
+        $this->assertStringContainsString('• Бургер / Картофель фри × 1 — 1500.00 ₽', $text);
+        $this->assertStringNotContainsString('Входит в комбо', $text);
         $this->assertStringNotContainsString('Доставка:', $text);
         $this->assertStringContainsString('Итого: 1500.00 ₽', $text);
     }

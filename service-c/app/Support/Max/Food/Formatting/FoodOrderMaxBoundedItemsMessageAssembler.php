@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Max\Food\Formatting;
 
 /**
- * Сборка MAX-сообщения с усечением списка позиций под лимит длины.
+ * Сборка MAX-сообщения с полным списком позиций (без усечения названий и строк).
  */
 final class FoodOrderMaxBoundedItemsMessageAssembler
 {
@@ -15,7 +15,7 @@ final class FoodOrderMaxBoundedItemsMessageAssembler
     ) {}
 
     /**
-     * Собирает сообщение header/items/footer с bullet-позициями и усечением.
+     * Собирает сообщение header/items/footer с bullet-позициями целиком.
      *
      * @param  list<array<string, mixed>>  $items
      */
@@ -23,80 +23,33 @@ final class FoodOrderMaxBoundedItemsMessageAssembler
         string $header,
         array $items,
         string $footer,
-        int $maxTextLength,
+        int $maxTextLength = FoodOrderMaxTextAssembler::DEFAULT_MAX_TEXT_LENGTH,
     ): string {
-        if ($items === []) {
-            return $this->textAssembler->ensureWithinLimit(
-                $this->textAssembler->assembleMessage($header, '', $footer),
-                $maxTextLength,
-            );
-        }
+        unset($maxTextLength);
 
-        $fullItemsSection = implode("\n", $this->bulletItemsFormatter->formatItemsLines($items));
-        $fullText = $this->textAssembler->assembleMessage($header, $fullItemsSection, $footer);
+        $itemsSection = $items === []
+            ? ''
+            : implode("\n", $this->bulletItemsFormatter->formatItemsLines($items));
 
-        if (mb_strlen($fullText) <= $maxTextLength) {
-            return $fullText;
-        }
-
-        $totalItems = count($items);
-
-        for ($includedCount = $totalItems - 1; $includedCount >= 0; $includedCount--) {
-            $remaining = $totalItems - $includedCount;
-            $itemsSection = $this->bulletItemsFormatter->buildItemsSection($items, $includedCount, $remaining);
-            $candidate = $this->textAssembler->assembleMessage($header, $itemsSection, $footer);
-
-            if (mb_strlen($candidate) <= $maxTextLength) {
-                return $candidate;
-            }
-        }
-
-        return $this->textAssembler->ensureWithinLimit(
-            $this->textAssembler->assembleMessage(
-                $header,
-                $this->textAssembler->buildTruncationSuffix($totalItems),
-                $footer,
-            ),
-            $maxTextLength,
-        );
+        return $this->textAssembler->assembleMessage($header, $itemsSection, $footer);
     }
 
     /**
-     * Собирает сообщение из заголовка и готовых строк позиций с усечением.
+     * Собирает сообщение из заголовка и готовых строк позиций целиком.
      *
      * @param  list<string>  $itemLines
      */
     public function assembleWithPrefixedItemLines(
         string $header,
         array $itemLines,
-        int $maxTextLength,
+        int $maxTextLength = FoodOrderMaxTextAssembler::DEFAULT_MAX_TEXT_LENGTH,
     ): string {
+        unset($maxTextLength);
+
         if ($itemLines === []) {
-            return $this->textAssembler->ensureWithinLimit($header, $maxTextLength);
+            return $header;
         }
 
-        $fullText = $header."\n".implode("\n", $itemLines);
-
-        if (mb_strlen($fullText) <= $maxTextLength) {
-            return $fullText;
-        }
-
-        $totalLines = count($itemLines);
-
-        for ($includedCount = $totalLines - 1; $includedCount >= 0; $includedCount--) {
-            $remaining = $totalLines - $includedCount;
-            $lines = array_slice($itemLines, 0, $includedCount);
-            $lines[] = $this->textAssembler->buildTruncationSuffix($remaining);
-            $candidate = $header."\n".implode("\n", $lines);
-
-            if (mb_strlen($candidate) <= $maxTextLength) {
-                return $candidate;
-            }
-        }
-
-        return $this->textAssembler->ensureWithinLimit(
-            $header."\n".$this->textAssembler->buildTruncationSuffix($totalLines),
-            $maxTextLength,
-        );
+        return $header."\n".implode("\n", $itemLines);
     }
 }
