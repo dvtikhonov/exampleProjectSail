@@ -37,6 +37,34 @@ class HttpTelegramMessengerClientTest extends TestCase
         ], $captured['jsonBody']);
     }
 
+    /** setWebhook постит url, secret_token и allowed_updates. */
+    public function test_set_webhook_posts_url_and_secret(): void
+    {
+        $captured = null;
+        $http = $this->recordingHttp(function (string $method, string $url, ?array $jsonBody, ?string $baseUrl) use (&$captured): HttpResponseDto {
+            $captured = compact('method', 'url', 'jsonBody', 'baseUrl');
+
+            return new HttpResponseDto(status: 200, body: '{"ok":true,"result":true}', successful: true);
+        });
+
+        $client = new HttpTelegramMessengerClient($http, $this->configWithToken('TOKEN:1'));
+
+        $client->setWebhook(
+            'https://example.com/api/webhooks/telegram',
+            'secret_token_1',
+            ['message'],
+        );
+
+        $this->assertSame('POST', $captured['method']);
+        $this->assertSame('/botTOKEN:1/setWebhook', $captured['url']);
+        $this->assertSame([
+            'url' => 'https://example.com/api/webhooks/telegram',
+            'secret_token' => 'secret_token_1',
+            'allowed_updates' => ['message'],
+            'drop_pending_updates' => false,
+        ], $captured['jsonBody']);
+    }
+
     /** sendMessage с web_app-кнопкой кладёт reply_markup.inline_keyboard. */
     public function test_send_message_includes_web_app_inline_keyboard(): void
     {

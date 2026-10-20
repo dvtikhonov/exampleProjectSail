@@ -50,6 +50,7 @@ trait ComparesConfiguredHeaderSecret
     {
         return match ($configKey) {
             'max.webhook.secret' => 'MAX webhook rejected: MAX_WEBHOOK_SECRET is not configured.',
+            'telegram.webhook.secret' => 'Telegram webhook rejected: TELEGRAM_WEBHOOK_SECRET is not configured.',
             'phototext.agent_token' => 'PhotoText agent rejected: PHOTOTEXT_AGENT_TOKEN is not configured.',
             'phototext.write_token' => 'PhotoText write rejected: PHOTOTEXT_WRITE_TOKEN is not configured.',
             'briskly_sync.capture_secret' => 'Briskly sync capture rejected: BRISKLY_SYNC_CAPTURE_SECRET is not configured.',
@@ -64,6 +65,7 @@ trait ComparesConfiguredHeaderSecret
     {
         return match ($configKey) {
             'max.webhook.secret' => 'MAX webhook rejected: invalid X-Max-Bot-Api-Secret header.',
+            'telegram.webhook.secret' => 'Telegram webhook rejected: invalid X-Telegram-Bot-Api-Secret-Token header.',
             'phototext.agent_token' => 'PhotoText agent rejected: invalid X-PhotoText-Token header.',
             'phototext.write_token' => 'PhotoText write rejected: invalid X-PhotoText-Write-Token header.',
             'briskly_sync.capture_secret' => 'Briskly sync capture rejected: invalid X-Briskly-Capture-Secret header.',

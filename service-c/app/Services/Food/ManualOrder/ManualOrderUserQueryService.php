@@ -37,6 +37,7 @@ class ManualOrderUserQueryService implements ManualOrderUserQueryServiceInterfac
                     lastName: $user->lastName,
                     username: $user->username,
                     deliveryAddress: $user->deliveryAddress,
+                    messenger: $user->messenger,
                 ),
                 $paginator->items,
             ),

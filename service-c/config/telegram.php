@@ -10,6 +10,18 @@ return [
 
     'mini_app_url' => env('TELEGRAM_MINI_APP_URL', 'https://94-228-117-27.sslip.io/tg-app'),
 
+    /**
+     * Webhook входящих Update (личка с ботом → Home_chat + Bot DM).
+     *
+     * secret_token → заголовок X-Telegram-Bot-Api-Secret-Token (1–256 символов [A-Za-z0-9_-]).
+     *
+     * @see https://core.telegram.org/bots/api#setwebhook
+     */
+    'webhook' => [
+        'url' => env('TELEGRAM_WEBHOOK_URL', ''),
+        'secret' => env('TELEGRAM_WEBHOOK_SECRET', ''),
+    ],
+
     'miniapp' => [
         'auth_date_max_age_seconds' => (int) env('TELEGRAM_MINIAPP_AUTH_DATE_MAX_AGE_SECONDS', 3_600),
         'token_ttl_seconds' => (int) env('TELEGRAM_MINIAPP_TOKEN_TTL_SECONDS', 3_600),

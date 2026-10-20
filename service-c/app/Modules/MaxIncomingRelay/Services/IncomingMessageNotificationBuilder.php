@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\MaxIncomingRelay\Services;
 
 use App\Contracts\Shared\ClockInterface;
+use App\Enums\MessengerChannel;
 use App\Modules\MaxIncomingRelay\DTO\IncomingBotMessageDto;
 use App\Modules\MaxIncomingRelay\DTO\LastOrderSummaryDto;
 use DateTimeImmutable;
@@ -30,7 +31,16 @@ final class IncomingMessageNotificationBuilder
      */
     public function build(IncomingBotMessageDto $message, ?LastOrderSummaryDto $lastOrder): string
     {
-        $header = sprintf('Получено сообщение от user_id %d', $message->userId);
+        $header = match ($message->messenger) {
+            MessengerChannel::Telegram => sprintf(
+                'Получено сообщение от Telegram user_id %d',
+                $message->externalUserId(),
+            ),
+            MessengerChannel::Max => sprintf(
+                'Получено сообщение от user_id %d',
+                $message->userId,
+            ),
+        };
         $fullName = $this->formatFullName($message->firstName, $message->lastName);
         if ($fullName !== '') {
             $header .= ' '.$fullName;

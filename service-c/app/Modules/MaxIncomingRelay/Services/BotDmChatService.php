@@ -6,6 +6,9 @@ namespace App\Modules\MaxIncomingRelay\Services;
 
 use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
+use App\Contracts\Telegram\TelegramMessengerNotificationSenderInterface;
+use App\DTO\Max\MessengerUserIdentity;
+use App\Enums\MessengerChannel;
 use App\Modules\MaxIncomingRelay\Contracts\BotDmChatServiceInterface;
 use App\Modules\MaxIncomingRelay\Contracts\BotDmMessageRepositoryInterface;
 use App\Modules\MaxIncomingRelay\DTO\BotDmMessageDto;
@@ -14,7 +17,7 @@ use App\Modules\MaxIncomingRelay\Enums\BotDmAuthorType;
 use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
 
 /**
- * Сервис админской лички с пользователем MAX через бота.
+ * Сервис админской лички с пользователем MAX / Telegram через бота.
  */
 final class BotDmChatService implements BotDmChatServiceInterface
 {
@@ -25,7 +28,8 @@ final class BotDmChatService implements BotDmChatServiceInterface
     public function __construct(
         private readonly BotDmMessageRepositoryInterface $botDmMessageRepository,
         private readonly MaxUserIdentityRepositoryInterface $maxUserIdentityRepository,
-        private readonly MaxMessengerNotificationSenderInterface $notificationSender,
+        private readonly MaxMessengerNotificationSenderInterface $maxNotificationSender,
+        private readonly TelegramMessengerNotificationSenderInterface $telegramNotificationSender,
     ) {}
 
     /**
@@ -59,20 +63,21 @@ final class BotDmChatService implements BotDmChatServiceInterface
         string $body,
     ): BotDmMessageDto {
         $normalizedBody = $this->normalizeBody($body);
-        $this->assertKnownUser($maxUserId);
+        $identity = $this->resolveKnownIdentity($maxUserId);
 
-        $sent = $this->notificationSender->send(
+        $sent = $this->dispatchToMessenger(
+            identity: $identity,
             text: $normalizedBody,
-            userId: $maxUserId,
-            failureLogMessage: 'MAX bot DM send failed',
-            logContext: [
-                'max_user_id' => $maxUserId,
-                'admin_max_user_id' => $adminMaxUserId,
-            ],
+            adminMaxUserId: $adminMaxUserId,
         );
 
         if (! $sent) {
-            throw new BotDmDomainException('Не удалось отправить сообщение в MAX.', 502);
+            $channelLabel = $identity->messenger === MessengerChannel::Telegram ? 'Telegram' : 'MAX';
+
+            throw new BotDmDomainException(
+                sprintf('Не удалось отправить сообщение в %s.', $channelLabel),
+                502,
+            );
         }
 
         $message = $this->botDmMessageRepository->create(
@@ -86,15 +91,61 @@ final class BotDmChatService implements BotDmChatServiceInterface
     }
 
     /**
+     * Отправляет текст в канал пользователя (MAX Bot API или Telegram Bot API).
+     */
+    private function dispatchToMessenger(
+        MessengerUserIdentity $identity,
+        string $text,
+        int $adminMaxUserId,
+    ): bool {
+        $logContext = [
+            'max_user_id' => $identity->maxUserId,
+            'admin_max_user_id' => $adminMaxUserId,
+            'messenger' => $identity->messenger->value,
+            'external_user_id' => $identity->externalUserId,
+        ];
+
+        if ($identity->messenger === MessengerChannel::Telegram) {
+            return $this->telegramNotificationSender->send(
+                text: $text,
+                chatId: $identity->externalUserId,
+                failureLogMessage: 'Telegram bot DM send failed',
+                logContext: $logContext,
+            );
+        }
+
+        return $this->maxNotificationSender->send(
+            text: $text,
+            userId: $identity->externalUserId,
+            failureLogMessage: 'MAX bot DM send failed',
+            logContext: $logContext,
+        );
+    }
+
+    /**
      * Проверяет, что собеседник есть в max_users.
      *
      * @throws BotDmDomainException
      */
     private function assertKnownUser(int $maxUserId): void
     {
-        if ($this->maxUserIdentityRepository->findByMaxUserId($maxUserId) === null) {
+        $this->resolveKnownIdentity($maxUserId);
+    }
+
+    /**
+     * Возвращает identity известного пользователя либо 404.
+     *
+     * @throws BotDmDomainException
+     */
+    private function resolveKnownIdentity(int $maxUserId): MessengerUserIdentity
+    {
+        $identity = $this->maxUserIdentityRepository->resolveMessengerIdentity($maxUserId);
+
+        if ($identity === null) {
             throw new BotDmDomainException('Пользователь не найден.', 404);
         }
+
+        return $identity;
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Http\Middleware\VerifyBrisklySyncCaptureSecret;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
+use App\Http\Middleware\VerifyTelegramWebhookSecret;
 use Closure;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -18,6 +19,8 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
 {
     private const MAX_SECRET = 'test-webhook-secret';
 
+    private const TELEGRAM_SECRET = 'test-telegram-webhook-secret';
+
     private const PHOTOTEXT_TOKEN = 'phototext-test-token';
 
     private const PHOTOTEXT_WRITE_TOKEN = 'phototext-write-test-token';
@@ -25,7 +28,7 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
     private const BRISKLY_CAPTURE_SECRET = 'briskly-capture-test-secret';
 
     /**
-     * Наборы middleware: MAX webhook, PhotoText, Briskly capture secret.
+     * Наборы middleware: MAX/Telegram webhook, PhotoText, Briskly capture secret.
      *
      * @return array<string, array{
      *     middlewareClass: class-string,
@@ -45,6 +48,14 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
                 'secret' => self::MAX_SECRET,
                 'headerName' => 'X-Max-Bot-Api-Secret',
                 'requestUri' => '/api/webhooks/max',
+                'requestMethod' => 'POST',
+            ],
+            'telegram_webhook' => [
+                'middlewareClass' => VerifyTelegramWebhookSecret::class,
+                'configKey' => 'telegram.webhook.secret',
+                'secret' => self::TELEGRAM_SECRET,
+                'headerName' => 'X-Telegram-Bot-Api-Secret-Token',
+                'requestUri' => '/api/webhooks/telegram',
                 'requestMethod' => 'POST',
             ],
             'phototext_agent' => [

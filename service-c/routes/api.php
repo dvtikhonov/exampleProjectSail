@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Food\RestaurantController;
 use App\Http\Controllers\Api\MaxAuthController;
 use App\Http\Controllers\Api\MaxWebhookController;
 use App\Http\Controllers\Api\TelegramAuthController;
+use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Modules\FoodReport\Http\Controllers\AdminFoodReportExportController;
 use App\Modules\FoodReport\Http\Controllers\AdminFoodReportQueryController;
 use App\Modules\MaxIncomingRelay\Http\Controllers\AdminBotDmController;
@@ -35,6 +36,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/webhooks/max', MaxWebhookController::class)
     ->middleware(['throttle:60,1,max-webhook', 'max.webhook.secret']);
+
+Route::post('/webhooks/telegram', TelegramWebhookController::class)
+    ->middleware(['throttle:60,1,telegram-webhook', 'telegram.webhook.secret']);
 
 Route::post('/max/auth', [MaxAuthController::class, 'store'])
     ->middleware('throttle:20,1,max-auth');

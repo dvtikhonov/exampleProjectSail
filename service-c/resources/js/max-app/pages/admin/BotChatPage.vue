@@ -81,11 +81,17 @@ const selectedUserTitle = computed(() => {
 });
 
 /**
- * @param {{ username?: string|null, max_user_id?: number }} user
+ * @param {{ username?: string|null, max_user_id?: number, messenger?: string|null }} user
  * @returns {string}
  */
 function userSecondaryLabel(user) {
     const parts = [];
+
+    if (user?.messenger === 'telegram') {
+        parts.push('Telegram');
+    } else if (user?.messenger === 'max') {
+        parts.push('MAX');
+    }
 
     if (typeof user?.username === 'string' && user.username.trim() !== '') {
         parts.push(`@${user.username.trim().replace(/^@/, '')}`);

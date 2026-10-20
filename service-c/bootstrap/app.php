@@ -11,6 +11,7 @@ use App\Http\Middleware\ForbidTelegramMiniApp;
 use App\Http\Middleware\TrustGatewayAuth;
 use App\Http\Middleware\VerifyBrisklySyncCaptureSecret;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
+use App\Http\Middleware\VerifyTelegramWebhookSecret;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
 use App\Modules\MaxIncomingRelay\Exceptions\BotDmDomainException;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'trust.gateway' => TrustGatewayAuth::class,
             'max.webhook.secret' => VerifyMaxWebhookSecret::class,
+            'telegram.webhook.secret' => VerifyTelegramWebhookSecret::class,
             'briskly.capture.secret' => VerifyBrisklySyncCaptureSecret::class,
             'schedule-photo.capture.secret' => VerifySchedulePhotoCaptureSecret::class,
             'max.miniapp.auth' => AuthenticateMaxMiniApp::class,

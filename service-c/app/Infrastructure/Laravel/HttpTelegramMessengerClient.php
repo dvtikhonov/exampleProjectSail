@@ -74,6 +74,51 @@ final class HttpTelegramMessengerClient implements TelegramMessengerClientInterf
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function setWebhook(string $url, string $secretToken, array $allowedUpdates = ['message']): void
+    {
+        $token = trim((string) $this->config->get('telegram.bot_token', ''));
+
+        if ($token === '') {
+            throw new TelegramMessengerRequestException('Telegram bot token is not configured');
+        }
+
+        $payload = [
+            'url' => $url,
+            'secret_token' => $secretToken,
+            'allowed_updates' => array_values($allowedUpdates),
+            'drop_pending_updates' => false,
+        ];
+
+        $response = $this->http->request(
+            method: 'POST',
+            url: '/bot'.$token.'/setWebhook',
+            jsonBody: $payload,
+            baseUrl: self::BASE_URL,
+            timeoutSeconds: self::REQUEST_TIMEOUT_SECONDS,
+        );
+
+        /** @var array<string, mixed>|null $body */
+        $body = $response->json();
+        $ok = is_array($body) && ($body['ok'] ?? false) === true;
+
+        if ($response->successful && $ok) {
+            return;
+        }
+
+        $description = is_array($body) && isset($body['description']) && is_string($body['description'])
+            ? $body['description']
+            : trim($response->body);
+
+        if ($description === '') {
+            $description = sprintf('Telegram setWebhook failed with HTTP %d', $response->status);
+        }
+
+        throw new TelegramMessengerRequestException($description);
+    }
+
+    /**
      * @param  array<int, array<int, TelegramInlineKeyboardButtonDto>>  $buttonRows
      * @return list<list<array<string, mixed>>>
      */

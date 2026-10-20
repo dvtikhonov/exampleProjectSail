@@ -42,6 +42,8 @@ final class IncomingMessageRelayService implements IncomingMessageRelayServiceIn
 
         $this->logger->warning('MAX incoming message relay', [
             'user_id' => $message->userId,
+            'external_user_id' => $message->externalUserId(),
+            'messenger' => $message->messenger->value,
             'chat_id' => $message->chatId,
             'chat_ids' => $chatIds,
             'text' => $text,
@@ -50,6 +52,8 @@ final class IncomingMessageRelayService implements IncomingMessageRelayServiceIn
         if ($chatIds === []) {
             $this->logger->warning('MAX incoming message relay skipped: MAX_UI_STAND_CHAT_IDS is empty', [
                 'user_id' => $message->userId,
+                'external_user_id' => $message->externalUserId(),
+                'messenger' => $message->messenger->value,
                 'chat_id' => $message->chatId,
             ]);
 

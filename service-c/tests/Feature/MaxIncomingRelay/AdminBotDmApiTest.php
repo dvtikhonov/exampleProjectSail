@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\MaxIncomingRelay;
 
+use App\Contracts\Telegram\TelegramMessengerClientInterface;
 use App\Enums\Food\Review\FoodOrderAdminRole;
+use App\Enums\MessengerChannel;
 use App\Models\Max\MaxUser;
 use App\Modules\MaxIncomingRelay\Enums\BotDmAuthorType;
 use App\Modules\MaxIncomingRelay\Models\MaxBotDirectMessage;
@@ -67,6 +69,7 @@ class AdminBotDmApiTest extends TestCase
                 'max_user_id' => 66_001,
                 'first_name' => 'Alice',
                 'username' => 'alice_bot_dm',
+                'messenger' => MessengerChannel::Max->value,
             ]);
     }
 
@@ -202,6 +205,48 @@ class AdminBotDmApiTest extends TestCase
             ->assertJsonPath('message', 'Не удалось отправить сообщение в MAX.');
 
         $this->assertDatabaseCount('max_bot_direct_messages', 0);
+    }
+
+    /** Отправка Telegram-пользователю идёт в Telegram Bot API с external chat_id. */
+    public function test_max_manager_can_send_to_telegram_user(): void
+    {
+        $manager = $this->maxManagerAuth(10_702);
+        $externalUserId = 777_555;
+        $internalMaxUserId = MessengerChannel::Telegram->toInternalMaxUserId($externalUserId);
+
+        MaxUser::query()->create([
+            'max_user_id' => $internalMaxUserId,
+            'messenger' => MessengerChannel::Telegram,
+            'external_user_id' => $externalUserId,
+            'first_name' => 'Tg',
+            'last_name' => 'Customer',
+            'username' => 'tg_customer',
+        ]);
+
+        $telegramClient = $this->createMock(TelegramMessengerClientInterface::class);
+        $telegramClient->expects($this->once())
+            ->method('sendMessage')
+            ->with($externalUserId, 'Ответ в Telegram', []);
+        $this->app->instance(TelegramMessengerClientInterface::class, $telegramClient);
+
+        $maxClient = $this->createMock(MaxMessengerClientInterface::class);
+        $maxClient->expects($this->never())->method('sendMessage');
+        $this->app->instance(MaxMessengerClientInterface::class, $maxClient);
+
+        $this->postJson('/api/food/admin/bot-dm/'.$internalMaxUserId.'/messages', [
+            'body' => 'Ответ в Telegram',
+        ], $manager['headers'])
+            ->assertCreated()
+            ->assertJsonPath('message.max_user_id', $internalMaxUserId)
+            ->assertJsonPath('message.author_type', BotDmAuthorType::Admin->value)
+            ->assertJsonPath('message.body', 'Ответ в Telegram');
+
+        $this->assertDatabaseHas('max_bot_direct_messages', [
+            'max_user_id' => $internalMaxUserId,
+            'sender_max_user_id' => 10_702,
+            'author_type' => BotDmAuthorType::Admin->value,
+            'body' => 'Ответ в Telegram',
+        ]);
     }
 
     /** POST messages защищён throttle:30,1. */

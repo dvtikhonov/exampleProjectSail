@@ -1,6 +1,6 @@
 # Ops: Telegram Mini App (`@obedov_bot`)
 
-Чеклист выката клиентского Telegram Mini App и исходящих клиентских уведомлений (паритет с MAX).  
+Чеклист выката клиентского Telegram Mini App, исходящих клиентских уведомлений и **входящей лички с ботом** (паритет MaxIncomingRelay / Bot DM).  
 **Миграции на shared/prod — только после явного согласия** (см. `.cursor/rules/migration.mdc`).
 
 | Параметр | Значение |
@@ -8,6 +8,7 @@
 | Бот | [@obedov_bot](https://t.me/obedov_bot) |
 | Mini App URL | `https://94-228-117-27.sslip.io/tg-app` |
 | Auth API | `POST /api/telegram/auth` |
+| Bot webhook | `POST /api/webhooks/telegram` |
 | Миграция identity | `service-c/database/migrations/2026_10_19_000001_add_messenger_and_external_user_id_to_max_users_table.php` |
 
 ## 1. BotFather
@@ -29,9 +30,11 @@
 
 | Переменная | Prod |
 |---|---|
-| `TELEGRAM_BOT_TOKEN` | токен из BotFather (**обязателен** для auth и `sendMessage`) |
+| `TELEGRAM_BOT_TOKEN` | токен из BotFather (**обязателен** для auth, `sendMessage`, webhook) |
 | `TELEGRAM_BOT_USERNAME` | `obedov_bot` |
 | `TELEGRAM_MINI_APP_URL` | `https://94-228-117-27.sslip.io/tg-app` |
+| `TELEGRAM_WEBHOOK_URL` | `https://94-228-117-27.sslip.io/api/webhooks/telegram` |
+| `TELEGRAM_WEBHOOK_SECRET` | случайная строка 1–256 `[A-Za-z0-9_-]` (заголовок `X-Telegram-Bot-Api-Secret-Token`) |
 | `TELEGRAM_LOCAL_DEV_INIT_DATA` | `false` |
 
 После правки `.env`:
@@ -69,16 +72,31 @@ docker compose exec -T service-c php artisan migrate --force
 
 (Либо полный job `run-migrations` в `deploy.yml` по всем сервисам — тоже только после согласия.)
 
-## 5. Порядок выката (кратко)
+## 5. Входящий webhook (личка с ботом → Home_chat + Bot DM)
+
+Паритет с MAX `message_created` / MaxIncomingRelay:
+
+1. В `.env` задать `TELEGRAM_WEBHOOK_URL` и `TELEGRAM_WEBHOOK_SECRET`.
+2. Убедиться, что nginx отдаёт `POST /api/webhooks/telegram` на service-c **без** gateway Bearer (см. `nginx-gateway/nginx.conf`).
+3. Зарегистрировать webhook:
+
+```bash
+docker compose exec -T service-c php artisan telegram:webhook:subscribe
+```
+
+4. Smoke: написать боту в личку → текст в Home_chat (`MAX_UI_STAND_CHAT_IDS`) и, если пользователь уже в `max_users` (`messenger=telegram`), запись в `max_bot_direct_messages`.
+5. Ответ админа: раздел «Чат бота» в MAX Mini App → сообщение уходит через Telegram Bot API (`chat_id = external_user_id`).
+
+## 6. Порядок выката (кратко)
 
 1. BotFather Menu Button → `https://94-228-117-27.sslip.io/tg-app`
-2. `TELEGRAM_BOT_TOKEN` + `TELEGRAM_MINI_APP_URL` в `service-c/.env` на VPS
+2. `TELEGRAM_BOT_TOKEN` + `TELEGRAM_MINI_APP_URL` (+ webhook URL/secret) в `service-c/.env` на VPS
 3. Деплой кода **без** migrate (пока нет согласия)
 4. Получить согласие → migrate (все согласованные сервисы / каталоги)
-5. Открыть бота в Telegram → smoke auth / заказ / клиентский notify
+5. `php artisan telegram:webhook:subscribe`
+6. Открыть бота в Telegram → smoke auth / заказ / клиентский notify / личка → Home_chat
 
 ## Вне scope этого чеклиста
 
 - Связка аккаунтов MAX ↔ Telegram
 - Админка в Telegram Mini App
-- Входящий Telegram webhook (для клиентских пушей не нужен)

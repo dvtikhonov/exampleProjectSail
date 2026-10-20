@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Modules\MaxIncomingRelay;
 
 use App\Contracts\Shared\ClockInterface;
+use App\Enums\MessengerChannel;
 use App\Modules\MaxIncomingRelay\DTO\IncomingBotMessageDto;
 use App\Modules\MaxIncomingRelay\DTO\LastOrderSummaryDto;
 use App\Modules\MaxIncomingRelay\Services\IncomingMessageNotificationBuilder;
@@ -119,6 +120,31 @@ final class IncomingMessageNotificationBuilderTest extends TestCase
         );
 
         $this->assertStringContainsString('Дата и время: 15.01.2026 12:05', $text);
+    }
+
+    /** Telegram: в шапке внешний user_id и метка канала. */
+    public function test_build_for_telegram_uses_external_user_id_in_header(): void
+    {
+        $externalUserId = 777_001;
+        $builder = new IncomingMessageNotificationBuilder($this->clockStub());
+
+        $text = $builder->build(
+            new IncomingBotMessageDto(
+                userId: MessengerChannel::Telegram->toInternalMaxUserId($externalUserId),
+                firstName: 'Demo',
+                lastName: 'Telegram',
+                text: 'Привет',
+                timestampMs: 1_790_152_800_000,
+                chatId: $externalUserId,
+                messenger: MessengerChannel::Telegram,
+            ),
+            null,
+        );
+
+        $this->assertStringStartsWith(
+            'Получено сообщение от Telegram user_id 777001 Demo Telegram'."\n",
+            $text,
+        );
     }
 
     private function clockStub(): ClockInterface

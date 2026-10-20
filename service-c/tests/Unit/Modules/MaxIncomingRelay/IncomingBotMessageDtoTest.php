@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Modules\MaxIncomingRelay;
 
+use App\Enums\MessengerChannel;
 use App\Modules\MaxIncomingRelay\DTO\IncomingBotMessageDto;
 use Tests\Support\MaxIncomingRelayPayloadFactory;
 use Tests\TestCase;
@@ -21,6 +22,7 @@ final class IncomingBotMessageDtoTest extends TestCase
         $dto = IncomingBotMessageDto::tryFrom($payload);
 
         $this->assertNotNull($dto);
+        $this->assertSame(MessengerChannel::Max, $dto->messenger);
         $this->assertSame(MaxIncomingRelayPayloadFactory::DEFAULT_USER_ID, $dto->userId);
         $this->assertSame(MaxIncomingRelayPayloadFactory::DEFAULT_FIRST_NAME, $dto->firstName);
         $this->assertSame(MaxIncomingRelayPayloadFactory::DEFAULT_LAST_NAME, $dto->lastName);

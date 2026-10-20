@@ -18,4 +18,12 @@ final class NullTelegramMessengerClient implements TelegramMessengerClientInterf
     {
         // Intentionally empty: локальная среда / тесты без TELEGRAM_BOT_TOKEN.
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setWebhook(string $url, string $secretToken, array $allowedUpdates = ['message']): void
+    {
+        // Intentionally empty: локальная среда / тесты без TELEGRAM_BOT_TOKEN.
+    }
 }

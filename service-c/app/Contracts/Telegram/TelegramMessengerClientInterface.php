@@ -8,7 +8,7 @@ use App\DTO\Telegram\TelegramInlineKeyboardButtonDto;
 use App\Exceptions\Telegram\TelegramMessengerException;
 
 /**
- * Низкоуровневый клиент Telegram Bot API (sendMessage).
+ * Низкоуровневый клиент Telegram Bot API (sendMessage / setWebhook).
  */
 interface TelegramMessengerClientInterface
 {
@@ -20,4 +20,15 @@ interface TelegramMessengerClientInterface
      * @throws TelegramMessengerException
      */
     public function sendMessage(int $chatId, string $text, array $buttonRows = []): void;
+
+    /**
+     * Регистрирует HTTPS webhook для входящих Update.
+     *
+     * @param  list<string>  $allowedUpdates
+     *
+     * @throws TelegramMessengerException
+     *
+     * @see https://core.telegram.org/bots/api#setwebhook
+     */
+    public function setWebhook(string $url, string $secretToken, array $allowedUpdates = ['message']): void;
 }

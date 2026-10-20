@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\DTO\Food\ManualOrder;
 
+use App\Enums\MessengerChannel;
+
 /**
- * Краткие данные пользователя MAX для выбора потребителя при ручном заказе.
+ * Краткие данные пользователя MAX / Telegram для ручного заказа и Bot DM.
  */
 readonly class ManualOrderUserDto
 {
@@ -15,6 +17,7 @@ readonly class ManualOrderUserDto
         public ?string $lastName,
         public ?string $username,
         public ?string $deliveryAddress,
+        public MessengerChannel $messenger = MessengerChannel::Max,
     ) {}
 
     /**
@@ -30,6 +33,7 @@ readonly class ManualOrderUserDto
             'last_name' => $this->lastName,
             'username' => $this->username,
             'delivery_address' => $this->deliveryAddress,
+            'messenger' => $this->messenger->value,
         ];
     }
 }
