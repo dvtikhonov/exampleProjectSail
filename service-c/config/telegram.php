@@ -14,10 +14,10 @@ return [
      * Приветствие после /start (аналог max.ui_stand для Telegram).
      */
     'ui_stand' => [
-        'mini_app_button_text' => env('TELEGRAM_UI_STAND_MINI_APP_BUTTON_TEXT', 'Заказ еды'),
+        'mini_app_button_text' => env('TELEGRAM_UI_STAND_MINI_APP_BUTTON_TEXT', 'Предзаказ готовой еды'),
         'greeting_text' => env(
             'TELEGRAM_UI_STAND_GREETING_TEXT',
-            'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
+            'Привет!. Нужно нажать на кнопку "Предзаказ еды".',
         ),
     ],
 
