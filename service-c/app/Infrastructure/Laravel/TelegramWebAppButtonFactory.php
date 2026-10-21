@@ -22,6 +22,34 @@ final class TelegramWebAppButtonFactory
     ) {}
 
     /**
+     * Строит ряд с кнопкой открытия Mini App (приветственный экран /start).
+     *
+     * @return array<int, array<int, TelegramInlineKeyboardButtonDto>>
+     */
+    public function buildGenericMiniAppButtonRows(?string $text = null): array
+    {
+        $miniAppUrl = trim((string) $this->config->get('telegram.mini_app_url', ''));
+
+        if ($miniAppUrl === '') {
+            return [];
+        }
+
+        $buttonText = $text ?? (string) $this->config->get(
+            'telegram.ui_stand.mini_app_button_text',
+            'Заказ еды',
+        );
+
+        return [
+            [
+                new TelegramInlineKeyboardButtonDto(
+                    text: $buttonText,
+                    webAppUrl: $miniAppUrl,
+                ),
+            ],
+        ];
+    }
+
+    /**
      * Строит ряд с кнопкой открытия чата заказа в Mini App.
      *
      * @return array<int, array<int, TelegramInlineKeyboardButtonDto>>

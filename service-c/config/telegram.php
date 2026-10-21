@@ -11,6 +11,17 @@ return [
     'mini_app_url' => env('TELEGRAM_MINI_APP_URL', 'https://94-228-117-27.sslip.io/tg-app'),
 
     /**
+     * Приветствие после /start (аналог max.ui_stand для Telegram).
+     */
+    'ui_stand' => [
+        'mini_app_button_text' => env('TELEGRAM_UI_STAND_MINI_APP_BUTTON_TEXT', 'Заказ еды'),
+        'greeting_text' => env(
+            'TELEGRAM_UI_STAND_GREETING_TEXT',
+            'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
+        ),
+    ],
+
+    /**
      * Webhook входящих Update (личка с ботом → Home_chat + Bot DM).
      *
      * secret_token → заголовок X-Telegram-Bot-Api-Secret-Token (1–256 символов [A-Za-z0-9_-]).

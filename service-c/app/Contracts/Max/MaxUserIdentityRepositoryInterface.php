@@ -54,4 +54,20 @@ interface MaxUserIdentityRepositoryInterface
         TelegramWebAppInitDataDto $initData,
         ?int $defaultCustomerCategoryId,
     ): MaxUserRecord;
+
+    /**
+     * Создаёт или обновляет профиль пользователя из данных Telegram Bot API (message.from).
+     *
+     * Внутренний max_user_id = OFFSET + telegram_user_id.
+     *
+     * @param  int|null  $defaultCustomerCategoryId  категория, если у пользователя ещё нет
+     */
+    public function upsertFromTelegramBotProfile(
+        int $telegramUserId,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord;
 }

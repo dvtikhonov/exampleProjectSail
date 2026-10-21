@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Contracts\Telegram\TelegramBotStartServiceInterface;
 use App\Contracts\Telegram\TelegramMessengerClientInterface;
 use App\Contracts\Telegram\TelegramMessengerNotificationSenderInterface;
 use App\Contracts\Telegram\TelegramMiniAppAuthServiceInterface;
 use App\Contracts\Telegram\TelegramWebAppInitDataValidatorInterface;
 use App\Infrastructure\Laravel\HttpTelegramMessengerClient;
 use App\Infrastructure\Laravel\NullTelegramMessengerClient;
+use App\Services\Telegram\TelegramBotStartService;
 use App\Services\Telegram\TelegramMessengerNotificationSender;
 use App\Services\Telegram\TelegramMiniAppAuthService;
 use App\Services\Telegram\TelegramWebAppInitDataValidator;
@@ -51,8 +53,13 @@ class TelegramServiceProvider extends ServiceProvider
             TelegramMessengerNotificationSenderInterface::class,
             TelegramMessengerNotificationSender::class,
         );
+        $this->app->bind(
+            TelegramBotStartServiceInterface::class,
+            TelegramBotStartService::class,
+        );
         $this->app->when([
             TelegramMessengerNotificationSender::class,
+            TelegramBotStartService::class,
         ])
             ->needs(LoggerInterface::class)
             ->give(static fn (): LoggerInterface => Log::channel('max_log'));

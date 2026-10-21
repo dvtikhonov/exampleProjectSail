@@ -25,6 +25,8 @@ readonly class IncomingBotMessageDto
         public int $timestampMs,
         public ?int $chatId,
         public MessengerChannel $messenger = MessengerChannel::Max,
+        public ?string $username = null,
+        public ?string $languageCode = null,
     ) {}
 
     /**
@@ -33,6 +35,14 @@ readonly class IncomingBotMessageDto
     public function externalUserId(): int
     {
         return $this->messenger->externalUserIdFromInternal($this->userId);
+    }
+
+    /**
+     * Команда /start (с опциональным @botname и deep-link payload).
+     */
+    public function isStartCommand(): bool
+    {
+        return (bool) preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?:\s|$)/u', ltrim($this->text));
     }
 
     /**
@@ -139,6 +149,9 @@ readonly class IncomingBotMessageDto
         $dateSeconds = self::toNonNegativeInt($message['date'] ?? null) ?? 0;
         $chatId = self::toIntOrNull($chat['id'] ?? null);
 
+        $username = self::toOptionalNonEmptyString($from['username'] ?? null);
+        $languageCode = self::toOptionalNonEmptyString($from['language_code'] ?? null);
+
         return new self(
             userId: MessengerChannel::Telegram->toInternalMaxUserId($externalUserId),
             firstName: self::toString($from['first_name'] ?? null),
@@ -147,12 +160,25 @@ readonly class IncomingBotMessageDto
             timestampMs: $dateSeconds > 0 ? $dateSeconds * 1000 : 0,
             chatId: $chatId,
             messenger: MessengerChannel::Telegram,
+            username: $username,
+            languageCode: $languageCode,
         );
     }
 
     private static function toString(mixed $value): string
     {
         return is_string($value) ? $value : '';
+    }
+
+    private static function toOptionalNonEmptyString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     private static function toPositiveInt(mixed $value): ?int

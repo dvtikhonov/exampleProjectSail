@@ -85,4 +85,41 @@ final class IncomingBotMessageDtoTelegramTest extends TestCase
 
         $this->assertNull(IncomingBotMessageDto::tryFromTelegram($payload));
     }
+
+    /** username и language_code читаются из from. */
+    public function test_try_from_telegram_parses_username_and_language_code(): void
+    {
+        $payload = TelegramIncomingRelayPayloadFactory::privateTextMessage([
+            'username' => 'demo_tg',
+            'language_code' => 'ru',
+        ]);
+
+        $dto = IncomingBotMessageDto::tryFromTelegram($payload);
+
+        $this->assertNotNull($dto);
+        $this->assertSame('demo_tg', $dto->username);
+        $this->assertSame('ru', $dto->languageCode);
+    }
+
+    /** /start и варианты с @bot / payload распознаются как start-команда. */
+    public function test_is_start_command_detects_variants(): void
+    {
+        $start = IncomingBotMessageDto::tryFromTelegram(
+            TelegramIncomingRelayPayloadFactory::privateTextMessage(['text' => '/start']),
+        );
+        $withBot = IncomingBotMessageDto::tryFromTelegram(
+            TelegramIncomingRelayPayloadFactory::privateTextMessage(['text' => '/start@obedov_bot']),
+        );
+        $withPayload = IncomingBotMessageDto::tryFromTelegram(
+            TelegramIncomingRelayPayloadFactory::privateTextMessage(['text' => '/start abc']),
+        );
+        $other = IncomingBotMessageDto::tryFromTelegram(
+            TelegramIncomingRelayPayloadFactory::privateTextMessage(['text' => 'start']),
+        );
+
+        $this->assertTrue($start?->isStartCommand());
+        $this->assertTrue($withBot?->isStartCommand());
+        $this->assertTrue($withPayload?->isStartCommand());
+        $this->assertFalse($other?->isStartCommand());
+    }
 }

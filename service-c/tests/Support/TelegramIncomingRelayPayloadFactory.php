@@ -29,6 +29,8 @@ final class TelegramIncomingRelayPayloadFactory
      *     user_id?: int,
      *     first_name?: string|null,
      *     last_name?: string|null,
+     *     username?: string|null,
+     *     language_code?: string|null,
      *     is_bot?: bool,
      *     text?: string|null,
      *     caption?: string|null,
@@ -67,6 +69,14 @@ final class TelegramIncomingRelayPayloadFactory
                     ? ($overrides['last_name'] ?? '')
                     : self::DEFAULT_LAST_NAME,
             ];
+
+            if (array_key_exists('username', $overrides) && $overrides['username'] !== null) {
+                $from['username'] = $overrides['username'];
+            }
+
+            if (array_key_exists('language_code', $overrides) && $overrides['language_code'] !== null) {
+                $from['language_code'] = $overrides['language_code'];
+            }
         }
 
         $message = [
