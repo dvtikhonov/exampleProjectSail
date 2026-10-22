@@ -1,6 +1,6 @@
 <script setup>
 /**
- * Сетка карточек блюд (3 колонки).
+ * Сетка карточек блюд: 3 колонки в меню, 1 колонка в режиме «Собрать блюдо».
  */
 import MenuDishCard from './MenuDishCard.vue';
 
@@ -35,7 +35,10 @@ defineEmits(['add-to-cart', 'start-combo', 'select-second-combo-dish']);
 </script>
 
 <template>
-    <div class="grid grid-cols-3 gap-2 px-3">
+    <div
+        class="grid gap-2 px-3"
+        :class="comboBuilderOpen ? 'grid-cols-1' : 'grid-cols-3'"
+    >
         <MenuDishCard
             v-for="dish in dishes"
             :key="dish.id"
