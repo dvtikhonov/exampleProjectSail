@@ -11,6 +11,27 @@ return [
     'mini_app_url' => env('TELEGRAM_MINI_APP_URL', 'https://94-228-117-27.sslip.io/tg-app'),
 
     /**
+     * TELEGRAM_REPORT_*: уведомление о доступности меню (паритет MAX_REPORT_*).
+     * В Bot API оба списка уходят как chat_id (для DM chat_id = telegram user id).
+     */
+    'report' => [
+        'chat_ids' => array_values(array_filter(array_map(
+            static fn (string $id): int => (int) $id,
+            array_filter(array_map(
+                trim(...),
+                explode(',', (string) env('TELEGRAM_REPORT_CHAT_IDS', '')),
+            )),
+        ))),
+        'user_ids' => array_values(array_filter(array_map(
+            static fn (string $id): int => (int) $id,
+            array_filter(array_map(
+                trim(...),
+                explode(',', (string) env('TELEGRAM_REPORT_USER_IDS', '')),
+            )),
+        ))),
+    ],
+
+    /**
      * Приветствие после /start (аналог max.ui_stand для Telegram).
      */
     'ui_stand' => [

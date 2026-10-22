@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
 use App\Contracts\Max\MaxUserManualOrderQueryRepositoryInterface;
+use App\Enums\MessengerChannel;
 use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\ResetsFoodDomainTables;
@@ -46,6 +47,43 @@ class EloquentMaxUserRepositoryTest extends TestCase
         $this->assertContains(55_501, $userIds);
         $this->assertNotContains(55_502, $userIds);
         $this->assertNotContains(55_503, $userIds);
+    }
+
+    /** listExternalUserIdsWithDeliveryAddress фильтрует по каналу и отдаёт external_user_id. */
+    public function test_list_external_user_ids_with_delivery_address_filters_by_messenger(): void
+    {
+        MaxUser::query()->create([
+            'max_user_id' => 55_801,
+            'messenger' => MessengerChannel::Max,
+            'external_user_id' => 55_801,
+            'first_name' => 'MaxWithAddress',
+            'delivery_address' => 'ул. MAX, 1',
+        ]);
+        MaxUser::query()->create([
+            'max_user_id' => MessengerChannel::Telegram->toInternalMaxUserId(777),
+            'messenger' => MessengerChannel::Telegram,
+            'external_user_id' => 777,
+            'first_name' => 'TgWithAddress',
+            'delivery_address' => 'ул. TG, 2',
+        ]);
+        MaxUser::query()->create([
+            'max_user_id' => MessengerChannel::Telegram->toInternalMaxUserId(778),
+            'messenger' => MessengerChannel::Telegram,
+            'external_user_id' => 778,
+            'first_name' => 'TgBlank',
+            'delivery_address' => '   ',
+        ]);
+
+        $repository = $this->app->make(MaxUserDeliveryRepositoryInterface::class);
+
+        $this->assertSame(
+            [55_801],
+            $repository->listExternalUserIdsWithDeliveryAddress(MessengerChannel::Max),
+        );
+        $this->assertSame(
+            [777],
+            $repository->listExternalUserIdsWithDeliveryAddress(MessengerChannel::Telegram),
+        );
     }
 
     /** Поиск по имени для PhotoText ограничивает выдачу тремя записями. */

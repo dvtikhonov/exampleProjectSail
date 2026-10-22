@@ -9,20 +9,18 @@ use App\Contracts\Max\MaxMessengerNotificationSenderInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
 use App\Contracts\Max\MaxUserDeliveryRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
-use DateTimeImmutable;
+use App\Enums\MessengerChannel;
+use App\Services\Food\Menu\MenuAvailabilityClientNotificationText;
 use DateTimeInterface;
-use DateTimeZone;
 use Psr\Log\LoggerInterface;
 
 /**
  * Уведомление в MAX о доступности меню на дату «Блюда на».
  *
- * Получатели: MAX_REPORT_* и пользователи max_users с сохранённым адресом доставки.
+ * Получатели: MAX_REPORT_* и пользователи messenger=max с сохранённым адресом доставки.
  */
 class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterface
 {
-    private const string TIMEZONE = 'Europe/Moscow';
-
     public function __construct(
         private readonly MaxOrderNotificationConfigProviderInterface $configProvider,
         private readonly MaxUserDeliveryRepositoryInterface $maxUserRepository,
@@ -86,14 +84,15 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
     }
 
     /**
-     * Определяет получателей уведомления о доступности меню.
+     * Определяет получателей уведомления о доступности меню (только канал MAX).
      *
      * @param  list<int>  $configuredUserIds
      * @return list<int>
      */
     private function resolveRecipientUserIds(array $configuredUserIds): array
     {
-        $deliveryUserIds = $this->maxUserRepository->listMaxUserIdsWithDeliveryAddress();
+        $deliveryUserIds = $this->maxUserRepository
+            ->listExternalUserIdsWithDeliveryAddress(MessengerChannel::Max);
 
         return array_values(array_unique(array_merge($configuredUserIds, $deliveryUserIds)));
     }
@@ -103,12 +102,7 @@ class MaxMenuAvailabilityNotifier implements MaxMenuAvailabilityNotifierInterfac
      */
     public static function messageTextForDate(DateTimeInterface $date): string
     {
-        return sprintf(
-            'Доступно для заказов меню на %s',
-            DateTimeImmutable::createFromInterface($date)
-                ->setTimezone(new DateTimeZone(self::TIMEZONE))
-                ->format('d.m.Y'),
-        );
+        return MenuAvailabilityClientNotificationText::forDate($date);
     }
 
     /**

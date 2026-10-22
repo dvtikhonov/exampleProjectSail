@@ -8,6 +8,7 @@ use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
+use App\Contracts\Telegram\TelegramMenuAvailabilityNotifierInterface;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
@@ -18,10 +19,10 @@ class SyncDishAvailabilityCommand extends Command
 {
     protected $signature = 'food:sync-dish-availability';
 
-    protected $description = 'Синхронизировать is_available блюд по offsets категорий (текущий weekday MSK), уведомить MAX_REPORT_*/клиентов и отправить меню max_manager';
+    protected $description = 'Синхронизировать is_available блюд по offsets категорий (текущий weekday MSK), уведомить MAX/Telegram REPORT*/клиентов и отправить меню max_manager';
 
     /**
-     * Синхронизирует доступность блюд и отправляет уведомления в MAX.
+     * Синхронизирует доступность блюд и отправляет уведомления в MAX и Telegram.
      *
      * Если на текущий weekday нет availability_offsets — sync и notify пропускаются (SUCCESS).
      * Sync: сначала сброс is_available у всех блюд; затем для каждой категории
@@ -32,6 +33,7 @@ class SyncDishAvailabilityCommand extends Command
         MenuAvailabilityDateResolverInterface $dateResolver,
         DishAvailabilitySyncServiceInterface $syncService,
         MaxMenuAvailabilityNotifierInterface $notifier,
+        TelegramMenuAvailabilityNotifierInterface $telegramNotifier,
         MaxManagerDailyMenuNotifierInterface $managerMenuNotifier,
     ): int {
         $result = $dateResolver->resolveForCurrentWeekday();
@@ -52,7 +54,15 @@ class SyncDishAvailabilityCommand extends Command
         if ($sentCount > 0) {
             $this->info("Уведомление о доступности меню отправлено в MAX ({$sentCount}).");
         } else {
-            $this->warn('Уведомление о доступности меню не отправлено (бот, получатели или MAX API).');
+            $this->warn('Уведомление о доступности меню не отправлено в MAX (бот, получатели или MAX API).');
+        }
+
+        $telegramSentCount = $telegramNotifier->notify($menuDate);
+
+        if ($telegramSentCount > 0) {
+            $this->info("Уведомление о доступности меню отправлено в Telegram ({$telegramSentCount}).");
+        } else {
+            $this->warn('Уведомление о доступности меню не отправлено в Telegram (бот, получатели или Telegram API).');
         }
 
         $managerSentCount = $managerMenuNotifier->notify($menuDate);

@@ -31,7 +31,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
 
         $maxUserRepository = $this->createMock(MaxUserDeliveryRepositoryInterface::class);
         $maxUserRepository
-            ->method('listMaxUserIdsWithDeliveryAddress')
+            ->method('listExternalUserIdsWithDeliveryAddress')
             ->willReturn([]);
 
         $this->app->instance(MaxUserDeliveryRepositoryInterface::class, $maxUserRepository);
@@ -74,7 +74,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
 
         $maxUserRepository = $this->createMock(MaxUserDeliveryRepositoryInterface::class);
         $maxUserRepository
-            ->method('listMaxUserIdsWithDeliveryAddress')
+            ->method('listExternalUserIdsWithDeliveryAddress')
             ->willReturn([333]);
         $this->app->instance(MaxUserDeliveryRepositoryInterface::class, $maxUserRepository);
 
@@ -102,7 +102,7 @@ class MaxMenuAvailabilityNotifierTest extends TestCase
 
         $maxUserRepository = $this->createMock(MaxUserDeliveryRepositoryInterface::class);
         $maxUserRepository
-            ->method('listMaxUserIdsWithDeliveryAddress')
+            ->method('listExternalUserIdsWithDeliveryAddress')
             ->willReturn([222, 333]);
         $this->app->instance(MaxUserDeliveryRepositoryInterface::class, $maxUserRepository);
 

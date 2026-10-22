@@ -8,6 +8,7 @@ use App\Contracts\Food\Menu\DishAvailabilitySyncServiceInterface;
 use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\MaxManagerDailyMenuNotifierInterface;
 use App\Contracts\Max\MaxMenuAvailabilityNotifierInterface;
+use App\Contracts\Telegram\TelegramMenuAvailabilityNotifierInterface;
 use App\DTO\Food\Menu\MenuAvailabilityDateResultDto;
 use DateTimeInterface;
 use Illuminate\Support\Facades\Artisan;
@@ -30,27 +31,35 @@ class SyncDishAvailabilityCommandTest extends TestCase
             ->method('syncForCurrentWeekdayCategoryOffsets')
             ->willReturn(5);
 
+        $menuDateMatcher = $this->callback(
+            fn (DateTimeInterface $date): bool => $date->format('Y-m-d') === '2026-08-01',
+        );
+
         $notifier = $this->createMock(MaxMenuAvailabilityNotifierInterface::class);
         $notifier
             ->expects($this->once())
             ->method('notify')
-            ->with($this->callback(
-                fn (DateTimeInterface $date): bool => $date->format('Y-m-d') === '2026-08-01',
-            ))
+            ->with($menuDateMatcher)
             ->willReturn(1);
+
+        $telegramNotifier = $this->createMock(TelegramMenuAvailabilityNotifierInterface::class);
+        $telegramNotifier
+            ->expects($this->once())
+            ->method('notify')
+            ->with($menuDateMatcher)
+            ->willReturn(3);
 
         $managerNotifier = $this->createMock(MaxManagerDailyMenuNotifierInterface::class);
         $managerNotifier
             ->expects($this->once())
             ->method('notify')
-            ->with($this->callback(
-                fn (DateTimeInterface $date): bool => $date->format('Y-m-d') === '2026-08-01',
-            ))
+            ->with($menuDateMatcher)
             ->willReturn(2);
 
         $this->app->instance(MenuAvailabilityDateResolverInterface::class, $dateResolver);
         $this->app->instance(DishAvailabilitySyncServiceInterface::class, $syncService);
         $this->app->instance(MaxMenuAvailabilityNotifierInterface::class, $notifier);
+        $this->app->instance(TelegramMenuAvailabilityNotifierInterface::class, $telegramNotifier);
         $this->app->instance(MaxManagerDailyMenuNotifierInterface::class, $managerNotifier);
 
         $exitCode = Artisan::call('food:sync-dish-availability');
@@ -75,12 +84,16 @@ class SyncDishAvailabilityCommandTest extends TestCase
         $notifier = $this->createMock(MaxMenuAvailabilityNotifierInterface::class);
         $notifier->expects($this->never())->method('notify');
 
+        $telegramNotifier = $this->createMock(TelegramMenuAvailabilityNotifierInterface::class);
+        $telegramNotifier->expects($this->never())->method('notify');
+
         $managerNotifier = $this->createMock(MaxManagerDailyMenuNotifierInterface::class);
         $managerNotifier->expects($this->never())->method('notify');
 
         $this->app->instance(MenuAvailabilityDateResolverInterface::class, $dateResolver);
         $this->app->instance(DishAvailabilitySyncServiceInterface::class, $syncService);
         $this->app->instance(MaxMenuAvailabilityNotifierInterface::class, $notifier);
+        $this->app->instance(TelegramMenuAvailabilityNotifierInterface::class, $telegramNotifier);
         $this->app->instance(MaxManagerDailyMenuNotifierInterface::class, $managerNotifier);
 
         $exitCode = Artisan::call('food:sync-dish-availability');

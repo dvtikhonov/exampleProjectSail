@@ -73,6 +73,15 @@ docker compose up -d mysql redis main-app service-a service-b service-c service-
 
 BotFather Menu Button, `TELEGRAM_BOT_TOKEN` / `TELEGRAM_MINI_APP_URL` на VPS, smoke `/tg-app`, migrate `max_users` **только после согласия**: [service-c/docs/TELEGRAM_MINI_APP_OPS.md](../service-c/docs/TELEGRAM_MINI_APP_OPS.md).
 
+## MAX integration (QA)
+
+Формальные тест-кейсы приёмки Mini App / webhook / уведомлений / админки Food в MAX:
+
+- указатель: [MAX_INTEGRATION_QA.md](./MAX_INTEGRATION_QA.md)
+- полный набор TC-MAX-*: [service-c/docs/MAX_INTEGRATION_QA.md](../service-c/docs/MAX_INTEGRATION_QA.md)
+
+Документация платформы: https://dev.max.ru/docs.
+
 ## MAX mini-app: fxTunnel (локальная разработка)
 
 | Файл | Назначение |

@@ -42,6 +42,14 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
     /**
      * {@inheritDoc}
      */
+    public function listExternalUserIdsWithDeliveryAddress(MessengerChannel $messenger): array
+    {
+        return $this->deliveryRepository->listExternalUserIdsWithDeliveryAddress($messenger);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function findByMaxUserId(int $maxUserId): ?MaxUserRecord
     {
         return $this->identityRepository->findByMaxUserId($maxUserId);

@@ -425,7 +425,7 @@ flowchart TD
 | Ручная корзина менеджера | Отдельный draft: `created_by_max_user_id = manager`; у клиента могут параллельно существовать личная и ручная корзины |
 | Один ресторан | Позиции только из одного ресторана; иначе `422` — очистите корзину |
 | Добавление | Блюдо должно быть `is_available`, ресторан — `is_active`; обычная позиция: дубликат `dish_id` без `combo_ref` увеличивает `quantity` |
-| `is_available` | Флаг в `max_dishes`; ежедневно в **03:00 MSK** команда `food:sync-dish-availability` через `MenuAvailabilityDateResolver::resolveForCurrentWeekday()` считает дату «Блюда на» для уведомлений по `availability_offsets` текущего weekday (MSK, без lookback). Если offsets на weekday нет — sync и уведомления пропускаются. Иначе `DishAvailabilitySyncService::syncForCurrentWeekdayCategoryOffsets` сначала сбрасывает `is_available` у **всех** блюд, затем для **каждой** категории с offset выставляет флаг по графику на дату `сегодня + offset_days`; затем `MaxMenuAvailabilityNotifier` и `MaxManagerDailyMenuNotifier` шлют тексты с **агрегированной** датой (`MAX_REPORT_*` / клиенты с адресом / `max_manager`). Ручное изменение в CRUD действует до следующего запуска |
+| `is_available` | Флаг в `max_dishes`; ежедневно в **03:00 MSK** команда `food:sync-dish-availability` через `MenuAvailabilityDateResolver::resolveForCurrentWeekday()` считает дату «Блюда на» для уведомлений по `availability_offsets` текущего weekday (MSK, без lookback). Если offsets на weekday нет — sync и уведомления пропускаются. Иначе `DishAvailabilitySyncService::syncForCurrentWeekdayCategoryOffsets` сначала сбрасывает `is_available` у **всех** блюд, затем для **каждой** категории с offset выставляет флаг по графику на дату `сегодня + offset_days`; затем `MaxMenuAvailabilityNotifier`, `TelegramMenuAvailabilityNotifier` и `MaxManagerDailyMenuNotifier` шлют тексты с **агрегированной** датой (`MAX_REPORT_*` / `TELEGRAM_REPORT_*` / клиенты с адресом / `max_manager`). Ручное изменение в CRUD действует до следующего запуска |
 | Пустая корзина | Удаление последней позиции удаляет корзину; `GET /cart` → `{ cart: null }` |
 | Редактирование | Только `draft`; иначе `Cart is no longer editable` |
 | Бейдж / счётчик | На фронте считается по **группам** (`countCartGroupsQuantity`), комбо = одна группа |
@@ -841,6 +841,7 @@ npm run sidecar
 | `Contracts/Max/MaxUserDeliveryAddressInterface` | `Services/Max/MaxUserDeliveryAddressService` |
 | `Contracts/Max/MaxAiAccessServiceInterface` | `Services/Max/MaxAiAccessService` + декоратор `CachingMaxAiAccessService` (доступ TTL 30 мин; кэш enabled ≤15 с / disabled 60 с; `MAX_AI_ACCESS_CACHE_ENABLED`) |
 | `Contracts/Max/MaxMenuAvailabilityNotifierInterface` / `MaxManagerDailyMenuNotifierInterface` | `Services/Max/UiStand/MaxMenuAvailabilityNotifier`, `MaxManagerDailyMenuNotifier` |
+| `Contracts/Telegram/TelegramMenuAvailabilityNotifierInterface` | `Services/Telegram/TelegramMenuAvailabilityNotifier` (тот же текст, `TELEGRAM_REPORT_*` + клиенты с адресом) |
 | `Contracts/Max/MaxAdminBotTestSenderInterface` | `Infrastructure/Laravel/LaravelMaxAdminBotTestSender` |
 | `Contracts/Max/MaxMiniAppTokenIssuerInterface` | `Infrastructure/Laravel/LaravelMaxMiniAppTokenIssuer` |
 | `Contracts/Max/AuthenticatedMaxUserResolverInterface` | `Http/Resolvers/AuthenticatedMaxUserResolver` |
@@ -1003,6 +1004,7 @@ npm run sidecar
 |---|---|---|---|
 | UI Stand / заказы / чат / входящие боту | `MAX_UI_STAND_CHAT_IDS`, `MAX_UI_STAND_USER_IDS` (заказы/чат/приветствие — только `.env`; **«тест бот 2»** ещё + кэш webhook; **MaxIncomingRelay** — только `CHAT_IDS`) | `POST /orders/submit`, `POST .../messages`, `max:ui-stand:send`, **«тест бот 2»**, webhook `message_created` | Новый заказ / сообщение в чате / приветствие / `тест бот 2` / входящий текст боту |
 | Отчёты (меню / тест) | `MAX_REPORT_CHAT_IDS`, `MAX_REPORT_USER_IDS` | кнопка **«тест бот»**, cron `food:sync-dish-availability` | `Тест БОТ` / «Доступно для заказов меню на …» (дата «Блюда на» по offsets) |
+| Отчёты меню (Telegram) | `TELEGRAM_REPORT_CHAT_IDS`, `TELEGRAM_REPORT_USER_IDS` | cron `food:sync-dish-availability` | тот же текст «Доступно для заказов меню на …» (+ клиенты `messenger=telegram` с адресом) |
 
 Пример разделения чатов (prod/dev):
 
@@ -2037,13 +2039,16 @@ docker compose exec -T service-c php artisan max:load-test:cleanup 10           
 
 В `bootstrap/app.php` зарегистрирована ежедневная задача `food:sync-dish-availability` в **03:00** (`Europe/Moscow`). Контейнер запускает `php artisan schedule:work` в фоне (`docker-entrypoint.sh`).
 
-Команда `SyncDishAvailabilityCommand` сначала вызывает `MenuAvailabilityDateResolver::resolveForCurrentWeekday()` (текущий ISO-weekday, Europe/Moscow, **без** lookback). Если на этот weekday нет строк в `max_menu_category_availability_offsets` — sync и уведомления **пропускаются** (warning в консоль, exit SUCCESS). Иначе дата «Блюда на» для уведомлений считается по формуле offsets (`max(offset_days)`), и выполняются три шага:
+Команда `SyncDishAvailabilityCommand` сначала вызывает `MenuAvailabilityDateResolver::resolveForCurrentWeekday()` (текущий ISO-weekday, Europe/Moscow, **без** lookback). Если на этот weekday нет строк в `max_menu_category_availability_offsets` — sync и уведомления **пропускаются** (warning в консоль, exit SUCCESS). Иначе дата «Блюда на» для уведомлений считается по формуле offsets (`max(offset_days)`), и выполняются шаги:
 
 1. **`DishAvailabilitySyncService::syncForCurrentWeekdayCategoryOffsets()`** — сначала `is_available = false` у всех активных блюд; затем для каждой категории с offset на текущий weekday: дата = сегодня (MSK) + `offset_days`; у блюд этой категории `is_available = true`, если в `max_dish_availability_dates` есть запись на эту дату.
 2. **`MaxMenuAvailabilityNotifier::notify($menuDate)`** — отправляет текст `Доступно для заказов меню на ДД.ММ.ГГГГ` в MAX с **агрегированной** датой «Блюда на»:
    - чаты и пользователи из `MAX_REPORT_CHAT_IDS` / `MAX_REPORT_USER_IDS` (не путать с `MAX_UI_STAND_*` для заказов и чата);
-   - плюс все `max_user_id` с непустым `delivery_address` (`EloquentMaxUserRepository::listMaxUserIdsWithDeliveryAddress`).
-3. **`MaxManagerDailyMenuNotifier::notify($menuDate)`** — двум текстам «Добрый день! / Меню на ДД.ММ.ГГ: …» (та же агрегированная дата «Блюда на») каждому активному `max_manager` (сначала DM; при ошибке MAX — fallback в `MAX_UI_STAND_*`, как у «Заказ на …»):
+   - плюс `external_user_id` пользователей `messenger=max` с непустым `delivery_address`.
+3. **`TelegramMenuAvailabilityNotifier::notify($menuDate)`** — тот же текст в Telegram:
+   - `TELEGRAM_REPORT_CHAT_IDS` / `TELEGRAM_REPORT_USER_IDS` (оба как `chat_id`; для DM `chat_id` = telegram user id);
+   - плюс `external_user_id` пользователей `messenger=telegram` с непустым `delivery_address`.
+4. **`MaxManagerDailyMenuNotifier::notify($menuDate)`** — двум текстам «Добрый день! / Меню на ДД.ММ.ГГ: …» (та же агрегированная дата «Блюда на») каждому активному `max_manager` (сначала DM; при ошибке MAX — fallback в `MAX_UI_STAND_*`, как у «Заказ на …»):
    - одиночные блюда из категорий с `is_combo_available = false` (имя, описание, вес, цена) — из блюд с `is_available = true` **после** шага 1;
    - комбо — пары блюд из разных категорий с `is_combo_available = true` одного ресторана: `<блюдо 1> / <блюдо 2>, <вес1> / <вес2> – <сумма>р - <N>шт.`;
    - оба сообщения заканчиваются правилами приёма заказов (ПН–ЧТ до 10:00 MSK и т.д.); второе дополнительно — «Стоимость доставки 100 руб., при заказе на 1 тысячу рублей и больше – доставка бесплатно.»
@@ -2105,6 +2110,8 @@ php artisan max:food-admin:assign 123456789 address_reviewer
 Лог MAX: `storage/logs/max_log-YYYY-MM-DD.log` (канал `max_log`, daily, хранение 30 дней, без токена бота в записи). Дополнительно логируются запросы к `/max-app` и `/api/max/auth` (`LaravelMaxMiniAppAccessLogger` через `MaxMiniAppAccessLoggerInterface`).
 
 ## Чеклист Manual QA (кабинет MAX)
+
+Полный QA-чеклист с колонкой «Факт» (auth, клиент, админка, webhook, Bot DM, негативы): **[docs/MAX_INTEGRATION_QA.md](docs/MAX_INTEGRATION_QA.md)**.
 
 Пошаговая ручная проверка перед демо или при смене dev-туннеля.
 
@@ -2184,7 +2191,7 @@ docker compose exec -T service-c tail -f storage/logs/max_log-$(date +%Y-%m-%d).
 | MAX-уведомления (заказ → UI Stand) | `tests/Unit/FoodOrderCustomerMaxMessageBuilderTest.php` (в т.ч. «Дата доставки», «Заказ на …» из `delivery_date`), `LaravelFoodOrderMaxNotifierTest.php` |
 | MAX-уведомления (клиент / статус) | `tests/Unit/FoodOrderCustomerNotifierTest.php` (`notifySubmitted`, confirmed/rejected, `notifyCompositionChanged`, manual confirm / `notifyManualOrderCreatorConfirmed` / `buildManualOrderCreatorConfirmed`) |
 | MAX-уведомления (чат заказа) | `tests/Unit/OrderChatNotifierTest.php` |
-| Уведомление о доступности меню | `tests/Unit/MaxMenuAvailabilityNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuMessageBuilderTest.php`, `tests/Unit/DailyMenuLineCollectorTest.php`, `tests/Feature/SyncDishAvailabilityCommandTest.php` (дата «Блюда на»; skip без offsets на weekday) |
+| Уведомление о доступности меню | `tests/Unit/MaxMenuAvailabilityNotifierTest.php`, `tests/Unit/TelegramMenuAvailabilityNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuNotifierTest.php`, `tests/Unit/MaxManagerDailyMenuMessageBuilderTest.php`, `tests/Unit/DailyMenuLineCollectorTest.php`, `tests/Feature/SyncDishAvailabilityCommandTest.php` (дата «Блюда на»; skip без offsets на weekday) |
 | Дата «Блюда на» / offsets | `tests/Unit/MenuAvailabilityDateResolverTest.php` (`resolve` с lookback; `resolveForCurrentWeekday` без lookback), `tests/Unit/CachingMenuAvailabilityDateResolverTest.php` |
 | Изоляция слоёв (core / food / support) | `tests/Architecture/CoreLayerIsolationTest.php` (baseline пуст), `SupportLayerIsolationTest.php`; + `scripts/check-core-layer-isolation.sh`, `check-food-layer-isolation.sh`, `check-support-layer-isolation.sh` |
 | Sync `is_available` (unit) | `tests/Unit/EloquentDishAvailabilitySyncTest.php`, `tests/Unit/DishAvailabilitySyncServiceTest.php` |
