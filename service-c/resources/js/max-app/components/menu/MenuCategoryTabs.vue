@@ -48,7 +48,7 @@ function selectCategory(categoryId) {
             >
         </div>
 
-        <div class="flex items-center gap-2 px-4">
+        <div class="flex items-center gap-2 pl-4">
             <button
                 type="button"
                 class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-max-text transition hover:bg-gray-50"
@@ -62,12 +62,18 @@ function selectCategory(categoryId) {
                 </svg>
             </button>
 
-            <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <!--
+              w-0 + flex-1: жёстко ограничивает ширину flex-элемента,
+              иначе чипы раздувают ряд, а body overflow-x:hidden их обрезает без скролла.
+            -->
+            <div
+                class="flex w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain touch-pan-x pb-1 pr-4 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
                 <button
                     v-for="tab in categoryTabs"
                     :key="tab.id ?? 'all'"
                     type="button"
-                    class="shrink-0 rounded-full px-4 py-2 text-sm font-medium transition"
+                    class="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition"
                     :class="activeCategoryId === tab.id
                         ? 'bg-menu-chip-active text-white'
                         : 'bg-menu-card text-max-text hover:bg-gray-200/80'"

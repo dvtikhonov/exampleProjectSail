@@ -219,6 +219,9 @@ jobs:
       - name: Show service status
         run: docker compose ps
 
+      - name: Prefetch Maven image for service-j
+        run: docker pull maven:3.9.9-eclipse-temurin-21
+
       - name: Run service tests
         run: bash ./scripts/test-services.sh all
 

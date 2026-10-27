@@ -1,0 +1,8 @@
+target/
+.m2/
+*.class
+.idea/
+frontend/node_modules/
+frontend/dist/
+messenger-frontend/node_modules/
+messenger-frontend/dist/

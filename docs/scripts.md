@@ -8,7 +8,7 @@
 
 | Файл | Назначение |
 |---|---|
-| `test-services.sh` | Подготовка тестовых БД (`sail_db_testing`, `service_d_db_testing`, `service_f_db_testing`) и запуск PHPUnit в Docker. Режимы: `prepare`, `all`, `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-e`, `service-f`, флаг `--no-prepare`. Используется в `.github/workflows/ci.yml`. |
+| `test-services.sh` | Подготовка тестовых БД (`sail_db_testing`, `service_d_db_testing`, `service_f_db_testing`) и запуск тестов в Docker (PHPUnit / `mvn test` для `service-j`). Режимы: `prepare`, `all`, `main-app`, `service-a`…`service-g`, `service-j`, флаг `--no-prepare`. Используется в `.github/workflows/ci.yml`. |
 | `service-c/scripts/architecture-leak-inventory.sh` | Inventory утечек `Illuminate\` / `App\Models\` в `Services/` и `Contracts/` (`--check`, `--write-baseline`). |
 | `service-c/scripts/check-core-layer-isolation.sh` | CI-обёртка: сравнение текущих утечек с Phase 0 baseline. |
 | `service-c/scripts/check-food-layer-isolation.sh` | Строгий guard: 0× `App\Models` в `Contracts/Food` и `Services/Food`. |

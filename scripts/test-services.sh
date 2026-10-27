@@ -46,6 +46,7 @@ Usage:
   ./scripts/test-services.sh service-e [--no-prepare]
   ./scripts/test-services.sh service-f [--no-prepare]
   ./scripts/test-services.sh service-g [--no-prepare]
+  ./scripts/test-services.sh service-j [--no-prepare]
 
 Environment overrides:
   TEST_DATABASE=sail_db_testing
@@ -152,7 +153,7 @@ prepare_mysql_database() {
 
 ensure_supported_mode() {
     case "$MODE" in
-        prepare|all|main-app|service-a|service-b|service-c|service-d|service-e|service-f|service-g)
+        prepare|all|main-app|service-a|service-b|service-c|service-d|service-e|service-f|service-g|service-j)
             ;;
         *)
             echo "Unknown mode: $MODE" >&2
@@ -243,8 +244,50 @@ run_tests_for() {
         return
     fi
 
+    if [[ "$service" == "service-j" ]]; then
+        run_service_j_tests
+        return
+    fi
+
     echo "Running tests for ${service}..."
     artisan "$service" "$database" test --env=testing
+}
+
+run_service_j_tests() {
+    echo "Running tests for service-j (Maven on sail_db_testing)..."
+
+    local jdbc_url="jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${TEST_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8"
+    local m2_cache="${ROOT_DIR}/service-j/.m2"
+    mkdir -p "$m2_cache"
+    local docker_args=(
+        --rm
+        -v "${ROOT_DIR}/service-j:/workspace"
+        -v "${m2_cache}:/root/.m2"
+        -w /workspace
+        -e "SPRING_DATASOURCE_URL=${jdbc_url}"
+        -e "SPRING_DATASOURCE_USERNAME=${MYSQL_USER}"
+        -e "SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}"
+        -e "SPRING_PROFILES_ACTIVE=test"
+    )
+
+    if [[ "$MYSQL_HOST" == "host.docker.internal" ]]; then
+        docker_args+=(--add-host=host.docker.internal:host-gateway)
+    else
+        local mysql_cid network
+        mysql_cid="$(docker compose ps -q mysql)"
+        if [[ -z "$mysql_cid" ]]; then
+            echo "MySQL container is not running (needed for service-j when TEST_DB_HOST=${MYSQL_HOST})." >&2
+            exit 1
+        fi
+        network="$(docker inspect -f '{{range $k, $_ := .NetworkSettings.Networks}}{{println $k}}{{end}}' "$mysql_cid" | head -n1)"
+        if [[ -z "$network" ]]; then
+            echo "Could not resolve Docker network for MySQL container." >&2
+            exit 1
+        fi
+        docker_args+=(--network "$network")
+    fi
+
+    docker run "${docker_args[@]}" maven:3.9.9-eclipse-temurin-21 mvn -B test
 }
 
 ensure_supported_mode
@@ -272,7 +315,7 @@ case "$MODE" in
             prepare_all_databases
         fi
 
-        for service in main-app service-a service-b service-c service-d service-e service-f service-g; do
+        for service in main-app service-a service-b service-c service-d service-e service-f service-g service-j; do
             if should_skip_service "$service"; then
                 echo "Skipping tests for ${service} (CI_SKIP_SERVICES)"
                 continue
@@ -281,7 +324,7 @@ case "$MODE" in
             run_tests_for "$service"
         done
         ;;
-    main-app|service-a|service-b|service-c|service-d|service-e|service-f|service-g)
+    main-app|service-a|service-b|service-c|service-d|service-e|service-f|service-g|service-j)
         run_tests_for "$MODE"
         ;;
 esac

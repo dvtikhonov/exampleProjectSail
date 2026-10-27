@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Http\Middleware\VerifyBrisklySyncCaptureSecret;
 use App\Http\Middleware\VerifyMaxWebhookSecret;
+use App\Http\Middleware\VerifyMessengerChoiceToken;
 use App\Http\Middleware\VerifyPhotoTextAgentToken;
 use App\Http\Middleware\VerifyPhotoTextWriteToken;
 use App\Http\Middleware\VerifyTelegramWebhookSecret;
@@ -27,8 +28,10 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
 
     private const BRISKLY_CAPTURE_SECRET = 'briskly-capture-test-secret';
 
+    private const MESSENGER_CHOICE_TOKEN = 'messenger-choice-test-token';
+
     /**
-     * Наборы middleware: MAX/Telegram webhook, PhotoText, Briskly capture secret.
+     * Наборы middleware: MAX/Telegram webhook, PhotoText, Briskly capture, messenger choice.
      *
      * @return array<string, array{
      *     middlewareClass: class-string,
@@ -80,6 +83,14 @@ class VerifyConfiguredHeaderSecretTest extends TestCase
                 'secret' => self::BRISKLY_CAPTURE_SECRET,
                 'headerName' => 'X-Briskly-Capture-Secret',
                 'requestUri' => '/api/food/internal/briskly-sync/match-complete',
+                'requestMethod' => 'POST',
+            ],
+            'messenger_choice' => [
+                'middlewareClass' => VerifyMessengerChoiceToken::class,
+                'configKey' => 'messenger_choice.log_token',
+                'secret' => self::MESSENGER_CHOICE_TOKEN,
+                'headerName' => 'X-Messenger-Choice-Token',
+                'requestUri' => '/internal/messenger-choice',
                 'requestMethod' => 'POST',
             ],
         ];

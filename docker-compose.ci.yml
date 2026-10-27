@@ -106,6 +106,14 @@ services:
       redis:
         condition: service_started
 
+  service-j:
+    build:
+      context: .
+      dockerfile: service-j/Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+
   service-f:
     build:
       context: .

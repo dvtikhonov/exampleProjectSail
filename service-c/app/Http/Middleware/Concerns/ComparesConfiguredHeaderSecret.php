@@ -54,6 +54,7 @@ trait ComparesConfiguredHeaderSecret
             'phototext.agent_token' => 'PhotoText agent rejected: PHOTOTEXT_AGENT_TOKEN is not configured.',
             'phototext.write_token' => 'PhotoText write rejected: PHOTOTEXT_WRITE_TOKEN is not configured.',
             'briskly_sync.capture_secret' => 'Briskly sync capture rejected: BRISKLY_SYNC_CAPTURE_SECRET is not configured.',
+            'messenger_choice.log_token' => 'Messenger choice log rejected: MESSENGER_CHOICE_LOG_TOKEN is not configured.',
             default => "{$logContext} rejected: secret is not configured.",
         };
     }
@@ -69,6 +70,7 @@ trait ComparesConfiguredHeaderSecret
             'phototext.agent_token' => 'PhotoText agent rejected: invalid X-PhotoText-Token header.',
             'phototext.write_token' => 'PhotoText write rejected: invalid X-PhotoText-Write-Token header.',
             'briskly_sync.capture_secret' => 'Briskly sync capture rejected: invalid X-Briskly-Capture-Secret header.',
+            'messenger_choice.log_token' => 'Messenger choice log rejected: invalid X-Messenger-Choice-Token header.',
             default => "{$logContext} rejected: invalid {$headerName} header.",
         };
     }

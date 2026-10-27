@@ -9,7 +9,7 @@ use App\DTO\Max\MaxMiniAppAccessContextDto;
 use Psr\Log\LoggerInterface;
 
 /**
- * Laravel-адаптер логирования доступа MAX mini-app через канал max_log.
+ * Laravel-адаптер логирования доступа MAX mini-app и страницы выбора мессенджера через канал max_log.
  */
 final class LaravelMaxMiniAppAccessLogger implements MaxMiniAppAccessLoggerInterface
 {
@@ -23,6 +23,14 @@ final class LaravelMaxMiniAppAccessLogger implements MaxMiniAppAccessLoggerInter
     public function logPageRequest(MaxMiniAppAccessContextDto $context): void
     {
         $this->logger->info('MAX mini-app page requested', $this->baseContext($context));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function logMessengerChoicePageRequest(MaxMiniAppAccessContextDto $context): void
+    {
+        $this->logger->info('Messenger choice page requested', $this->baseContext($context));
     }
 
     /**

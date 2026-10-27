@@ -21,12 +21,17 @@ chmod -R ug+rwX storage bootstrap/cache 2>/dev/null || true
 chmod g+s storage/logs 2>/dev/null || true
 
 # SchedulePhoto resolve-discarded: FPM (www-data) дописывает словарь алиасов.
-# Bind-mount с хоста часто 644/uid=1000 — без a+w is_writable() = false и пара не сохраняется.
-for aliases_file in \
-    /var/www/.cursor/commands/phototext-dish-aliases.md \
-    /var/www/html/phototext-dish-aliases.md
-do
-    if [ -f "$aliases_file" ]; then
-        chmod a+w "$aliases_file" 2>/dev/null || true
-    fi
-done
+# Bind-mount .cursor/commands часто 644/uid=1000 — без a+w is_writable() = false.
+cursor_aliases=/var/www/.cursor/commands/phototext-dish-aliases.md
+if [ -f "$cursor_aliases" ]; then
+    chmod a+w "$cursor_aliases" 2>/dev/null || true
+fi
+
+# Копия в образе: /var/www/html — sticky+world-writable (1777), на ядре
+# fs.protected_regular>=1 www-data не может open(O_CREAT) чужой файл,
+# даже после chmod 666. file_put_contents при этом даёт Permission denied.
+html_aliases=/var/www/html/phototext-dish-aliases.md
+if [ -f "$html_aliases" ]; then
+    chown www-data:www-data "$html_aliases" 2>/dev/null || true
+    chmod ug+rw "$html_aliases" 2>/dev/null || true
+fi

@@ -9,6 +9,7 @@
 | `main-app` | Основное Laravel-приложение: Laravel 13, Breeze, Inertia/Vue, Tailwind CSS, Passport, Laravel Reverb (Echo), веб-авторизация и проверка токенов для gateway |
 | `service-a` | Laravel API: торговые точки (`/api/sales-outlets`) |
 | `service-e` | Symfony 8 API: торговые точки через `/api/e/` (общая таблица `sales_outlets` с `service-a`) |
+| `service-j` | Java 21 + Spring Boot 3 + Vue 3 SPA: торговые точки через `/api/j/` и UI `/objects-sales-outlets-4` (общая таблица `sales_outlets`) — см. [service-j/README.md](service-j/README.md) |
 | `service-b` | Laravel API: единый Report API (Strategy: `csv_download`, `html_email`, `max_message`), очередь `BuildSalesOutletsReportJob`, REST-статистика и live-updates в Reverb через domain events + listeners |
 | `service-b-queue` | Worker очереди `service-b` (`queue:work`) для фоновых отчётов |
 | `service-c` | Laravel + Vue 3: MAX mini-app «Заказ еды» (корзина, комбо, проверка заказов, чат), webhook MAX, UI Stand — см. [service-c/README.md](service-c/README.md) |
@@ -21,7 +22,7 @@
 | `reverb` | WebSocket-сервер Laravel Reverb (образ `main-app`), порт `8090` |
 | `shared/sales-outlets-domain` | Локальный Composer-пакет с общей доменной частью торговых точек |
 | `shared/max-messenger` | Локальный Composer-пакет `example/max-messenger`: HTTP-клиент MAX Bot API (`service-b`, `service-c`) |
-| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`, CORS для `/api/a/`, `/api/b/`, `/api/c/` и `/api/e/` |
+| `nginx-gateway` | Единая точка входа: проксирование, `auth_request`; CORS для `/api/a/`, `/api/b/`, `/api/c/` и `/api/e/` (для `/api/j/` CORS не нужен — same-origin со SPA) |
 | `docker-compose.yml` | Основной compose-файл для локального запуска |
 | `docker-compose.ci.yml` | Overlay для CI: внутренний MySQL и `depends_on` с healthcheck |
 | `scripts/` | Вспомогательные скрипты: тесты, VPS, MAX-туннели, диагностика — см. [docs/scripts.md](docs/scripts.md) |
@@ -48,7 +49,7 @@ flowchart LR
   MainApp -->|/broadcasting/auth| Reverb
 ```
 
-- **Торговые точки (CRUD, фильтры):** браузер → `VITE_GATEWAY_ORIGIN` → `service-a` (Bearer + CORS на gateway).
+- **Торговые точки (CRUD, фильтры):** браузер → `VITE_GATEWAY_ORIGIN` → `service-a` (Bearer + CORS на gateway); альтернативы — `service-e` (`/api/e/`) и `service-j` (`/api/j/` + SPA `/objects-sales-outlets-4/`, same-origin без CORS).
 - **Экспорт, почта, MAX, статистика отчётов:** браузер → `main-app` (web-сессия, `auth.passport`) → gateway → `service-b` (`MicroserviceHttpClient`).
 - **Live-статистика отчётов:** после мутации задачи `service-b` диспатчит `SalesOutletReportJobMutated` → listener `BroadcastReportJobStatsOnJobMutation` → broadcast `ReportJobStatsChanged` в Reverb; `main-app` подписывается через Laravel Echo на private-канал `report-jobs.stats` (авторизация — `POST /broadcasting/auth`).
 
@@ -123,7 +124,7 @@ SERVICE_G_DB_PASSWORD=<your-local-password>
 docker compose up -d --build
 ```
 
-Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-f`, `service-g`, `service-g-nuxt`, `service-i`, `reverb`, `redis`, `mailhog`, `gateway`.
+Поднимаются `main-app`, `service-a`, `service-b`, `service-b-queue`, `service-c`, `yandex-parser`, `service-d`, `service-d-queue`, `service-e`, `service-j`, `service-f`, `service-g`, `service-g-nuxt`, `service-i`, `reverb`, `redis`, `mailhog`, `gateway`.
 
 ### 3. Ключи приложений
 
@@ -154,7 +155,7 @@ docker compose exec service-f php artisan migrate
 docker compose exec service-g php artisan migrate
 ```
 
-Для `service-e` отдельные миграции не нужны — используется общая таблица `sales_outlets` из `service-a`.
+Для `service-e` и `service-j` отдельные миграции не нужны — используется общая таблица `sales_outlets` из `service-a`.
 
 Для отчётов `service-b` нужны worker и Reverb (в compose уже описаны):
 
@@ -220,6 +221,7 @@ docker compose up -d main-app
 | `service-c` напрямую | `http://localhost:8083` |
 | `service-d` напрямую | `http://localhost:8084` |
 | `service-e` напрямую | `http://localhost:8086` |
+| `service-j` напрямую | `http://localhost:8085` (`SERVICE_J_PORT`) |
 | `service-f` напрямую | `http://localhost:8087` |
 | `service-g` напрямую (Laravel API) | `http://localhost:8088` |
 | `service-g-nuxt` напрямую | `http://localhost:3000` |
@@ -239,8 +241,9 @@ docker compose up -d main-app
 - `service-a`: `http://localhost:8080/api/a/...`
 - `service-b`: `http://localhost:8080/api/b/...`
 - `service-e`: `http://localhost:8080/api/e/...`
+- `service-j`: `http://localhost:8080/api/j/...` и SPA `http://localhost:8080/objects-sales-outlets-4/`
 
-Gateway переписывает префиксы `/api/a/`, `/api/b/` и `/api/e/` в `/api/` перед проксированием в соответствующий сервис.
+Gateway переписывает префиксы `/api/a/`, `/api/b/`, `/api/e/` и `/api/j/` в `/api/` перед проксированием в соответствующий сервис.
 
 Для `/api/a/...`, `/api/b/...`, `/api/c/...` и `/api/e/...` в gateway настроен CORS:
 
@@ -249,6 +252,8 @@ Gateway переписывает префиксы `/api/a/`, `/api/b/` и `/api/
 - Разрешены заголовки `Authorization, Content-Type, Accept`.
 - `Access-Control-Allow-Origin` берётся из `$http_origin`, заголовок `Vary: Origin` добавляется всегда.
 - CORS-заголовки от backend-сервисов скрываются через `proxy_hide_header`, чтобы gateway был единственной точкой управления CORS.
+
+Для `/api/j/...` CORS **не** настраивается: SPA `/objects-sales-outlets-4/` и API отдаются с одного origin gateway (`localhost:8080`), запросы same-origin. Подробнее: [service-j/README.md](service-j/README.md).
 
 Браузерные запросы к `service-a` из Vue идут напрямую через gateway, например:
 
@@ -272,6 +277,7 @@ Web (Inertia):
 | `GET` | `/objects-sales-outlets` | Страница объектов торговых точек |
 | `GET` | `/objects-sales-outlets-2` | Альтернативная тёмная страница (экспорт, почта, MAX, live-статистика) |
 | `GET` | `/objects-sales-outlets-3` | Тёмная страница торговых точек на backend `service-e` (без export/mail/max/stats) |
+| — | `/objects-sales-outlets-4/` | SPA торговых точек на `service-j` (не Inertia в `main-app`; прокси gateway → `service-j`) |
 | `POST` | `/objects-sales-outlets-2/export` | Создание CSV-экспорта (прокси в `service-b`) |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}` | Статус экспорта |
 | `GET` | `/objects-sales-outlets-2/export/{uuid}/download` | Скачивание экспорта |
@@ -346,6 +352,19 @@ Broadcasting (web + `AuthenticateBroadcastingPassport`):
 
 Через gateway — префикс `/api/e`, например `GET /api/e/sales-outlets`. Формат ответов совместим с `service-a`. Подробнее: [service-e/README.md](service-e/README.md).
 
+### `service-j`
+
+Напрямую (`/api/...`):
+
+| Метод | Путь | Auth |
+|---|---|---|
+| `GET` | `/sales-outlets` | `X-User-Id` (gateway) |
+| `PATCH` | `/sales-outlets/{id}` | `X-User-Id` (gateway) |
+| `POST` | `/sales-outlets/{id}/head-organization` | `X-User-Id` (gateway) |
+| `DELETE` | `/sales-outlets/{id}` | `X-User-Id` (gateway) |
+
+Через gateway — префикс `/api/j`, например `GET /api/j/sales-outlets`. SPA: `GET /objects-sales-outlets-4/` (статика без `auth_request`). Формат ответов совместим с `service-a`. CORS на `/api/j/` не используется (same-origin). Подробнее: [service-j/README.md](service-j/README.md).
+
 ### Live-статистика отчётов: термины и поток
 
 | Термин | Значение |
@@ -386,7 +405,7 @@ EloquentSalesOutletsReportJobRepository (create / updateStatus)
 
 ## Авторизация через gateway
 
-`nginx-gateway` использует `auth_request /auth-internal` и проверяет Bearer-токен через endpoint `main-app` **только для микросервисов** (`/api/a/`, `/api/b/`, `/api/c/`):
+`nginx-gateway` использует `auth_request /auth-internal` и проверяет Bearer-токен через endpoint `main-app` **только для микросервисов** (`/api/a/`, `/api/b/`, `/api/c/`, `/api/e/`, `/api/j/`):
 
 ```text
 /api/auth/verify
@@ -404,8 +423,9 @@ EloquentSalesOutletsReportJobRepository (create / updateStatus)
 - `/api/b/...`
 - `/api/c/...` (кроме webhook MAX)
 - `/api/e/...`
+- `/api/j/...`
 
-Остальные пути через gateway идут в `main-app` без проверки Bearer на уровне nginx. `service-d` и `service-f` — host-based routing на субдоменах без `auth_request`.
+Остальные пути через gateway идут в `main-app` без проверки Bearer на уровне nginx (включая статику SPA `/objects-sales-outlets-4/`). `service-d` и `service-f` — host-based routing на субдоменах без `auth_request`.
 
 В `main-app` после web-login создаётся Passport-токен и сохраняется в сессии. Текущий токен:
 
@@ -575,7 +595,7 @@ Workflow `.github/workflows/ci.yml` запускается на `push` и `pull_
 |---|---|
 | `php-style` | Laravel Pint (`--test`) для `main-app`, `service-a`, `service-b`, `service-c`, `service-d`, `service-f`, `service-g`; PHP-CS-Fixer (`@Symfony`) для `service-e` (PHP 8.4) |
 | `frontend-build` | `npm ci` + `npm run build` в `main-app`, `service-d` и `service-g/nuxt-app` (Node 22) |
-| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` (включая `service-e`, `service-f`, `service-g`) |
+| `backend-tests` | Docker Compose с overlay `docker-compose.ci.yml`, внутренний MySQL, `composer install` в сервисах, затем `./scripts/test-services.sh all` (включая `service-e`, `service-f`, `service-g`, `service-j`) |
 
 `service-i` в CI **не** запускается (ни style/build, ни backend-tests) — проверки только локально / в контейнере `service-i`.
 
@@ -773,7 +793,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 
 ## Единый тестовый контур
 
-Скрипт `scripts/test-services.sh` работает через Docker Compose. Для сервисов на MySQL он пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`) и применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` (для `service-e` отдельные миграции не нужны — общая таблица `sales_outlets`). **`service-g`** backend-тесты идут на SQLite `:memory:` без подготовки MySQL — достаточно `php artisan test --env=testing`. В режиме `all` подготовка MySQL выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
+Скрипт `scripts/test-services.sh` работает через Docker Compose. Для сервисов на MySQL он пересоздаёт тестовые БД (`sail_db_testing` для `main-app` / `service-a` / `service-b` / `service-c` / `service-e` / `service-j`, `service_d_db_testing` для `service-d`, `service_f_db_testing` для `service-f`) и применяет миграции в порядке `main-app` → `service-a` → `service-b` → `service-c` → `service-f` (для `service-e` / `service-j` отдельные миграции не нужны — общая таблица `sales_outlets`). **`service-g`** backend-тесты идут на SQLite `:memory:` без подготовки MySQL — достаточно `php artisan test --env=testing`. **`service-j`** — `mvn test` в образе `maven:3.9.9-eclipse-temurin-21` против `sail_db_testing`. В режиме `all` подготовка MySQL выполняется перед тестами каждого сервиса, потому что `RefreshDatabase` внутри тестов может менять схему общей тестовой БД.
 
 Подготовить только тестовую БД:
 
@@ -798,6 +818,7 @@ cp scripts/vps-tunnel.env.example scripts/vps-tunnel.env
 ./scripts/test-services.sh service-e
 ./scripts/test-services.sh service-f
 ./scripts/test-services.sh service-g
+./scripts/test-services.sh service-j
 ```
 
 Быстрый повторный запуск без пересоздания БД:
@@ -845,6 +866,7 @@ TEST_DB_PASSWORD=<your-local-password> \
 - `service-c` — Nginx + PHP-FPM 8.4 (Supervisor, `pm.max_children=64`) на порту `8000`, не `artisan serve`; MAX mini-app «Заказ еды», webhook, Vite entry `max-app`, сборка в `public/max-build/`; комбо в корзине и `items_snapshot`; PHP/JS-паритет — см. [service-c/README.md → Связки PHP ↔ JavaScript](service-c/README.md#связки-php--javascript). Deep load (≥50–100 VU) требует этого multi-worker runtime.
 - `service-d` — Vue 3 SPA + Sanctum на субдомене `yandexmaps.*`; resolve/confirm организации, отзывы, очередь `service-d-queue`, headless-парсер `yandex-parser`; host-based routing без `auth_request`; БД `service_d_db`; см. [service-d/README.md](service-d/README.md).
 - `service-e` — Symfony 8 API торговых точек через `/api/e/`; общая таблица `sales_outlets` с `service-a`; см. [service-e/README.md](service-e/README.md).
+- `service-j` — Java 21 + Spring Boot 3 + Vue 3 SPA: `/api/j/` и `/objects-sales-outlets-4/`; общая таблица `sales_outlets`; CORS не нужен (same-origin); см. [service-j/README.md](service-j/README.md).
 - `service-f` — URL shortener на субдомене `urlshort.*`, Filament `/admin`; БД `service_f_db`; см. [service-f/README.md](service-f/README.md).
 - `service-g` — To-Do List (каркас): Laravel API + Nuxt 3 на `listtodo.localhost`, Sanctum; БД `service_g_db`; см. [service-g/README.md](service-g/README.md).
 - `service-i` — MStroy Frontend: Vue 3 + TreeStore + AgGrid на `:8089` / `mstroy.localhost`; runtime nginx без Node; см. [service-i/README.md](service-i/README.md).

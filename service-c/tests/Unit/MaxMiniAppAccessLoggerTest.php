@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\Max\MaxMiniAppAccessLoggerInterface;
+use App\DTO\Max\MaxMiniAppAccessContextDto;
 use App\Http\Mappers\MaxMiniAppAccessContextMapper;
 use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
@@ -40,6 +41,35 @@ class MaxMiniAppAccessLoggerTest extends TestCase
         $this->assertSame('exampleprojectsail.fxtun.dev', $log->context['host']);
         $this->assertTrue($log->context['is_tunnel']);
         $this->assertSame('MAX-Desktop/1.0', $log->context['user_agent']);
+        $this->assertArrayNotHasKey('init_data_length', $log->context);
+    }
+
+    /** logMessengerChoicePageRequest пишет в канал max_log без initData. */
+    public function test_log_messenger_choice_page_request_writes_to_max_log_channel(): void
+    {
+        $captured = [];
+
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        $context = new MaxMiniAppAccessContextDto(
+            host: 'exampleprojectsail.fxtun.dev',
+            isTunnel: true,
+            ip: '203.0.113.8',
+            userAgent: 'Mozilla/5.0',
+            initDataLength: 99,
+        );
+
+        $this->app->make(MaxMiniAppAccessLoggerInterface::class)->logMessengerChoicePageRequest($context);
+
+        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'Messenger choice page requested');
+        $this->assertSame('info', $log->level);
+        $this->assertSame('exampleprojectsail.fxtun.dev', $log->context['host']);
+        $this->assertTrue($log->context['is_tunnel']);
+        $this->assertSame('203.0.113.8', $log->context['ip']);
+        $this->assertSame('Mozilla/5.0', $log->context['user_agent']);
+        $this->assertArrayNotHasKey('init_data', $log->context);
         $this->assertArrayNotHasKey('init_data_length', $log->context);
     }
 

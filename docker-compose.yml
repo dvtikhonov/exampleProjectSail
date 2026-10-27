@@ -242,6 +242,8 @@ services:
       - DB_QUEUE=service-c
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # Общий секрет с service-j: POST /internal/messenger-choice (X-Messenger-Choice-Token).
+      - MESSENGER_CHOICE_LOG_TOKEN=${MESSENGER_CHOICE_LOG_TOKEN:-}
       # FPM workers for local deep headroom (~115 VU, outcome A: queue/backlog); prod keeps image default 64
       - PHP_FPM_MAX_CHILDREN=200
       - PHP_FPM_START_SERVERS=25
@@ -272,6 +274,8 @@ services:
       - ./service-c/docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       # SchedulePhoto aliases: только каталог .cursor/commands (single-file bind md часто Permission denied).
       - ./.cursor/commands:/var/www/.cursor/commands
+      # Образ может быть старее репозитория: entrypoint должен брать chmod алиасов из репозитория.
+      - ./service-c/docker-init-storage.sh:/usr/local/bin/docker-init-storage.sh:ro
       - ./shared:/var/www/shared
     networks:
       - internal
@@ -313,6 +317,7 @@ services:
       - ./service-c/.env:/var/www/html/.env:ro
       - ./service-c/.env.testing:/var/www/html/.env.testing:ro
       - ./.cursor/commands:/var/www/.cursor/commands
+      - ./service-c/docker-init-storage.sh:/usr/local/bin/docker-init-storage.sh:ro
       - ./shared:/var/www/shared
     networks:
       - internal
@@ -464,6 +469,25 @@ services:
       - internal
     depends_on:
       - redis
+
+  # Java 21 + Spring Boot 3 + Vue SPA (sales outlets). Port 8085 between d (8084) and e (8086).
+  service-j:
+    build:
+      context: .
+      dockerfile: service-j/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${SERVICE_J_PORT:-8085}:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_DATASOURCE_URL=${SERVICE_J_DATASOURCE_URL:-jdbc:mysql://host.docker.internal:3306/sail_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+      - SPRING_DATASOURCE_USERNAME=${SERVICE_J_DB_USERNAME:-root}
+      - SPRING_DATASOURCE_PASSWORD=${SERVICE_J_DB_PASSWORD:-12345678AS}
+      - MESSENGER_CHOICE_LOG_URL=http://service-c:8000/internal/messenger-choice
+      - MESSENGER_CHOICE_LOG_TOKEN=${MESSENGER_CHOICE_LOG_TOKEN:-}
+    networks:
+      - internal
 
   service-f:
     build:
@@ -662,6 +686,7 @@ services:
       - service-g
       - service-g-nuxt
       - service-i
+      - service-j
     networks:
       - internal
 

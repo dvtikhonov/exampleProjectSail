@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Выпадающий список с поиском для MAX mini-app.
- * Поддерживает серверный поиск через событие `search` и опции с описанием.
+ * Фильтрует переданные options по строке поиска; для серверного поиска —
+ * событие `search` + обновление options снаружи.
  */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -63,6 +64,29 @@ const selectedOption = computed(
 const displayLabel = computed(() => selectedOption.value?.label ?? props.placeholder);
 
 const isPlaceholderLabel = computed(() => !selectedOption.value);
+
+/**
+ * Локальная фильтрация списка по label / description / value.
+ *
+ * @returns {Array<{ value: string, label: string, description?: string, disabled?: boolean }>}
+ */
+const filteredOptions = computed(() => {
+    const needle = localQuery.value.trim().toLowerCase();
+
+    if (needle === '') {
+        return props.options;
+    }
+
+    return props.options.filter((option) => {
+        const label = String(option.label ?? '').toLowerCase();
+        const description = String(option.description ?? '').toLowerCase();
+        const value = String(option.value ?? '').toLowerCase();
+
+        return label.includes(needle)
+            || description.includes(needle)
+            || value.includes(needle);
+    });
+});
 
 const buttonClasses = computed(() => {
     const classes = [
@@ -264,12 +288,12 @@ onUnmounted(() => {
             </div>
 
             <ul
-                v-else-if="options.length > 0"
+                v-else-if="filteredOptions.length > 0"
                 role="listbox"
                 class="max-h-60 overflow-y-auto py-1"
             >
                 <li
-                    v-for="option in options"
+                    v-for="option in filteredOptions"
                     :key="`${option.value}-${option.label}`"
                     role="option"
                     :aria-selected="String(option.value) === String(modelValue)"

@@ -7,7 +7,7 @@ namespace App\Contracts\Max;
 use App\DTO\Max\MaxMiniAppAccessContextDto;
 
 /**
- * Логирование обращений к MAX mini-app (страница и auth) без секретов.
+ * Логирование обращений к MAX mini-app и странице выбора мессенджера без секретов.
  */
 interface MaxMiniAppAccessLoggerInterface
 {
@@ -15,6 +15,11 @@ interface MaxMiniAppAccessLoggerInterface
      * Логирует обращение к странице mini-app.
      */
     public function logPageRequest(MaxMiniAppAccessContextDto $context): void;
+
+    /**
+     * Логирует заход на страницу выбора Telegram и MAX.
+     */
+    public function logMessengerChoicePageRequest(MaxMiniAppAccessContextDto $context): void;
 
     /**
      * Логирует запрос аутентификации mini-app.

@@ -358,15 +358,14 @@ export function useSchedulePhoto() {
         return typeof message === 'string' ? message.trim() : '';
     });
 
-    const catalogScopeSelectOptions = computed(() => [
-        { value: '', label: 'Выберите блюдо из каталога', disabled: true },
-        ...catalogScope.value.map((dish) => ({
+    /** Опции AppSearchSelect: имя + категория в description для локального поиска. */
+    const catalogScopeSelectOptions = computed(() => (
+        catalogScope.value.map((dish) => ({
             value: dish.name,
-            label: dish.category_name
-                ? `${dish.name} (${dish.category_name})`
-                : dish.name,
-        })),
-    ]);
+            label: dish.name,
+            description: dish.category_name || undefined,
+        }))
+    ));
 
     const windowDates = computed(() => listDatesInWindow(
         windowDateFrom.value,

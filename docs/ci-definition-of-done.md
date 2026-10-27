@@ -12,7 +12,7 @@
 
 ## Критерии тестового контура БД
 
-- Для тестов `main-app`, `service-a`, `service-b`, `service-c` используется только база `sail_db_testing`.
+- Для тестов `main-app`, `service-a`, `service-b`, `service-c`, `service-e`, `service-j` используется только база `sail_db_testing`.
 - Для `service-d` — отдельная база `service_d_db_testing` (см. `scripts/test-services.sh`, `service-d/.env.testing`).
 - Параметры `TEST_*` должны быть явно заданы в CI-окружении.
 - Backend-тесты не должны обращаться к production/staging БД.

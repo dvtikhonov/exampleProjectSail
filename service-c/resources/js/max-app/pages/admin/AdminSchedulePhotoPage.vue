@@ -3,6 +3,7 @@
  * Фото графика: форма → готовность PhotoText/sidecar → OCR → сводка matched + Issues → confirm apply.
  */
 import { computed, onMounted, ref } from 'vue';
+import AppSearchSelect from '../../components/AppSearchSelect.vue';
 import AppSelect from '../../components/AppSelect.vue';
 import { useSchedulePhoto } from '../../composables/useSchedulePhoto';
 
@@ -772,7 +773,7 @@ function onResetForNewRun() {
                     </p>
                     <ul class="divide-y divide-gray-100 rounded-xl border border-slate-100 bg-slate-50/40">
                         <li
-                            v-for="row in discarded"
+                            v-for="(row, discardedIndex) in discarded"
                             :key="`discarded-${row.raw_title}-${row.reason}-${(row.dates || []).join(',')}`"
                             class="px-3 py-2.5 text-sm"
                         >
@@ -837,11 +838,13 @@ function onResetForNewRun() {
                                     v-if="!row.suggested_in_scope"
                                     class="max-w-md"
                                 >
-                                    <AppSelect
+                                    <AppSearchSelect
+                                        :id="`schedule-photo-dish-${discardedIndex}`"
                                         :model-value="discardedResolveDishName[row.raw_title] || ''"
                                         :options="catalogScopeSelectOptions"
-                                        placeholder="Блюдо из каталога"
-                                        size="sm"
+                                        placeholder="Выберите блюдо из каталога"
+                                        search-placeholder="Поиск по названию или категории"
+                                        empty-text="Блюд не найдено"
                                         :disabled="resolvingDiscarded || applied"
                                         @update:model-value="setDiscardedResolveDishName(row.raw_title, $event)"
                                     />
