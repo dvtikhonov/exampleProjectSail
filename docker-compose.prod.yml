@@ -15,6 +15,7 @@
 #   VPS_DOMAIN=94-228-117-27.sslip.io  # для VITE_REVERB_* (браузер → wss://$VPS_DOMAIN/app/...)
 #   GATEWAY_HTTP_PORT (по умолчанию 8080 — upstream для host nginx)
 #   PMA_SUBDOMAIN (по умолчанию pma), PHPMYADMIN_PORT (по умолчанию 8085)
+#   SERVICE_J_PORT (по умолчанию 8095 — 8085 занят phpMyAdmin)
 
 services:
   mysql-host:
@@ -252,6 +253,16 @@ services:
         condition: service_started
     restart: unless-stopped
     mem_limit: 384m
+
+  # 8085 на VPS занимает phpMyAdmin. Gateway ходит на service-j:8080 внутри docker-сети.
+  service-j:
+    ports: !override
+      - "127.0.0.1:${SERVICE_J_PORT:-8095}:8080"
+    depends_on:
+      mysql-host:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 512m
 
   service-f:
     ports: !override
