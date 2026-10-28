@@ -6,7 +6,7 @@
       </h1>
       <div class="flex flex-col gap-4">
         <a
-          href="/tg-app"
+          href="https://t.me/obedov_bot"
           class="flex items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
         >
           <svg class="h-12 w-12 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
@@ -18,7 +18,7 @@
           <span class="text-lg font-medium text-slate-100">Telegram</span>
         </a>
         <a
-          href="/max-app"
+          href="https://max.ru/id421816864057_bot"
           class="flex items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
         >
           <svg class="h-12 w-12 shrink-0" viewBox="0 0 1000 1000" aria-hidden="true">
