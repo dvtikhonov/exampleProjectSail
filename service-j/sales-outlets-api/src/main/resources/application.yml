@@ -5,9 +5,9 @@ spring:
   application:
     name: service-j
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://host.docker.internal:3306/sail_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+    url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:12345678AS}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     open-in-view: false
@@ -19,11 +19,15 @@ spring:
           time_zone: UTC
     show-sql: false
 
-# POST в service-c перед отдачей /messenger. Пустые значения — страница открывается без записи.
+# POST в service-c: визит страницы и клик по мессенджеру. Пустые URL или токен — страница и редирект без записи.
+# Хост URL должен быть в allowed-hosts (без учёта регистра). Иначе POST и токен не уходят.
 messenger:
   choice:
     log-url: ${MESSENGER_CHOICE_LOG_URL:}
+    click-log-url: ${MESSENGER_CHOICE_CLICK_LOG_URL:}
     log-token: ${MESSENGER_CHOICE_LOG_TOKEN:}
+    allowed-hosts:
+      - service-c
 
 logging:
   level:

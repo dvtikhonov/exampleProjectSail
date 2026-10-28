@@ -42,9 +42,12 @@ class MessengerChoicePageTest {
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Telegram")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("https://t.me/obedov_bot")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/messenger/go/telegram")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("MAX")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("https://max.ru/id421816864057_bot")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/messenger/go/max")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("t.me"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("max.ru"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("_bot"))));
 
         verify(visitLogger).logVisit(new MessengerChoiceVisit(
                 "94-228-117-27.sslip.io",

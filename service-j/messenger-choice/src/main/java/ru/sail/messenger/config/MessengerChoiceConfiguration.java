@@ -8,13 +8,17 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import ru.sail.messenger.http.RestClientMessengerChoiceClickLogger;
 import ru.sail.messenger.http.RestClientMessengerChoiceVisitLogger;
+import ru.sail.messenger.link.MessengerBotLinks;
+import ru.sail.messenger.port.MessengerChoiceClickLogger;
 import ru.sail.messenger.port.MessengerChoiceVisitLogger;
 import ru.sail.messenger.web.ClasspathMessengerChoicePage;
 import ru.sail.messenger.web.MessengerChoiceVisitResolver;
 
 /**
- * Связывает порт визита с RestClient и отдаёт ассеты страницы без участия контроллера.
+ * Связывает порты визита и клика с RestClient, отдаёт каталог адресов ботов
+ * и ассеты страницы без участия контроллера страницы.
  */
 @Configuration
 @EnableConfigurationProperties(MessengerChoiceProperties.class)
@@ -33,18 +37,37 @@ public class MessengerChoiceConfiguration {
     }
 
     @Bean
+    MessengerBotLinks messengerBotLinks() {
+        return new MessengerBotLinks();
+    }
+
+    @Bean
     MessengerChoiceVisitLogger messengerChoiceVisitLogger(MessengerChoiceProperties properties) {
+        return new RestClientMessengerChoiceVisitLogger(
+                newRestClient(),
+                properties.getLogUrl(),
+                properties.getLogToken(),
+                properties.getAllowedHosts()
+        );
+    }
+
+    @Bean
+    MessengerChoiceClickLogger messengerChoiceClickLogger(MessengerChoiceProperties properties) {
+        return new RestClientMessengerChoiceClickLogger(
+                newRestClient(),
+                properties.getClickLogUrl(),
+                properties.getLogToken(),
+                properties.getAllowedHosts()
+        );
+    }
+
+    private static RestClient newRestClient() {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(LOG_TIMEOUT);
         requestFactory.setReadTimeout(LOG_TIMEOUT);
-        RestClient restClient = RestClient.builder()
+        return RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
-        return new RestClientMessengerChoiceVisitLogger(
-                restClient,
-                properties.getLogUrl(),
-                properties.getLogToken()
-        );
     }
 
     /**

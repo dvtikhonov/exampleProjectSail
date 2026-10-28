@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Contracts\Max\MaxMiniAppAccessLoggerInterface;
 use App\DTO\Max\MaxMiniAppAccessContextDto;
+use App\Enums\MessengerChoice;
 use App\Http\Mappers\MaxMiniAppAccessContextMapper;
 use Illuminate\Http\Request;
 use Illuminate\Log\Events\MessageLogged;
@@ -71,6 +72,32 @@ class MaxMiniAppAccessLoggerTest extends TestCase
         $this->assertSame('Mozilla/5.0', $log->context['user_agent']);
         $this->assertArrayNotHasKey('init_data', $log->context);
         $this->assertArrayNotHasKey('init_data_length', $log->context);
+    }
+
+    /** logMessengerChoiceClick пишет код мессенджера и не пишет адрес бота. */
+    public function test_log_messenger_choice_click_writes_messenger_code(): void
+    {
+        $captured = [];
+
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        $context = new MaxMiniAppAccessContextDto(
+            host: '127.0.0.1',
+            isTunnel: false,
+            ip: '203.0.113.8',
+            userAgent: 'Mozilla/5.0',
+        );
+
+        $this->app->make(MaxMiniAppAccessLoggerInterface::class)
+            ->logMessengerChoiceClick($context, MessengerChoice::Max);
+
+        $log = MessMaxLogTestHelper::assertSingleMessage($captured, 'Messenger choice link clicked');
+        $this->assertSame('max', $log->context['messenger']);
+        $this->assertSame('127.0.0.1', $log->context['host']);
+        $this->assertArrayNotHasKey('url', $log->context);
+        $this->assertStringNotContainsString('_bot', (string) json_encode($log->context));
     }
 
     /** logAuthRequest пишет статус без initData. */

@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.Test;
 import ru.sail.salesoutlets.domain.SalesOutlet;
 import ru.sail.salesoutlets.domain.SalesOutletNotFoundException;
@@ -175,6 +176,13 @@ class DefaultSalesOutletServiceTest {
         public SalesOutlet save(SalesOutlet salesOutlet) {
             this.saved = salesOutlet;
             return salesOutlet;
+        }
+
+        @Override
+        public SalesOutlet modify(long id, UnaryOperator<SalesOutlet> change) {
+            SalesOutlet current = findById(id).orElseThrow(() -> new SalesOutletNotFoundException(id));
+            this.saved = change.apply(current);
+            return this.saved;
         }
     }
 }

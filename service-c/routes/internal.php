@@ -12,3 +12,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/internal/messenger-choice', [InternalMessengerChoiceController::class, 'store'])
     ->middleware('messenger.choice.token');
+
+Route::post('/internal/messenger-choice/clicks', [InternalMessengerChoiceController::class, 'storeClick'])
+    ->middleware('messenger.choice.token');
