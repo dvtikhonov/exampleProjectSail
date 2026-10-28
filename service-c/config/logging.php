@@ -68,7 +68,8 @@ return [
         'max_log' => [
             'driver' => 'daily',
             'path' => storage_path('logs/max_log.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
+            // Визиты и клики пишутся уровнем info. Общий LOG_LEVEL=warning их отбрасывает.
+            'level' => env('MAX_LOG_LEVEL', 'info'),
             'days' => 30,
             'replace_placeholders' => true,
         ],
