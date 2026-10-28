@@ -8,7 +8,8 @@ import org.springframework.util.StreamUtils;
 
 /**
  * HTML сборки messenger-frontend ({@code classpath:static/messenger/index.html}).
- * В образе файл подменяется результатом Vite; в исходниках лежит та же пара ссылок для локальной сборки.
+ * В образе файл подменяется результатом Vite. Ссылки ведут на {@code /messenger/go/telegram}
+ * и {@code /messenger/go/max}; адреса ботов в страницу не входят.
  */
 public final class ClasspathMessengerChoicePage {
 

@@ -6,6 +6,7 @@ namespace App\Infrastructure\Laravel;
 
 use App\Contracts\Max\MaxMiniAppAccessLoggerInterface;
 use App\DTO\Max\MaxMiniAppAccessContextDto;
+use App\Enums\MessengerChoice;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -31,6 +32,17 @@ final class LaravelMaxMiniAppAccessLogger implements MaxMiniAppAccessLoggerInter
     public function logMessengerChoicePageRequest(MaxMiniAppAccessContextDto $context): void
     {
         $this->logger->info('Messenger choice page requested', $this->baseContext($context));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function logMessengerChoiceClick(MaxMiniAppAccessContextDto $context, MessengerChoice $choice): void
+    {
+        $this->logger->info('Messenger choice link clicked', [
+            ...$this->baseContext($context),
+            'messenger' => $choice->value,
+        ]);
     }
 
     /**

@@ -1,8 +1,8 @@
 package ru.sail.salesoutlets.application;
 
 import java.time.Clock;
+import java.time.Instant;
 import ru.sail.salesoutlets.domain.SalesOutlet;
-import ru.sail.salesoutlets.domain.SalesOutletNotFoundException;
 import ru.sail.salesoutlets.domain.auth.GatewayUserContext;
 import ru.sail.salesoutlets.domain.dto.SalesOutletIndexQueryDto;
 import ru.sail.salesoutlets.domain.dto.SalesOutletIndexResultDto;
@@ -12,7 +12,8 @@ import ru.sail.salesoutlets.domain.port.SalesOutletRepository;
 import ru.sail.salesoutlets.domain.port.SalesOutletService;
 
 /**
- * Сервисный слой торговых точек: загружает агрегат, применяет изменение и сохраняет.
+ * Сервисный слой торговых точек.
+ * Изменение агрегата выполняется правилами домена внутри одной операции {@link SalesOutletRepository#modify}.
  */
 public class DefaultSalesOutletService implements SalesOutletService {
 
@@ -40,28 +41,22 @@ public class DefaultSalesOutletService implements SalesOutletService {
 
     @Override
     public SalesOutlet updateHeadOrganization(long id, UpdateHeadOrganizationDto dto) {
-        SalesOutlet changed = require(id)
-                .apply(dto)
-                .recordChange(gatewayUserContext.currentUserId(), clock.instant());
-        return salesOutletRepository.save(changed);
+        Long userId = gatewayUserContext.currentUserId();
+        Instant changedAt = clock.instant();
+        return salesOutletRepository.modify(id, outlet -> outlet.apply(dto).recordChange(userId, changedAt));
     }
 
     @Override
     public SalesOutlet update(long id, UpdateSalesOutletDto dto) {
-        SalesOutlet changed = require(id)
-                .apply(dto)
-                .recordChange(gatewayUserContext.currentUserId(), clock.instant());
-        return salesOutletRepository.save(changed);
+        Long userId = gatewayUserContext.currentUserId();
+        Instant changedAt = clock.instant();
+        return salesOutletRepository.modify(id, outlet -> outlet.apply(dto).recordChange(userId, changedAt));
     }
 
     @Override
     public void delete(long id) {
-        SalesOutlet deleted = require(id).markDeleted(gatewayUserContext.currentUserId(), clock.instant());
-        salesOutletRepository.save(deleted);
-    }
-
-    private SalesOutlet require(long id) {
-        return salesOutletRepository.findById(id)
-                .orElseThrow(() -> new SalesOutletNotFoundException(id));
+        Long userId = gatewayUserContext.currentUserId();
+        Instant changedAt = clock.instant();
+        salesOutletRepository.modify(id, outlet -> outlet.markDeleted(userId, changedAt));
     }
 }

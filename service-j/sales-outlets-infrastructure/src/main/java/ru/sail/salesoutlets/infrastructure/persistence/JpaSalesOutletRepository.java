@@ -2,6 +2,7 @@ package ru.sail.salesoutlets.infrastructure.persistence;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
@@ -15,9 +16,9 @@ import ru.sail.salesoutlets.domain.dto.SalesOutletPaginationDto;
 import ru.sail.salesoutlets.domain.port.SalesOutletRepository;
 
 /**
- * JPA-реализация порта {@link SalesOutletRepository}: чтение и сохранение снимка агрегата.
+ * JPA-реализация порта {@link SalesOutletRepository}.
+ * Чтения идут в read-only транзакции; {@link #save} и {@link #modify} — в записывающей.
  */
-@Transactional
 public class JpaSalesOutletRepository implements SalesOutletRepository {
 
     private final SalesOutletSpringDataRepository springDataRepository;
@@ -32,11 +33,13 @@ public class JpaSalesOutletRepository implements SalesOutletRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<SalesOutlet> findById(long id) {
         return springDataRepository.findByIdAndDeletedAtIsNull(id).map(SalesOutletEntityMapper::toDomain);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public SalesOutletPaginatedResultDto paginate(SalesOutletIndexQueryDto queryDto) {
         Specification<SalesOutletJpaEntity> specification =
                 queryApplicator.toSpecification(SalesOutletFilterDto.from(queryDto));
@@ -59,11 +62,22 @@ public class JpaSalesOutletRepository implements SalesOutletRepository {
     }
 
     @Override
+    @Transactional
     public SalesOutlet save(SalesOutlet salesOutlet) {
         SalesOutletJpaEntity entity = springDataRepository.findByIdAndDeletedAtIsNull(salesOutlet.id())
                 .orElseThrow(() -> new SalesOutletNotFoundException(salesOutlet.id()));
         SalesOutletEntityMapper.copyOnto(salesOutlet, entity);
         SalesOutletJpaEntity saved = springDataRepository.save(entity);
         return SalesOutletEntityMapper.toDomain(saved);
+    }
+
+    @Override
+    @Transactional
+    public SalesOutlet modify(long id, UnaryOperator<SalesOutlet> change) {
+        SalesOutletJpaEntity entity = springDataRepository.findActiveByIdForUpdate(id)
+                .orElseThrow(() -> new SalesOutletNotFoundException(id));
+        SalesOutlet changed = change.apply(SalesOutletEntityMapper.toDomain(entity));
+        SalesOutletEntityMapper.copyOnto(changed, entity);
+        return SalesOutletEntityMapper.toDomain(springDataRepository.save(entity));
     }
 }

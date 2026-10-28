@@ -18,6 +18,8 @@ class InternalMessengerChoiceLogTest extends TestCase
 {
     private const string ENDPOINT = 'http://service-c/internal/messenger-choice';
 
+    private const string CLICK_ENDPOINT = 'http://service-c/internal/messenger-choice/clicks';
+
     private const string TOKEN = 'messenger-choice-test-token';
 
     /** @var list<MessageLogged> */
@@ -159,6 +161,90 @@ class InternalMessengerChoiceLogTest extends TestCase
         $this->assertChoiceNotLogged();
     }
 
+    /** Клик пишет messenger=telegram и не подменяет этим запись визита страницы. */
+    public function test_logs_clicked_messenger_when_token_matches(): void
+    {
+        $response = $this->postClick([
+            'host' => 'exampleprojectsail.fxtun.dev',
+            'ip' => '203.0.113.8',
+            'user_agent' => 'Mozilla/5.0',
+            'messenger' => 'telegram',
+            'url' => 'https://t.me/obedov_bot',
+        ]);
+
+        $response->assertNoContent();
+
+        $log = MessMaxLogTestHelper::assertSingleMessage($this->capturedLogs, 'Messenger choice link clicked');
+        $this->assertSame('telegram', $log->context['messenger']);
+        $this->assertSame('exampleprojectsail.fxtun.dev', $log->context['host']);
+        $this->assertTrue($log->context['is_tunnel']);
+        $this->assertSame('203.0.113.8', $log->context['ip']);
+        $this->assertArrayNotHasKey('url', $log->context);
+        $this->assertStringNotContainsString('obedov_bot', (string) json_encode($log->context));
+        $this->assertChoiceNotLogged();
+    }
+
+    /** Клик MAX пишет messenger=max. */
+    public function test_logs_max_when_messenger_is_max(): void
+    {
+        $response = $this->postClick([
+            'host' => '127.0.0.1',
+            'ip' => '203.0.113.8',
+            'user_agent' => 'Mozilla/5.0',
+            'messenger' => 'max',
+        ]);
+
+        $response->assertNoContent();
+
+        $log = MessMaxLogTestHelper::assertSingleMessage($this->capturedLogs, 'Messenger choice link clicked');
+        $this->assertSame('max', $log->context['messenger']);
+        $this->assertFalse($log->context['is_tunnel']);
+        $this->assertStringNotContainsString('id421816864057_bot', (string) json_encode($log->context));
+    }
+
+    /** Ник бота не принимается вместо кода мессенджера и не пишется в max_log. */
+    public function test_does_not_log_when_messenger_is_a_bot_name(): void
+    {
+        $response = $this->postClick([
+            'host' => '127.0.0.1',
+            'ip' => '203.0.113.8',
+            'user_agent' => 'Mozilla/5.0',
+            'messenger' => 'obedov_bot',
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['messenger']);
+        $this->assertClickNotLogged();
+        $this->assertChoiceNotLogged();
+        $this->assertStringNotContainsString('obedov_bot', (string) json_encode($this->capturedLogs));
+    }
+
+    /** Без messenger отвечает 422 и не пишет клик. */
+    public function test_does_not_log_click_when_messenger_is_missing(): void
+    {
+        $response = $this->postClick([
+            'host' => '127.0.0.1',
+            'ip' => '203.0.113.8',
+            'user_agent' => 'Mozilla/5.0',
+        ]);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['messenger']);
+        $this->assertClickNotLogged();
+    }
+
+    /** Без токена клик не пишется. */
+    public function test_does_not_log_click_when_token_header_is_missing(): void
+    {
+        $response = $this->postClick([
+            'host' => '127.0.0.1',
+            'messenger' => 'telegram',
+        ], null);
+
+        $response->assertUnauthorized();
+        $this->assertClickNotLogged();
+    }
+
     /**
      * @param  array<string, mixed>  $body
      */
@@ -173,11 +259,35 @@ class InternalMessengerChoiceLogTest extends TestCase
         return $this->withHeaders($headers)->postJson(self::ENDPOINT, $body);
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function postClick(array $body, ?string $token = self::TOKEN): TestResponse
+    {
+        $headers = [];
+
+        if ($token !== null) {
+            $headers['X-Messenger-Choice-Token'] = $token;
+        }
+
+        return $this->withHeaders($headers)->postJson(self::CLICK_ENDPOINT, $body);
+    }
+
     private function assertChoiceNotLogged(): void
     {
         $matches = array_values(array_filter(
             $this->capturedLogs,
             static fn (MessageLogged $event): bool => $event->message === 'Messenger choice page requested',
+        ));
+
+        $this->assertCount(0, $matches);
+    }
+
+    private function assertClickNotLogged(): void
+    {
+        $matches = array_values(array_filter(
+            $this->capturedLogs,
+            static fn (MessageLogged $event): bool => $event->message === 'Messenger choice link clicked',
         ));
 
         $this->assertCount(0, $matches);

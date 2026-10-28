@@ -485,6 +485,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=${SERVICE_J_DB_USERNAME:-root}
       - SPRING_DATASOURCE_PASSWORD=${SERVICE_J_DB_PASSWORD:-12345678AS}
       - MESSENGER_CHOICE_LOG_URL=http://service-c:8000/internal/messenger-choice
+      - MESSENGER_CHOICE_CLICK_LOG_URL=http://service-c:8000/internal/messenger-choice/clicks
       - MESSENGER_CHOICE_LOG_TOKEN=${MESSENGER_CHOICE_LOG_TOKEN:-}
     networks:
       - internal
