@@ -3,7 +3,7 @@
  * Экран корзины: позиции, адрес доставки, итоги, подтверждение заявки и очистки.
  *
  * Scope (см. ../components/cart/cartScope.js):
- * - header (в т.ч. адрес доставки), список позиций, fixed footer с итогами, модалки подтверждения
+ * - header (в т.ч. адрес доставки), список позиций, footer с итогами, модалки подтверждения
  *
  * Вне scope — не добавлять на этот экран:
  * - upsell «Добавить к заказу?», блок «Акции»
@@ -156,23 +156,6 @@ const isEmpty = computed(() => !props.cart || cartGroups.value.length === 0);
 
 const deliveryApplicable = computed(() => props.cart?.delivery_applicable === true);
 
-const hasDeliveryHint = computed(
-    () => deliveryApplicable.value && props.cart?.amount_to_next_tier != null,
-);
-
-/** Отступ под fixed footer: выше блок итогов при delivery_applicable и tier-hint */
-const footerBottomPaddingClass = computed(() => {
-    if (isEmpty.value || props.loading || !props.cart) {
-        return '';
-    }
-
-    if (deliveryApplicable.value) {
-        return hasDeliveryHint.value ? 'pb-56' : 'pb-48';
-    }
-
-    return 'pb-36';
-});
-
 const hasAddress = computed(() => localAddress.value.trim().length > 0);
 
 const hasDeliveryDate = computed(() => {
@@ -299,11 +282,8 @@ watch(
 
 <template>
     <div
-        class="flex flex-col bg-white"
-        :class="[
-            footerBottomPaddingClass,
-            manualOrderMode ? 'h-full min-h-0 overflow-hidden' : 'min-h-dvh',
-        ]"
+        class="flex min-h-0 flex-col overflow-hidden bg-white"
+        :class="manualOrderMode ? 'h-full' : 'h-dvh'"
     >
         <CartHeader
             :delivery-address="localAddress"
@@ -324,10 +304,7 @@ watch(
             @delivery-address-blur="handleAddressBlur"
         />
 
-        <main
-            class="px-4 py-4"
-            :class="manualOrderMode ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-1'"
-        >
+        <main class="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <div v-if="loading" class="flex items-center justify-center py-16">
                 <div class="h-8 w-8 animate-spin rounded-full border-4 border-max-primary border-t-transparent" />
             </div>

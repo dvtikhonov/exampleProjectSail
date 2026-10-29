@@ -133,6 +133,7 @@ const dishListMainClass = computed(() => (
 
 const {
     activeCategoryId,
+    activeCategoryName,
     searchQuery,
     categoryTabs,
     filteredDishes,
@@ -300,6 +301,7 @@ watch(comboBuilderOpen, (open) => {
 
             <MenuComboBuilderSheet
                 :open="comboBuilderOpen"
+                :second-category-name="activeCategoryName"
                 :combo-first-dish="comboFirstDish"
                 :combo-second-dish="comboSecondDish"
                 :combo-quantity="comboQuantity"

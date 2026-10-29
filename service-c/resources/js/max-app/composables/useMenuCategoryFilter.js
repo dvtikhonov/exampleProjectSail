@@ -1,4 +1,4 @@
-import { computed, ref, unref } from 'vue';
+import { computed, ref, unref, watch } from 'vue';
 
 /**
  * Клиентская фильтрация меню по категории и поисковому запросу.
@@ -46,21 +46,84 @@ export function useMenuCategoryFilter(menu, options = {}) {
         return categories;
     });
 
-    const categoryTabs = computed(() => [
-        { id: null, name: 'Все' },
-        ...visibleCategories.value.map((category) => ({
+    const comboBuilderActive = computed(
+        () => Boolean(options.comboBuilderOpen?.value && options.comboFirstDish?.value),
+    );
+
+    const categoryTabs = computed(() => {
+        const tabs = visibleCategories.value.map((category) => ({
             id: category.id,
             name: category.name,
-        })),
-    ]);
+        }));
+
+        if (comboBuilderActive.value) {
+            return tabs;
+        }
+
+        return [{ id: null, name: 'Все' }, ...tabs];
+    });
+
+    const activeCategoryName = computed(() => {
+        const tab = categoryTabs.value.find((item) => item.id === activeCategoryId.value);
+
+        return tab?.name ?? '';
+    });
+
+    const categoryIdBeforeCombo = ref(null);
+    const hasCategoryIdBeforeCombo = ref(false);
+
+    watch(comboBuilderActive, (comboOpen) => {
+        if (comboOpen) {
+            if (!hasCategoryIdBeforeCombo.value) {
+                categoryIdBeforeCombo.value = activeCategoryId.value;
+                hasCategoryIdBeforeCombo.value = true;
+            }
+
+            const visibleIds = visibleCategories.value.map((category) => category.id);
+
+            if (!visibleIds.includes(activeCategoryId.value) && visibleIds.length > 0) {
+                activeCategoryId.value = visibleIds[0];
+            }
+
+            return;
+        }
+
+        if (!hasCategoryIdBeforeCombo.value) {
+            return;
+        }
+
+        activeCategoryId.value = categoryIdBeforeCombo.value;
+        hasCategoryIdBeforeCombo.value = false;
+    });
+
+    const comboCompanionCategoryNamesByCategoryId = computed(() => {
+        const comboCategories = availableCategories.value.filter(
+            (category) => category.is_combo_available !== false,
+        );
+        /** @type {Map<number, string[]>} */
+        const namesByCategoryId = new Map();
+
+        for (const category of comboCategories) {
+            const names = comboCategories
+                .filter((other) => other.id !== category.id)
+                .map((other) => other.name);
+
+            namesByCategoryId.set(category.id, names);
+        }
+
+        return namesByCategoryId;
+    });
 
     const filteredDishes = computed(() => {
+        const companionCategoryNames = comboCompanionCategoryNamesByCategoryId.value;
+
         let dishes = visibleCategories.value.flatMap((category) =>
             category.dishes.map((dish) => ({
                 ...dish,
                 category_id: category.id,
                 category_name: category.name,
                 is_combo_available: category.is_combo_available !== false,
+                combo_companion_category_names: companionCategoryNames.get(category.id) ?? [],
             })),
         );
 
@@ -83,6 +146,7 @@ export function useMenuCategoryFilter(menu, options = {}) {
 
     return {
         activeCategoryId,
+        activeCategoryName,
         searchQuery,
         categoryTabs,
         filteredDishes,

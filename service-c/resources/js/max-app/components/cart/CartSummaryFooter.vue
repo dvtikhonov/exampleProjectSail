@@ -1,6 +1,7 @@
 <script setup>
 /**
- * Fixed footer корзины: итоги и кнопка оформления заявки.
+ * Нижняя панель корзины: итоги и кнопка оформления заявки.
+ * В потоке колонки CartPage (не fixed), чтобы последняя карточка не уходила под панель.
  */
 import { computed } from 'vue';
 import CartDeliveryHint from './CartDeliveryHint.vue';
@@ -63,7 +64,7 @@ const showDeliveryDateRow = computed(() => {
 </script>
 
 <template>
-    <div class="max-app-shell-bottom fixed z-20 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom">
+    <div class="shrink-0 border-t border-gray-200 bg-white px-4 py-3 safe-area-bottom">
         <div class="mb-2 space-y-1.5 text-sm">
             <template v-if="deliveryApplicable">
                 <p class="mb-1 text-base font-medium text-gray-900">Детали предзаказа</p>
