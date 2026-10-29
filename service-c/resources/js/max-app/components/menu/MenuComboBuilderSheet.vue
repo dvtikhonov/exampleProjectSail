@@ -2,10 +2,16 @@
 /**
  * Панель сборки комбо из двух блюд — сразу под шапкой меню.
  */
-defineProps({
+import { computed } from 'vue';
+
+const props = defineProps({
     open: {
         type: Boolean,
         default: false,
+    },
+    secondCategoryName: {
+        type: String,
+        default: '',
     },
     comboFirstDish: {
         type: Object,
@@ -34,6 +40,16 @@ defineProps({
 });
 
 defineEmits(['close', 'reset-second', 'change-quantity', 'add-combo']);
+
+const secondDishHint = computed(() => {
+    const categoryName = props.secondCategoryName.trim();
+
+    if (categoryName === '') {
+        return 'Выберите второе блюдо';
+    }
+
+    return `Выберите второе блюдо из ${categoryName}`;
+});
 </script>
 
 <template>
@@ -50,7 +66,7 @@ defineEmits(['close', 'reset-second', 'change-quantity', 'add-combo']);
                     Собрать блюдо
                 </h2>
                 <p class="mt-1 text-sm text-max-muted">
-                    Выберите второе блюдо из другой категории
+                    {{ secondDishHint }}
                 </p>
             </div>
             <div class="flex shrink-0 items-center gap-2">
@@ -74,21 +90,19 @@ defineEmits(['close', 'reset-second', 'change-quantity', 'add-combo']);
 
         <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div class="rounded-xl bg-gray-50 p-3">
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Блюдо 1</p>
+                <p class="break-words text-xs font-medium uppercase tracking-wide text-max-muted">
+                    {{ comboFirstDish?.category_name || '—' }}
+                </p>
                 <p class="mt-1 font-medium text-gray-900">
                     {{ comboFirstDish?.name ?? 'Не выбрано' }}
                 </p>
-                <p v-if="comboFirstDish" class="mt-0.5 text-xs text-max-muted">
-                    {{ comboFirstDish.category_name }}
-                </p>
             </div>
             <div class="rounded-xl bg-gray-50 p-3">
-                <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Блюдо 2</p>
+                <p class="break-words text-xs font-medium uppercase tracking-wide text-max-muted">
+                    {{ comboSecondDish?.category_name || '—' }}
+                </p>
                 <p class="mt-1 font-medium text-gray-900">
                     {{ comboSecondDish?.name ?? 'Не выбрано' }}
-                </p>
-                <p v-if="comboSecondDish" class="mt-0.5 text-xs text-max-muted">
-                    {{ comboSecondDish.category_name }}
                 </p>
             </div>
         </div>

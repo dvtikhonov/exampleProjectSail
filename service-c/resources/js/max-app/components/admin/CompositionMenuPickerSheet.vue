@@ -64,6 +64,7 @@ const emit = defineEmits([
 
 const {
     activeCategoryId,
+    activeCategoryName,
     searchQuery,
     categoryTabs,
     filteredDishes,
@@ -109,6 +110,7 @@ const {
 
                 <MenuComboBuilderSheet
                     :open="comboBuilderOpen"
+                    :second-category-name="activeCategoryName"
                     :combo-first-dish="comboFirstDish"
                     :combo-second-dish="comboSecondDish"
                     :combo-quantity="comboQuantity"

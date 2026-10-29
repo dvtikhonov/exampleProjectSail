@@ -54,15 +54,23 @@ const canSelectAsSecondDish = computed(() => {
     return props.comboFirstDish.id !== props.dish.id;
 });
 
+const companionCategoryNames = computed(() => {
+    const names = props.dish.combo_companion_category_names;
+
+    if (!Array.isArray(names)) {
+        return [];
+    }
+
+    return names.filter((name) => typeof name === 'string' && name.trim() !== '');
+});
+
 const showComboBuilderAction = computed(
-    () => props.dish.is_combo_available && !props.comboBuilderOpen,
+    () => props.dish.is_combo_available
+        && !props.comboBuilderOpen
+        && companionCategoryNames.value.length > 0,
 );
 
-const priceLabel = computed(() => {
-    const prefix = props.dish.is_combo_available ? 'от ' : '';
-
-    return `${prefix}${props.dish.price} ₽`;
-});
+const priceLabel = computed(() => `${props.dish.price} ₽`);
 
 function handlePriceClick() {
     if (isAdding.value || props.addingComboRef !== null) {
@@ -131,18 +139,24 @@ function handleSelectSecond() {
                 {{ priceLabel }}
             </button>
 
-            <!-- Слот фиксированной высоты: без «собрать» цена остаётся на одной линии с соседями -->
+            <!-- Слот под кнопкой цены: без сопутствующей категории цена остаётся на одной линии с соседями -->
             <button
                 v-if="!comboBuilderOpen"
                 type="button"
-                class="flex w-full items-center justify-center rounded-full border border-max-primary/40 bg-white px-2 py-1.5 text-xs font-medium text-max-primary transition hover:bg-max-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                class="flex min-h-8 w-full flex-col items-center justify-center rounded-full border border-max-primary/40 bg-white px-2 py-1.5 text-xs font-medium leading-tight text-max-primary transition hover:bg-max-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
                 :class="{ 'invisible pointer-events-none': !showComboBuilderAction }"
                 :disabled="!showComboBuilderAction || addingComboRef !== null"
                 :tabindex="showComboBuilderAction ? undefined : -1"
                 :aria-hidden="!showComboBuilderAction"
                 @click="handleStartCombo"
             >
-                собрать блюдо
+                <span
+                    v-for="(name, index) in companionCategoryNames"
+                    :key="`${index}-${name}`"
+                    class="block w-full break-words text-center"
+                >
+                    + {{ name }}
+                </span>
             </button>
         </div>
     </article>
