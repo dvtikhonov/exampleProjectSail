@@ -274,6 +274,8 @@ services:
       - ./service-c/docker/php/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       # SchedulePhoto aliases: только каталог .cursor/commands (single-file bind md часто Permission denied).
       - ./.cursor/commands:/var/www/.cursor/commands
+      # Отладочный NDJSON bot_started (debug-eb6936.log) для локального агента. В CI каталога нет — запись пропускается.
+      - ./.cursor:/home/ddd/exampleProjectSail/.cursor
       # Образ может быть старее репозитория: entrypoint должен брать chmod алиасов из репозитория.
       - ./service-c/docker-init-storage.sh:/usr/local/bin/docker-init-storage.sh:ro
       - ./shared:/var/www/shared
