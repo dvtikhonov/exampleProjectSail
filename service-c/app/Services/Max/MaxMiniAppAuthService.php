@@ -90,32 +90,18 @@ class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
      */
     private function sendRegistrationGreetingIfMissing(int $maxUserId): void
     {
-        $alreadySent = $this->greetingTracker->wasSent($maxUserId);
-        $greetingSent = false;
-        $failure = null;
-
-        if (! $alreadySent) {
-            try {
-                $this->greetingSender->sendToUser($maxUserId);
-                $this->greetingTracker->markSent($maxUserId);
-                $greetingSent = true;
-            } catch (Throwable $exception) {
-                $failure = $exception->getMessage();
-                $this->logger->error('MAX registration greeting failed', [
-                    'max_user_id' => $maxUserId,
-                    'error' => $failure,
-                ]);
-            }
+        if ($this->greetingTracker->wasSent($maxUserId)) {
+            return;
         }
 
-        // #region agent log
-        $this->logger->info('MAX registration greeting decision', [
-            'max_user_id' => $maxUserId,
-            'already_sent' => $alreadySent,
-            'greeting_sent' => $greetingSent,
-            'hypothesisId' => 'G',
-            'runId' => 'post-fix',
-        ]);
-        // #endregion
+        try {
+            $this->greetingSender->sendToUser($maxUserId);
+            $this->greetingTracker->markSent($maxUserId);
+        } catch (Throwable $exception) {
+            $this->logger->error('MAX registration greeting failed', [
+                'max_user_id' => $maxUserId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 }

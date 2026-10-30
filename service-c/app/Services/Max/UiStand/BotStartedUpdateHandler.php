@@ -36,16 +36,9 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
 
         $this->logger->info('bot_started', ['user_id' => $userId]);
 
-        $profileKeys = array_values(array_intersect(
-            array_keys($userPayload),
-            ['user_id', 'first_name', 'last_name', 'username', 'name', 'language_code'],
-        ));
-
-        $savedMaxUserId = null;
-
         if ($userId > 0) {
             $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
-            $user = $this->maxUserRepository->upsertFromMaxBotProfile(
+            $this->maxUserRepository->upsertFromMaxBotProfile(
                 maxUserId: $userId,
                 firstName: $this->resolveFirstName($userPayload),
                 lastName: $this->nullableString($userPayload['last_name'] ?? null),
@@ -53,30 +46,11 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
                 languageCode: $this->nullableString($userPayload['language_code'] ?? null),
                 defaultCustomerCategoryId: $defaultCategoryId,
             );
-            $savedMaxUserId = $user->maxUserId;
 
             $this->recipientRegistry->rememberUserId($userId);
             $this->greetingSender->sendToUser($userId);
             $this->greetingTracker->markSent($userId);
         }
-
-        // #region agent log
-        $this->logger->info('bot_started persist decision', [
-            'user_id' => $userId,
-            'repository_upsert_invoked' => $savedMaxUserId !== null,
-            'max_user_id' => $savedMaxUserId,
-            'profile_keys' => $profileKeys,
-            'hypothesisId' => 'A',
-            'runId' => 'post-fix',
-        ]);
-        $this->logger->info('bot_started finished', [
-            'user_id' => $userId,
-            'repository_upsert_invoked' => $savedMaxUserId !== null,
-            'max_user_id' => $savedMaxUserId,
-            'hypothesisId' => 'C',
-            'runId' => 'post-fix',
-        ]);
-        // #endregion
     }
 
     /**

@@ -8,9 +8,7 @@ use App\Enums\Food\Delivery\CustomerCategoryName;
 use App\Enums\MessengerChannel;
 use App\Models\Food\CustomerCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
@@ -47,11 +45,6 @@ final class MaxBotStartedWebhookTest extends TestCase
             'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
         ]);
 
-        $captured = [];
-        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
-            $captured[] = $event;
-        });
-
         $payload = [
             'update_type' => 'bot_started',
             'timestamp' => 1_579_226_679_188,
@@ -84,17 +77,5 @@ final class MaxBotStartedWebhookTest extends TestCase
                 ->where('name', CustomerCategoryName::Standard->value)
                 ->value('id'),
         ]);
-
-        $persistLogs = array_values(array_filter(
-            $captured,
-            static fn (MessageLogged $event): bool => $event->message === 'bot_started persist decision',
-        ));
-        $this->assertCount(2, $persistLogs);
-        $this->assertTrue($persistLogs[0]->context['repository_upsert_invoked'] ?? false);
-        $this->assertSame(910_127_594, $persistLogs[0]->context['max_user_id'] ?? null);
-        $this->assertSame(
-            ['user_id', 'first_name', 'last_name', 'name'],
-            $persistLogs[0]->context['profile_keys'] ?? null,
-        );
     }
 }

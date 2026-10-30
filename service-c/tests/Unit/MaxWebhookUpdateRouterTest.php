@@ -78,14 +78,6 @@ class MaxWebhookUpdateRouterTest extends TestCase
             'external_user_id' => 777,
             'first_name' => 'User',
         ]);
-
-        $persistLogs = array_values(array_filter(
-            $captured,
-            static fn (MessageLogged $event): bool => $event->message === 'bot_started persist decision',
-        ));
-        $this->assertCount(1, $persistLogs);
-        $this->assertTrue($persistLogs[0]->context['repository_upsert_invoked'] ?? false);
-        $this->assertSame(777, $persistLogs[0]->context['max_user_id'] ?? null);
     }
 
     /** message_callback регистрирует group chat_id для UI-стенда. */

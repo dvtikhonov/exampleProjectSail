@@ -99,15 +99,6 @@ class MaxAuthControllerTest extends TestCase
         ])->assertOk();
 
         Http::assertSentCount(1);
-
-        $greetingLogs = array_values(array_filter(
-            $captured,
-            static fn (MessageLogged $event): bool => $event->message === 'MAX registration greeting decision',
-        ));
-        $this->assertCount(2, $greetingLogs);
-        $this->assertTrue($greetingLogs[0]->context['greeting_sent'] ?? false);
-        $this->assertFalse($greetingLogs[1]->context['greeting_sent'] ?? true);
-        $this->assertTrue($greetingLogs[1]->context['already_sent'] ?? false);
     }
 
     /** Store возвращает 401 за невалидные initData. */
