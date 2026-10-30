@@ -57,7 +57,7 @@ class MessengerChoiceLinkTest {
     void itLogsMaxChoiceAndRedirectsToTheBot() throws Exception {
         mockMvc.perform(get("/messenger/go/max"))
                 .andExpect(status().isFound())
-                .andExpect(redirectedUrl("https://max.ru/id421816864057_bot"))
+                .andExpect(redirectedUrl("https://max.ru/id421816864057_bot?start=register"))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
 
         verify(clickLogger).logClick(new MessengerChoiceClick(

@@ -12,7 +12,13 @@ import ru.sail.messenger.port.ChosenMessenger;
 public final class MessengerBotLinks {
 
     private static final URI TELEGRAM = URI.create("https://t.me/obedov_bot");
-    private static final URI MAX = URI.create("https://max.ru/id421816864057_bot");
+
+    /**
+     * {@code ?start=} запускает диалог и шлёт {@code bot_started}.
+     * Без него клиент открывает mini-app, диалог остаётся suspended,
+     * и приветствие в чат получает {@code 403 chat.denied}.
+     */
+    private static final URI MAX = URI.create("https://max.ru/id421816864057_bot?start=register");
 
     /**
      * Адрес бота для редиректа. Аргумент — уже разобранный выбор, не строка из запроса.

@@ -22,6 +22,7 @@ class MessengerBotLinksTest {
         assertEquals("https", max.getScheme());
         assertEquals("max.ru", max.getHost());
         assertEquals("/id421816864057_bot", max.getPath());
+        assertEquals("start=register", max.getQuery());
         assertTrue(ChosenMessenger.fromCode("obedov_bot").isEmpty());
         assertTrue(ChosenMessenger.fromCode("id421816864057_bot").isEmpty());
         assertEquals(ChosenMessenger.TELEGRAM, ChosenMessenger.fromCode("telegram").orElseThrow());
