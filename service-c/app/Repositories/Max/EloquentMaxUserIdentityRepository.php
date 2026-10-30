@@ -134,6 +134,29 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function upsertFromMaxBotProfile(
+        int $maxUserId,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        return $this->upsertMessengerUser(
+            messenger: MessengerChannel::Max,
+            externalUserId: $maxUserId,
+            firstName: $firstName,
+            lastName: $lastName,
+            username: $username,
+            languageCode: $languageCode,
+            photoUrl: null,
+            defaultCustomerCategoryId: $defaultCustomerCategoryId,
+        );
+    }
+
+    /**
      * Общий upsert по каналу мессенджера и внешнему id.
      */
     private function upsertMessengerUser(

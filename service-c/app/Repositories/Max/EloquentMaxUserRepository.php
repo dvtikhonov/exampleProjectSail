@@ -14,6 +14,7 @@ use App\DTO\Max\MaxUserRecord;
 use App\DTO\Max\MaxWebAppInitDataDto;
 use App\DTO\Max\MessengerUserIdentity;
 use App\DTO\Shared\PaginatedResultDto;
+use App\DTO\Telegram\TelegramWebAppInitDataDto;
 use App\Enums\MessengerChannel;
 use DateTimeInterface;
 
@@ -81,6 +82,58 @@ class EloquentMaxUserRepository implements MaxUserRepositoryInterface
         ?int $defaultCustomerCategoryId,
     ): MaxUserRecord {
         return $this->identityRepository->upsertFromInitData($initData, $defaultCustomerCategoryId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function upsertFromTelegramInitData(
+        TelegramWebAppInitDataDto $initData,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        return $this->identityRepository->upsertFromTelegramInitData($initData, $defaultCustomerCategoryId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function upsertFromTelegramBotProfile(
+        int $telegramUserId,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        return $this->identityRepository->upsertFromTelegramBotProfile(
+            $telegramUserId,
+            $firstName,
+            $lastName,
+            $username,
+            $languageCode,
+            $defaultCustomerCategoryId,
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function upsertFromMaxBotProfile(
+        int $maxUserId,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord {
+        return $this->identityRepository->upsertFromMaxBotProfile(
+            $maxUserId,
+            $firstName,
+            $lastName,
+            $username,
+            $languageCode,
+            $defaultCustomerCategoryId,
+        );
     }
 
     /**

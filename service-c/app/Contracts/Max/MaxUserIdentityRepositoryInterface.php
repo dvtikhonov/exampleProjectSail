@@ -70,4 +70,20 @@ interface MaxUserIdentityRepositoryInterface
         ?string $languageCode,
         ?int $defaultCustomerCategoryId,
     ): MaxUserRecord;
+
+    /**
+     * Создаёт или обновляет профиль пользователя из webhook bot_started MAX.
+     *
+     * Внутренний max_user_id совпадает с user_id MAX.
+     *
+     * @param  int|null  $defaultCustomerCategoryId  категория, если у пользователя ещё нет
+     */
+    public function upsertFromMaxBotProfile(
+        int $maxUserId,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?int $defaultCustomerCategoryId,
+    ): MaxUserRecord;
 }
