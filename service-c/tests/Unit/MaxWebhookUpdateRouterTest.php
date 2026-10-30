@@ -2,22 +2,30 @@
 
 namespace Tests\Unit;
 
+use App\Enums\MessengerChannel;
 use App\Infrastructure\Laravel\LaravelMaxUiStandRecipientRegistry;
 use App\Services\Max\UiStand\MaxWebhookUpdateRouter;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
 class MaxWebhookUpdateRouterTest extends TestCase
 {
+    use RefreshDatabase;
+    use ResetsFoodDomainTables;
+
     private const TOKEN = 'secret-max-token-for-webhook-router-tests';
 
     /** Подготовка окружения перед тестом. */
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->resetFoodDomainTables();
 
         Cache::flush();
 
@@ -63,6 +71,21 @@ class MaxWebhookUpdateRouterTest extends TestCase
 
         $registry = $this->app->make(LaravelMaxUiStandRecipientRegistry::class);
         $this->assertSame([777], $registry->userIds());
+
+        $this->assertDatabaseHas('max_users', [
+            'max_user_id' => 777,
+            'messenger' => MessengerChannel::Max->value,
+            'external_user_id' => 777,
+            'first_name' => 'User',
+        ]);
+
+        $persistLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'bot_started persist decision',
+        ));
+        $this->assertCount(1, $persistLogs);
+        $this->assertTrue($persistLogs[0]->context['repository_upsert_invoked'] ?? false);
+        $this->assertSame(777, $persistLogs[0]->context['max_user_id'] ?? null);
     }
 
     /** message_callback регистрирует group chat_id для UI-стенда. */
