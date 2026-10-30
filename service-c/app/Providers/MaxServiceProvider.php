@@ -16,6 +16,7 @@ use App\Contracts\Max\MaxMiniAppAccessLoggerInterface;
 use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
 use App\Contracts\Max\MaxOrderNotificationConfigProviderInterface;
+use App\Contracts\Max\MaxRegistrationGreetingTrackerInterface;
 use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUiStandRecipientResolverInterface;
@@ -67,6 +68,7 @@ use App\Services\Max\UiStand\BotStartedUpdateHandler;
 use App\Services\Max\UiStand\MaxCallbackHandler;
 use App\Services\Max\UiStand\MaxManagerDailyMenuNotifier;
 use App\Services\Max\UiStand\MaxMenuAvailabilityNotifier;
+use App\Services\Max\UiStand\MaxRegistrationGreetingTracker;
 use App\Services\Max\UiStand\MaxUiStandGreetingSender;
 use App\Services\Max\UiStand\MaxWebhookStaleDevTunnelCleaner;
 use App\Services\Max\UiStand\MaxWebhookSubscriber;
@@ -152,6 +154,7 @@ class MaxServiceProvider extends ServiceProvider
         $this->app->bind(MaxWebhookSubscriberInterface::class, MaxWebhookSubscriber::class);
         $this->app->bind(MaxCallbackHandlerInterface::class, MaxCallbackHandler::class);
         $this->app->bind(MaxUiStandGreetingSenderInterface::class, MaxUiStandGreetingSender::class);
+        $this->app->bind(MaxRegistrationGreetingTrackerInterface::class, MaxRegistrationGreetingTracker::class);
         $this->app->bind(
             MaxUiStandRecipientRegistryInterface::class,
             LaravelMaxUiStandRecipientRegistry::class,
@@ -171,6 +174,7 @@ class MaxServiceProvider extends ServiceProvider
             MaxMenuAvailabilityNotifier::class,
             MaxManagerDailyMenuNotifier::class,
             BotStartedUpdateHandler::class,
+            MaxMiniAppAuthService::class,
             MaxMessengerNotificationSender::class,
             MaxWebhookSubscriptionClient::class,
             LaravelMaxMiniAppAccessLogger::class,

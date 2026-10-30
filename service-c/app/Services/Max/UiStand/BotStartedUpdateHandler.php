@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Max\UiStand;
 
 use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
+use App\Contracts\Max\MaxRegistrationGreetingTrackerInterface;
 use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
 use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
@@ -19,6 +20,7 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
     public function __construct(
         private readonly CustomerCategoryRepositoryInterface $customerCategoryRepository,
         private readonly MaxUserIdentityRepositoryInterface $maxUserRepository,
+        private readonly MaxRegistrationGreetingTrackerInterface $greetingTracker,
         private readonly MaxUiStandGreetingSenderInterface $greetingSender,
         private readonly MaxUiStandRecipientRegistryInterface $recipientRegistry,
         private readonly LoggerInterface $logger,
@@ -55,6 +57,7 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
 
             $this->recipientRegistry->rememberUserId($userId);
             $this->greetingSender->sendToUser($userId);
+            $this->greetingTracker->markSent($userId);
         }
 
         // #region agent log

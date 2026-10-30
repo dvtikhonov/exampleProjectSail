@@ -10,6 +10,7 @@ use App\Models\Max\MaxUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Tests\Support\MaxInitDataFixtureBuilder;
 use Tests\Support\MessMaxLogTestHelper;
@@ -27,6 +28,9 @@ class MaxAuthControllerTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
 
         config([
             'max.bot_access_token' => self::BOT_TOKEN,
@@ -80,6 +84,30 @@ class MaxAuthControllerTest extends TestCase
         $this->assertSame(200, $log->context['status']);
         $this->assertSame(67_890, $log->context['max_user_id']);
         $this->assertArrayNotHasKey('init_data', $log->context);
+
+        Http::assertSent(function ($request): bool {
+            $buttons = $request['attachments'][0]['payload']['buttons'] ?? [];
+
+            return str_contains($request->url(), 'user_id=67890')
+                && ($request['text'] ?? null) === 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".'
+                && ($buttons[0][0]['type'] ?? null) === 'open_app'
+                && ($buttons[0][0]['text'] ?? null) === 'Заказ еды';
+        });
+
+        $this->postJson('/api/max/auth', [
+            'init_data' => $initData,
+        ])->assertOk();
+
+        Http::assertSentCount(1);
+
+        $greetingLogs = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'MAX registration greeting decision',
+        ));
+        $this->assertCount(2, $greetingLogs);
+        $this->assertTrue($greetingLogs[0]->context['greeting_sent'] ?? false);
+        $this->assertFalse($greetingLogs[1]->context['greeting_sent'] ?? true);
+        $this->assertTrue($greetingLogs[1]->context['already_sent'] ?? false);
     }
 
     /** Store возвращает 401 за невалидные initData. */
@@ -159,6 +187,11 @@ class MaxAuthControllerTest extends TestCase
         ]);
 
         $this->assertSame(1, MaxUser::query()->whereKey(67_890)->first()?->tokens()->count());
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'user_id=67890')
+                && ($request['text'] ?? null) === 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".';
+        });
     }
 
     /** Повторная аутентификация не перезаписывает существующую категорию клиента. */

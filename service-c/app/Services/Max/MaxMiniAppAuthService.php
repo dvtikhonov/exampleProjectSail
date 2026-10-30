@@ -8,12 +8,16 @@ use App\Contracts\Food\Delivery\CustomerCategoryRepositoryInterface;
 use App\Contracts\Food\Order\FoodOrderAdminRepositoryInterface;
 use App\Contracts\Max\MaxMiniAppAuthServiceInterface;
 use App\Contracts\Max\MaxMiniAppTokenIssuerInterface;
+use App\Contracts\Max\MaxRegistrationGreetingTrackerInterface;
+use App\Contracts\Max\MaxUiStandGreetingSenderInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Shared\ApplicationConfigInterface;
 use App\Contracts\Shared\ClockInterface;
 use App\DTO\Max\MaxWebAppInitDataDto;
 use App\Enums\Food\Review\FoodOrderAdminRole;
 use DateInterval;
+use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Аутентификация пользователя MAX mini-app и выдача Sanctum-токена.
@@ -30,7 +34,10 @@ class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
         private readonly FoodOrderAdminRepositoryInterface $foodOrderAdminRepository,
         private readonly MaxUserIdentityRepositoryInterface $maxUserRepository,
         private readonly MaxMiniAppTokenIssuerInterface $tokenIssuer,
+        private readonly MaxRegistrationGreetingTrackerInterface $greetingTracker,
+        private readonly MaxUiStandGreetingSenderInterface $greetingSender,
         private readonly ClockInterface $clock,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
@@ -60,6 +67,8 @@ class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
             $this->foodOrderAdminRepository->getActiveRoles($maxUser->maxUserId),
         );
 
+        $this->sendRegistrationGreetingIfMissing($initData->maxUserId);
+
         return [
             'token' => $plainTextToken,
             'token_type' => 'Bearer',
@@ -74,5 +83,39 @@ class MaxMiniAppAuthService implements MaxMiniAppAuthServiceInterface
                 'admin_roles' => $adminRoles,
             ],
         ];
+    }
+
+    /**
+     * Шлёт «Привет…» с кнопкой mini-app, если bot_started этого ещё не сделал.
+     */
+    private function sendRegistrationGreetingIfMissing(int $maxUserId): void
+    {
+        $alreadySent = $this->greetingTracker->wasSent($maxUserId);
+        $greetingSent = false;
+        $failure = null;
+
+        if (! $alreadySent) {
+            try {
+                $this->greetingSender->sendToUser($maxUserId);
+                $this->greetingTracker->markSent($maxUserId);
+                $greetingSent = true;
+            } catch (Throwable $exception) {
+                $failure = $exception->getMessage();
+                $this->logger->error('MAX registration greeting failed', [
+                    'max_user_id' => $maxUserId,
+                    'error' => $failure,
+                ]);
+            }
+        }
+
+        // #region agent log
+        $this->logger->info('MAX registration greeting decision', [
+            'max_user_id' => $maxUserId,
+            'already_sent' => $alreadySent,
+            'greeting_sent' => $greetingSent,
+            'hypothesisId' => 'G',
+            'runId' => 'post-fix',
+        ]);
+        // #endregion
     }
 }
