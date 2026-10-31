@@ -179,21 +179,6 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
 
         if (! $maxUser->exists) {
             $conflicting = MaxUser::query()->find($internalMaxUserId);
-            // #region agent log
-            $this->agentDebugLog('A', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'firstOrNew miss before insert', [
-                'hypothesisId' => 'A',
-                'internalMaxUserId' => $internalMaxUserId,
-                'messenger' => $messenger->value,
-                'externalUserId' => $externalUserId,
-                'conflictingFound' => $conflicting !== null,
-                'conflictingMessenger' => $conflicting === null
-                    ? null
-                    : ($conflicting->messenger instanceof MessengerChannel
-                        ? $conflicting->messenger->value
-                        : (string) $conflicting->messenger),
-                'conflictingExternalUserId' => $conflicting?->external_user_id,
-            ]);
-            // #endregion
             if ($conflicting !== null && $conflicting->messenger !== $messenger) {
                 throw new RuntimeException(
                     "Anomaly: max_user_id={$internalMaxUserId} already occupied by messenger={$conflicting->messenger->value}.",
@@ -207,14 +192,6 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
                 $maxUser->messenger = $messenger;
                 $maxUser->external_user_id = $externalUserId;
             }
-        } else {
-            // #region agent log
-            $this->agentDebugLog('B', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'firstOrNew hit existing row', [
-                'hypothesisId' => 'B',
-                'internalMaxUserId' => $internalMaxUserId,
-                'existingPk' => (int) $maxUser->max_user_id,
-            ]);
-            // #endregion
         }
 
         $this->fillMessengerProfile(
@@ -230,13 +207,6 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
         try {
             $maxUser->save();
         } catch (UniqueConstraintViolationException $exception) {
-            // #region agent log
-            $this->agentDebugLog('A', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'duplicate primary key on save', [
-                'hypothesisId' => 'A',
-                'internalMaxUserId' => $internalMaxUserId,
-                'modelExistsFlag' => $maxUser->exists,
-            ]);
-            // #endregion
             $reloaded = $this->findExistingMessengerUser($messenger, $externalUserId, $internalMaxUserId);
             if ($reloaded === null) {
                 throw $exception;
@@ -259,13 +229,6 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
                 $defaultCustomerCategoryId,
             );
             $maxUser->save();
-            // #region agent log
-            $this->agentDebugLog('A', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'duplicate recovered by update', [
-                'hypothesisId' => 'A',
-                'internalMaxUserId' => $internalMaxUserId,
-                'recovered' => true,
-            ]);
-            // #endregion
         }
 
         return $this->mapper->toRecord($maxUser);
@@ -314,39 +277,5 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
         }
 
         return MaxUser::query()->find($internalMaxUserId);
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data): void
-    {
-        // #region agent log
-        $payload = json_encode([
-            'sessionId' => 'ff9c5e',
-            'runId' => 'pre-fix',
-            'hypothesisId' => $hypothesisId,
-            'location' => $location,
-            'message' => $message,
-            'data' => $data,
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_UNICODE);
-        if ($payload === false) {
-            return;
-        }
-        $line = $payload."\n";
-        foreach ([
-            '/home/ddd/exampleProjectSail/.cursor/debug-ff9c5e.log',
-            '/var/www/html/storage/logs/debug-ff9c5e.log',
-            '/home/ddd/exampleProjectSail/service-c/storage/logs/debug-ff9c5e.log',
-        ] as $path) {
-            $fh = @fopen($path, 'ab');
-            if ($fh === false) {
-                continue;
-            }
-            fwrite($fh, $line);
-            fclose($fh);
-        }
-        // #endregion
     }
 }
