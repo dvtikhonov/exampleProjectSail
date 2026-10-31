@@ -55,7 +55,7 @@ final class TelegramBotStartService implements TelegramBotStartServiceInterface
 
         $text = (string) $this->config->get(
             'telegram.ui_stand.greeting_text',
-            'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
+            'Привет! Нужно нажать на кнопку "Заказ еды" или "Открыть".',
         );
 
         $this->notificationSender->send(

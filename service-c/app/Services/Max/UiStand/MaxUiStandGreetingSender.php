@@ -68,7 +68,7 @@ class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
         $buttonRows = $this->buildButtonRows();
         $text = (string) $this->config->get(
             'max.ui_stand.greeting_text',
-            'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".',
+            'Привет! Нужно нажать на кнопку "Заказ еды" или "Открыть".',
         );
 
         $successCount = 0;

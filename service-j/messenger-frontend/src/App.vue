@@ -1,10 +1,15 @@
+<script setup>
+import backgroundUrl from './assets/cafe-obedov.jpg';
+</script>
+
 <template>
-  <main class="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-slate-100">
-    <section class="w-full max-w-md">
-      <h1 class="mb-8 text-center text-xl font-semibold tracking-tight text-slate-100">
-        Выберите мессенджер
-      </h1>
-      <div class="flex flex-col gap-4">
+  <main
+    class="min-h-screen bg-slate-950 bg-cover bg-center bg-no-repeat"
+    :style="{ backgroundImage: `url(${backgroundUrl})` }"
+  >
+    <section class="flex min-h-screen w-full items-center justify-center bg-black/50 px-4 py-12 text-slate-100">
+      <div class="w-full max-w-md">
+        <div class="flex flex-col gap-4">
         <a
           href="/messenger/go/telegram"
           class="flex items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
@@ -64,6 +69,7 @@
           </svg>
           <span class="text-lg font-medium text-slate-100">MAX</span>
         </a>
+        </div>
       </div>
     </section>
   </main>
