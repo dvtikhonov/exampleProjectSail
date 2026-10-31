@@ -11,6 +11,7 @@ use App\DTO\Max\MessengerUserIdentity;
 use App\DTO\Telegram\TelegramWebAppInitDataDto;
 use App\Enums\MessengerChannel;
 use App\Models\Max\MaxUser;
+use Illuminate\Database\UniqueConstraintViolationException;
 use RuntimeException;
 
 /**
@@ -226,7 +227,7 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
 
         try {
             $maxUser->save();
-        } catch (\Illuminate\Database\UniqueConstraintViolationException $exception) {
+        } catch (UniqueConstraintViolationException $exception) {
             // #region agent log
             $this->agentDebugLog('A', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'duplicate primary key on save', [
                 'hypothesisId' => 'A',
