@@ -4,7 +4,7 @@ import backgroundUrl from './assets/cafe-obedov.jpg';
 
 <template>
   <main
-    class="min-h-screen bg-slate-950 bg-cover bg-center bg-no-repeat"
+    class="min-h-screen bg-slate-950 bg-[length:33.333%_auto] bg-repeat"
     :style="{ backgroundImage: `url(${backgroundUrl})` }"
   >
     <section class="flex min-h-screen w-full items-center justify-center bg-black/50 px-4 py-12 text-slate-100">

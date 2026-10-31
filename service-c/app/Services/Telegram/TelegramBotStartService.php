@@ -58,6 +58,36 @@ final class TelegramBotStartService implements TelegramBotStartServiceInterface
             'Привет! Нужно нажать на кнопку "Заказ еды" или "Открыть".',
         );
 
+        // #region agent log
+        $expectedInternalId = 1_000_000_000_000_000 + $telegramUserId;
+        try {
+            $payload = [
+                'sessionId' => '87a53d',
+                'runId' => 'pre-fix',
+                'hypothesisId' => 'H4',
+                'location' => 'TelegramBotStartService.php',
+                'message' => 'greeting send about to start',
+                'data' => [
+                    'telegram_user_id' => $telegramUserId,
+                    'max_user_id' => $user->maxUserId,
+                    'expected_internal_id' => $expectedInternalId,
+                    'ids_match_offset' => $user->maxUserId === $expectedInternalId,
+                    'chat_id' => $chatId,
+                    'chat_id_equals_telegram_user' => $chatId === $telegramUserId,
+                    'button_rows' => count($this->buildMiniAppButtonRows()),
+                    'text_length' => strlen($text),
+                ],
+                'timestamp' => (int) round(microtime(true) * 1000),
+            ];
+            $line = json_encode($payload, JSON_UNESCAPED_UNICODE);
+            if (is_string($line)) {
+                @file_put_contents('/home/ddd/exampleProjectSail/.cursor/debug-87a53d.log', $line."\n", FILE_APPEND);
+            }
+            $this->logger->info('telegram_connect_probe', $payload);
+        } catch (\Throwable) {
+        }
+        // #endregion
+
         $this->notificationSender->send(
             text: $text,
             chatId: $chatId,

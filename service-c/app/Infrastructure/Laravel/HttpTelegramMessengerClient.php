@@ -9,6 +9,8 @@ use App\Contracts\Shared\HttpClientInterface;
 use App\Contracts\Telegram\TelegramMessengerClientInterface;
 use App\DTO\Telegram\TelegramInlineKeyboardButtonDto;
 use App\Exceptions\Telegram\TelegramMessengerRequestException;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * HTTP-клиент Telegram Bot API: POST /bot{token}/sendMessage.
@@ -45,6 +47,36 @@ final class HttpTelegramMessengerClient implements TelegramMessengerClientInterf
                 'inline_keyboard' => $this->mapInlineKeyboard($buttonRows),
             ];
         }
+
+        // #region agent log
+        $v4 = [];
+        $v6 = [];
+        try {
+            $aRecords = dns_get_record('api.telegram.org', DNS_A);
+            $aaaaRecords = dns_get_record('api.telegram.org', DNS_AAAA);
+            if (is_array($aRecords)) {
+                foreach ($aRecords as $record) {
+                    if (isset($record['ip']) && is_string($record['ip'])) {
+                        $v4[] = $record['ip'];
+                    }
+                }
+            }
+            if (is_array($aaaaRecords)) {
+                foreach ($aaaaRecords as $record) {
+                    if (isset($record['ipv6']) && is_string($record['ipv6'])) {
+                        $v6[] = $record['ipv6'];
+                    }
+                }
+            }
+        } catch (Throwable) {
+        }
+        $this->agentDebugLog('H3', 'HttpTelegramMessengerClient.php', 'telegram dns before sendMessage', [
+            'chat_id' => $chatId,
+            'v4' => $v4,
+            'v6' => $v6,
+            'timeout_seconds' => self::REQUEST_TIMEOUT_SECONDS,
+        ]);
+        // #endregion
 
         $response = $this->http->request(
             method: 'POST',
@@ -116,6 +148,32 @@ final class HttpTelegramMessengerClient implements TelegramMessengerClientInterf
         }
 
         throw new TelegramMessengerRequestException($description);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data): void
+    {
+        // #region agent log
+        try {
+            $payload = [
+                'sessionId' => '87a53d',
+                'runId' => 'pre-fix',
+                'hypothesisId' => $hypothesisId,
+                'location' => $location,
+                'message' => $message,
+                'data' => $data,
+                'timestamp' => (int) round(microtime(true) * 1000),
+            ];
+            $line = json_encode($payload, JSON_UNESCAPED_UNICODE);
+            if (is_string($line)) {
+                @file_put_contents('/home/ddd/exampleProjectSail/.cursor/debug-87a53d.log', $line."\n", FILE_APPEND);
+            }
+            Log::info('telegram_connect_probe', $payload);
+        } catch (Throwable) {
+        }
+        // #endregion
     }
 
     /**
