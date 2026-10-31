@@ -70,7 +70,40 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
 
             $this->recipientRegistry->rememberUserId($userId);
             $sent = false;
-            if (! $wasSent) {
+            if ($chatId > 0) {
+                $claimed = $this->greetingTracker->claimChatDelivery($chatId);
+                if ($claimed) {
+                    try {
+                        $this->greetingSender->sendToChat($chatId);
+                        $this->greetingTracker->markSent($userId);
+                        $sent = true;
+                    } catch (Throwable $exception) {
+                        $this->greetingTracker->releaseChatDelivery($chatId);
+                        $this->logger->info('bot_started greeting', [
+                            'user_id' => $userId,
+                            'was_sent' => $wasSent,
+                            'sent' => false,
+                        ]);
+
+                        throw $exception;
+                    }
+                }
+
+                // #region agent log
+                $this->logger->info('bot_started greeting chat send', [
+                    'user_id' => $userId,
+                    'chat_id' => $chatId,
+                    'claimed' => $claimed,
+                    'sent' => $sent,
+                ]);
+                $this->agentDebugLog('D', 'BotStartedUpdateHandler.php:handle', 'greeting chat send', [
+                    'userId' => $userId,
+                    'chatId' => $chatId,
+                    'claimed' => $claimed,
+                    'sent' => $sent,
+                ], 'post-fix');
+                // #endregion
+            } elseif (! $wasSent) {
                 $this->greetingTracker->markSent($userId);
                 try {
                     // #region agent log
@@ -160,12 +193,12 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
     /**
      * @param  array<string, mixed>  $data
      */
-    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data): void
+    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data, string $runId = 'pre-fix'): void
     {
         // #region agent log
         $payload = json_encode([
             'sessionId' => 'eca1cc',
-            'runId' => 'pre-fix',
+            'runId' => $runId,
             'hypothesisId' => $hypothesisId,
             'location' => $location,
             'message' => $message,

@@ -50,6 +50,14 @@ class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
     }
 
     /**
+     * Отправляет приветствие в диалог chat_id из события bot_started.
+     */
+    public function sendToChat(int $chatId): void
+    {
+        $this->sendToRecipients([$chatId], []);
+    }
+
+    /**
      * Отправляет приветствие UI-стенда получателям.
      *
      * @param  list<int>  $chatIds

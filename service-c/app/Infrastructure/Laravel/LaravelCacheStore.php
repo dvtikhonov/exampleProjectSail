@@ -51,9 +51,13 @@ class LaravelCacheStore implements CacheStoreInterface
     /**
      * {@inheritDoc}
      */
-    public function add(string $key, mixed $value): bool
+    public function add(string $key, mixed $value, ?int $ttlSeconds = null): bool
     {
-        return $this->cache->add($key, $value);
+        if ($ttlSeconds === null) {
+            return $this->cache->add($key, $value);
+        }
+
+        return $this->cache->add($key, $value, $ttlSeconds);
     }
 
     /**

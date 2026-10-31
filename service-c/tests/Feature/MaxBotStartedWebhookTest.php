@@ -42,9 +42,9 @@ final class MaxBotStartedWebhookTest extends TestCase
     /** bot_started с профилем создаёт одну строку max_users и отвечает 200. */
     public function test_bot_started_upserts_max_user_from_profile(): void
     {
-        $markedDuringSend = false;
-        Http::fake(function () use (&$markedDuringSend) {
-            $markedDuringSend = Cache::get('max.registration_greeting.sent.v2.910127594') === true;
+        $claimedDuringSend = false;
+        Http::fake(function () use (&$claimedDuringSend) {
+            $claimedDuringSend = Cache::get('max.registration_greeting.chat.1234567890') === true;
 
             return Http::response(['message' => ['id' => 1]], 200);
         });
@@ -70,7 +70,11 @@ final class MaxBotStartedWebhookTest extends TestCase
         ])->assertOk();
 
         Http::assertSentCount(1);
-        $this->assertTrue($markedDuringSend);
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'chat_id=1234567890')
+                && ! str_contains($request->url(), 'user_id=');
+        });
+        $this->assertTrue($claimedDuringSend);
 
         $this->assertDatabaseCount('max_users', 1);
         $this->assertDatabaseHas('max_users', [
@@ -86,7 +90,7 @@ final class MaxBotStartedWebhookTest extends TestCase
         ]);
     }
 
-    /** Старый ключ кэша не блокирует приветствие с кнопкой. */
+    /** Бессрочные ключи user_id не блокируют приветствие в chat_id диалога. */
     public function test_bot_started_sends_greeting_when_legacy_cache_flag_is_set(): void
     {
         Http::fake([
@@ -94,6 +98,7 @@ final class MaxBotStartedWebhookTest extends TestCase
         ]);
 
         Cache::forever('max.registration_greeting.sent.910127594', true);
+        Cache::forever('max.registration_greeting.sent.v2.910127594', true);
 
         $this->postJson('/api/webhooks/max', [
             'update_type' => 'bot_started',
@@ -108,6 +113,9 @@ final class MaxBotStartedWebhookTest extends TestCase
         ])->assertOk();
 
         Http::assertSentCount(1);
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), 'chat_id=1234567890');
+        });
         $this->assertTrue(Cache::get('max.registration_greeting.sent.v2.910127594') === true);
     }
 }

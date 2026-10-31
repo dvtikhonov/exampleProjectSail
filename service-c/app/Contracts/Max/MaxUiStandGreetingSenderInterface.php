@@ -20,4 +20,9 @@ interface MaxUiStandGreetingSenderInterface
      * Отправляет приветствие одному пользователю MAX.
      */
     public function sendToUser(int $userId): void;
+
+    /**
+     * Отправляет приветствие в диалог chat_id из события bot_started.
+     */
+    public function sendToChat(int $chatId): void;
 }

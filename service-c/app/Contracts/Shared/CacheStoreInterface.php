@@ -31,8 +31,10 @@ interface CacheStoreInterface
 
     /**
      * Сохраняет значение только если ключ ещё отсутствует (set-if-absent).
+     *
+     * @param  int|null  $ttlSeconds  TTL в секундах; null — поведение хранилища по умолчанию.
      */
-    public function add(string $key, mixed $value): bool;
+    public function add(string $key, mixed $value, ?int $ttlSeconds = null): bool;
 
     /**
      * Атомарно увеличивает числовое значение по ключу.
