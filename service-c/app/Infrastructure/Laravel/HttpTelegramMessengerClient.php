@@ -9,6 +9,7 @@ use App\Contracts\Shared\HttpClientInterface;
 use App\Contracts\Telegram\TelegramMessengerClientInterface;
 use App\DTO\Telegram\TelegramInlineKeyboardButtonDto;
 use App\Exceptions\Telegram\TelegramMessengerRequestException;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -253,7 +254,7 @@ final class HttpTelegramMessengerClient implements TelegramMessengerClientInterf
         $current = $exception;
 
         while ($current !== null) {
-            if ($current instanceof \GuzzleHttp\Exception\RequestException) {
+            if ($current instanceof RequestException) {
                 $context = $current->getHandlerContext();
 
                 if (isset($context['errno'])) {
