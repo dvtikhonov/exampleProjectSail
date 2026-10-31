@@ -36,6 +36,33 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
 
         $this->logger->info('bot_started', ['user_id' => $userId]);
 
+        $wasSent = $userId > 0 && $this->greetingTracker->wasSent($userId);
+
+        // #region agent log
+        $agentLine = json_encode([
+            'sessionId' => 'a0ff56',
+            'runId' => 'post-fix',
+            'hypothesisId' => 'A',
+            'location' => 'BotStartedUpdateHandler.php:handle',
+            'message' => 'bot_started greeting decision',
+            'data' => [
+                'userId' => $userId,
+                'wasSent' => $wasSent,
+                'willSend' => $userId > 0 && ! $wasSent,
+                'payloadTimestamp' => $payload['timestamp'] ?? null,
+            ],
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ], JSON_UNESCAPED_UNICODE);
+        if (is_string($agentLine)) {
+            foreach ([
+                '/home/ddd/exampleProjectSail/.cursor/debug-a0ff56.log',
+                '/var/www/html/storage/logs/debug-a0ff56.log',
+            ] as $agentLogPath) {
+                @file_put_contents($agentLogPath, $agentLine."\n", FILE_APPEND);
+            }
+        }
+        // #endregion
+
         if ($userId > 0) {
             $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
             $this->maxUserRepository->upsertFromMaxBotProfile(
@@ -48,8 +75,10 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
             );
 
             $this->recipientRegistry->rememberUserId($userId);
-            $this->greetingSender->sendToUser($userId);
-            $this->greetingTracker->markSent($userId);
+            if (! $wasSent) {
+                $this->greetingSender->sendToUser($userId);
+                $this->greetingTracker->markSent($userId);
+            }
         }
     }
 

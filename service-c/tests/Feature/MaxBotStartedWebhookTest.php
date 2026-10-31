@@ -65,6 +65,8 @@ final class MaxBotStartedWebhookTest extends TestCase
             'X-Max-Bot-Api-Secret' => self::SECRET,
         ])->assertOk();
 
+        Http::assertSentCount(1);
+
         $this->assertDatabaseCount('max_users', 1);
         $this->assertDatabaseHas('max_users', [
             'max_user_id' => 910_127_594,

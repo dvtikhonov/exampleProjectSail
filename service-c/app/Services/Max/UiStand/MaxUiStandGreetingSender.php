@@ -46,6 +46,28 @@ class MaxUiStandGreetingSender implements MaxUiStandGreetingSenderInterface
      */
     public function sendToUser(int $userId): void
     {
+        // #region agent log
+        $agentLine = json_encode([
+            'sessionId' => 'a0ff56',
+            'runId' => 'post-fix',
+            'hypothesisId' => 'D',
+            'location' => 'MaxUiStandGreetingSender.php:sendToUser',
+            'message' => 'greeting sendToUser invoked',
+            'data' => [
+                'userId' => $userId,
+            ],
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ], JSON_UNESCAPED_UNICODE);
+        if (is_string($agentLine)) {
+            foreach ([
+                '/home/ddd/exampleProjectSail/.cursor/debug-a0ff56.log',
+                '/var/www/html/storage/logs/debug-a0ff56.log',
+            ] as $agentLogPath) {
+                @file_put_contents($agentLogPath, $agentLine."\n", FILE_APPEND);
+            }
+        }
+        // #endregion
+
         $this->sendToRecipients([], [$userId]);
     }
 
