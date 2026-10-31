@@ -44,7 +44,7 @@ final class MaxBotStartedWebhookTest extends TestCase
     {
         $markedDuringSend = false;
         Http::fake(function () use (&$markedDuringSend) {
-            $markedDuringSend = Cache::get('max.registration_greeting.sent.910127594') === true;
+            $markedDuringSend = Cache::get('max.registration_greeting.sent.v2.910127594') === true;
 
             return Http::response(['message' => ['id' => 1]], 200);
         });
@@ -84,5 +84,30 @@ final class MaxBotStartedWebhookTest extends TestCase
                 ->where('name', CustomerCategoryName::Standard->value)
                 ->value('id'),
         ]);
+    }
+
+    /** Старый ключ кэша не блокирует приветствие с кнопкой. */
+    public function test_bot_started_sends_greeting_when_legacy_cache_flag_is_set(): void
+    {
+        Http::fake([
+            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
+        ]);
+
+        Cache::forever('max.registration_greeting.sent.910127594', true);
+
+        $this->postJson('/api/webhooks/max', [
+            'update_type' => 'bot_started',
+            'timestamp' => 1_579_226_679_188,
+            'chat_id' => 1_234_567_890,
+            'user' => [
+                'user_id' => 910_127_594,
+                'first_name' => 'Иван',
+            ],
+        ], [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ])->assertOk();
+
+        Http::assertSentCount(1);
+        $this->assertTrue(Cache::get('max.registration_greeting.sent.v2.910127594') === true);
     }
 }

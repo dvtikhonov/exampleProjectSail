@@ -200,9 +200,13 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
                 );
             }
 
-            $maxUser->max_user_id = $internalMaxUserId;
-            $maxUser->messenger = $messenger;
-            $maxUser->external_user_id = $externalUserId;
+            if ($conflicting !== null) {
+                $maxUser = $conflicting;
+            } else {
+                $maxUser->max_user_id = $internalMaxUserId;
+                $maxUser->messenger = $messenger;
+                $maxUser->external_user_id = $externalUserId;
+            }
         } else {
             // #region agent log
             $this->agentDebugLog('B', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'firstOrNew hit existing row', [
@@ -213,17 +217,15 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
             // #endregion
         }
 
-        $maxUser->fill([
-            'first_name' => $firstName,
-            'last_name' => $lastName,
-            'username' => $username,
-            'language_code' => $languageCode,
-            'photo_url' => $photoUrl,
-        ]);
-
-        if ($maxUser->customer_category_id === null && $defaultCustomerCategoryId !== null) {
-            $maxUser->customer_category_id = $defaultCustomerCategoryId;
-        }
+        $this->fillMessengerProfile(
+            $maxUser,
+            $firstName,
+            $lastName,
+            $username,
+            $languageCode,
+            $photoUrl,
+            $defaultCustomerCategoryId,
+        );
 
         try {
             $maxUser->save();
@@ -235,10 +237,83 @@ class EloquentMaxUserIdentityRepository implements MaxUserIdentityRepositoryInte
                 'modelExistsFlag' => $maxUser->exists,
             ]);
             // #endregion
-            throw $exception;
+            $reloaded = $this->findExistingMessengerUser($messenger, $externalUserId, $internalMaxUserId);
+            if ($reloaded === null) {
+                throw $exception;
+            }
+
+            if ($reloaded->messenger !== $messenger) {
+                throw new RuntimeException(
+                    "Anomaly: max_user_id={$internalMaxUserId} already occupied by messenger={$reloaded->messenger->value}.",
+                );
+            }
+
+            $maxUser = $reloaded;
+            $this->fillMessengerProfile(
+                $maxUser,
+                $firstName,
+                $lastName,
+                $username,
+                $languageCode,
+                $photoUrl,
+                $defaultCustomerCategoryId,
+            );
+            $maxUser->save();
+            // #region agent log
+            $this->agentDebugLog('A', 'EloquentMaxUserIdentityRepository.php:upsertMessengerUser', 'duplicate recovered by update', [
+                'hypothesisId' => 'A',
+                'internalMaxUserId' => $internalMaxUserId,
+                'recovered' => true,
+            ]);
+            // #endregion
         }
 
         return $this->mapper->toRecord($maxUser);
+    }
+
+    /**
+     * Заполняет профиль и категорию по умолчанию, не затирая уже выбранную категорию.
+     */
+    private function fillMessengerProfile(
+        MaxUser $maxUser,
+        string $firstName,
+        ?string $lastName,
+        ?string $username,
+        ?string $languageCode,
+        ?string $photoUrl,
+        ?int $defaultCustomerCategoryId,
+    ): void {
+        $maxUser->fill([
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'username' => $username,
+            'language_code' => $languageCode,
+            'photo_url' => $photoUrl,
+        ]);
+
+        if ($maxUser->customer_category_id === null && $defaultCustomerCategoryId !== null) {
+            $maxUser->customer_category_id = $defaultCustomerCategoryId;
+        }
+    }
+
+    /**
+     * Ищет строку, которую параллельный bot_started уже успел вставить.
+     */
+    private function findExistingMessengerUser(
+        MessengerChannel $messenger,
+        int $externalUserId,
+        int $internalMaxUserId,
+    ): ?MaxUser {
+        $byExternalId = MaxUser::query()
+            ->where('messenger', $messenger->value)
+            ->where('external_user_id', $externalUserId)
+            ->first();
+
+        if ($byExternalId !== null) {
+            return $byExternalId;
+        }
+
+        return MaxUser::query()->find($internalMaxUserId);
     }
 
     /**

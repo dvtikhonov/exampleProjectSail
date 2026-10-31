@@ -12,7 +12,10 @@ use App\Contracts\Shared\CacheStoreInterface;
  */
 final class MaxRegistrationGreetingTracker implements MaxRegistrationGreetingTrackerInterface
 {
-    private const string KEY_PREFIX = 'max.registration_greeting.sent.';
+    /**
+     * v2: старый ключ без версии оставался true после сбоя доставки и блокировал кнопку.
+     */
+    private const string KEY_PREFIX = 'max.registration_greeting.sent.v2.';
 
     public function __construct(
         private readonly CacheStoreInterface $cache,
