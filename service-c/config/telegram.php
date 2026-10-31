@@ -5,9 +5,6 @@ declare(strict_types=1);
 return [
     'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
 
-    /** Временная диагностика connect к api.telegram.org (сессия отладки). */
-    'debug_connect' => filter_var(env('TELEGRAM_DEBUG_CONNECT', true), FILTER_VALIDATE_BOOL),
-
     /** Username бота без @ — для url-кнопок с startapp (Main Mini App). */
     'bot_username' => env('TELEGRAM_BOT_USERNAME', 'obedov_bot'),
 
