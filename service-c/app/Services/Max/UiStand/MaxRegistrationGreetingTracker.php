@@ -27,7 +27,19 @@ final class MaxRegistrationGreetingTracker implements MaxRegistrationGreetingTra
             return false;
         }
 
-        return $this->cache->get($this->key($userId)) === true;
+        $raw = $this->cache->get($this->key($userId));
+        $result = $raw === true;
+        // #region agent log
+        $this->agentDebugLog('E', 'MaxRegistrationGreetingTracker.php:wasSent', 'raw greeting cache value', [
+            'hypothesisId' => 'E',
+            'userId' => $userId,
+            'rawType' => get_debug_type($raw),
+            'rawIsTrue' => $raw === true,
+            'result' => $result,
+        ]);
+        // #endregion
+
+        return $result;
     }
 
     /**
@@ -60,5 +72,39 @@ final class MaxRegistrationGreetingTracker implements MaxRegistrationGreetingTra
     private function key(int $userId): string
     {
         return self::KEY_PREFIX.$userId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data): void
+    {
+        // #region agent log
+        $payload = json_encode([
+            'sessionId' => 'ff9c5e',
+            'runId' => 'pre-fix',
+            'hypothesisId' => $hypothesisId,
+            'location' => $location,
+            'message' => $message,
+            'data' => $data,
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ], JSON_UNESCAPED_UNICODE);
+        if ($payload === false) {
+            return;
+        }
+        $line = $payload."\n";
+        foreach ([
+            '/home/ddd/exampleProjectSail/.cursor/debug-ff9c5e.log',
+            '/var/www/html/storage/logs/debug-ff9c5e.log',
+            '/home/ddd/exampleProjectSail/service-c/storage/logs/debug-ff9c5e.log',
+        ] as $path) {
+            $fh = @fopen($path, 'ab');
+            if ($fh === false) {
+                continue;
+            }
+            fwrite($fh, $line);
+            fclose($fh);
+        }
+        // #endregion
     }
 }

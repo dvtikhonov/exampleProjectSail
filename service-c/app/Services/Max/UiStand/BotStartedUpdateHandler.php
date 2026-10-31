@@ -38,6 +38,13 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
         $this->logger->info('bot_started', ['user_id' => $userId]);
 
         $wasSent = $userId > 0 && $this->greetingTracker->wasSent($userId);
+        // #region agent log
+        $this->agentDebugLog('C', 'BotStartedUpdateHandler.php:handle', 'greeting flag before upsert', [
+            'hypothesisId' => 'C',
+            'userId' => $userId,
+            'wasSent' => $wasSent,
+        ]);
+        // #endregion
 
         if ($userId > 0) {
             $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
@@ -52,13 +59,35 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
 
             $this->recipientRegistry->rememberUserId($userId);
             $sent = false;
+            // #region agent log
+            $this->agentDebugLog('C', 'BotStartedUpdateHandler.php:handle', 'greeting branch', [
+                'hypothesisId' => 'C',
+                'userId' => $userId,
+                'wasSent' => $wasSent,
+                'willSend' => ! $wasSent,
+            ]);
+            // #endregion
             if (! $wasSent) {
                 $this->greetingTracker->markSent($userId);
                 try {
                     $this->greetingSender->sendToUser($userId);
                     $sent = true;
+                    // #region agent log
+                    $this->agentDebugLog('D', 'BotStartedUpdateHandler.php:handle', 'greeting send returned', [
+                        'hypothesisId' => 'D',
+                        'userId' => $userId,
+                        'sent' => true,
+                    ]);
+                    // #endregion
                 } catch (Throwable $exception) {
                     $this->greetingTracker->forget($userId);
+                    // #region agent log
+                    $this->agentDebugLog('D', 'BotStartedUpdateHandler.php:handle', 'greeting send threw', [
+                        'hypothesisId' => 'D',
+                        'userId' => $userId,
+                        'errorClass' => $exception::class,
+                    ]);
+                    // #endregion
                     $this->logger->info('bot_started greeting', [
                         'user_id' => $userId,
                         'was_sent' => $wasSent,
@@ -125,5 +154,39 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
         $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data): void
+    {
+        // #region agent log
+        $payload = json_encode([
+            'sessionId' => 'ff9c5e',
+            'runId' => 'pre-fix',
+            'hypothesisId' => $hypothesisId,
+            'location' => $location,
+            'message' => $message,
+            'data' => $data,
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ], JSON_UNESCAPED_UNICODE);
+        if ($payload === false) {
+            return;
+        }
+        $line = $payload."\n";
+        foreach ([
+            '/home/ddd/exampleProjectSail/.cursor/debug-ff9c5e.log',
+            '/var/www/html/storage/logs/debug-ff9c5e.log',
+            '/home/ddd/exampleProjectSail/service-c/storage/logs/debug-ff9c5e.log',
+        ] as $path) {
+            $fh = @fopen($path, 'ab');
+            if ($fh === false) {
+                continue;
+            }
+            fwrite($fh, $line);
+            fclose($fh);
+        }
+        // #endregion
     }
 }
