@@ -159,7 +159,7 @@ final class HttpTelegramMessengerClient implements TelegramMessengerClientInterf
         try {
             $payload = [
                 'sessionId' => '87a53d',
-                'runId' => 'pre-fix',
+                'runId' => 'post-fix',
                 'hypothesisId' => $hypothesisId,
                 'location' => $location,
                 'message' => $message,

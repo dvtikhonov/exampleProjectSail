@@ -63,7 +63,7 @@ final class TelegramBotStartService implements TelegramBotStartServiceInterface
         try {
             $payload = [
                 'sessionId' => '87a53d',
-                'runId' => 'pre-fix',
+                'runId' => 'post-fix',
                 'hypothesisId' => 'H4',
                 'location' => 'TelegramBotStartService.php',
                 'message' => 'greeting send about to start',

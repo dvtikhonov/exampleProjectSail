@@ -38,7 +38,7 @@ final class TelegramMessengerNotificationSender implements TelegramMessengerNoti
             $this->logger->warning($failureLogMessage, [
                 ...$logContext,
                 'chat_id' => $chatId,
-                'error' => $exception->userMessage(),
+                'error' => $this->redactBotToken($exception->userMessage()),
             ]);
 
             return false;
@@ -46,10 +46,20 @@ final class TelegramMessengerNotificationSender implements TelegramMessengerNoti
             $this->logger->warning($failureLogMessage, [
                 ...$logContext,
                 'chat_id' => $chatId,
-                'error' => $exception->getMessage(),
+                'error' => $this->redactBotToken($exception->getMessage()),
             ]);
 
             return false;
         }
+    }
+
+    /**
+     * Убирает токен бота из URL в тексте ошибки cURL.
+     */
+    private function redactBotToken(string $message): string
+    {
+        $redacted = preg_replace('#/bot[^/\s]+#', '/bot[redacted]', $message);
+
+        return is_string($redacted) ? $redacted : $message;
     }
 }

@@ -45,8 +45,13 @@ class LaravelHttpClient implements HttpClientInterface
         $startedAtMs = (int) round(microtime(true) * 1000);
 
         if ($telegramApi) {
+            // AAAA api.telegram.org с контейнера не соединяется: curl ждёт дефолтные 10 с и не доходит до IPv4.
             // #region agent log
             $pending = $pending->withOptions([
+                'connect_timeout' => 5,
+                'curl' => [
+                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                ],
                 'on_stats' => function (TransferStats $stats) use ($timeoutSeconds): void {
                     $handler = $stats->getHandlerStats();
                     $this->agentDebugLog('H3', 'LaravelHttpClient.php', 'telegram curl stats', [
@@ -58,13 +63,15 @@ class LaravelHttpClient implements HttpClientInterface
                         'total_time' => $handler['total_time'] ?? null,
                         'http_code' => $handler['http_code'] ?? null,
                         'timeout_seconds' => $timeoutSeconds,
-                        'connect_timeout_option_set' => false,
+                        'connect_timeout_seconds' => 5,
+                        'ip_resolve' => 'v4',
                     ]);
                 },
             ]);
             $this->agentDebugLog('H2', 'LaravelHttpClient.php', 'telegram request options', [
                 'timeout_seconds' => $timeoutSeconds,
-                'connect_timeout_option_set' => false,
+                'connect_timeout_seconds' => 5,
+                'ip_resolve' => 'v4',
                 'url_suffix' => str_contains($url, 'sendMessage') ? 'sendMessage' : 'other',
             ]);
             // #endregion
@@ -104,7 +111,7 @@ class LaravelHttpClient implements HttpClientInterface
         try {
             $payload = [
                 'sessionId' => '87a53d',
-                'runId' => 'pre-fix',
+                'runId' => 'post-fix',
                 'hypothesisId' => $hypothesisId,
                 'location' => $location,
                 'message' => $message,
