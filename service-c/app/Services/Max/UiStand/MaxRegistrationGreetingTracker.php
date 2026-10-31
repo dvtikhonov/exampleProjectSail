@@ -43,6 +43,18 @@ final class MaxRegistrationGreetingTracker implements MaxRegistrationGreetingTra
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function forget(int $userId): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+
+        $this->cache->forget($this->key($userId));
+    }
+
+    /**
      * Ключ кэша для user_id MAX.
      */
     private function key(int $userId): string

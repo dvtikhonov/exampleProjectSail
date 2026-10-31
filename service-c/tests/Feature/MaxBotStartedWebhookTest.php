@@ -8,6 +8,7 @@ use App\Enums\Food\Delivery\CustomerCategoryName;
 use App\Enums\MessengerChannel;
 use App\Models\Food\CustomerCategory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
@@ -41,9 +42,12 @@ final class MaxBotStartedWebhookTest extends TestCase
     /** bot_started с профилем создаёт одну строку max_users и отвечает 200. */
     public function test_bot_started_upserts_max_user_from_profile(): void
     {
-        Http::fake([
-            'platform-api.max.ru/*' => Http::response(['message' => ['id' => 1]], 200),
-        ]);
+        $markedDuringSend = false;
+        Http::fake(function () use (&$markedDuringSend) {
+            $markedDuringSend = Cache::get('max.registration_greeting.sent.910127594') === true;
+
+            return Http::response(['message' => ['id' => 1]], 200);
+        });
 
         $payload = [
             'update_type' => 'bot_started',
@@ -66,6 +70,7 @@ final class MaxBotStartedWebhookTest extends TestCase
         ])->assertOk();
 
         Http::assertSentCount(1);
+        $this->assertTrue($markedDuringSend);
 
         $this->assertDatabaseCount('max_users', 1);
         $this->assertDatabaseHas('max_users', [

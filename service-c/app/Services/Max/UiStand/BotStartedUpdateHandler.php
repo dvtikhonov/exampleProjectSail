@@ -11,6 +11,7 @@ use App\Contracts\Max\MaxUiStandRecipientRegistryInterface;
 use App\Contracts\Max\MaxUserIdentityRepositoryInterface;
 use App\Contracts\Max\MaxWebhookUpdateHandlerInterface;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
 /**
  * Обработка webhook-события bot_started: upsert в max_users и приветствие.
@@ -75,10 +76,54 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
             );
 
             $this->recipientRegistry->rememberUserId($userId);
+            $sent = false;
             if (! $wasSent) {
-                $this->greetingSender->sendToUser($userId);
                 $this->greetingTracker->markSent($userId);
+                try {
+                    $this->greetingSender->sendToUser($userId);
+                    $sent = true;
+                } catch (Throwable $exception) {
+                    $this->greetingTracker->forget($userId);
+                    $this->logger->info('bot_started greeting', [
+                        'user_id' => $userId,
+                        'was_sent' => $wasSent,
+                        'sent' => false,
+                    ]);
+
+                    throw $exception;
+                }
             }
+
+            $this->logger->info('bot_started greeting', [
+                'user_id' => $userId,
+                'was_sent' => $wasSent,
+                'sent' => $sent,
+            ]);
+
+            // #region agent log
+            $agentOutcome = json_encode([
+                'sessionId' => 'a0ff56',
+                'runId' => 'post-fix-claim',
+                'hypothesisId' => 'B',
+                'location' => 'BotStartedUpdateHandler.php:greeting',
+                'message' => 'greeting claim outcome',
+                'data' => [
+                    'userId' => $userId,
+                    'wasSent' => $wasSent,
+                    'sent' => $sent,
+                    'markedBeforeHttp' => ! $wasSent,
+                ],
+                'timestamp' => (int) round(microtime(true) * 1000),
+            ], JSON_UNESCAPED_UNICODE);
+            if (is_string($agentOutcome)) {
+                foreach ([
+                    '/home/ddd/exampleProjectSail/.cursor/debug-a0ff56.log',
+                    '/var/www/html/storage/logs/debug-a0ff56.log',
+                ] as $agentLogPath) {
+                    @file_put_contents($agentLogPath, $agentOutcome."\n", FILE_APPEND);
+                }
+            }
+            // #endregion
         }
     }
 
