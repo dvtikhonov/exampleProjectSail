@@ -40,23 +40,6 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
         $wasSent = $userId > 0 && $this->greetingTracker->wasSent($userId);
         $chatId = isset($payload['chat_id']) ? (int) $payload['chat_id'] : 0;
 
-        // #region agent log
-        $this->logger->info('bot_started greeting decision', [
-            'user_id' => $userId,
-            'chat_id' => $chatId,
-            'was_sent' => $wasSent,
-            'will_send' => $userId > 0 && ! $wasSent,
-            'same_chat_and_user' => $chatId > 0 && $chatId === $userId,
-        ]);
-        $this->agentDebugLog('B', 'BotStartedUpdateHandler.php:handle', 'bot_started greeting decision', [
-            'userId' => $userId,
-            'chatId' => $chatId,
-            'wasSent' => $wasSent,
-            'willSend' => $userId > 0 && ! $wasSent,
-            'sameChatAndUser' => $chatId > 0 && $chatId === $userId,
-        ]);
-        // #endregion
-
         if ($userId > 0) {
             $defaultCategoryId = $this->customerCategoryRepository->findOrCreateDefaultCategoryId();
             $this->maxUserRepository->upsertFromMaxBotProfile(
@@ -88,36 +71,9 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
                         throw $exception;
                     }
                 }
-
-                // #region agent log
-                $this->logger->info('bot_started greeting chat send', [
-                    'user_id' => $userId,
-                    'chat_id' => $chatId,
-                    'claimed' => $claimed,
-                    'sent' => $sent,
-                ]);
-                $this->agentDebugLog('D', 'BotStartedUpdateHandler.php:handle', 'greeting chat send', [
-                    'userId' => $userId,
-                    'chatId' => $chatId,
-                    'claimed' => $claimed,
-                    'sent' => $sent,
-                ], 'post-fix');
-                // #endregion
             } elseif (! $wasSent) {
                 $this->greetingTracker->markSent($userId);
                 try {
-                    // #region agent log
-                    $this->logger->info('bot_started greeting send start', [
-                        'user_id' => $userId,
-                        'chat_id' => $chatId,
-                        'recipient' => 'user_id',
-                    ]);
-                    $this->agentDebugLog('C', 'BotStartedUpdateHandler.php:handle', 'greeting send start', [
-                        'userId' => $userId,
-                        'chatId' => $chatId,
-                        'recipient' => 'user_id',
-                    ]);
-                    // #endregion
                     $this->greetingSender->sendToUser($userId);
                     $sent = true;
                 } catch (Throwable $exception) {
@@ -188,39 +144,5 @@ final class BotStartedUpdateHandler implements MaxWebhookUpdateHandlerInterface
         $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function agentDebugLog(string $hypothesisId, string $location, string $message, array $data, string $runId = 'pre-fix'): void
-    {
-        // #region agent log
-        $payload = json_encode([
-            'sessionId' => 'eca1cc',
-            'runId' => $runId,
-            'hypothesisId' => $hypothesisId,
-            'location' => $location,
-            'message' => $message,
-            'data' => $data,
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_UNICODE);
-        if ($payload === false) {
-            return;
-        }
-        $line = $payload."\n";
-        foreach ([
-            '/home/ddd/exampleProjectSail/.cursor/debug-eca1cc.log',
-            '/var/www/html/storage/logs/debug-eca1cc.log',
-            '/home/ddd/exampleProjectSail/service-c/storage/logs/debug-eca1cc.log',
-        ] as $path) {
-            $fh = @fopen($path, 'ab');
-            if ($fh === false) {
-                continue;
-            }
-            fwrite($fh, $line);
-            fclose($fh);
-        }
-        // #endregion
     }
 }

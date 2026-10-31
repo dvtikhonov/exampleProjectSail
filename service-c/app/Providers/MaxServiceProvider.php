@@ -174,7 +174,6 @@ class MaxServiceProvider extends ServiceProvider
             MaxMenuAvailabilityNotifier::class,
             MaxManagerDailyMenuNotifier::class,
             BotStartedUpdateHandler::class,
-            MaxRegistrationGreetingTracker::class,
             MaxMiniAppAuthService::class,
             MaxMessengerNotificationSender::class,
             MaxWebhookSubscriptionClient::class,
