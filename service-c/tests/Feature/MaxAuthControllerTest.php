@@ -89,7 +89,7 @@ class MaxAuthControllerTest extends TestCase
             $buttons = $request['attachments'][0]['payload']['buttons'] ?? [];
 
             return str_contains($request->url(), 'user_id=67890')
-                && ($request['text'] ?? null) === 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".'
+                && ($request['text'] ?? null) === 'Привет! Нужно нажать на кнопку "Заказ еды" или "Открыть".'
                 && ($buttons[0][0]['type'] ?? null) === 'open_app'
                 && ($buttons[0][0]['text'] ?? null) === 'Заказ еды';
         });
@@ -181,7 +181,7 @@ class MaxAuthControllerTest extends TestCase
 
         Http::assertSent(function ($request): bool {
             return str_contains($request->url(), 'user_id=67890')
-                && ($request['text'] ?? null) === 'Привет!. Нужно нажать на кнопку "Заказ еды" или "Открыть".';
+                && ($request['text'] ?? null) === 'Привет! Нужно нажать на кнопку "Заказ еды" или "Открыть".';
         });
     }
 
