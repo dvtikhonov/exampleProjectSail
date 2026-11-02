@@ -172,7 +172,7 @@ const showDeliveryDateRow = computed(() => {
             <span>Оформить предзаказ на {{ cart.total }} ₽</span>
             <span
                 v-if="deliveryWindowCaption"
-                class="text-xs font-bold text-red-500"
+                class="rounded px-1.5 py-0.5 text-xs font-bold bg-red-600 text-white"
             >
                 {{ deliveryWindowCaption }}
             </span>

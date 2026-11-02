@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Contracts\Shared\CacheStoreInterface;
 use App\Enums\Food\Delivery\CustomerCategoryName;
 use App\Enums\MessengerChannel;
 use App\Models\Food\CustomerCategory;
+use App\Services\Max\UiStand\BotStartedUpdateHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\Support\ResetsFoodDomainTables;
 use Tests\TestCase;
 
@@ -117,5 +121,85 @@ final class MaxBotStartedWebhookTest extends TestCase
             return str_contains($request->url(), 'chat_id=1234567890');
         });
         $this->assertTrue(Cache::get('max.registration_greeting.sent.v2.910127594') === true);
+    }
+
+    /** bot_started без валидного user_id → 200, без upsert/greeting; warning + счётчик. */
+    public function test_bot_started_with_invalid_user_id_is_noop_with_warning_and_counter(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        Http::fake();
+        Cache::forget(BotStartedUpdateHandler::INVALID_PAYLOAD_COUNTER_KEY);
+
+        $this->postJson('/api/webhooks/max', [
+            'update_type' => 'bot_started',
+            'timestamp' => 1_579_226_679_188,
+            'chat_id' => 1_234_567_890,
+            'user' => [
+                'user_id' => 0,
+                'first_name' => 'Broken',
+            ],
+        ], [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ])->assertOk();
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('max_users', 0);
+
+        $warnings = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'bot_started invalid payload',
+        ));
+        $this->assertCount(1, $warnings);
+        $this->assertSame('warning', $warnings[0]->level);
+        $this->assertSame(0, $warnings[0]->context['user_id'] ?? null);
+        $this->assertSame(1_234_567_890, $warnings[0]->context['chat_id'] ?? null);
+        $this->assertTrue($warnings[0]->context['has_user'] ?? false);
+
+        $this->assertSame(
+            1,
+            $this->app->make(CacheStoreInterface::class)->get(
+                BotStartedUpdateHandler::INVALID_PAYLOAD_COUNTER_KEY,
+            ),
+        );
+    }
+
+    /** bot_started без объекта user → 200, warning + счётчик, без side-effects. */
+    public function test_bot_started_without_user_object_is_noop_with_warning_and_counter(): void
+    {
+        $captured = [];
+        Log::channel('max_log')->listen(function (MessageLogged $event) use (&$captured): void {
+            $captured[] = $event;
+        });
+
+        Http::fake();
+        Cache::forget(BotStartedUpdateHandler::INVALID_PAYLOAD_COUNTER_KEY);
+
+        $this->postJson('/api/webhooks/max', [
+            'update_type' => 'bot_started',
+            'timestamp' => 1_579_226_679_188,
+        ], [
+            'X-Max-Bot-Api-Secret' => self::SECRET,
+        ])->assertOk();
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('max_users', 0);
+
+        $warnings = array_values(array_filter(
+            $captured,
+            static fn (MessageLogged $event): bool => $event->message === 'bot_started invalid payload',
+        ));
+        $this->assertCount(1, $warnings);
+        $this->assertFalse($warnings[0]->context['has_user'] ?? true);
+
+        $this->assertSame(
+            1,
+            $this->app->make(CacheStoreInterface::class)->get(
+                BotStartedUpdateHandler::INVALID_PAYLOAD_COUNTER_KEY,
+            ),
+        );
     }
 }

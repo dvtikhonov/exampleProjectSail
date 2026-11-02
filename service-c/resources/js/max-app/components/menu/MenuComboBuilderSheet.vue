@@ -99,7 +99,7 @@ const secondDishHint = computed(() => {
             </div>
             <div class="rounded-xl bg-gray-50 p-3">
                 <p class="break-words text-xs font-medium uppercase tracking-wide text-max-muted">
-                    {{ comboSecondDish?.category_name || '—' }}
+                    {{ comboSecondDish?.category_name || secondCategoryName || '—' }}
                 </p>
                 <p class="mt-1 font-medium text-gray-900">
                     {{ comboSecondDish?.name ?? 'Не выбрано' }}
