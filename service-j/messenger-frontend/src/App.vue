@@ -1,5 +1,6 @@
 <script setup>
-import backgroundUrl from './assets/cafe-obedov.jpg';
+// import backgroundUrl from './assets/cafe-obedov.jpg';
+import backgroundUrl from './assets/cafe-obed.png';
 </script>
 
 <template>
@@ -7,9 +8,6 @@ import backgroundUrl from './assets/cafe-obedov.jpg';
     class="min-h-screen bg-slate-950"
     :style="{
       backgroundImage: `url(${backgroundUrl})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
       backgroundAttachment: 'fixed',
     }"
   >
