@@ -4,8 +4,14 @@ import backgroundUrl from './assets/cafe-obedov.jpg';
 
 <template>
   <main
-    class="min-h-screen bg-slate-950 bg-[length:66.666%_auto] bg-repeat"
-    :style="{ backgroundImage: `url(${backgroundUrl})` }"
+    class="min-h-screen bg-slate-950"
+    :style="{
+      backgroundImage: `url(${backgroundUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'fixed',
+    }"
   >
     <section class="flex min-h-screen w-full items-center justify-center bg-black/50 px-4 py-12 text-slate-100">
       <div class="w-full max-w-md">
