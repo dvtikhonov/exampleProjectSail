@@ -5,32 +5,36 @@ import backgroundUrl from './assets/cafe-obed.png';
 
 <template>
   <main
-    class="min-h-screen bg-slate-950"
-    :style="{
-      backgroundImage: `url(${backgroundUrl})`,
-      backgroundAttachment: 'fixed',
-    }"
+    class="flex min-h-screen w-full items-center justify-center bg-slate-950 bg-cover bg-center bg-no-repeat py-8"
+    :style="{ backgroundImage: `url(${backgroundUrl})` }"
   >
-    <section class="flex min-h-screen w-full items-center justify-center bg-black/50 px-4 py-12 text-slate-100">
-      <div class="w-full max-w-md">
-        <div class="flex flex-col gap-4">
+    <section
+      class="w-[90%] max-w-[460px] rounded-2xl bg-[#0F172A]/80 px-[15px] pb-5 pt-5 text-center text-white shadow-xl shadow-black/30"
+    >
+      <h1 class="text-[22px] font-bold leading-7">Кафе «Обедов»</h1>
+      <p class="mt-1 text-[15px] font-normal leading-6">
+        Доставляем готовую еду домой и в офис.
+      </p>
+      <p class="text-[15px] font-normal leading-6">Делайте предзаказ в удобном мессенджере:</p>
+
+      <div class="mt-5 flex flex-col gap-[10px]">
         <a
           href="/messenger/go/telegram"
-          class="flex items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+          class="flex h-[50px] w-full items-center justify-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/80 px-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
         >
-          <svg class="h-12 w-12 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+          <svg class="h-7 w-7 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
             <path
               fill="#2AABEE"
               d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"
             />
           </svg>
-          <span class="text-lg font-medium text-slate-100">Telegram</span>
+          <span class="text-base font-medium text-white">Telegram</span>
         </a>
         <a
           href="/messenger/go/max"
-          class="flex items-center gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+          class="flex h-[50px] w-full items-center justify-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/80 px-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
         >
-          <svg class="h-12 w-12 shrink-0" viewBox="0 0 1000 1000" aria-hidden="true">
+          <svg class="h-7 w-7 shrink-0" viewBox="0 0 1000 1000" aria-hidden="true">
             <defs>
               <linearGradient id="max-fade">
                 <stop offset="0" stop-color="#00f" />
@@ -71,9 +75,8 @@ import backgroundUrl from './assets/cafe-obed.png';
               clip-rule="evenodd"
             />
           </svg>
-          <span class="text-lg font-medium text-slate-100">MAX</span>
+          <span class="text-base font-medium text-white">MAX</span>
         </a>
-        </div>
       </div>
     </section>
   </main>
