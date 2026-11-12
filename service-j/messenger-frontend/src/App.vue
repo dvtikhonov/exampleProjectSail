@@ -13,7 +13,10 @@ import backgroundUrl from './assets/cafe-obed.png';
     >
       <h1 class="text-[22px] font-bold leading-7">Кафе «Обедов»</h1>
       <p class="mt-1 text-[15px] font-normal leading-6">
-        Доставляем готовую еду домой и в офис.
+        Доставляем готовую еду
+      </p>
+      <p class="mt-1 text-[15px] font-normal leading-6">
+        домой и в офис.
       </p>
       <p class="text-[15px] font-normal leading-6">Делайте предзаказ в удобном мессенджере:</p>
 
