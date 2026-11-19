@@ -33,16 +33,17 @@
         trackLinks: true,
       });
     </script>
-    <noscript>
-      <div>
-        <img src="https://mc.yandex.ru/watch/114362777" style="position: absolute; left: -9999px" alt="" />
-      </div>
-    </noscript>
     <!-- /Yandex.Metrika counter -->
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link href="https://fonts.bunny.net/css?family=montserrat:400,700&display=swap" rel="stylesheet" />
   </head>
   <body class="antialiased">
+    <!-- Пиксель без JS. В head его нельзя: Vite запрещает div внутри noscript в head. -->
+    <noscript>
+      <div>
+        <img src="https://mc.yandex.ru/watch/114362777" style="position: absolute; left: -9999px" alt="" />
+      </div>
+    </noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
