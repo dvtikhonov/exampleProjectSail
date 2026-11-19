@@ -1,6 +1,7 @@
 <script setup>
 // import backgroundUrl from './assets/cafe-obedov.jpg';
 import backgroundUrl from './assets/cafe-obed.png';
+import { reachMessengerGoal } from './metrika';
 </script>
 
 <template>
@@ -24,6 +25,7 @@ import backgroundUrl from './assets/cafe-obed.png';
         <a
           href="/messenger/go/telegram"
           class="flex h-[50px] w-full items-center justify-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/80 px-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+          @click="reachMessengerGoal('telegram')"
         >
           <svg class="h-7 w-7 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -36,6 +38,7 @@ import backgroundUrl from './assets/cafe-obed.png';
         <a
           href="/messenger/go/max"
           class="flex h-[50px] w-full items-center justify-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/80 px-4 shadow-xl shadow-black/20 transition hover:border-cyan-400 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+          @click="reachMessengerGoal('max')"
         >
           <svg class="h-7 w-7 shrink-0" viewBox="0 0 1000 1000" aria-hidden="true">
             <defs>
