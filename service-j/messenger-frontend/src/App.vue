@@ -5,15 +5,18 @@ import { reachMessengerGoal } from './metrika';
 const offerFacts = [
     {
         title: 'Куда',
-        text: 'Домой и в офис по Новокузнецку.',
+        lines: ['Домой и в офис по Новокузнецку.'],
     },
     {
         title: 'Когда',
-        text: 'С понедельника по четверг заказ до 10:00 привозим на следующий день утром. В пятницу принимаем заказ на понедельник.',
+        lines: [
+            'Закажите сегодня — завтра утром привезём с 9 до 12.',
+            'Заказ в пятницу или выходные — доставка в понедельник.',
+        ],
     },
     {
         title: 'Доставка',
-        text: '100 ₽. От 1 000 ₽ — бесплатно.',
+        lines: ['100 ₽. От 1 000 ₽ — бесплатно.'],
     },
 ];
 </script>
@@ -39,7 +42,9 @@ const offerFacts = [
               class="rounded-2xl bg-stone-50 px-4 py-3"
             >
               <dt class="text-xs font-bold uppercase tracking-wide text-amber-800">{{ fact.title }}</dt>
-              <dd class="mt-1 text-[15px] leading-6 text-stone-800">{{ fact.text }}</dd>
+              <dd class="mt-1 space-y-2 text-[15px] leading-6 text-stone-800">
+                <p v-for="line in fact.lines" :key="line">{{ line }}</p>
+              </dd>
             </div>
           </dl>
 
