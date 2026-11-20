@@ -74,6 +74,7 @@ jobs:
                echo 'Deployment failed. Rolling back to previous commit.'
                git reset --hard \"\$previous_ref\"
                docker compose up -d --remove-orphans
+               docker compose restart gateway || true
              }
              trap rollback ERR
              git fetch --all --prune
@@ -90,6 +91,7 @@ jobs:
              docker compose run --rm --no-deps service-e php bin/console cache:clear --env=prod --no-warmup
              docker compose up -d --remove-orphans
              docker compose up -d service-c service-c-queue service-d service-d-queue yandex-parser gateway reverb
+             docker compose restart gateway
              docker compose exec -T main-app npm run build
              docker compose exec -T service-c-queue php artisan queue:restart || true
              docker compose exec -T service-d-queue php artisan queue:restart || true
