@@ -77,6 +77,7 @@ const cartFlow = useCart({ currentView, cartTransport });
 const {
     cart,
     deliveryAddress,
+    deliveryDate,
     cartLoading,
     cartError,
     updatingItemId,
@@ -363,6 +364,7 @@ onUnmounted(() => {
         :menu-loading="menuLoading"
         :menu-error="menuError"
         :delivery-address="deliveryAddress"
+        :delivery-date="preferredCartDeliveryDate || deliveryDate"
         :adding-dish-id="addingDishId"
         :adding-combo-ref="addingComboRef"
         :cart="cart"

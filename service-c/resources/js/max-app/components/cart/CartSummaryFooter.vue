@@ -5,7 +5,8 @@
  */
 import { computed } from 'vue';
 import CartDeliveryHint from './CartDeliveryHint.vue';
-import { formatDeliveryWindowCaption, formatIsoDateRu } from '../../utils/formatIsoDateRu';
+import DeliveryWindowNote from '../DeliveryWindowNote.vue';
+import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
 const props = defineProps({
     cart: {
@@ -51,8 +52,6 @@ const resolvedDeliveryDate = computed(() => (
 ));
 
 const deliveryDateLabel = computed(() => formatIsoDateRu(resolvedDeliveryDate.value));
-
-const deliveryWindowCaption = computed(() => formatDeliveryWindowCaption(resolvedDeliveryDate.value));
 
 const showDeliveryDateRow = computed(() => {
     if (props.editableDeliveryDate) {
@@ -163,19 +162,17 @@ const showDeliveryDateRow = computed(() => {
         >
             Сохранение адреса…
         </p>
+        <DeliveryWindowNote
+            :delivery-date="resolvedDeliveryDate || ''"
+            class="mb-2"
+        />
         <button
             type="button"
-            class="flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+            class="flex w-full items-center justify-center rounded-2xl bg-max-primary px-4 py-3.5 font-medium text-white transition hover:bg-max-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
             :disabled="!canSubmit"
             @click="$emit('submit')"
         >
-            <span>Оформить предзаказ на {{ cart.total }} ₽</span>
-            <span
-                v-if="deliveryWindowCaption"
-                class="rounded px-1.5 py-0.5 text-xs font-bold bg-red-600 text-white"
-            >
-                {{ deliveryWindowCaption }}
-            </span>
+            Оформить предзаказ на {{ cart.total }} ₽
         </button>
     </div>
 </template>

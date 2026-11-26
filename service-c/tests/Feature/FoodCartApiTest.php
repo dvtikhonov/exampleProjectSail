@@ -40,7 +40,8 @@ class FoodCartApiTest extends TestCase
         $this->getJson('/api/food/cart', $auth['headers'])
             ->assertOk()
             ->assertJsonPath('cart', null)
-            ->assertJsonPath('delivery_address', null);
+            ->assertJsonPath('delivery_address', null)
+            ->assertJsonPath('delivery_date', null);
     }
 
     /** Показ корзины подставляет сохранённый адрес профиля без черновика. */

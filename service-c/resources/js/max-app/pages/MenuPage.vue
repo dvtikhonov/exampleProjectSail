@@ -25,6 +25,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    deliveryDate: {
+        type: String,
+        default: '',
+    },
     loading: {
         type: Boolean,
         default: false,
@@ -284,6 +288,7 @@ watch(comboBuilderOpen, (open) => {
         >
             <MenuHeader
                 :delivery-address="localAddress"
+                :delivery-date="deliveryDate"
                 :restaurant-name="menu?.restaurant_name ?? ''"
                 :orders-unread-count="ordersUnreadCount"
                 :saving-address="savingAddress"

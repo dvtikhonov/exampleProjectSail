@@ -54,6 +54,10 @@ defineProps({
         type: String,
         default: '',
     },
+    deliveryDate: {
+        type: String,
+        default: '',
+    },
     addingDishId: {
         type: [Number, String],
         default: null,
@@ -205,6 +209,7 @@ defineProps({
         class="min-h-0 flex-1"
         :menu="menu"
         :delivery-address="deliveryAddress"
+        :delivery-date="deliveryDate"
         :loading="menuLoading"
         :error="menuError"
         :adding-dish-id="addingDishId"

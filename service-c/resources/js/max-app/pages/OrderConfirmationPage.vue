@@ -5,6 +5,7 @@
  *
  * @typedef {import('../api/types.js').OrderDto} OrderDto
  */
+import DeliveryWindowNote from '../components/DeliveryWindowNote.vue';
 import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 import { formatIsoDateRu } from '../utils/formatIsoDateRu';
@@ -74,6 +75,10 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_d
                 </div>
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                    <DeliveryWindowNote
+                        :delivery-date="order.delivery_date || ''"
+                        class="mt-2"
+                    />
                     <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
                 </div>
             </div>
