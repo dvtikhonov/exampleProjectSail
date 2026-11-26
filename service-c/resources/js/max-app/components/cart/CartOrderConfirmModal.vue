@@ -5,7 +5,6 @@
 import { computed } from 'vue';
 import DeliveryWindowNote from '../DeliveryWindowNote.vue';
 import { getCartGroupTitle } from '../../utils/cartGroups';
-import { formatIsoDateRu } from '../../utils/formatIsoDateRu';
 
 const props = defineProps({
     open: {
@@ -51,7 +50,6 @@ const deliveryIso = computed(() => {
     return typeof props.cart?.delivery_date === 'string' ? props.cart.delivery_date : '';
 });
 
-const deliveryDateLabel = computed(() => formatIsoDateRu(deliveryIso.value) || '—');
 </script>
 
 <template>
@@ -90,10 +88,6 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(deliveryIso.value) || '
                     <p class="mt-1 text-gray-900">{{ deliveryAddress.trim() }}</p>
                 </div>
                 <DeliveryWindowNote :delivery-date="deliveryIso" />
-                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3 text-sm">
-                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
-                    <p class="mt-1 text-gray-900">{{ deliveryDateLabel }}</p>
-                </div>
             </div>
 
             <div class="mt-4 space-y-1.5 text-sm">

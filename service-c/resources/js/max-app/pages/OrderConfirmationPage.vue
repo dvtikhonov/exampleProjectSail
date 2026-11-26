@@ -8,10 +8,8 @@
 import DeliveryWindowNote from '../components/DeliveryWindowNote.vue';
 import EmptyStateIcon from '../components/EmptyStateIcon.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
-import { formatIsoDateRu } from '../utils/formatIsoDateRu';
-import { computed } from 'vue';
 
-const props = defineProps({
+defineProps({
     /** Оформленный заказ (OrderDto после submit) */
     order: {
         type: Object,
@@ -34,7 +32,6 @@ const props = defineProps({
 
 const emit = defineEmits(['back-to-restaurants', 'go-to-order', 'back-to-users']);
 
-const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_date) || '—');
 </script>
 
 <template>
@@ -73,14 +70,7 @@ const deliveryDateLabel = computed(() => formatIsoDateRu(props.order?.delivery_d
                     <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Адрес доставки</p>
                     <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address }}</p>
                 </div>
-                <div>
-                    <p class="text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
-                    <DeliveryWindowNote
-                        :delivery-date="order.delivery_date || ''"
-                        class="mt-2"
-                    />
-                    <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
-                </div>
+                <DeliveryWindowNote :delivery-date="order.delivery_date || ''" />
             </div>
 
             <ul class="mt-3 space-y-2">
