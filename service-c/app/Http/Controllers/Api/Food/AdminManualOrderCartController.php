@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\ManualOrder\ManualOrderCartServiceInterface;
 use App\Contracts\Food\ManualOrder\ManualOrderUserQueryServiceInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\DTO\Food\Shared\MaxUserIdentity;
@@ -28,6 +29,7 @@ class AdminManualOrderCartController extends Controller
         private readonly ManualOrderCartServiceInterface $manualOrderCartService,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly AuthenticatedMaxUserResolverInterface $authenticatedMaxUserResolver,
+        private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}
 
     /**
@@ -43,6 +45,7 @@ class AdminManualOrderCartController extends Controller
             'cart' => $cart?->toArray(),
             'delivery_address' => $cart?->deliveryAddress
                 ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($customer->maxUserId),
+            'delivery_date' => $this->resolveDeliveryDate($cart?->deliveryDate),
         ]);
     }
 
@@ -63,7 +66,20 @@ class AdminManualOrderCartController extends Controller
             'delivery_address' => $cart?->deliveryAddress
                 ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($customer->maxUserId)
                 ?? $request->deliveryAddress(),
+            'delivery_date' => $this->resolveDeliveryDate($cart?->deliveryDate),
         ]);
+    }
+
+    /**
+     * Дата доставки для шапки меню: из корзины или расчёт доступности меню без черновика.
+     */
+    private function resolveDeliveryDate(?string $cartDeliveryDate): ?string
+    {
+        if (is_string($cartDeliveryDate) && $cartDeliveryDate !== '') {
+            return $cartDeliveryDate;
+        }
+
+        return $this->menuAvailabilityDateResolver->resolve()->date;
     }
 
     /**

@@ -111,6 +111,7 @@ export async function fetchManualCart(maxUserId) {
     return {
         cart: data.cart ?? null,
         deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? null,
+        deliveryDate: data.delivery_date ?? data.cart?.delivery_date ?? null,
     };
 }
 
@@ -218,6 +219,7 @@ export async function updateManualCartDeliveryAddress(maxUserId, address) {
     return {
         cart: data.cart ?? null,
         deliveryAddress: data.delivery_address ?? data.cart?.delivery_address ?? address,
+        deliveryDate: data.delivery_date ?? data.cart?.delivery_date ?? null,
     };
 }
 

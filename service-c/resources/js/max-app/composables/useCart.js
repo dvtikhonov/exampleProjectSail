@@ -18,6 +18,8 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
     const cart = ref(null);
     /** Сохранённый адрес профиля — показывается в меню даже без корзины */
     const savedDeliveryAddress = ref('');
+    /** Дата доставки меню: из корзины или из ответа без черновика */
+    const deliveryDate = ref('');
     const cartLoading = ref(false);
     const cartError = ref('');
     const updatingItemId = ref(null);
@@ -51,6 +53,7 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
         cart,
         (value) => {
             rememberDeliveryAddress(value?.delivery_address);
+            rememberDeliveryDate(value?.delivery_date);
         },
         { flush: 'sync' },
     );
@@ -63,9 +66,18 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
         }
     }
 
+    function rememberDeliveryDate(date) {
+        const trimmed = typeof date === 'string' ? date.trim() : '';
+
+        if (trimmed !== '') {
+            deliveryDate.value = trimmed;
+        }
+    }
+
     function applyCartEnvelope(envelope) {
         cart.value = envelope.cart ?? null;
         rememberDeliveryAddress(envelope.deliveryAddress ?? envelope.cart?.delivery_address);
+        rememberDeliveryDate(envelope.deliveryDate ?? envelope.cart?.delivery_date);
     }
 
     function clearAddressDebounceTimer() {
@@ -210,6 +222,7 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
         clearAddressDebounceTimer();
         cart.value = null;
         savedDeliveryAddress.value = '';
+        deliveryDate.value = '';
         cartError.value = '';
         submittedOrder.value = null;
     }
@@ -222,6 +235,7 @@ export function useCart({ currentView, cartTransport = createClientCartTransport
         cart,
         savedDeliveryAddress,
         deliveryAddress,
+        deliveryDate,
         cartLoading,
         cartError,
         updatingItemId,

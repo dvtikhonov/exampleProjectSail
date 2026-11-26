@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Food;
 
 use App\Contracts\Food\Cart\CartDeliveryAddressServiceInterface;
 use App\Contracts\Food\Cart\CartServiceInterface;
+use App\Contracts\Food\Menu\MenuAvailabilityDateResolverInterface;
 use App\Contracts\Max\AuthenticatedMaxUserResolverInterface;
 use App\Contracts\Max\MaxUserDeliveryAddressInterface;
 use App\Http\Controllers\Controller;
@@ -27,6 +28,7 @@ class CartController extends Controller
         private readonly CartDeliveryAddressServiceInterface $cartDeliveryAddressService,
         private readonly MaxUserDeliveryAddressInterface $maxUserDeliveryAddressService,
         private readonly AuthenticatedMaxUserResolverInterface $maxUserResolver,
+        private readonly MenuAvailabilityDateResolverInterface $menuAvailabilityDateResolver,
     ) {}
 
     /**
@@ -43,6 +45,7 @@ class CartController extends Controller
             'cart' => $cart?->toArray(),
             'delivery_address' => $cart?->deliveryAddress
                 ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($identity->maxUserId),
+            'delivery_date' => $this->resolveDeliveryDate($cart?->deliveryDate),
         ]);
     }
 
@@ -64,7 +67,20 @@ class CartController extends Controller
             'delivery_address' => $cart?->deliveryAddress
                 ?? $this->maxUserDeliveryAddressService->defaultForMaxUserId($identity->maxUserId)
                 ?? $deliveryAddress,
+            'delivery_date' => $this->resolveDeliveryDate($cart?->deliveryDate),
         ]);
+    }
+
+    /**
+     * Дата доставки для шапки меню: из корзины или расчёт доступности меню без черновика.
+     */
+    private function resolveDeliveryDate(?string $cartDeliveryDate): ?string
+    {
+        if (is_string($cartDeliveryDate) && $cartDeliveryDate !== '') {
+            return $cartDeliveryDate;
+        }
+
+        return $this->menuAvailabilityDateResolver->resolve()->date;
     }
 
     /**

@@ -6,10 +6,16 @@
  */
 import { nextTick, ref } from 'vue';
 import DeliveryAddressInput from '../DeliveryAddressInput.vue';
+import DeliveryWindowNote from '../DeliveryWindowNote.vue';
 import MyOrdersButton from '../MyOrdersButton.vue';
 
 defineProps({
     deliveryAddress: {
+        type: String,
+        default: '',
+    },
+    /** Дата доставки Y-m-d. Пустая строка — подпись не показываем. */
+    deliveryDate: {
         type: String,
         default: '',
     },
@@ -150,6 +156,10 @@ function handleAddressBlur(value) {
                     />
                 </div>
             </div>
+            <DeliveryWindowNote
+                :delivery-date="deliveryDate"
+                class="mt-2"
+            />
             <div v-if="isEditingAddress" class="mt-3">
                 <DeliveryAddressInput
                     ref="addressInputRef"

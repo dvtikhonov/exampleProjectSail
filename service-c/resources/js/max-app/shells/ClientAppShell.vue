@@ -21,6 +21,7 @@ const cartFlow = useCart({ currentView, cartTransport });
 const {
     cart,
     deliveryAddress,
+    deliveryDate,
     cartLoading,
     cartError,
     updatingItemId,
@@ -123,6 +124,7 @@ onMounted(async () => {
         :menu-loading="menuLoading"
         :menu-error="menuError"
         :delivery-address="deliveryAddress"
+        :delivery-date="deliveryDate"
         :adding-dish-id="addingDishId"
         :adding-combo-ref="addingComboRef"
         :cart="cart"

@@ -5,6 +5,7 @@
  *
  * @typedef {import('../api/types.js').OrderDto} OrderDto
  */
+import DeliveryWindowNote from '../components/DeliveryWindowNote.vue';
 import OrderChatPanel from '../components/OrderChatPanel.vue';
 import OrderSnapshotItemRow from '../components/OrderSnapshotItemRow.vue';
 import OrderStatusBadge from '../components/OrderStatusBadge.vue';
@@ -89,6 +90,10 @@ const {
                         <p class="mt-1 text-sm text-gray-900">{{ order.delivery_address || '—' }}</p>
 
                         <p class="mt-3 text-xs font-medium uppercase tracking-wide text-max-muted">Дата доставки</p>
+                        <DeliveryWindowNote
+                            :delivery-date="order.delivery_date || ''"
+                            class="mt-2"
+                        />
                         <p class="mt-1 text-sm text-gray-900">{{ deliveryDateLabel }}</p>
 
                         <ul class="mt-3 space-y-2 border-t border-gray-100 pt-3">
